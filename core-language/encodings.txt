@@ -1,0 +1,60 @@
+Type for an interface
+
+Option 1: just a recursive record type
+	rec X . {
+		returnGreater : int -> X
+		equals : X -> bool
+	}
+
+Option 2: existential type
+	rec X . exists t <: rec Y . {
+		returnGreater : Y * int -> X
+		equals : Y -> bool
+	} . t
+
+Option 3: existential type pair
+	type Cell = rec X . exists t . t * {
+		add : t -> int -> X
+		get : t -> int
+		equals : t -> X -> bool
+	}
+
+Example of Option 3
+	
+ENC(I[t,X]) =def= rec X . exists t <: I(Y,X)
+
+obj.get =def= open (unroll obj) as [t,x] in x.second.get(x.first)
+
+CREATE_OBJ =
+	type MyCell = rec Y . {
+		add : Y -> int -> Cell
+		get : Y -> int
+		equals : Y -> Cell -> bool
+		contents : int
+	}
+	letrec makeCell : int -> MyCell = fn y:int => roll[MyCell] {
+		add = fn this:MyCell => fn x:int => makeCell(this.contents + x)
+		get = fn this:MyCell => this.contents
+		equals : fn this:MyCell => fn other:Cell => this.contents == [[other.get]]
+		contents : int = y
+	}
+	roll[Cell](pack[MyCell](c,c.rec))
+
+
+Example of Option 2
+
+type Cell =
+	rec X . exists t <: rec Y . {
+		add : Y * int -> X
+		get : Y -> int
+		equals : Y -> bool
+	} . t
+
+val make : unit -> C = ...
+val obj = make()
+
+ENC(I[Y,X]) =def= rec X . exists t <: (rec Y . I(Y,X)) . t
+
+obj.get =def= open (unroll obj) as [t,x] in (unroll x).get(x)
+
+val x = obj.get(obj)

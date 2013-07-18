@@ -1,0 +1,198 @@
+\section{A Method-Based Language}
+
+This language is the lambda calculus with iso-recursive types and mutable objects.  It enforces the uniform access principle.  It also encapsulates state within objects.  The differences vs. the core language are as follows:
+
+Contribution: OO language that is closest to lambda calculus, while enforcing the uniform access principle and encapsulating state.
+
+\begin{itemize}
+
+ \item Distinguishes the ``internal'' type of a receiver that is known within a method, which contains both methods and mutable fields, from types that can be written in the external language, which only contain methods.
+ 
+ \item Encodes references as mutable fields.
+ 
+ \item Uses different operations for field dereference vs. method call
+
+\end{itemize}
+
+justify lazy eval: otherwise m acts as a field, we want computation and the uniform access principle
+
+\input{f-core2-syntax}
+
+\begin{figure}
+\centering
+\[
+\begin{array}{c}
+\infer[\textit{DT-var}]
+	{\Gamma,\sigma \vdash \keyw{var}~ f:\tau = e :: \keyw{var}~ f:\tau }
+	{\Gamma \vdash e : \tau} \\[3ex]
+	
+\infer[\textit{DT-meth}]
+	{\Gamma,\sigma \vdash \keyw{meth}~ m:\tau = e :: \keyw{meth}~ m:\tau }
+	{\Gamma,\textit{this}:\sigma \vdash e : \tau} \\[3ex]
+
+\infer[\textit{T-new}]
+	{\Gamma \vdash \keyw{new}~\sigma \{ \overline{d} \} : \{ \overline{\tau_d} \}}
+	{\Gamma,\sigma \vdash \overline{d} :: \overline{\sigma_d} & \sigma = \{ \overline{\sigma_d} \} & \overline{\tau_d} \subseteq \overline{\sigma_d}} \\[3ex]
+
+\infer[\textit{T-typeab}]
+	{\Gamma \vdash  type~ t~\{\tau\}; d} 
+	{\Gamma \vdash [\tau/t]d }\\[3ex]
+	
+\infer[\textit{T-abs}]
+	{\Gamma \vdash  \boldsymbol\lambda x{:}\tau . e :: \tau \rightarrow \tau_1} 
+	{\Gamma, x:\tau \vdash e:\tau_1 }\\[3ex]
+
+\infer[\textit{T-varx}]
+	{\Gamma \vdash x:\tau} 
+	{x:\tau \in \Gamma }\\[3ex]
+
+\infer[\textit{T-field}]
+	{\Gamma \vdash  e.f:\tau_1} 
+	{\Gamma \vdash e:\sigma & \sigma= \{\keyw{var}~ f:\tau_1,... \} }\\[3ex]
+
+\infer[\textit{T-meth2 }]
+	{\Gamma \vdash  e.m:\tau_1} 
+	{\Gamma \vdash e:\tau & \tau=\{...\keyw{meth}~ m:\tau_1=e_1,... \} }\\[3ex]
+
+\infer[\textit{T-assign }]
+	{\Gamma \vdash  e.f=e_2:\tau_1} 
+	{\Gamma \vdash e:\sigma & \sigma= \{\keyw{var}~ f:\tau_1=e_1,... \} & \Gamma\vdash e_2:\tau_1 }\\[3ex]
+
+\infer[\textit{T-appl}]
+	{\Gamma \vdash  e(e_1):\tau_2} 
+	{\Gamma \vdash e:\tau_1 \rightarrow \tau_2 & \Gamma \vdash e_1:\tau_1}\\[3ex]
+
+\end{array}
+\]
+\caption{Static Semantics Rules Core 2}
+\end{figure}
+
+\begin{figure}
+\centering
+\[
+\begin{array}{c}
+\infer[\textit{T-refl}]
+	{\tau<:\tau}
+	{} \\[3ex]
+
+\infer[\textit{T-trans}]
+	{\tau_1<:\tau_3}
+	{\tau_1<:\tau_2 & \tau_2<:\tau_3} \\[3ex]	
+
+\infer[\textit{T-RcdWidth}]
+	{\{ \keyw{meth}~m_i{:}\tau_i ^{i \in 1..n+k} \} <: \{\keyw{meth}~m_i{:}\tau_i ^{i \in 1..n} \}}
+	{}\\[3ex]
+
+\infer[\textit{T-RcdDepth}]
+	{\{ \keyw{meth}~m_i{:}\tau_i ^{i \in 1..n} \} <: \{ \keyw{meth}~m_i{:}{\tau'}_i ^{i \in 1..n} \}}
+	{\textrm{for each \textit{i}} ~ \tau_i <: {\tau'}_i}\\[3ex]
+
+\infer[\textit{T-RcdPerm}]
+	{\{ \keyw{meth}~m_j{:}\tau_j ^{j \in 1..n} \} <: \{ \keyw{meth}~{m'}_i{:}{\tau'}_i ^{i \in 1..n} \}}
+	{\{ \keyw{meth}~m_j{:}\tau_j ^{j \in 1..n} \} \textrm{ is a permutation of } \{ \keyw{meth}~{m'}_i{:}{\tau'}_i ^{i \in 1..n} \}}\\[3ex]
+
+\infer[\textit{T-Arrow}]
+	{\tau_1 \rightarrow \tau_2 <: \tau_3 \rightarrow \tau_4}
+	{\tau_3 <: \tau_1 & \tau_2 <: \tau_4}\\[3ex]
+
+\infer[\textit{T-SubMeth}]
+	{\keyw{meth}~m:\tau_1 <: \keyw{meth}~ m:\tau_2}
+	{\tau_1 <: \tau_2}\\[3ex]
+
+\infer[\textit{T-SubVar}]
+	{\keyw{var} f:\tau_1 <: \keyw{var} f:\tau_1}
+	{\tau_1 <: \tau_1}\\[3ex]
+
+\infer[\textit{T-SubNew}]
+	{\keyw{new} \sigma_1\{\overline{d_1}\} <: \keyw{new} \sigma_2\{\overline{d_2}\}}
+	{\sigma_1 <: \sigma_2}\\[3ex]
+
+\end{array}
+\]
+\caption{Subtyping Rules Core 2}
+\end{figure}
+
+
+\input{f-core2-translate-function}
+
+
+T-new probably needs to change to fold the result type.
+
+
+Note: recursively bound occurrences in an internal type ($\sigma$) are of an external type.  That is, the language does not support a ``thistype''.
+
+\todo{Ligia: Give translation rules to core 1.  Need T-type rule.  Need store and store type.  Need subtyping. Where is $\mu$ used in the typing rules? show off: classes are first class(but point out distinction from smalltalk)- write one example, enforces uniform access principle; related work}
+
+\newpage 
+
+\subsection{Example Program in the Method-Based Language}
+
+The code below uses \lstinline!val! for readability; assume \lstinline!val x = e1; e2! is equivalent to \lstinline!(fn x => e2)(e1)!.  We also use \lstinline!fn x : type => e! in place of $\boldsymbol\lambda x{:}\tau . e$, and we write \lstinline!rec! for $\boldsymbol\mu$.
+
+\begin{lstlisting}
+type t { meth add : int -> t }
+type ti { var f : int
+	  type t3 { int -> t }
+	  meth add : t3 }
+val o : t = new ti
+	var f : int = 1
+	type t3 { int -> t }
+	meth add : t3 =
+		fn x : int =>
+			this.f = this.f + x
+			this
+val o3 : t = o.add(2)
+\end{lstlisting}
+
+
+\subsection{Translation of the Program to the Core Language}
+
+We assume global type abbreviations because the translated code would be unintelligible without thenm.  They can be eliminated by capture-avoiding substitution.  We also assume val declarations, which can be encoded with functions and function calls.
+
+\begin{lstlisting}
+type unit = {} // standard prelude
+type t { add : int -> t }
+	
+type ti { f : ref int
+	  add : int -> t }
+	
+val o =
+	letrec this : ti = {
+		add = fn _ : unit => fn x : int =>
+			this.f = !this.f + x
+			fold[t] this
+		f = alloc 1
+	} in fold[t] this
+
+val o3 = (unfold[t] o).add()(2)
+\end{lstlisting}
+
+Tasks:
+
+\begin{itemize}
+
+ \item write a rewriting rule for new expressions, translating methods to lambdas, translating types appropriately, and translating vars to refs
+ \item give complete rewriting rules (R*) to the core language
+ \item prove that well-typed source programs translate to well-typed core programs.  Is it possible to prove a property related to the uniform access principle and/or state encapsulation?
+ \item argue this is OO in the sense of Cook.  Since the body of a method is evaluated on every access to an object, it seems to qualify.
+\end{itemize}
+
+\section{Example Factorial}
+\begin{lstlisting}
+type t { meth factorial : int -> t }
+type ti { var f : int
+	  meth factorial : int -> t }
+val o : t = new ti
+	var f : int = 1
+	type t3 { int -> t }  
+	meth factorial : t3 =
+		fn x : int =>
+                        if x>1 
+			      this.f = x * (factorial(x-1)).f
+                        else
+                              this.f = 1
+			this
+val o3 : t = o.factorial(10)
+\end{lstlisting}
+
+

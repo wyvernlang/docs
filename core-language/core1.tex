@@ -1,0 +1,248 @@
+\section{The Simplest Core Language}
+
+This language is a simply typed lambda calculus (chapter 9)
+with records and recursion (chapter 11), references (chapter 13),
+subtyping (chapter 15), and iso-recursive types (chapters 20 and 21).
+This is completely standard, using rules straight from Pierce.
+Type semantics are iso-recursive, with explicit fold/unfold constructs.
+In practice we will fold automatically on record creation, and unfold automatically on field access;
+this will be handled when compiling higher-level languages down to this language.
+Finally, the soundness proofs and required lemmas need to be written out but should be straightforward.
+Note that we avoided the need for Unit Type by making the type of assignment match the type of the expression being assigned and the value of the assignment execution to be the value being assigned.
+
+
+\input{f-core1-syntax}
+
+
+\begin{figure}
+\centering
+\[
+\begin{array}{c}
+\infer[\textit{S-Refl}]
+	{M \vdash \tau <: \tau}
+	{}
+~~~
+\infer[\textit{S-Trans}]
+	{M \vdash \tau_1 <: \tau_3}
+	{M \vdash \tau_1 <: \tau_2 & M \vdash \tau_2 <: \tau_3}
+\\[3ex]
+\infer[\textit{S-Arrow}]
+	{M \vdash \tau_1 \rightarrow \tau_2 <: \tau_3 \rightarrow \tau_4}
+	{M \vdash \tau_3 <: \tau_1 & M \vdash \tau_2 <: \tau_4}
+\\[3ex]
+\infer[\textit{S-RcdWidth}]
+	{M \vdash \{ f_i{:}\tau_i ^{i \in 1..n+k} \} <: \{ f_i{:}\tau_i ^{i \in 1..n} \}}
+	{}
+\\[3ex]
+\infer[\textit{S-RcdDepth}]
+	{M \vdash \{ f_i{:}\tau_i ^{i \in 1..n} \} <: \{ f_i{:}{\tau'}_i ^{i \in 1..n} \}}
+	{\textrm{for each \textit{i}} ~ M \vdash \tau_i <: {\tau'}_i}
+\\[3ex]
+\infer[\textit{S-RcdPerm}]
+	{M \vdash \{ f_j{:}\tau_j ^{j \in 1..n} \} <: \{ {f'}_i{:}{\tau'}_i ^{i \in 1..n} \}}
+	{\{ f_j{:}\tau_j ^{j \in 1..n} \} \textrm{ is a permutation of } \{ {f'}_i{:}{\tau'}_i ^{i \in 1..n} \}}
+\\[3ex]
+\infer[\textit{S-Ref}]
+	{M \vdash \keyw{ref}~\tau <: \keyw{ref}~\tau'}
+	{M \vdash \tau <: \tau' & M \vdash \tau' <: \tau}
+\\[3ex]
+\infer[\textit{S-Amber}]
+	{M \vdash \boldsymbol\mu t.\tau <: \boldsymbol\mu t'.\tau'}
+	{M, t <: t' \vdash \tau <: \tau'}
+~~~
+\infer[\textit{S-Assumption}]
+	{M \vdash t <: t'}
+	{t <: t' \in M}
+\\[3ex]
+\infer[\textit{T-Sub}]
+	{\Gamma | \Sigma \vdash e{:}\tau}
+	{\Gamma | \Sigma \vdash e{:}\tau' & \emptyset \vdash \tau' <: \tau}
+\end{array}
+\]
+\caption{Subtyping Rules}
+\end{figure}
+
+
+\begin{figure}
+\centering
+\[
+\begin{array}{c}
+\infer[\textit{T-Var}]
+	{\Gamma | \Sigma \vdash x {:} \tau}
+	{x {:} \tau \in \Gamma}
+\\[3ex]
+\infer[\textit{T-Abs}]
+	{\Gamma | \Sigma \vdash \boldsymbol\lambda x {:} \tau_1.e_2 {:} \tau_1 \rightarrow \tau_2}
+	{\Gamma, x {:} \tau_1 | \Sigma \vdash e_2 {:} \tau_2}
+~~~
+\infer[\textit{T-App}]
+	{\Gamma | \Sigma \vdash e_1(e_2) {:} \tau_{12}}
+	{\Gamma | \Sigma \vdash e_1 {:} \tau_{11} \rightarrow \tau_{12} & \Gamma | \Sigma \vdash e_2 {:} \tau_{11}}
+\\[3ex]
+\infer[\textit{T-Rcd}]
+	{\Gamma | \Sigma \vdash \{ f_i = e_i ~ ^{i \in 1..n} \} {:} \{ f_i {:} \tau_i ~ ^{i \in 1..n} \}}
+	{\textrm{for each \textit{i}} & \Gamma | \Sigma \vdash e_i {:} \tau_i}
+~~~
+\infer[\textit{T-Proj}]
+	{\Gamma | \Sigma \vdash e_1.f_j {:} \tau_j}
+	{\Gamma | \Sigma \vdash e_1 {:} \{ f_i {:} \tau_i ~ ^{i \in 1..n}\}}
+\\[3ex]
+\infer[\textit{T-Let}]
+	{\Gamma | \Sigma \vdash \keyw{let}~ x = e_1 ~\keyw{in}~ e_2 {:} \tau_2}
+	{\Gamma | \Sigma \vdash e_1{:}\tau_1 & \Gamma, x{:}\tau_1 | \Sigma \vdash e_2{:}\tau_2}
+~~~
+\infer[\textit{T-Fix}]
+	{\Gamma | \Sigma \vdash \keyw{fix}~ e_1{:}\tau_1}
+	{\Gamma | \Sigma \vdash e_1{:}\tau_1 \rightarrow \tau_1}
+\\[3ex]
+\infer[\textit{T-Loc}]
+	{\Gamma | \Sigma \vdash l {:} \keyw{ref}~ \tau}
+	{\Sigma(l) = \tau}
+~~~
+\infer[\textit{T-Alloc}]
+	{\Gamma | \Sigma \vdash \keyw{alloc}~ e {:} \keyw{ref}~ \tau}
+	{\Gamma | \Sigma \vdash e {:} \tau}
+~~~
+\infer[\textit{T-Deref}]
+	{\Gamma | \Sigma \vdash !e {:} \tau}
+	{\Gamma | \Sigma \vdash e {:} \keyw{ref}~ \tau}
+\\[3ex]
+\infer[\textit{T-Assign}]
+	{\Gamma | \Sigma \vdash e_1 := e_2 {:} \tau}
+	{\Gamma | \Sigma \vdash e_1 {:} \keyw{ref}~ \tau & \Gamma | \Sigma \vdash e_2 {:} \tau}
+\\[3ex]
+\infer[\textit{T-Fold}]
+	{\Gamma | \Sigma \vdash \keyw{fold}[\tau]~ e : \tau}
+	{\tau = \boldsymbol\mu t.\tau_1 & \Gamma | \Sigma \vdash e : [t \mapsto \tau] \tau_1}
+~~~
+\infer[\textit{T-Unfold}]
+	{\Gamma | \Sigma \vdash \keyw{unfold}[\tau]~ e : [t \mapsto \tau] \tau_1}
+	{\tau = \boldsymbol\mu t.\tau_1 & \Gamma | \Sigma \vdash e : \tau}
+\\[3ex]
+\end{array}
+\]
+\caption{Typing Rules (Static Semantics)}
+\end{figure}
+
+
+\begin{figure}
+\centering
+\[
+\begin{array}{c}
+\infer[\textit{E-App1}]
+	{e_1(e_2) | S \leadsto e_1'(e_2) | S'}
+	{e_1 | S \leadsto e_1' | S'}
+~~~
+\infer[\textit{E-App2}]
+	{v_1(e_2) | S \leadsto v_1(e_2') | S'}
+	{e_2 | S \leadsto e_2' | S'}
+\\[3ex]
+\infer[\textit{E-AppAbs}]
+	{(\boldsymbol\lambda x{:}\tau . e) v | S \leadsto [x \mapsto v] e | S}
+	{}
+\\[3ex]
+\infer[\textit{E-Rcd}]
+	{
+\begin{array}{c}
+\{ f_i = v_i ~ ^{i \in 1..j-1}, f_j = e_j, f_k = e_k ~ ^{k \in j+1..n} \} | S \\
+\leadsto \{ f_i = v_i ~ ^{i \in 1..j-1}, f_j = e_j', f_k = e_k ~ ^{k \in j+1..n}\} | S'
+\end{array}
+	}
+	{e_j | S \leadsto e_j' | S'}
+\\[3ex]
+\infer[\textit{E-Proj}]
+	{e.f | S \leadsto e'.f | S'}
+	{e | S \leadsto e' | S'}
+~~~
+\infer[\textit{E-ProjRcd}]
+	{\{f_i = v_i ~ ^{i \in 1..n}\}.f_j | S \leadsto v_j | S}
+	{}
+\\[3ex]
+\infer[\textit{E-LetV}]
+	{\keyw{let}~ x=v ~\keyw{in}~ e | S \leadsto [x \mapsto v] e | S}
+	{}
+~~~
+\infer[\textit{E-Let}]
+	{\keyw{let}~ x=e_1 ~\keyw{in}~ e_2 | S \leadsto \keyw{let}~ x=e_1' ~\keyw{in}~ e_2 | S}
+	{e_1 | S \leadsto e_1' | S'}
+\\[3ex]
+\infer[\textit{E-FixBeta}]
+	{\keyw{fix} (\boldsymbol\lambda{:}\tau_1.e_2) | S \leadsto [x \mapsto (\keyw{fix} (\boldsymbol\lambda{:}\tau_1.e_2)] e_2 | S}
+	{}
+~~~
+\infer[\textit{E-Fix}]
+	{\keyw{fix}~ e | S \leadsto \keyw{fix}~ e' | S'}
+	{e | S \leadsto e' | S'}
+\\[3ex]
+\infer[\textit{E-AllocV}]
+	{\keyw{alloc}~ v | S \leadsto l | (S, l \mapsto v)}
+	{l \notin dom(S)}
+~~~
+\infer[\textit{E-Alloc}]
+	{\keyw{alloc}~ e | S \leadsto \keyw{alloc}~ e' | S'}
+	{e | S \leadsto e' | S'}
+\\[3ex]
+\infer[\textit{E-DerefLoc}]
+	{!l | S \leadsto v | S}
+	{S(l) = v}
+~~~
+\infer[\textit{E-Deref}]
+	{!e | S \leadsto !e' | S'}
+	{e | S \leadsto e' | S'}
+~~~
+\infer[\textit{E-Assign}]
+	{l := v | S \leadsto v | [l \mapsto v]S}
+	{}
+\\[3ex]
+\infer[\textit{E-Assign1}]
+	{e_1 := e_2 | S \leadsto e_1' := e_2 | S'}
+	{e_1 | S \leadsto e_1' | S'}
+~~~
+\infer[\textit{E-Assign2}]
+	{e_1 := e_2 | S \leadsto e_1 := e_2' | S'}
+	{e_2 | S \leadsto e_2' | S'}
+\\[3ex]
+\infer[\textit{E-Fold}]
+	{\keyw{fold}[\tau]~ e | S \leadsto \keyw{fold}[\tau]~ e' | S'}
+	{e | S \leadsto e' | S'}
+~~~
+\infer[\textit{E-Unfold}]
+	{\keyw{unfold}[\tau]~ e | S \leadsto \keyw{unfold}[\tau]~ e' | S'}
+	{e | S \leadsto e' | S'}
+\\[3ex]
+\infer[\textit{E-UnfoldFold}]
+	{\keyw{unfold}[\tau](\keyw{fold}[\tau_1]~ v) | S \leadsto v | S}
+	{}
+\\[3ex]
+\end{array}
+\]
+\caption{Evaluation Rules (Dynamic Semantics)}
+\end{figure}
+
+
+\begin{dfn}[Store Typing]
+  A store $S$ is well-typed, written $\Gamma | \Sigma \vdash S$ iff
+  $dom(\Sigma) = dom(S)$ and $\forall l \in dom(S) : \Gamma | \Sigma
+  \vdash S(l) : \Sigma(l)$.
+\end{dfn}
+
+
+\begin{thm}[Preservation]
+If $\Gamma | \Sigma \vdash e {:} \tau$ and $\Gamma | \Sigma \vdash S$
+and $e | S \leadsto e' | S'$, then $\exists \Sigma' \supseteq \Sigma$
+such that $\Gamma | \Sigma' \vdash e' {:} \tau$ and $\Gamma | \Sigma'
+\vdash S'$.
+\end{thm}
+
+\begin{proof}
+\todo{Should be straightforward from Pierce. Requires subsumption and other lemmas.}
+\end{proof}
+
+
+\begin{thm}[Progress]
+Suppose $e$ is a closed, well-typed term (that is, $\emptyset | \Sigma \vdash e {:} \tau$ for some $\tau$ and $\Sigma$). Then either $e$ is a value or else, for any store S such that $\emptyset | \Sigma \vdash S$, there is some $e'$ and $S'$ with $e | S \leadsto e' | S'$.
+\end{thm}
+
+\begin{proof}
+\todo{Should be straightforward from Pierce.}
+\end{proof}
