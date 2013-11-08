@@ -16,59 +16,65 @@ Contribution: OO language that is closest to lambda calculus, while enforcing th
 
 justify lazy eval: otherwise m acts as a field, we want computation and the uniform access principle
 
+In the rules below, the context $\Delta$ contains types and their signatures. The context $\Gamma$ contains variables and their types. 
+The judgement $\Delta; \Gamma; \sigma \vdash e:\tau $ states that from the type context $\Delta$, the variable context $\Gamma$ and the surrounding type $\sigma$, we deduce that $e$ is of type $\tau$.
+
 \input{f-core2-syntax}
 
 \begin{figure}
 \centering
 \[
 \begin{array}{c}
-\infer[\textit{DT-var}]
-	{\Gamma,\sigma \vdash \keyw{var}~ f:\tau = e :: \keyw{var}~ f:\tau }
-	{\Gamma \vdash e : \tau} \\[3ex]
-	
-\infer[\textit{DT-meth}]
-	{\Gamma,\sigma \vdash \keyw{meth}~ m:\tau = e :: \keyw{meth}~ m:\tau }
-	{\Gamma,\textit{this}:\sigma \vdash e : \tau} \\[3ex]
-
-\infer[\textit{T-new}]
-	{\Gamma \vdash \keyw{new}~\sigma \{ \overline{d} \} : \{ \overline{\tau_d} \}}
-	{\Gamma,\sigma \vdash \overline{d} :: \overline{\sigma_d} & \sigma = \{ \overline{\sigma_d} \} & \overline{\tau_d} \subseteq \overline{\sigma_d}} \\[3ex]
-
-\infer[\textit{T-typeab}]
-	{\Gamma \vdash  type~ t~=\{\tau\}; d} 
-	{\Gamma \vdash [\tau/t]d }\\[3ex]
-
-\infer[\textit{T-attrib}]
-	{\Delta,\Gamma \vdash  type~ t~=\{\overline{\tau_d}, attributes=e\}; d} 
-	{\Delta, \Gamma \vdash e:t1 ~~~~~ \Gamma,t:\{\overline{\tau_d},t1\} \vdash d ~~~~~ t1: \{\overline{\tau_d}\}  }\\[3ex]
-
-\infer[\textit{Type-meth}]
-	{\Delta, \Gamma \vdash  t.m:\tau} 
-	{t : \{\overline{\tau_d}, t1\} \in \Delta ~~~~~ t1 : \{\overline{\tau'_d},\_\} \in \Delta ~~~~~ \keyw{meth}:\tau \in \overline{\tau'_d}   }\\[3ex]
-	
-\infer[\textit{T-abs}]
-	{\Gamma \vdash  \boldsymbol\lambda x{:}\tau . e :: \tau \rightarrow \tau_1} 
-	{\Gamma, x:\tau \vdash e:\tau_1 }\\[3ex]
 
 \infer[\textit{T-varx}]
 	{\Gamma \vdash x:\tau} 
 	{x:\tau \in \Gamma }\\[3ex]
 
-\infer[\textit{T-field}]
-	{\Gamma \vdash  e.f:\tau_1} 
-	{\Gamma \vdash e:\sigma & \sigma= \{\keyw{var}~ f:\tau_1,... \} }\\[3ex]
-
-\infer[\textit{T-meth2 }]
-	{\Gamma \vdash  e.m:\tau_1} 
-	{\Gamma \vdash e:\tau & \tau=\{...\keyw{meth}~ m:\tau_1=e_1,... \} }\\[3ex]
-
-\infer[\textit{T-assign }]
-	{\Gamma \vdash  e.f=e_2:\tau_1} 
-	{\Gamma \vdash e:\sigma & \sigma= \{\keyw{var}~ f:\tau_1=e_1,... \} & \Gamma\vdash e_2:\tau_1 }\\[3ex]
+\infer[\textit{T-abs}]
+	{\Delta; \Gamma \vdash  \boldsymbol\lambda x{:}\tau . e :: \tau \rightarrow \tau_1} 
+	{\Delta; \Gamma; x:\tau \vdash e:\tau_1 }\\[3ex]
 
 \infer[\textit{T-appl}]
-	{\Gamma \vdash  e(e_1):\tau_2} 
-	{\Gamma \vdash e:\tau_1 \rightarrow \tau_2 & \Gamma \vdash e_1:\tau_1}\\[3ex]
+	{\Delta; \Gamma \vdash  e(e_1):\tau_2} 
+	{\Delta; \Gamma \vdash e:\tau_1 \rightarrow \tau_2 & \Gamma \vdash e_1:\tau_1}\\[3ex]
+
+\infer[\textit{T-new}]
+	{\Gamma \vdash \keyw{new}~\sigma \{ \overline{d} \} : \{ \overline{\tau_d} \}}
+	{\Gamma; \sigma \vdash \overline{d} :: \overline{\sigma_d} & \sigma = \{ \overline{\sigma_d} \} & \overline{\tau_d} \subseteq \overline{\sigma_d}} \\[3ex]
+
+\infer[\textit{T-field}]
+	{\Delta; \Gamma \vdash  e.f:\tau_1} 
+	{\Delta; \Gamma \vdash e:\sigma & \sigma= \{\keyw{var}~ f:\tau_1,... \} }\\[3ex]
+
+\infer[\textit{T-assign }]
+	{\Delta; \Gamma \vdash  e.f=e_2:\tau_1} 
+	{\Delta; \Gamma \vdash e:\sigma & \sigma= \{\keyw{var}~ f:\tau_1=e_1,... \} & \Delta; \Gamma\vdash e_2:\tau_1 }\\[3ex]
+
+\infer[\textit{T-meth2 }]
+	{\Delta; \Gamma \vdash  e.m:\tau_1} 
+	{\Delta; \Gamma \vdash e:\tau & \tau=\{...\keyw{meth}~ m:\tau_1=e_1,... \} }\\[3ex]
+
+\infer[\textit{DT-var}]
+	{\Delta; \Gamma; \sigma \vdash \keyw{var}~ f:\tau = e :: \keyw{var}~ f:\tau; d }
+	{\Delta; \Gamma \vdash e : \tau & \Delta; \Gamma \vdash d} \\[3ex]
+	
+\infer[\textit{DT-meth}]
+	{\Delta; \Gamma; \sigma \vdash \keyw{meth}~ m:\tau = e :: \keyw{meth}~ m:\tau; d }
+	{\Delta; \Gamma; \textit{this}:\sigma \vdash e : \tau & \Delta; \Gamma \vdash d } \\[3ex]
+
+\infer[\textit{DT-typedef}]
+	{\Delta; \Gamma \vdash  \keyw{type}~ t~=\{\overline{\tau_d}, \keyw{attributes}=e\}; d} 
+	{\Delta; \Gamma \vdash e:t1 ~~~~~ \Delta; \Gamma; t:\{\overline{\tau_d},t1\} \vdash d ~~~~~ t1: \{\overline{\tau_d}\}  }\\[3ex]
+
+\infer[\textit{DT-typeabbrev}]
+	{\Gamma \vdash  \keyw{type}~ t~=\{\tau\}; d} 
+	{\Gamma \vdash [\tau/t]d }\\[3ex]
+
+
+\infer[\textit{Type-meth}]
+	{\Delta; \Gamma \vdash  t.m:\tau} 
+	{t : \{\overline{\tau_d}, t1\} \in \Delta ~~~~~ t1 : \{\overline{\tau'_d},\_\} \in \Delta ~~~~~ \keyw{meth}:\tau \in \overline{\tau'_d}   }\\[3ex]
+	
 
 \end{array}
 \]
