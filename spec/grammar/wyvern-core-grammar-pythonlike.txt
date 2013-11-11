@@ -1,0 +1,45 @@
+Core Wyvern Concrete Grammar
+----------------------------
+
+/*
+ * Consider Adams or Erdweg formalism
+ * Add handling of ~
+ * Add features
+ * (maybe) Convert to some automated tool input syntax
+ */
+p ::= decl*
+
+decl ::= vardecl | methoddecl | typedecl
+
+vardecl ::= 'var' ID : type '=' body
+methoddecl ::= 'def' ID parameters '=' body
+body ::= stmt
+     |   NEWLINE INDENT stmt+ DEDENT
+typedecl ::= 'type' ID '=' typebody
+typebody ::= type
+         |   NEWLINE INDENT declintype+ DEDENT
+// no bodies in a type?  Although defaults could be nice
+declintype ::= methoddecl | propdecl | attributesdecl
+// make explicit lvalues?  make statics quite a bit simpler, grammar a bit more complex
+stmt ::= exp NEWLINE
+     |   exp '=' exp NEWLINE
+     |   methoddecl
+     |   vardecl
+exp ::= ID							// need to modify to express precedence
+    |   'fn' ID ':' type '=>' exp
+    |   exp '(' [arglist] ')'
+    |   exp '.' ID
+	|   exp ':' type				// static assertion that the exp has the right type
+	|   (type) exp					// possible C-like syntax for casts
+    |   new [newspec]				// treat like ~ (Cyrus's idea)
+newspec ::= NEWLINE INDENT decl+ DEDENT
+// appears at most once; optional; unit if not explicitly declared
+attributesdecl ::= 'metaobject' [':' type] '=' body		// was "attributes" before
+type ::= ID
+     |   type '->' type
+arglist ::= exp [',' arglist]
+parameters ::= '(' [typedargslist] ')'
+typedargslist ::= ID ':' type [',' typedargslist]
+
+// more constructs here
+propdecl ::= ...
