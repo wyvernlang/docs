@@ -1,0 +1,52 @@
+Core Wyvern Concrete Grammar
+----------------------------
+
+/*
+ * Consider Adams or Erdweg formalism
+ * Add handling of ~ (added by Darya)
+ * Add features
+ * (maybe) Convert to some automated tool input syntax
+ */
+p ::= decl*
+
+decl ::= vardecl | methoddecl | typedecl
+
+vardecl ::= 'var' ID : type '=' body
+methoddecl ::= 'def' ID '(' [typedargslist] ') =' body
+body ::= stmt
+     |   NEWLINE INDENT stmt+ DEDENT
+typedecl ::= 'type' ID '=' typebody
+typebody ::= type
+         |   NEWLINE INDENT declintype+ DEDENT
+// no bodies in a type?  Although defaults could be nice
+declintype ::= methoddecl | propdecl | attributesdecl
+// make explicit lvalues?  make statics quite a bit simpler, grammar a bit more complex
+stmt ::= expwdsl NEWLINE
+     |   exp '=' expwdsl NEWLINE
+     |   methoddecl
+     |   vardecl
+exp ::= ID							// need to modify to express precedence
+    |   'fn' ID ':' type '=>' exp
+    |   exp '(' [arglist] ')'
+    |   exp '.' ID
+	|   exp ':' type				// static assertion that the exp has the right type
+	|   (type) exp					// possible C-like syntax for casts
+    |   new [newspec]				// treat like ~ (Cyrus's idea)
+newspec ::= NEWLINE INDENT decl+ DEDENT
+// appears at most once; optional; unit if not explicitly declared
+attributesdecl ::= 'metaobject' [':' type] '=' body		// was "attributes" before
+type ::= ID
+     |   type '->' type
+arglist ::= exp [',' arglist]
+        |   dslinline [',' arglist]
+typedargslist ::= ID ':' type [',' typedargslist]
+
+dslinline ::= '`' dslexp '`'             // dslexp is an expression defined by the DSL's grammar
+dsl ::= NEWLINE INDENT dsldecl+ DEDENT   // dsldecl is a declaration defined by the DSL's grammar
+expwdsl ::= exp
+        |   dslinline
+        |   ~ dsl
+        |   exp '(' [arglist',' ] ~ [',' arglist] ')' dsl    // only one ~ is allowed per argument list (one per line in general)
+
+// more constructs here
+propdecl ::= ...
