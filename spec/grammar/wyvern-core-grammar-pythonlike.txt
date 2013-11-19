@@ -38,7 +38,7 @@ exp ::= ID                                          // need to modify to express
     |   '(' type ')' exp                            // possible C-like syntax for casts
     |   new [newspec]                               // treat like ~ (Cyrus's idea)
     |   dslinline
-expwdsl ::= ~
+expwdsl ::= '~'
         |   expwdsl '.' ID
         |   expwdsl '(' [arglist] ')'
         |   exp '(' [arglistwdsl] ')'
@@ -54,8 +54,24 @@ type ::= ID
      |   type '->' type
 typedargslist ::= ID ':' type [',' typedargslist]
 
-dslinline ::= '`' dslexp '`'             // dslexp is an expression defined by the DSL's grammar
-dsl ::= NEWLINE INDENT dsldecl+ DEDENT   // dsldecl is a declaration defined by the DSL's grammar
+// TODO: suggest this for comments (* abc (* def *) ghi *)
+dsl_tilde ::= NEWLINE INDENT dsl_tilde_body DEDENT
+dsl_tilde_body ::= dslexp_balanced[INDENT,DEDENT]   // dsl_tilde_body can be anything and will be interpreted during type checking
+
+dslinline ::= '`' dslexp_single[`] '`'
+          |   ''' dslexp_single['] '''
+          |   '"' dslexp_single["] '"'
+          |   '/' dslexp_single[/] '/'
+          |   '\' dslexp_single[\] '\'
+          |   '{' dslexp_balanced[{,}] '}'
+          |   '[' dslexp_balanced[[,]] ']'
+          |   '<' dslexp_balanced[<,>] '>'
+          |   '&' dslexp_balanced[&,;] ';'
+          |   ('+' | '-')? \d+ | ('+' | '-')? \d* '.' \d+ |     // digits are DSLs
+          |   '#' [^\w]+                                        // prefix-only DSLs
+
+dslexp_single[c] ::= [^c|c c]*
+dslexp_balanced[s,e] ::= [^e]* | dslexp_balanced[s,e]
 
 // more constructs here
 propdecl ::= ...
