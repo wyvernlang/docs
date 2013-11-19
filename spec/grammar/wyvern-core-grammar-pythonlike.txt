@@ -21,32 +21,57 @@ typebody ::= type
 // no bodies in a type?  Although defaults could be nice
 declintype ::= methoddecl | propdecl | attributesdecl
 // make explicit lvalues?  make statics quite a bit simpler, grammar a bit more complex
-stmt ::= expwdsl NEWLINE
-     |   exp '=' expwdsl NEWLINE
+stmt ::= exp NEWLINE
+     |   expwdsl dsl
+     |   ID '=' exp NEWLINE
+     |   ID '=' expwdsl dsl
+     |   exp '.' ID '=' exp NEWLINE
+     |   exp '.' ID '=' expwdsl dsl
+     |   expwdsl '.' ID '=' exp dsl
      |   methoddecl
      |   vardecl
-exp ::= ID							// need to modify to express precedence
+exp ::= ID                                          // need to modify to express precedence
     |   'fn' ID ':' type '=>' exp
     |   exp '(' [arglist] ')'
     |   exp '.' ID
-	|   exp ':' type				// static assertion that the exp has the right type
-	|   (type) exp					// possible C-like syntax for casts
-    |   new [newspec]				// treat like ~ (Cyrus's idea)
+    |   exp ':' type                                // static assertion that the exp has the right type
+    |   '(' type ')' exp                            // possible C-like syntax for casts
+    |   new [newspec]                               // treat like ~ (Cyrus's idea)
+    |   dslinline
+expwdsl ::= '~'
+        |   expwdsl '.' ID
+        |   expwdsl '(' [arglist] ')'
+        |   exp '(' [arglistwdsl] ')'
+        |   expwdsl ':' type
+        |   '(' type ')' expwdsl
+        |   'fn' ID ':' type '=>' expwdsl
+arglist ::= exp [',' arglist]
+arglistwdsl ::= [arglist',' ] expwdsl [',' arglist]
 newspec ::= NEWLINE INDENT decl+ DEDENT
 // appears at most once; optional; unit if not explicitly declared
-attributesdecl ::= 'metaobject' [':' type] '=' body		// was "attributes" before
+attributesdecl ::= 'metaobject' [':' type] '=' body                // was "attributes" before
 type ::= ID
      |   type '->' type
-arglist ::= exp [',' arglist]
-        |   dslinline [',' arglist]
 typedargslist ::= ID ':' type [',' typedargslist]
 
-dslinline ::= '`' dslexp '`'             // dslexp is an expression defined by the DSL's grammar
-dsl ::= NEWLINE INDENT dsldecl+ DEDENT   // dsldecl is a declaration defined by the DSL's grammar
-expwdsl ::= exp
-        |   dslinline
-        |   ~ dsl
-        |   exp '(' [arglist',' ] ~ [',' arglist] ')' dsl    // only one ~ is allowed per argument list (one per line in general)
+// TODO: suggest this for comments (* abc (* def *) ghi *)
+dsl_tilde ::= NEWLINE INDENT dsl_tilde_body DEDENT
+dsl_tilde_body ::= dslexp_balanced[INDENT,DEDENT]   // dsl_tilde_body can be anything and will be interpreted during type checking
+
+dslinline ::= '`' dslexp_single[`] '`'
+          |   ''' dslexp_single['] '''
+          |   '"' dslexp_single["] '"'
+          |   '/' dslexp_single[/] '/'
+          |   '\' dslexp_single[\] '\'
+          |   '{' dslexp_balanced[{,}] '}'
+          |   '[' dslexp_balanced[[,]] ']'
+          |   '<' dslexp_balanced[<,>] '>'
+          |   '&' dslexp_balanced[&,;] ';'
+          |   ('+' | '-')? \d+ | ('+' | '-')? \d* '.' \d+ |     // digits are DSLs
+          |   '#' [^\w]+                                        // prefix-only DSLs
+
+dslexp_single[c] ::= [^c|c c]*
+dslexp_balanced[s,e] ::= [^e]* | dslexp_balanced[s,e]
 
 // more constructs here
 propdecl ::= ...
