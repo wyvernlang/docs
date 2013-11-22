@@ -1,0 +1,285 @@
+% !TEX root = ecoop14.tex
+
+%\section{Implementation Considerations}
+%\label{s:implementation}
+%
+%The Wyvern compiler
+%was developed from the ground up to support the extensible parsing
+%interface. The compiler is currently implemented in Java, with an eventual goal of self-hosting it within Wyvern itself.
+%
+%Wyvern uses a fixed whitespace-indented lexing approach similar to that used by languages like Python. The current indentation convention is based on the number of whitespace characters. In order for a block to be formed, each of its lines must share the same initial whitespace string. If the indentation level is decreased but does not return to the initial indentation level, a keyword block is created as shown in Figure \ref{f:dsl-multi}. This particular approach is not found in other whitespace-delimited languages to our knowledge.
+%
+%The Wyvern front-end effectively combines the parsing and type checking
+%stages that are usually separated in more traditional compilers, such
+%as \texttt{javac} or \texttt{gcc}. Before any block can be parsed,
+%Wyvern requires a context that contains the types of the arguments of the surrounding function and any variables and types in scope. This context is passed into the delimited block for portions of the type-associated grammar that contain terms of sort \verb|Exp| or \verb|Type|, and thus may contain other function calls, variables, or types. 
+
+%For example, the Wyvern default environment contains bindings for
+%keywords like \keyw{class} or \keyw{meth} that are able to parse
+%class and method declarations respectively. Parsers are bound to types and, as such, may be shadowed within application code. Only operators and their associated precedence are not exposed in the environment and, thus, have to be reused by the DSLs, though it is feasible to lift them up to the
+%environment with an appropriate parser.
+%
+%% , an infix nature of operators
+%% might make parsing definition more complex with arguably small gains
+%% in expressiveness for potential DSLs.
+
+%The core parsing in Wyvern is an extremely simple mechanism. The language uses a core parser that for every token encountered delegates to the appropriate parser in the environment. This extension parser processes the token and any relevant ones that follow. Once the extension parser is finished, the core parser continues through the remaining tokens, terminating when it either runs out of tokens or encounters a token with no associated extension parser.
+
+%% In a similar manner to keywords, we also allow types and values to
+%% attach appropriate bindings that can potentially define how to parse a
+%% particular type and value as well as connecting them to an appropriate
+%% type representation. For example, currently all primitive types (such
+%% as integers, booleans, or strings) are defined using a binding as well
+%% as basic values such as \texttt{true} or \texttt{false}.
+
+%% Such flexible mechanism, especially when defined in Wyvern itself
+%% makes any DSL extension as flexible and natural to define as writing
+%% any normal Wyvern program itself.
+
+
+%% \subsection{Examples}
+
+%% We now present a small number of examples that demonstrate and explain
+%% the operation of Wyvern.
+
+%% \begin{figure}
+%%   \centering
+%%   \label{f:eg-let-eg}
+%%   \caption{Wyvern Example: \texttt{let}}
+%% \end{figure}
+%% The \lstinline{let} parser knows that the first few lines following
+%% the \lstinline{let} keyword will be variable definitions of the form
+%% \lstinline{varname = value} and therefore can easily parse the lines
+%% that following until a token \lstinline{in} on an indented line of its
+%% own is encountered.  The body of the \lstinline{let} statement can now
+%% be parsed using a continuation of the original Wyvern parser with an
+%% addition of variables \lstinline{x} and \lstinline{z} to the current
+%% environment. When the indented block finishes, the main Wyvern parser
+%% can continue without \lstinline{let} variables in the environment. One
+%% can observe that such parsing is very suitable to performing parsing
+%% and type checking at the same time.
+
+%% Our next example presents a simple \lstinline{if} statement in
+%% Figure~\ref{f:eg-if}. Just like with the \lstinline{let} statement,
+%% one can see how upon seeing the \lstinline{if} keyword, Wyvern parser
+%% can invoke an appropriate \lstinline{if} parser that can easily be
+%% replaced or modified. The default \lstinline{if} parsers parses the
+%% conditional and is able to parse the body using the continuation of
+%% the main parser with the right value of the condition taken into
+%% account. One can observe that extending Wyvern to perform flow
+%% sensitive checks such as non-nullness can be done easily even during
+%% the parsing stage.
+
+%% \begin{figure}
+%%   \centering
+%%   \begin{lstlisting}
+%% if x = 5
+%%     do stuff
+%%   else
+%%     do stuff
+%%   \end{lstlisting}
+%%   \label{f:eg-if}
+%%   \caption{Wyvern Example: \texttt{if}}
+%% \end{figure}
+
+%% A more interesting variation of the \lstinline{if} statement shown in
+%% Figure~\ref{f:eg-if-smalltalk} can be one that attaches a parser to
+%% the boolean type rather than a specific keyword. In the spirit of
+%% Smalltalk, one can provide a parser in Wyvern that is invoked when an
+%% expression of a boolean type is encountered. Such parser can then
+%% check if the next keyword is \lstinline{iftrue} that can be followed
+%% by the true block parsed by the continuation of the normal
+%% parser. Furthermore, an additional \lstinline{iffalse} keyword can be
+%% allowed that contains the else part.
+
+%% \begin{figure}
+%%   \centering
+%%   \begin{lstlisting}
+%% condition iftrue
+%%     [block]
+%%   iffalse
+%%     [block]
+%%   \end{lstlisting}
+%%   \label{f:eg-if-smalltalk}
+%%   \caption{Wyvern Example: \texttt{if} in Smalltalk style}
+%% \end{figure}
+
+%% As a more complex example, consider an attempt to express a simple
+%% Domain Specific Language that roughly corresponds to
+%% HTML. Figure~\ref{f:eg-html} shows such extension that makes each
+%% major html tag a keyword with its own parser attached to it. In fact,
+%% each keyword can be treated as a first class value that can be stored
+%% in a variable resulting in body being passed around or used as part of
+%% a \lstinline{let} expression. The indentation makes clear when each
+%% tag's parser needs to stop and in our opinion makes a body of a web
+%% page much more readable, yet structured and even suitable for type
+%% checking.
+
+%% \begin{figure}
+%%   \centering
+%%   \begin{lstlisting}
+%% let 
+%%     theBody = body
+%%         h1
+%%             "This is a section header"
+%%   in  
+%% 	html
+%% 	    head
+%% 	        title: "The title of the page"
+%% 	        script(src="http://.../")
+%% 	        style
+%% 	            body
+%% 	                background-color: "white"
+%% 	    theBody
+%%   \end{lstlisting}
+%%   \label{f:eg-html}
+%%   \caption{Wyvern Example: HTML}
+%% \end{figure}
+
+%% \begin{figure}
+%%   \centering
+%%   \label{f:eg-arch}
+%%   \begin{lstlisting}
+%%   \end{lstlisting}
+%%   \caption{Wyvern Example: Architecture}
+%% \end{figure}
+
+%% \begin{figure}
+%%   \centering
+%%   \label{f:eg-security}
+%%   \begin{lstlisting}
+%%   \end{lstlisting}
+%%   \caption{Wyvern Example: Security Policy}
+%% \end{figure}
+
+%% \begin{figure*}
+%%   \centering
+%%   \label{f:eg-dsl-db}
+%%   \begin{lstlisting}
+%% assuming 
+%%   theDB : OracleDB 
+%% (that is, theDB is a DB that supports oracle-specific queries)
+
+%% type-directed parsing:
+
+%% theDB query
+%%   (* stuff in the syntax of Oracle DBs *)
+
+%% vs
+
+%% keyword-directed parsing:
+
+%% OracleDBquery theDB
+%%   (* stuff in the syntax of Oracle DBs *)
+%%   \end{lstlisting}
+%%   \caption{Wyvern Example: DSL for DB Definition}
+%% \end{figure*}
+
+
+
+%For example, the Wyvern default environment contains bindings for
+%keywords like \keyw{class} or \keyw{meth} that are able to parse
+%class and method declarations respectively. Parsers are bound to types and, as such, may be shadowed within application code. Only operators and their associated precedence are not exposed in the environment and, thus, have to be reused by the DSLs, though it is feasible to lift them up to the
+%environment with an appropriate parser.
+%
+%% , an infix nature of operators
+%% might make parsing definition more complex with arguably small gains
+%% in expressiveness for potential DSLs.
+
+%The core parsing in Wyvern is an extremely simple mechanism. The language uses a core parser that for every token encountered delegates to the appropriate parser in the environment. This extension parser processes the token and any relevant ones that follow. Once the extension parser is finished, the core parser continues through the remaining tokens, terminating when it either runs out of tokens or encounters a token with no associated extension parser.
+
+%% In a similar manner to keywords, we also allow types and values to
+%% attach appropriate bindings that can potentially define how to parse a
+%% particular type and value as well as connecting them to an appropriate
+%% type representation. For example, currently all primitive types (such
+%% as integers, booleans, or strings) are defined using a binding as well
+%% as basic values such as \texttt{true} or \texttt{false}.
+
+%% Such flexible mechanism, especially when defined in Wyvern itself
+%% makes any DSL extension as flexible and natural to define as writing
+%% any normal Wyvern program itself.
+
+
+%% \subsection{Examples}
+
+%% We now present a small number of examples that demonstrate and explain
+%% the operation of Wyvern.
+
+%% \begin{figure}
+%%   \centering
+%%   \label{f:eg-let-eg}
+%%   \caption{Wyvern Example: \texttt{let}}
+%% \end{figure}
+
+\newpage
+
+\section{Discussion and Future Work}\label{s:discussion}
+\paragraph{Keyword-Directed Invocation}
+In most DSL frameworks, a switch to a DSL is indicated by a keyword or function call naming the DSL to be used. Wyvern eliminates this overhead in many cases by determining the DSL based on the expected type of an expression. This lightweight mechanism is particularly useful for small DSLs, like the one associated with \lstinline{URL}. Keyword-directed invocation of a DSL is simply a special case of this approach. In particular, a keyword macro can be defined as a function with a single argument of a type specific to that keyword. The type contains the implementation of the domain-specific syntax associated with that keyword. In the most general sense, it may simply allow the entire \keyw{EXP} grammar, manipulating it in later phases of compilation. 
+
+As an example, consider control flow operators like \verb|if|. This can be defined as a polymorphic method of the \verb|bool| type with signature $(\texttt{unit} \rightarrow \alpha, \texttt{unit} \rightarrow \alpha) \rightarrow \alpha$. That is, it takes the two branches as functions and chooses which to invoke based on the value of the boolean, using perhaps a more primitive control flow operator, like case analysis, or even a Church encoding of booleans as functions. In Wyvern, the branches could be packaged together into a type, \verb|IfBranches|, with an associated grammar that accepts the two branches as unwrapped expressions. Thus, \verb|if| could be defined entirely in a library and used as follows: 
+
+\begin{lstlisting}
+<guard>.if(~)
+  then
+    <any EXP>
+  else
+    <any EXP>
+\end{lstlisting}
+
+For methods like \verb|if| where constructing the argument explicitly will almost never be done, it may be useful to mark the method in a way that allows Wyvern to assume it is being called with a DSL argument immediately following its use. This would eliminate the need for the \verb|(~)| portion, supporting even more conventional notation. We have not considered this possibility in detail.
+
+\paragraph{Explicit Delimiters}
+Throughout this paper, DSLs have been delimited by whitespace. This allows arbitrary syntax within DSLs, since no delimiters need to be reserved to indicate the end of the DSL and thus there is no need for escaping internal uses of these delimiters. In cases where DSL expressions are expected to be reasonably short, such as the \lstinline{URL} example, or where delimiters are more natural than whitespace, such as for array or dictionary literals, it may be desirable to support other forms of delimited ``DSL literals''. 
+
+One possible strategy for this is to reserve a number of common delimiter forms, such as quotation marks and  forms of braces, as equivalent DSL literal forms. The traditional meaning of these delimiters, such as quotation marks for strings and square brackets for lists, would then simply be convention in Wyvern. That is, the following expressions, as well as several similar ones, would be precisely equivalent (the programmer could choose the most convenient form, given the enclosed term):
+\begin{verbatim}
+  f("http://github.com/wyvernlang")  
+  f([http://github.com/wyvernlang])
+\end{verbatim}
+
+Alternatively, types could specify the set of permitted delimiters so that conventions can be enforced by the compiler, improving identifiability. We have not yet explored either of these possibilities in detail, nor explored options that allow \emph{arbitrary} type-specified delimiters (a naive strategy for which would require that the first phase of parsing also be type-directed, which we wish to avoid).
+
+\paragraph{Interaction with Subtyping}
+The mechanism described here does not consider the case where multiple subtypes of a base type define a grammar. This can be resolved in several ways. We could require that only the \emph{declared} type's grammar is used (if a subtype's grammar is desired, an explicit type annotation on the tilde can be used). Alternatively, we could attempt to parse against all relevant subtypes, only requiring explicit disambiguation when ambiguities arise. Wyvern does not currently support subtyping, so we leave this as future work.
+%%\paragraph{Custom Contexts}
+%% One can observe a number of interesting issues that can be seen from
+%% our Wyvern examples. For example, our \lstinline{let} statement
+%% requires a corresponding \lstinline{in} part to be indented
+%% differently from the other sub-blocks. This means that the entire
+%% expression cannot be parsed by simply processing the appropriately
+%% indented line sequence and then returing the control back to the
+%% Wyvern parser, but rather there needs to be a way to detect that the
+%% parser is now back to the level of the original \lstinline{let}
+%% statement and the environment can be reset to what it was before the
+%% statement.
+%
+%Presently, grammars cannot define their own contexts that are passed through nested grammars, but this would likely be a useful addition in many cases. As an example, consider a \lstinline{let} expression defined by a functional programming based DSL in 
+%Wyvern:
+%
+%\begin{lstlisting}
+%let 
+%    x = 5
+%    z = 4
+%  in
+%    x + z
+%\end{lstlisting}
+%
+%\noindent 
+%This expression requires maintaining a context of bound variables. This context must be maintained such that any expression within the \verb|in| block that is written in this DSL has access to the appropriate context, even if it appears as a subexpression within a different DSL. Multiple DSLs may define different contexts, and these must be threaded throughout nested DSLs in a modular manner.
+%
+%\paragraph{Custom Lexers} 
+%Our existing lexing strategy may be too restrictive, requiring all DSLs to be hierarchical in nature. One potential expansion would be to enable DSLs to define their own lexers, still perhaps delimited by indentation or parentheses. Such an extension would sacrifice some readability.
+%%However, we have been unable to find convincing use cases for this facet of extensibility. 
+%
+%Wyvern's operators are built in and their precedence follows that of
+%C++ operators. We do not allow a replacement parser for infix
+%operators as we considered it to unnecessarily complicate the current
+%prefixed parsing approach. In the future, we plan to further support
+%redefining operators.
+%
+%Finally, following Python and some other whitespace delimited
+%languages, we may wish to allow parenthesized expressions to avoid the need for
+%following the indentation level. This is still subject to debate and,
+%as we try to express more and more DSL kinds in Wyvern, we may decide
+%to enforce indentation levels even inside the parentheses.
