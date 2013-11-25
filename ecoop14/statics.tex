@@ -5,18 +5,19 @@
 \centering
 \[
 \begin{array}{lll}
-\rho & \bnfdef & \keyw{objtype}~ t~ = \{ \overline{\omega}, \keyw{metaobject}=e \}; \rho \\
-     & \bnfalt & \keyw{casetype}~ t~ = \{ \overline{\chi}, \keyw{metaobject}=e \}; \rho\\
+\rho & \bnfdef & \keyw{objtype}~ t~ = \{ \omega, \keyw{metaobject}=e \}; \rho \\
+     & \bnfalt & \keyw{casetype}~ t~ = \{ \chi, \keyw{metaobject}=e \}; \rho\\
      & \bnfalt & e\\
      \\[1ex]
 \chi & \bnfdef & C~\keyw{of}~\tau\\
+     & \bnfalt & \chi \bnfalt \chi \\
 \\[1ex]
 e    & \bnfdef & x \\
      & \bnfalt & \boldsymbol\lambda x{:}\tau . e \\ %
      & \bnfalt & e(e) \\
      & \bnfalt & t.C(e) \\
-     & \bnfalt & \keyw{case}~e~\keyw{of}~\{ \overline{c} \} \\
-     & \bnfalt & \keyw{new}~ \{ \overline{d} \}\\
+     & \bnfalt & \keyw{case}~e~\keyw{of}~\{ c \} \\
+     & \bnfalt & \keyw{new}~ \{ d \}\\
      & \bnfalt & e.f \\
 %     & \bnfalt & e.f = e \\
      & \bnfalt & e.m \\
@@ -25,9 +26,11 @@ e    & \bnfdef & x \\
      & \bnfalt & \lfloor dsl \rfloor \\
 \\[1ex]
 c    & \bnfdef & C(x) \Rightarrow e\\
+     & \bnfalt & c \bnfalt c\\
 	 \\[1ex]
 d    & \bnfdef & \keyw{val}~ f:\tau = e \\
-     & \bnfalt & \keyw{def}~ m:\tau = e 
+     & \bnfalt & \keyw{def}~ m:\tau = e \\
+     & \bnfalt & d~d
 %\\[1ex]	 
 \end{array}
 \begin{array}{lll}
@@ -40,6 +43,7 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 
 \omega   & \bnfdef & \keyw{val}~ f:\tau\\
          & \bnfalt & \keyw{def}~ m:\tau \\
+         & \bnfalt & \omega~\omega 
 \\[1ex]
 \end{array}
 \]
@@ -54,24 +58,40 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 \begin{array}{c}
 
 \infer[\textit{RT-objtype}]
-	{\Delta; \Gamma \vdash  \keyw{objtype}~ t~=\{\overline{\omega}, \keyw{metaobject}=e\}; \rho} 
-	{\Delta; \Gamma \vdash e \uparrow\tau ~~~~~ \Delta; \Gamma; t:\{\overline{\tau_d},\tau\} \vdash \rho ~~~~~ \tau: \{\overline{\tau_d}\}  }\\[3ex]
+	{\Delta; \Gamma \vdash  \keyw{objtype}~ t~=\{{\omega}, \keyw{metaobject}=e\}; \rho} 
+	{\Delta \vdash \omega & \Delta; \Gamma \vdash e \uparrow\tau & \Delta, t:\{\omega,\tau\}; \Gamma \vdash \rho }\\[3ex]
 
 \infer[\textit{RT-casetype}]
-	{\Delta; \Gamma \vdash  \keyw{casetype}~ t~=\{\overline{\chi}, \keyw{metaobject}=e\}; \rho} 
-	{\Delta; \Gamma \vdash e \uparrow\tau ~~~~~ \Delta; \Gamma; t:\{\overline{\tau_d},\tau\} \vdash \rho ~~~~~ \tau: \{\overline{\tau_d}\}  }\\[3ex]
+	{\Delta; \Gamma \vdash  \keyw{casetype}~ t~=\{\chi, \keyw{metaobject}=e\}; \rho} 
+	{\Delta \vdash \chi & \Delta; \Gamma \vdash e \uparrow\tau & \Delta, t:\{\chi,\tau\}; \Gamma \vdash \rho  }\\[3ex]
 
-\infer[\textit{CT-coftype}]
-	{\Delta; \Gamma \vdash  C~\keyw{of}~\tau \uparrow \tau} 
-	{   }\\[3ex]
+\infer[\textit{C-decl}]
+	{\Delta; \Gamma \vdash  C~\keyw{of}~\tau} 
+	{\Delta \vdash \tau   }\\[3ex]
 
+\infer[\textit{C-decls}]
+	{\Delta; \Gamma \vdash  \chi_1 \bnfalt \chi_2} 
+	{\Delta; \Gamma \vdash \chi_1 & \Delta; \Gamma \vdash \chi_2 & \text{dom}(\chi_1) \intersect \text{dom}(\chi_2) = \emptyset}\\[3ex]
+
+\infer[\textit{O-val}]
+	{\Delta; \Gamma \vdash \keyw{val}~ f:\tau \ \texttt{ok} }
+	{\Delta \vdash \tau} \\[3ex]
+	
+\infer[\textit{O-def}]
+	{\Delta; \Gamma \vdash \keyw{def}~ m:\tau \ \texttt{ok} }
+	{\Delta \vdash \tau } \\[3ex]
+
+\infer[\textit{O-decls}]
+	{\Delta; \Gamma \vdash \omega_1\ \omega_2  }
+	{\Delta \vdash \omega_1 & \Delta \vdash \omega_2 & \text{dom}(\omega_1) \intersect \text{dom}(\omega_2) = \emptyset } \\[3ex]
+	
 \infer[\textit{T-varx}]
 	{\Delta,\Gamma \vdash x\uparrow\tau } 
-	{x:\tau \in \Gamma & \tau= \{...\} \in \Delta}\\[3ex]
+	{x:\tau \in \Gamma }\\[3ex]
 
 \infer[\textit{T-abs}]
 	{\Delta; \Gamma \vdash  \boldsymbol\lambda x{:}\tau . e \uparrow \tau \rightarrow \tau_1} 
-	{\Delta; (\Gamma, x:\tau) \vdash e\uparrow\tau_1 }\\[3ex]
+	{\Delta; (\Gamma, x:\tau) \vdash e\uparrow\tau_1  & \Delta\vdash \tau}\\[3ex]
 
 \infer[\textit{T-appl}]
 	{\Delta; \Gamma \vdash  e(e_1) \uparrow\tau_2} 
