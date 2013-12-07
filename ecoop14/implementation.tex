@@ -1,8 +1,9 @@
 % !TEX root = ecoop14.tex
 
-%\section{Implementation Considerations}
-%\label{s:implementation}
-%
+\section{Implementation}
+\label{s:implementation}
+\todo{implementation - Benjamin?}
+
 %The Wyvern compiler
 %was developed from the ground up to support the extensible parsing
 %interface. The compiler is currently implemented in Java, with an eventual goal of self-hosting it within Wyvern itself.
@@ -210,76 +211,3 @@
 %%   \label{f:eg-let-eg}
 %%   \caption{Wyvern Example: \texttt{let}}
 %% \end{figure}
-
-\newpage
-
-\section{Discussion and Future Work}\label{s:discussion}
-\paragraph{Keyword-Directed Invocation}
-In most DSL frameworks, a switch to a DSL is indicated by a keyword or function call naming the DSL to be used. Wyvern eliminates this overhead in many cases by determining the DSL based on the expected type of an expression. This lightweight mechanism is particularly useful for small DSLs, like the one associated with \lstinline{URL}. Keyword-directed invocation of a DSL is simply a special case of this approach. In particular, a keyword macro can be defined as a function with a single argument of a type specific to that keyword. The type contains the implementation of the domain-specific syntax associated with that keyword. In the most general sense, it may simply allow the entire \keyw{EXP} grammar, manipulating it in later phases of compilation. 
-
-As an example, consider control flow operators like \verb|if|. This can be defined as a polymorphic method of the \verb|bool| type with signature $(\texttt{unit} \rightarrow \alpha, \texttt{unit} \rightarrow \alpha) \rightarrow \alpha$. That is, it takes the two branches as functions and chooses which to invoke based on the value of the boolean, using perhaps a more primitive control flow operator, like case analysis, or even a Church encoding of booleans as functions. In Wyvern, the branches could be packaged together into a type, \verb|IfBranches|, with an associated grammar that accepts the two branches as unwrapped expressions. Thus, \verb|if| could be defined entirely in a library and used as follows: 
-
-\begin{lstlisting}
-<guard>.if(~)
-  then
-    <any EXP>
-  else
-    <any EXP>
-\end{lstlisting}
-
-For methods like \verb|if| where constructing the argument explicitly will almost never be done, it may be useful to mark the method in a way that allows Wyvern to assume it is being called with a DSL argument immediately following its use. This would eliminate the need for the \verb|(~)| portion, supporting even more conventional notation. We have not considered this possibility in detail.
-
-\paragraph{Explicit Delimiters}
-Throughout this paper, DSLs have been delimited by whitespace. This allows arbitrary syntax within DSLs, since no delimiters need to be reserved to indicate the end of the DSL and thus there is no need for escaping internal uses of these delimiters. In cases where DSL expressions are expected to be reasonably short, such as the \lstinline{URL} example, or where delimiters are more natural than whitespace, such as for array or dictionary literals, it may be desirable to support other forms of delimited ``DSL literals''. 
-
-One possible strategy for this is to reserve a number of common delimiter forms, such as quotation marks and  forms of braces, as equivalent DSL literal forms. The traditional meaning of these delimiters, such as quotation marks for strings and square brackets for lists, would then simply be convention in Wyvern. That is, the following expressions, as well as several similar ones, would be precisely equivalent (the programmer could choose the most convenient form, given the enclosed term):
-\begin{verbatim}
-  f("http://github.com/wyvernlang")  
-  f([http://github.com/wyvernlang])
-\end{verbatim}
-
-Alternatively, types could specify the set of permitted delimiters so that conventions can be enforced by the compiler, improving identifiability. We have not yet explored either of these possibilities in detail, nor explored options that allow \emph{arbitrary} type-specified delimiters (a naive strategy for which would require that the first phase of parsing also be type-directed, which we wish to avoid).
-
-\paragraph{Interaction with Subtyping}
-The mechanism described here does not consider the case where multiple subtypes of a base type define a grammar. This can be resolved in several ways. We could require that only the \emph{declared} type's grammar is used (if a subtype's grammar is desired, an explicit type annotation on the tilde can be used). Alternatively, we could attempt to parse against all relevant subtypes, only requiring explicit disambiguation when ambiguities arise. Wyvern does not currently support subtyping, so we leave this as future work.
-%%\paragraph{Custom Contexts}
-%% One can observe a number of interesting issues that can be seen from
-%% our Wyvern examples. For example, our \lstinline{let} statement
-%% requires a corresponding \lstinline{in} part to be indented
-%% differently from the other sub-blocks. This means that the entire
-%% expression cannot be parsed by simply processing the appropriately
-%% indented line sequence and then returing the control back to the
-%% Wyvern parser, but rather there needs to be a way to detect that the
-%% parser is now back to the level of the original \lstinline{let}
-%% statement and the environment can be reset to what it was before the
-%% statement.
-%
-%Presently, grammars cannot define their own contexts that are passed through nested grammars, but this would likely be a useful addition in many cases. As an example, consider a \lstinline{let} expression defined by a functional programming based DSL in 
-%Wyvern:
-%
-%\begin{lstlisting}
-%let 
-%    x = 5
-%    z = 4
-%  in
-%    x + z
-%\end{lstlisting}
-%
-%\noindent 
-%This expression requires maintaining a context of bound variables. This context must be maintained such that any expression within the \verb|in| block that is written in this DSL has access to the appropriate context, even if it appears as a subexpression within a different DSL. Multiple DSLs may define different contexts, and these must be threaded throughout nested DSLs in a modular manner.
-%
-%\paragraph{Custom Lexers} 
-%Our existing lexing strategy may be too restrictive, requiring all DSLs to be hierarchical in nature. One potential expansion would be to enable DSLs to define their own lexers, still perhaps delimited by indentation or parentheses. Such an extension would sacrifice some readability.
-%%However, we have been unable to find convincing use cases for this facet of extensibility. 
-%
-%Wyvern's operators are built in and their precedence follows that of
-%C++ operators. We do not allow a replacement parser for infix
-%operators as we considered it to unnecessarily complicate the current
-%prefixed parsing approach. In the future, we plan to further support
-%redefining operators.
-%
-%Finally, following Python and some other whitespace delimited
-%languages, we may wish to allow parenthesized expressions to avoid the need for
-%following the indentation level. This is still subject to debate and,
-%as we try to express more and more DSL kinds in Wyvern, we may decide
-%to enforce indentation levels even inside the parentheses.
