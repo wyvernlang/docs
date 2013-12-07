@@ -2,9 +2,13 @@
 \section{Motivation}
 \label{s:motivation}
 
-To motivate our work we show an example, which illustrate the expressiveness that our approach provides, and also present results of a small empirical study that looked into how current Java projects could  benefit from using TSLs.
+To motivate our work we show an example, which illustrates the expressiveness that our approach provides, and also present results of a small empirical study that looked into how current Java projects could  benefit from using TSLs.
 
-\subsection{Motivating Examples}
+\subsection{Motivating Example}
+
+In this subsection, we show an example that demonstrates the key features of our approach. Here we give an informal explanation of the Wyvern language and the TSL-related constructs; a formal and more detailed description is to follow in the subsequent sections.
+
+
 \begin{figure}
 \begin{lstlisting}
 serve(`products.nameless.com`, ~)
@@ -18,63 +22,65 @@ serve(`products.nameless.com`, ~)
       :div[id="search"]
         {SearchBox("Products")}
       :ul[id="products"]
-        {items_from_query(query(db,
-           <SELECT * FROM products COUNT {n_products}>))} 
+        {items_from_db(db, <SELECT * FROM products>)}
+      :ul[id="reviews"]
+        {reviews_from_db(db, <SELECT * FROM reviews WHERE location = {UserLocation}>)}
 \end{lstlisting}
 \caption{Wyvern Example}
-\label{}
+\label{f-example}
 \end{figure}
 
 
+One of the reasons that motivated our work is the aspiration to provide developers with a possibility to compose various language constructs together in a program in a simple intuitive way. Consider a piece of Wyvern code in Figure~\ref{f-example}. When executed, it produces a webpage that displays a bulleted list of products followed by a list of reviews, both retrieved from a database. Notably, this method is mere 14 lines long but comprises the host Wyvern language as well as 6 type-specific languages. Each of the TSLs is introduced either within a pair of delimiters (e.g., backticks (\lstinline{`}), quotation marks (\lstinline{"}), or matching angle brackets (\lstinline{<} and \lstinline{>})) or by a tilde (\lstinline{~}) on a preceding line. The escape back to the host language is also done with a use of a pair of delimiters (e.g., matching curly braces (\lstinline|{| and \lstinline|}|)). With this in mind, let us have a closer look at how the code on Figure~\ref{f-example} decomposes:
 
-\begin{figure}
-\begin{lstlisting}
-casetype HTML = 
-    Text of String 
-  | DIVElement of (Attributes, HTML)
-  | ULElement  of (Attributes, HTML)
-  | ...
-  metaobject = new
-    val parser : Parser = ~
-      start ::= Ò:bodyÓ children=start => {~ 
-                   HTML.BodyElement(([], `children`))
-                } 
-             | ...
-             |  Ò:styleÒ Ò{Ò e=EXP[Ò}Ó] => {~
-                   HTML.StyleElement(([], `e` : CSS))
-                }
-\end{lstlisting}
-\caption{Wyvern Example Backend}
-\label{}
-\end{figure}
+\begin{itemize}
+\item As a first argument to the Wyvern \lstinline{serve} method, a URL TSL, delimited by backticks, is used (line 1);
+\item The skeleton of the \lstinline{serve} method's body is written using an HTML TSL (lines 2-14), which was introduced by the tilde on line 1;
+\item For the \lstinline{style} ``tag'' of the HTML code on line 5, containing a precursory tilde, a CSS TSL is used (line 6);
+\item Inside the CSS TSL, the \lstinline{bodyFont} is a Wyvern variable, escaped by a matching pair of curly braces (line 6);
+\item Inside the \lstinline{serve} method's HTML skeleton code, Wyvern code is used thrice: on line 10, to specify the content of the \lstinline{div} ``tag'' and, on lines 12 and 14, to produce two bulleted lists\textemdash every time the Wyvern code is delimited by curly braces;
+\item When specifying the content for the \lstinline{div} ``tag,'' a Wyvern \lstinline{SearchBox} method is using a TSL for strings (in Wyvern, there is no built-in data structure to represent strings; they are implemented as TSLs) and the string ``Products,'' delimited by quotation marks, is passed in (line 10);
+\item In the Wyvern \lstinline{items_from_db} method, the second argument is an SQL TSL (line 12), which is introduced by a matching pair of angle brackets and returns a list of \lstinline{Item}s;
+\item In the Wyvern \lstinline{reviews_from_db} method, the second argument is another SQL TSL (line 14), which is also introduced within angle brackets but returns a list of \lstinline{Review}s;
+\item Finally, the query provided to the Wyvern \lstinline{reviews_from_db} method contains a Wyvern variable \lstinline{UserLocation} which is escaped using a pair of matching curly braces (line 14).
+\end{itemize}
 
-\begin{figure}
-\begin{lstlisting}
-objtype Parser = 
-  def parse(s : TokenStream) : ExpAST
-\end{lstlisting}
-\caption{Wyvern objtype Parser}
-\label{}
-\end{figure}
+Apart from the large number of TSL that can be composed together in a short piece of code and produce meaningful results, we aim at providing a safe composability guarantees that other language extension solutions don't (cf.~\cite{Erdweg:2013:FEL:2517208.2517210} \todo{more citations?}). For instance, in the above Wyvern code the SQL TSLs use similar syntax; however, since they are triggered by methods expecting different types of arguments, namely \lstinline{items_from_db} method takes in a list of \lstinline{Item}s whereas \lstinline{reviews_from_db} method takes in a list of \lstinline{Review}s, the overlapping keywords used in the TSLs do not cause any ambiguities and can be safely composed.
 
-\begin{figure}
-\begin{lstlisting}
-casetype ExpAST = 
-  Var of ID 
-| Lam of Var * ExpAST | Ap of Exp * Exp 
-| CaseIntro of TyAST * String * ExpAST | ...
-\end{lstlisting}
-\caption{Wyvern casetype ExpAST}
-\label{}
-\end{figure}
 
 \subsection{Empirical Study}
 
-\cite{QualitasCorpus}
+To further motivate our approach, we performed a small empirical study that examined potential usage of the proposed language composition mechanism. For this purpose, we looked at the recent version of 107 Java projects in the Qualitas Corpus~\cite{QualitasCorpus:APSEC:2010} and performed two analysis to see how TSLs could be used directly and indirectly.
 
 \subsubsection{Direct Substitution with TSLs}
+
+\begin{table}
+   \centering
+    \begin{tabular}{l | c | c}
+    \bf Constructors & \bf Number & \bf \% of Total \\ \hline
+    Total analyzed & 125,048 & 100 \\
+    Have a String argument & 30,190 & 24 \\
+    Could use a TSL & 19,317 & 15 \\
+    \end{tabular}
+    \caption{}
+\end{table}
+
 \subsubsection{Benefits of Using TSLs}
 
+\begin{table}
+   \centering
+    \begin{tabular}{l | c | c}
+    \bf Type of String & \bf Number & \bf \% of Total \\ \hline
+    Name (file, user, field, class, value, etc.) & 14,330 & 74.2 \\
+    ID (process, column, user, etc.)	& 1,336 & 6.9 \\
+    Directory path& 823 & 4.3 \\
+    Pattern (regexp, prefix, suffix, format, template, scheme, delimiters, etc.) & 495 & 2.6 \\
+    URL/URI & 398 & 2.1 \\
+    Other (zip code, password, query, HTML, XML, IP address, version, etc.) & 1,935 & 10.0 \\ \hline
+    \bf Total: & \bf 19,317 & \bf 100.0
+    \end{tabular}
+    \caption{}
+\end{table}
 
 %
 %\begin{figure}
