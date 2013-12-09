@@ -1,7 +1,106 @@
 % !TEX root = ecoop14.tex
-\section{Introduction}
+\section{Motivation}
 \label{s:intro}
-\todo{intro - Cyrus}
+By using a general-purpose abstraction mechanism to encode a formal concept, one immediately benefits from a body of established reasoning principles and primitive operations. For example, inductive datatypes can be used to express data structures like lists: intuitively, a list can either be empty, or be broken down into a value (its \emph{head}) and another list (its \emph{tail}). In an ML-like language, this concept is conventionally written:
+\begin{lstlisting}
+datatype 'a list = Nil | Cons of 'a * 'a list
+\end{lstlisting}
+By encoding lists in this way, we can reason about them by structural induction, construct them by choosing the appropriate case and inspect them by pattern matching. In object-oriented languages, one can encode lists similarly as a singly-linked cells, reason about them using a variety of program analysis techniques, construct them using \li{new} and inspect them by traversing the links iteratively. In each case, the programmer only needs to provide an encoding of the structure of lists; the semantics are inherited.
+
+While inheriting semantics can be quite useful, inheriting associated general-purpose syntax can sometimes be a liability. For example, few would claim that writing a list of numbers as a sequence of \li{Cons} cells is convenient:
+\begin{lstlisting}
+Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
+\end{lstlisting}
+General-purpose object-oriented notation is similarly inconvenient:
+\begin{lstlisting}
+new Cons<int>(1, new Cons<int>(2, new Cons<int>(3, new Cons<int>(4))))
+\end{lstlisting}
+Because lists are a common data structure, many languages provide specialized notation for constructing them, e.g. \li{[1, 2, 3, 4]}. This notation is semantically equivalent to the general-purpose notation shown above, but brings cognitive benefits by drawing attention to the content of the list, rather than the nature of the encoding. More specifically, it is more \emph{terse}, \emph{visible} and \emph{maps more closely} to the intuitive notion of a list, to use terminology from the literature on the cognitive dimensions of notations \cite{green}.
+
+Although number, string and list literals are nearly ubiquitous features of modern languages, some languages also  provide specialized notation for other common data structures, like maps and sets, data formats, like XML and JSON, query languages, like regular expressions and SQL, and markup languages, like HTML. For example, a language with built-in syntax for HTML and SQL, with type-safe interpolation of host language terms via curly braces, might allow:
+\begin{lstlisting}
+val webpage : HTML = <html><body><h1>Results for {keyword}</h1>
+  <ul id="results">{to_list_items(query(db, 
+    SELECT title, snippet FROM products WHERE {keyword} in title)}
+</ul></body></html>
+\end{lstlisting}
+to mean \todo{colors}\todo{spacing below lstlisting}:
+\begin{lstlisting}
+val webpage : HTML = new HTMLElement(new Dict(), [new BodyElement(new Dict(),
+  [new H1Element(new Dict(), [new TextNode("Results for " + keyword)]), 
+  new ULElement(new Dict().add("id", "results"), to_list_items(query(db, 
+    new SelectStmt(["title", "snippet"], "products", [new WhereClause(
+      new InPredicate(new StringLit(keyword), "title"))]))))]]]
+\end{lstlisting}
+
+When a specialized notation is not available, and equivalent general-purpose notation is too cognitively demanding for comfort, developers typically turn to run-time mechanisms to make constructing data structures more convenient. Among the most common strategies in these situations, as we will discuss in Sec. \ref{s:motivation}, is to simply use a string representation that is parsed at run-time. Developers are often  tempted to write the example above as:
+\begin{lstlisting}
+val webpage : HTML = parse_html("<html><body><h1>Results for "+keyword+"</h1>
+  <ul id=\"results\">" + to_string(to_list_items(query(db, parse_sql(
+  	"SELECT title, snippet FROM products WHERE '"+keyword+"' in title")))) + 
+"</ul></body></html>")
+\end{lstlisting}
+
+Though recovering much of the notational convenience of the literal version, it is still more awkward to write, requiring explicit conversions to and from structured representations and escaping when the syntax of the language clashes with the syntax of string literals (line 2). But code like this also causes a number of more serious problems beyond cognitive load. Because parsing occurs at run-time, syntax errors will not be discovered statically, causing potential problems in production scenarios. Run-time parsing also incurs performance overhead, particularly relevant when code like this is executed often (as on a heavily-trafficked website, or in a loop). But the most serious issue with this code is that it contains two security vulnerabilities: a cross-site scripting attack (line 1) and a SQL injection attack (line 3). For example, if a user provided the keyword \li{'; DROP TABLE products --}, the entire product database could be erased. These attack vectors are considered to be two of the most serious security threats on the web today \cite{owasp}. Although developers are cautioned to sanitize their input, it can be difficult to verify that this was done correctly throughout a large codebase.
+
+%For example, in languages without regular expression literals, it is quite tedious to write out a regular expression in a structured manner. A simple regular expression like \verb!(\d\d):(\d\d)\w?((am)|(pm))! representing times might be written:
+%\begin{lstlisting}
+%Seq(Group(Seq(Digit, Digit), Seq(Char(":"), Seq(Group(Seq(Digit, Digit)), 
+%  Seq(Optional(Whitespace), Group(Or(Group(Seq(Char("a"), Char("m"))), 
+%  Group(Seq(Char("p"), Char("m"))))))))))
+%\end{lstlisting}
+%Among the most common strategies in these situations, as we will discuss in Sec. \ref{s:motivation}, is to simply use a string representation that is parsed at run-time. 
+%\begin{lstlisting}
+%rx_from_str("(\\d\\d):(\\d\\d)\\w?((am)|(pm))")
+%\end{lstlisting}
+%
+%For example, in languages without SQL literals, developers can implement a builder pattern:
+%\begin{lstlisting}
+%new SQLQuery().SELECT("*").FROM("table").WHERE("username").Eq(username)
+%\end{lstlisting}
+As we will discuss further in Sec. \ref{s:motivation}, situations like this, where specialized notation is  necessary to maintain strong correctness, performance and security guarantees and avoid unacceptable cognitive overhead, are surprisingly common. 
+Today, implementing new notations within an existing programming language requires the cooperation of the language designer. The primary technical reason for this is that, with conventional parsing strategies, not all notations can safely coexist, so a designer is needed to make choices about which syntactic forms are available and what their semantics are. For example, most conventional notations for sets and dictionaries are delimited by curly braces. When Python introduced set literals in version 3, it sought to use curly braces for both dictionaries and sets, distinguishing them based on whether the literal contained only values, or key-value pairs. But it faced a problem with the syntactic form \verb|{ }| -- should it mean an empty set or an empty dictionary? The designers of Python chose the latter, partly for backwards compatibility \cite{python-set-literals}. \todo{mightve been 2.7}
+
+Languages that allow users to introduce new syntax from within libraries hold promise, but because there is no longer a designer coordinating ambiguities, the burden of resolving such ambiguities falls to the users of extensions. For example, SugarJ \cite{sugarj} and other extensible variants of languages generated by Sugar* \cite{sugarstar} allow users to extend the base syntax of the host language (e.g. Java) with new forms, like set and dictionary literals. These new forms are imported transitively throughout a program. To resolve syntactic ambiguities, users must manually select which form to use for a given block of code, making it difficult to use both sets and dictionaries together in the same algorithm. \todo{look into whether this is completely accurate}\todo{mention that error msgs are awkward	?} These kinds of conflicts occur in a variety of circumstances: HTML and XML, different variants of SQL, JSON literals and dictionaries, or simply alternative implementations of the same specialized syntax (e.g. two regular expression engines) all cause similar problems.
+
+In this paper, we describe an alternative parsing strategy that avoids these problems by shifting responsibility for parsing the content of certain literal forms into the typechecker. The typechecker in turn defers responsibility to libraries by calling into a parser associated with the type that the literal form is being checked against. This parser determines the \emph{type-specific language} that governs literals of that type. By using this strategy, we can avoid the problem of ambiguous syntax, because the base syntax of the language is never extended directly, as well as ambiguous semantics -- the meaning of a form like \verb|{ }| depends on its type, so it is safe to use it for empty sets, dictionaries and other forms, like JSON literals. These need not be the variants of these data structures built into the standard library (for example, Python dictionaries do not preserve order).
+\begin{lstlisting}
+val empty_set : Set = { }
+val empty_dict : Dict = { }
+val empty_ord_dict : OrdDict = { }
+val empty_json : JSON = { }
+\end{lstlisting}
+
+\todo{Talk about contributions of paper here.}
+\todo{Mention that the examples above look like this in Wyvern?}
+\begin{lstlisting}
+val webpage : HTML = ~
+  <html><body><h1>Results for {keyword}</h1><ul id="results">{
+  	to_list_items(query(db, ~))
+      SELECT title, snippet FROM products WHERE {keyword} in title
+  }</ul></body></html>
+\end{lstlisting}
+
+\subsection{How Common is Specialized Notation?}
+\label{s:motivation}
+Before moving on, we first 
+
+%\begin{lstlisting}
+%astOf(e) : ExpAST
+%
+%casetype ExpAST { 
+%  Var of ID
+%  Lam of ID * TypeAST * ExpAST
+%| ...
+%  ParseAsExp(ts, x)
+%}
+%
+%casetype TyAST {
+%  Var of ID
+%  Arrow of TyAST * TyAST
+%  ParseAsTy(ts, x)
+%}
+%\end{lstlisting}
 %https://en.wikipedia.org/wiki/Cognitive_dimensions_of_notations
 %Domain-specific languages (DSLs) \cite{fowler2010domain} % have been widely-studied because they 
 %allow developers to work with   
