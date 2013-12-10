@@ -3,6 +3,8 @@
 
 \todo{This section on Statics is going to go and simply be integrated into approach in the right places, right? Right now it is just a list of figures and some text descrbining parts of them, not a coherent section as such, right?}
 
+
+
 \begin{figure}
 \centering
 \[
@@ -22,7 +24,7 @@ e    & \bnfdef & x \\
      & \bnfalt & \boldsymbol\lambda x{:}\tau . e \\ %
      & \bnfalt & e(e) \\
      & \bnfalt & t.C(e) \\
-     & \bnfalt & \keyw{case}~e~\keyw{of}~\{ c \} \\
+     & \bnfalt & \keyw{case}~(e)~\{ c \} \\
      & \bnfalt & \keyw{new}~ \{ d \}\\
      & \bnfalt & e.f \\
 %     & \bnfalt & e.f = e \\
@@ -30,6 +32,7 @@ e    & \bnfdef & x \\
      & \bnfalt & e : \tau\\
      & \bnfalt & \keyw{valAST}(e) \\
      & \bnfalt & t.\keyw{metaobject}\\
+     & \bnfalt & fromTS[\Gamma](e_1,e_2)\\
      & \bnfalt & \lfloor literal \rfloor \\
 \\[1ex]	 
 \end{array}
@@ -77,6 +80,8 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 & \bnfalt \ Lam\ of\ ID\ *\ Ty\ *\ Exp\\
 & \bnfalt \ App\ of\ Exp\ *\ Exp\\
 & \cdots\\
+& \bnfalt \ FromTokenStream\ of\ Exp\ *\ Exp\\
+& \bnfalt \ Error\\
 \\
 \keyw{casetype}\ & Ty=\\
 & \ \ \ Var\ of\ ID\\
@@ -145,7 +150,7 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 	{t:\{\chi, e_0:\tau\} \in \Delta & C\ \keyw{of}\ \tau' \in \chi &\Delta; \Gamma \vdash e \downarrow \tau'  \leadsto \hat{e}}\\[3ex]
 
 \infer[\textit{T-elimcase}]
-	{\Delta; \Gamma \vdash  \keyw{case}~e~\keyw{of}~\{ c \} \uparrow\tau'  \leadsto \keyw{case}~\hat{e}~\keyw{of}~\{ c \} } 
+	{\Delta; \Gamma \vdash  \keyw{case}~(e)~\{ c \} \uparrow\tau'  \leadsto \keyw{case}~(\hat{e})~\{ c \} } 
 	{\Delta; \Gamma \vdash e \uparrow t  \leadsto \hat{e}  & t:\{ \chi,e_0:\tau\} \in \Delta & c:\chi \uparrow \tau'}\\[3ex]
 
 \infer[\textit{T-casehelper1}]
@@ -168,6 +173,10 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 \begin{array}{c}
 
 \infer[\textit{T-new}]
+	{\Delta; \Gamma \vdash \keyw{new}\ \{ d \} \downarrow  t }
+	{ t:\{\omega,e_0:\tau\} \in \Delta & \Delta;\Gamma \vdash d \downarrow \omega & t\neq TokenStream} \\[3ex]
+
+\infer[\textit{T-new-hat}]
 	{\Delta; \Gamma \vdash \keyw{new}\ \{ d \} \downarrow  t }
 	{ t:\{\omega,e_0:\tau\} \in \Delta & \Delta;\Gamma \vdash d \downarrow \omega} \\[3ex]
 
@@ -207,7 +216,17 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
         {\Delta; \Gamma \vdash t.\keyw{metaobject} \uparrow \tau   }
 	{t:\{\_, e_0:\tau\} \in \Delta} \\[3ex]
 
-\infer[\textsc{T-literal}]
+
+\infer[\textit{T-fromTS}]
+	  {\Delta; \Gamma' \vdash fromTS[\Gamma](e_1,e_2) \downarrow \tau \leadsto \hat{e} }
+	  {\renewcommand{\arraystretch}{1}
+	    \begin{array}{r}
+	    \Delta;\Gamma' \vdash e_1:TokenStream ~~~~~~ \Delta;\Gamma' \vdash e_2:Token\\
+            parse(e_1,e_2)=e ~~~~~~\Delta; \Gamma', \Gamma \vdash e \downarrow \tau \leadsto \hat{e}
+            \end{array}
+       } \\[3ex]  
+
+\infer[\textit{T-literal}]
 	  {\Delta; \Gamma \vdash \lfloor literal \rfloor \downarrow t \leadsto \hat{e} }
 	  {\renewcommand{\arraystretch}{1}
 	    \begin{array}{r}
