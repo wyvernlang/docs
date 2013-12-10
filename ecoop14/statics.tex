@@ -24,6 +24,7 @@ e    & \bnfdef & x \\
 %     & \bnfalt & e.f = e \\
      & \bnfalt & e.m \\
      & \bnfalt & e : \tau\\
+     & \bnfalt & \keyw{valAST}(e) \\
      & \bnfalt & t.\keyw{metaobject}\\
      & \bnfalt & \lfloor literal \rfloor \\
 \\[1ex]	 
@@ -57,6 +58,29 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 \caption{Featherweight Wyvern Syntax}
 \label{fig:core2-syntax}
 \end{figure}
+
+
+\begin{figure}
+\centering
+\[
+\begin{array}{ll}
+\keyw{casetype}\ & Exp=\\
+& Var\ of\ ID\\
+& Lam\ of\ ID\\
+& App\ of\ ID\\
+& ...\\
+\\
+\keyw{casetype}\ & Ty=\\
+& Var\ of\ ID\\
+& Arrow\ of\ Ty*Ty\\
+\\ 
+\end{array}
+\]
+\caption{Syntax Trees of Expressions and Types}
+\end{figure}
+
+
+
 
 
 \begin{figure}
@@ -167,6 +191,9 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 	{\Delta; \Gamma  \vdash  e:\tau \uparrow \tau \leadsto \hat{e}:\tau}
 	{\Delta \vdash \tau & \Delta; \Gamma \vdash e \downarrow \tau \leadsto \hat{e} } \\[3ex]
 
+\infer[\textit{T-valAST}]
+        {\Delta; \Gamma \vdash \keyw{valAST}(e)\uparrow Exp \leadsto \keyw{valAST}(\hat{e}) }
+	{\Delta; \Gamma \vdash e \uparrow \tau \leadsto \hat{e}} \\[3ex]
 
 \infer[\textit{T-metaobject}]
         {\Delta; \Gamma \vdash t.\keyw{metaobject} \uparrow \tau   }
@@ -177,7 +204,7 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 	  {\renewcommand{\arraystretch}{1}
 	    \begin{array}{r}
 	    \Delta;\Gamma \vdash t.\keyw{metaobject}.parser\downarrow Parser \leadsto \hat{e}_p ~~~~~ \text{TokenStream of~} \lfloor literal \rfloor\ \text{is}\ \hat{e}_{ts}\\
-            \hat{e}_p.parse(\hat{e}_{ts}) \Downarrow Exp.C(\hat{e}') ~~~~~ Exp.C(\hat{e}') \hookrightarrow e ~~~~~ \Delta;\Gamma\vdash e\downarrow t \leadsto \hat{e}
+            \hat{e}_p.parse(\hat{e}_{ts}) \Downarrow Exp.C(\hat{e}') ~~~~~  e \triangleleft Exp.C(\hat{e}')~~~~~ \Delta;\Gamma\vdash e\downarrow t \leadsto \hat{e}
             \end{array}
        } \\[3ex]   
 \end{array}
@@ -185,32 +212,105 @@ d    & \bnfdef & \keyw{val}~ f:\tau = e \\
 \caption{Static Semantics Rules 2}
 \end{figure}
 
-
 \begin{figure}
 \centering
 \[
 \begin{array}{c}
 
-\infer[\textit{Exp-Var}]
-	{Exp.Var(\keyw{new} \{\keyw{val}\ id=``x"\}) \hookrightarrow x  }
-	{ } \\[3ex]
+\infer[\textit{Dyn-Meta}]
+	{t.\keyw{metaobject} \xmapsto[\Sigma,t\triangleright \hat{e}]{} \hat{e}} 
+	{}\\[3ex]
 
-\infer[\textit{Exp-Lam}]
-	{Exp.Lam(\keyw{new} \{\keyw{val}\ id=``x"; \keyw{val}\ type=\tau; \keyw{val}\ e1=e_1 \}) \hookrightarrow  \boldsymbol\lambda x{:}\tau . e'_1 }
-	{e_1 \hookrightarrow e'_1 } \\[3ex]
+\infer[\textit{Dyn-valAST1}]
+	{valAST(\hat{e}) \xmapsto[\Sigma]{} valAST(\hat{e}') } 
+	{\hat{e} \xmapsto[\Sigma]{} \hat{e}'}\\[3ex]
 
-\infer[\textit{Exp-App}]
-	{Exp.App(\keyw{new} \{\keyw{val}\ e1=e_1;\keyw{val}\ e2=e_2\}) \hookrightarrow e'_1(e'_2)  }
-	{e_1 \hookrightarrow e'_1 & e_2 \hookrightarrow e'_2  } \\[3ex]
+\infer[\textit{Dyn-valAST2}]
+	{valAST(\hat{e}) \xmapsto[\Sigma]{} \hat{e}' } 
+	{\hat{e}\ \text{val} &\hat{e} \triangleright \hat{e}' }\\[3ex]
 
-\infer[\textit{Exp-Dsl}]
-	{Exp.Dsl(\keyw{new} \{\keyw{val}\ literal= e \}) \hookrightarrow \lfloor e' \rfloor  }
-	{e \hookrightarrow e' } \\[3ex]
+
+
+
+\end{array}
+\]
+\caption{Dynamic Semantics Rules}
+\end{figure}
+
+
+
+
+\begin{figure}
+\centering
+\begin{minipage}{.5\textwidth}
+  \centering
+   \[
+\begin{array}{c}
+
+\infer[\textit{DExp-Var}]
+	{ x \triangleleft Exp.Var(\hat{e})   }
+	{ ID(x)\ \text{is}\ \hat{e}} \\[3ex]
+
+\infer[\textit{DExp-Lam}]
+	{ \boldsymbol\lambda x{:}\tau . e'_1 \triangleleft Exp.Lam( \hat{e}, \tau, \hat{e}_1 )  }
+	{ID(x)\ \text{is}\ \hat{e} & e'_1 \triangleleft \hat{e}_1  } \\[3ex]
+
+\infer[\textit{DExp-App}]
+	{ e'_1(e'_2)  \triangleleft Exp.App(\hat{e}_1,\hat{e}_2) }
+	{ e'_1 \triangleleft \hat{e}_1  & e'_2 \triangleleft \hat{e}_2   } \\[3ex]
+
+\infer[\textit{DExp-Literal}]
+	{ \lfloor literal \rfloor \triangleleft Exp.Literal( \hat{e}_{ts} )  }
+	{ \text{literal of}\ \hat{e}_{ts}\ \text{is}\ \lfloor literal \rfloor  } \\[3ex]
+
+\infer[\textit{DTy-Var}]
+	{ t \triangleleft Ty.Var(\hat{e})   }
+	{ ID(t)\ \text{is}\ \hat{e}} \\[3ex]
+
+\infer[\textit{DTy-Arrow}]
+	{ \tau_1 \rightarrow \tau_2 \triangleleft Ty.Arrow(\hat{e}_1,\hat{e}_2 )  }
+	{ \tau_1 \triangleleft \hat{e}_1 & \tau_2 \triangleleft \hat{e}_2 } \\[3ex]
    
 \end{array}
 \]
-\caption{Translation Rules}
+\caption{Dereification Rules}
+\end{minipage}%
+\vline
+\begin{minipage}{.5\textwidth}
+  \centering
+  \[
+\begin{array}{c}
+\infer[\textit{RExp-Var}]
+	{ x \triangleright Exp.Var(\hat{e})   }
+	{ ID(x)\ \text{is}\ \hat{e}} \\[3ex]
+
+\infer[\textit{RExp-Lam}]
+	{ \boldsymbol\lambda x{:}\tau . \hat{e}'_1 \triangleright Exp.Lam( \hat{e}, \tau, \hat{e}_1 )  }
+	{ID(x)\ \text{is}\ \hat{e} & \hat{e}'_1 \triangleright \hat{e}_1  } \\[3ex]
+
+\infer[\textit{RExp-App}]
+	{ \hat{e}'_1(\hat{e}'_2)  \triangleright Exp.App(\hat{e_1},\hat{e}_2) }
+	{ \hat{e}'_1 \triangleright \hat{e}_1  & \hat{e}'_2 \triangleright \hat{e}_2   } \\[3ex]
+
+\infer[\textit{RExp-Literal}]
+	{ \lfloor literal \rfloor \triangleright Exp.Literal( \hat{e}_{ts} )  }
+	{ \text{literal of}\ \hat{e}_{ts}\ \text{is}\ \lfloor literal \rfloor  } \\[3ex]
+
+\infer[\textit{RTy-Var}]
+	{ t \triangleright Ty.Var(\hat{e})   }
+	{ ID(t)\ \text{is}\ \hat{e}} \\[3ex]
+
+\infer[\textit{RTy-Arrow}]
+	{ \tau_1 \rightarrow \tau_2 \triangleright Ty.Arrow(\hat{e}_1,\hat{e}_2 )  }
+	{ \tau_1 \triangleright \hat{e}_1 & \tau_2 \triangleright \hat{e}_2 } \\[3ex]
+   
+\end{array}
+\]
+\caption{Reification Rules}
+\end{minipage}
 \end{figure}
+
+
 
 The \textit{Syn2Check} rule mediates between synthesis and type checking. 
 The judgement 
