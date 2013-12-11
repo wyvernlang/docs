@@ -2,7 +2,7 @@
 
 \section{Type-Specific Languages in Wyvern}
 \label{s:motivation}
-
+We begin with an example in Fig. \ref{f-example} showing several different TSLs being used to define a fragment of a web application showing search results from a database. We will review this example below to develop intuitions about TSLs in Wyvern; a formal and more detailed description will follow in the subsequent sections.
 \begin{figure}[t]
 \begin{lstlisting}
 let imageBase : URL = <images.example.com>
@@ -21,7 +21,7 @@ new : SearchServer
           :h1 Results for {searchQuery}
           :div[id="search"]
             Search again: {SearchBox("Go!")}
-          { (* fmt_results : (DB, Query, Nat, Nat) -> HTML *)
+          { (* fmt_results : (DB, SQLQuery, Nat, Nat) -> HTML *)
             fmt_results(db, ~, 10, page)
               SELECT * FROM products WHERE {searchQuery} in title
           }
@@ -29,21 +29,36 @@ new : SearchServer
 \vspace{-10px}
 \caption{Wyvern Example \todo{better caption?}\todo{colors}}
 \label{f-example}
+%\vspace{-15px}
 \end{figure}
-
-We begin with an example in Fig. \ref{f-example} showing several different TSLs being used to define a fragment of a web application showing search results from a database. We will review this example below to develop intuitions about TSLs in Wyvern; a formal and more detailed description will follow in the subsequent sections.
-
+ 
 Our first TSL appears on line 1. The type of \li{imageBase} is \li{URL}, an \emph{object type} containing several fields representing the components of a URL: its protocol, domain name, port, path and so on. Instead of creating a new object and setting these fields explicitly, however, we instantiate them using the \emph{generic literal} \li{<images.example.com>}, using conventional notation for URLs. Because of the type annotation, this literal's \emph{expected type} is known to be \li{URL}, so the body of this literal (the characters between the angle brackets) is governed by the \li{URL} TSL. It will be parsed by this TSL \emph{at compile-time} to produce a Wyvern AST that instantiates a new object of type \li{URL} explicitly (see below).
 
 In addition to defining conventional notation for URLs, this TSL supports \emph{interpolation} of an expression of type \li{URL} to form a larger URL, using curly braces as a delimiter as seen on line 2. The TSL parses the portion between curly braces as a Wyvern expression and specifies its expected type as  \li{URL}. The TSL can then assume the interpolated value is of this type to construct an AST for the overall value; string interpolation does not occur.
 
 To introduce a value manually, we must use {general-purpose notation}. The general-purpose notation for introducing a value of an object type is to use \li{new}. This term is a syntactic \emph{forward reference} to the layout-delimited block of \emph{definitions} beginning on the line after the line \li{new} appears in and ending when the indentation level has returned to the baseline or the file ends (here, lines 4-20). An object in TSL Wyvern can contain methods, introduced using \li{def}, and fields, introduced using \li{val}. Here we have just a single method, \li{serve_results} taking two arguments. Object types in TSL Wyvern are simple structural types that constrain the signatures of fields and methods. The \emph{type ascription} around \li{new} checks that the object being introduced satisfies the signature of \li{SearchServer}.
 
-\todo{describe HTML, a case type not an obj type. these are the two user-defined types}
 
 
+\begin{figure}[t]
+\begin{lstlisting}[mathescape]
+`literal body here, ``inner backticks`` must be doubled`
+'literal body here, ''inner single quotes'' must be doubled'
+"literal body here, ""inner double quotes"" must be doubled"
+{literal body here, {inner braces} must be balanced}
+[literal body here, [inner brackets] must be balanced]
+<literal body here, <inner angle brackets> must be balanced>
+12xyz (* there are no delimiters for number literals *)
+\end{lstlisting}
+\vspace{-10px}
+\caption{Inline Generic Literal Forms}
+\vspace{-15px}
+\label{f-delims}
+\end{figure}
 
-One of the reasons that motivated our work is the aspiration to provide developers with a possibility to compose various language constructs together in a program in a simple intuitive way. Consider a piece of Wyvern code in Figure~\ref{f-example}. When executed, it produces a webpage that displays a bulleted list of products followed by a list of reviews, both retrieved from a database. Notably, this method is mere 14 lines long but comprises the host Wyvern language as well as 6 type-specific languages. Each of the TSLs is introduced either within a pair of delimiters (e.g., backticks (\lstinline{`}), quotation marks (\lstinline{"}), or matching angle brackets (\lstinline{<} and \lstinline{>})) or by a tilde (\lstinline{~}) on a preceding line. The escape back to the host language is also done with a use of a pair of delimiters (e.g., matching curly braces (\lstinline|{| and \lstinline|}|)). With this in mind, let us have a closer look at how the code on Figure~\ref{f-example} decomposes:
+On line 5 of Fig. \ref{f-example}, we see a call to the function \li{serve}, which has type \li{HTML -> Unit}. Here, \li{HTML} is a user-defined \emph{case type}, having cases for each HTML tag as well as some other structures. Declarations  of some of these cases can be seen on lines 2-6 of Fig. \ref{f-htmltype}. The general-purpose introductory form for a case type like \li{HTML} is, e.g., \li{HTML.BodyElement(attrs, child)}. But, as discussed in Sec. \ref{s:intro}, using this syntax can be cognitively demanding. Thus, we associate a TSL with \li{HTML} that provides a 
+
+\todo{describe HTML, a case type not an obj type. these are the two user-defined types}One of the reasons that motivated our work is the aspiration to provide developers with a possibility to compose various language constructs together in a program in a simple intuitive way. Consider a piece of Wyvern code in Figure~\ref{f-example}. When executed, it produces a webpage that displays a bulleted list of products followed by a list of reviews, both retrieved from a database. Notably, this method is mere 14 lines long but comprises the host Wyvern language as well as 6 type-specific languages. Each of the TSLs is introduced either within a pair of delimiters (e.g., backticks (\lstinline{`}), quotation marks (\lstinline{"}), or matching angle brackets (\lstinline{<} and \lstinline{>})) or by a tilde (\lstinline{~}) on a preceding line. The escape back to the host language is also done with a use of a pair of delimiters (e.g., matching curly braces (\lstinline|{| and \lstinline|}|)). With this in mind, let us have a closer look at how the code on Figure~\ref{f-example} decomposes:
 
 \begin{itemize}
 \item As a first argument to the Wyvern \lstinline{serve} method, a URL TSL, delimited by backticks, is used (line 1);
