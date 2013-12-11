@@ -13,10 +13,9 @@ new : SearchServer
       :html
         :head
           :title Search Results
-          :style {~
+          :style ~
             body { background-image: url({bgImage}) }
             #search { background-color: {`#aabbcc`.darken(20pct)} }
-          }
         :body
           :h1 Results for {searchQuery}
           :div[id="search"]
@@ -38,8 +37,32 @@ In addition to defining conventional notation for URLs, this TSL supports \emph{
 
 To introduce a value manually, we must use {general-purpose notation}. The general-purpose notation for introducing a value of an object type is to use \li{new}. This term is a syntactic \emph{forward reference} to the layout-delimited block of \emph{definitions} beginning on the line after the line \li{new} appears in and ending when the indentation level has returned to the baseline or the file ends (here, lines 4-20). An object in TSL Wyvern can contain methods, introduced using \li{def}, and fields, introduced using \li{val}. Here we have just a single method, \li{serve_results} taking two arguments. Object types in TSL Wyvern are simple structural types that constrain the signatures of fields and methods. The \emph{type ascription} around \li{new} checks that the object being introduced satisfies the signature of \li{SearchServer}.
 
-
-
+\begin{figure}[t]
+\begin{lstlisting}[escapechar=$]
+casetype HTML = 
+    Empty of Unit
+  | Text of String
+  | Seq of HTML * HTML 
+  | BodyElement of Attributes * HTML
+  | StyleElement  of Attributes * CSS
+  | ...
+  metadata = new : HasParser
+    val parser : Parser = ~
+      start -> ':body'= child=start>
+        { HTML.BodyElement(([], $\verb|$|$child$\verb|$|$)) }
+      start -> ':style'= e=EXP[NEWLINE]>
+        let empty_attrs : Attributes = []
+        ExpAST.CaseIntro(TyAST.Var("HTML"), "StyleElement",
+          ExpAST.ProdIntro(valAST(empty_attr), s))
+      $\cdots$
+      start -> '{'= e=EXP['}']>
+        { $\verb|$|$e$\verb|$|$ : HTML }
+\end{lstlisting}
+\vspace{-8px}
+\caption{A Wyvern case type with an associated TSL.\todo{colors}}
+\vspace{-10px}
+\label{f-htmltype}
+\end{figure}
 \begin{figure}[t]
 \begin{lstlisting}[mathescape]
 `literal body here, ``inner backticks`` must be doubled`
@@ -48,15 +71,23 @@ To introduce a value manually, we must use {general-purpose notation}. The gener
 {literal body here, {inner braces} must be balanced}
 [literal body here, [inner brackets] must be balanced]
 <literal body here, <inner angle brackets> must be balanced>
-12xyz (* there are no delimiters for number literals *)
+12xyz (* no delimiters necessary for number literals *)
 \end{lstlisting}
-\vspace{-10px}
-\caption{Inline Generic Literal Forms}
+\vspace{-8px}
+\caption{Inline Generic Literal Forms \todo{colors}}
 \vspace{-15px}
 \label{f-delims}
 \end{figure}
 
-On line 5 of Fig. \ref{f-example}, we see a call to the function \li{serve}, which has type \li{HTML -> Unit}. Here, \li{HTML} is a user-defined \emph{case type}, having cases for each HTML tag as well as some other structures. Declarations  of some of these cases can be seen on lines 2-6 of Fig. \ref{f-htmltype}. The general-purpose introductory form for a case type like \li{HTML} is, e.g., \li{HTML.BodyElement(attrs, child)}. But, as discussed in Sec. \ref{s:intro}, using this syntax can be cognitively demanding. Thus, we associate a TSL with \li{HTML} that provides a 
+On line 5 of Fig. \ref{f-example}, we see a call to the function \li{serve}, which has type \li{HTML -> Unit}. Here, \li{HTML} is a user-defined \emph{case type}, having cases for each HTML tag as well as some other structures. Declarations  of some of these cases can be seen on lines 2-6 of Fig. \ref{f-htmltype}. The general-purpose introductory form for a case type like \li{HTML} is, e.g., \li{HTML.BodyElement(attrs, child)}. But, as discussed in Sec. \ref{s:intro}, using this syntax can be cognitively demanding. Thus, we associate a TSL with \li{HTML} that provides a simplified notation for writing HTML, shown being used on lines 6-20 of Fig. \ref{f-example}. This literal body is layout-delimited and introduced by another form of forward reference, written \li{~} (``tilde''), on the previous line. Because the forward reference occurs in a position where the expected type is \li{HTML}, the literal body is governed by that type's TSL. The forward reference will be rewritten to a general-purpose term of type \li{HTML} by the TSL during compilation.
+
+Portions of the implementation of the TSL for \li{HTML} are shown written using a declarative grammar notation on lines 8-17 of Fig. \ref{f-htmltype}. The \li{start} production is defined by a number of rules. Each rule defines a sequence of terminals (e.g. \li{':body'}) and non-terminals (e.g. \li{start}) with associated names (e.g \li{child}), followed in an indented block by a Wyvern expression that generates a Wyvern AST, of type \li{Exp}. The ASTs of the named non-terminals are bound the corresponding variables in this expression. Here, we show how to generate this AST using quasiquotes (lines 11, 18) as well as using general-purpose notation (lines 13-15). Quasiquotes are simply the TSL associated with \li{Exp} and support the full Wyvern concrete syntax as well as an additional delimiter form, written with \verb|$|s, that allows ``unquoting'': interpolating another AST into the one being generated.
+
+The \li{HTML} TSL has several features of note. First, when the \li{:style} notation is used, 
+
+\todo{describe the CSS stuff}
+\todo{describe the Color thing}
+\todo{describe all the various generic literal forms}
 
 \todo{describe HTML, a case type not an obj type. these are the two user-defined types}One of the reasons that motivated our work is the aspiration to provide developers with a possibility to compose various language constructs together in a program in a simple intuitive way. Consider a piece of Wyvern code in Figure~\ref{f-example}. When executed, it produces a webpage that displays a bulleted list of products followed by a list of reviews, both retrieved from a database. Notably, this method is mere 14 lines long but comprises the host Wyvern language as well as 6 type-specific languages. Each of the TSLs is introduced either within a pair of delimiters (e.g., backticks (\lstinline{`}), quotation marks (\lstinline{"}), or matching angle brackets (\lstinline{<} and \lstinline{>})) or by a tilde (\lstinline{~}) on a preceding line. The escape back to the host language is also done with a use of a pair of delimiters (e.g., matching curly braces (\lstinline|{| and \lstinline|}|)). With this in mind, let us have a closer look at how the code on Figure~\ref{f-example} decomposes:
 
