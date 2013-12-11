@@ -17,15 +17,96 @@ At the top level of a program (the \lstinline{p} rules), there can be either a t
 
 Wyvern expressions can be of two major types: those that do not contain forward references (\lstinline{$\overline{\texttt{e}}$}) and those that do (\lstinline{$\widetilde{\texttt{e}}$[fwd]}). Expressions that have a forward reference are either a tilde, saying that a TSL literal is to follow, a new object, or an introductory form of the sum type. Both of the major types of expressions can be a lambda, an application, a pair (for a product type), a \lstinline{let} expression, a field access, expressions for the sum type, a type ascription, or a special built-in operator (\lstinline{valAST()}). The difference between the major expression types is that \lstinline{$\overline{\texttt{e}}$} is not allowed to contain an expression with a forward reference and thus includes expressions for a variable, access to a type's \lstinline{metadata}, and an inline literal. On the other hand, \lstinline{$\widetilde{\texttt{e}}$[fwd]} must have a forward reference. It is important to note that, per line, there can be only one forward reference, which needs to be followed by the `announced' type of expression on the following line (\lstinline{NEWLINE$^>$ $NT^>$} at the end of expressions containing a forward reference).
 
-Production rules for \lstinline{d} represent zero or more field and method definitions, where \lstinline{argsig} is a possibly empty list of typed arguments for the method (omitted from the figure). Production rules for \lstinline{c} represent cases of the sum type, and \lstinline{$\overline{\texttt{al}}$}, \lstinline{$\overline{\texttt{al}}_{\texttt{nonempty}}$}, and \lstinline{$\widetilde{\texttt{al}}$[fwd]} are argument lists without and with forward references. Finally, there are production rules for inline TSL literals, which were discussed in section~\ref{s:motivation} above.
-
-\paragraph{Parsing} Parsing of the Wyvern code...
-have all the delimiter forms here; talk about phase 1 parsing
-\todo{write about parsing?}
+Production rules for \lstinline{d} represent zero or more field and method definitions, where \lstinline{argsig} is a possibly empty list of typed arguments for the method (omitted from the figure). Production rules for \lstinline{c} represent cases of the sum type, and \lstinline{$\overline{\texttt{al}}$}, \lstinline{$\overline{\texttt{al}}_{\texttt{nonempty}}$}, and \lstinline{$\widetilde{\texttt{al}}$[fwd]} are argument lists without and with forward references. Finally, there are production rules for inline TSL literals, which were discussed in section~\ref{s:motivation} above. Next we are going to look at Wyvern's abstract syntax and the interplay between the concrete and abstract syntaxes.
 
 \subsection{Abstract Syntax}
 \subsubsection{Extraction to Abstract Delimited Form}
 \todo{extraction - Darya}
+
+\begin{figure}
+\centering
+\[
+\begin{array}[t]{lll} 
+\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=e \}; \rho \\
+     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=e \}; \rho\\
+     & \bnfalt & e
+     \\[1ex]
+e    & \bnfdef & x \\
+     & \bnfalt & \boldsymbol\lambda x{:}\tau . e \\ %
+     & \bnfalt & e(e) \\
+     & \bnfalt & (e, e) \\
+     & \bnfalt & \keyw{case}(e) \{(x, y) \Rightarrow e\}\\
+     & \bnfalt & t.C(e) \\
+     & \bnfalt & \keyw{case}(e)~\{ c \} \\
+     & \bnfalt & \keyw{new}~ \{ d \}\\
+     & \bnfalt & e.x \\
+     & \bnfalt & e : \tau\\
+     & \bnfalt & \keyw{valAST}(e) \\
+     & \bnfalt & t.\keyw{metaobject}\\
+     & \bnfalt & \lfloor literal \rfloor \\
+     & \bnfalt & \keyw{fromTS}[\Gamma](e, e)
+\\[1ex]	
+c    & \bnfdef & C(x) \Rightarrow e\\
+     & \bnfalt & c \bnfalt c
+	 \\[1ex]
+d   & \bnfdef & \varepsilon \\
+     & \bnfalt & \keyw{val}~ f:\tau = e;~d \\
+     & \bnfalt & \keyw{def}~ m:\tau = e;~d
+\\[1ex] 
+\end{array}
+\begin{array}[t]{lll}
+~~~
+\end{array}
+\begin{array}[t]{lll}
+
+
+\hat\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=\hat e \}; \hat\rho \\
+     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=\hat e \}; \hat\rho\\
+     & \bnfalt & \hat e
+     \\[1ex]
+\hat{e}    & \bnfdef & x \\
+     & \bnfalt & \boldsymbol\lambda x{:}\tau . \hat{e} \\ %
+     & \bnfalt & \hat{e}(\hat{e}) \\
+     & \bnfalt & \cdots \\
+     & \bnfalt & t.\keyw{metaobject} 
+\\[1ex]
+\hat c    & \bnfdef & ...
+	 \\[1ex]
+\hat d   & \bnfdef & ... 
+\\[1ex] 
+\chi & \bnfdef & C~\keyw{of}~\tau\\
+     & \bnfalt & \chi \bnfalt \chi 
+\\[1ex]
+\omega &\bnfdef & \varepsilon \\  
+         & \bnfalt & \keyw{val}~ f:\tau;~\omega\\
+         & \bnfalt & \keyw{def}~ m:\tau;~\omega 
+\\[1ex]
+\tau & \bnfdef & t\\
+     & \bnfalt & \tau \rightarrow \tau \\
+     & \bnfalt & \tau \times \tau 
+\\[1ex]
+\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau
+\\[1ex]
+\Delta & \bnfdef & \emptyset \bnfalt \Delta, t:\{\chi, e:\tau\} \bnfalt \Delta, t:\{\omega, e:\tau\}
+\\[1ex]
+
+\end{array}
+\]
+\caption{Abstract Syntax}
+\label{fig:core2-syntax}
+\end{figure}
+
+We present the abstract syntax of our system in Figure \ref{fig:core2-syntax}. A program $\rho$ is composed of a series of object type \keyw{objtype} and sum type \keyw{casetype} declarations, followed by expressions $e$. An object type is made of declarations of values \keyw{val}, methods \keyw{def} and \keyw{metadata}. A sum type is made of an enumeration of cases of the form $C$ \keyw{of} $\tau$, where $C$ is the name of the constructor and $\tau$ is the type of the expression constructed in this case, followed by metadata.
+
+The metadata of a type $t$ (either an \keyw{objtype} or a \keyw{casetype}) can contain arbitrary data, for eg. documentation, but it will necessarily contain a $parser$ field of type $Parser$. The $parser$ field has a $parse$ method that takes as argument a stream of tokens and generates an abstract syntax tree expression. This $parse$ method is used for parsing new TSLs of type $t$ defined by the user. 
+
+We differentiate between expressions that might contain a TSL expression and those that definitely do not contain a TSL expression by superscripting the latter with the symbol $\hat{}$. Thus we have two versions (one without $\hat{}$ and one with $\hat{}$) for programs $\rho$,  expressions $e$, cases $c$ of the sum types, and declarations $d$ of fields and methods. 
+
+An expression can be a variable, a function, an application of a function to an expression, a pair of expressions, a case analysis on pairs, the constructor of a case type, the destructor of a case type, a new expression declaring fields and methods, the invocation $e.x$ of a field or a method. We do not have $e.m$ and $e.f$ in the abstract syntax because the parser cannot differentiate between the two, only the type checker can do that. An expression can also be an expression with a type ascribed to it, the abstract syntax tree of an expression, a metaobject of a type, a TSL literal or an expression obtained from a token stream. Each expression has a corresponding static semantics rule in Figures \ref{fig:statics1} and \ref{fig:statics2}. 
+
+The abstract syntax also presents the definition of types, which can be unary types, arrow types corresponding to functions and product types corresponding to pairs. The context $\Gamma$ contains variables and their types. The context $\Delta$ contains types and their signatures. In $\Delta$ we need to keep track not only of a metadata's type, but we need to carry the actual metadata. This is because in the rule $\textit{T-literal}$ in Figure \ref{fig:statics2} we execute the $parse$ method on $\hat{e}_p$ and for this we need to know what the body of the $parse$ method is.
+
+
 
 \begin{figure}
 \begin{lstlisting}[escapechar=$]
@@ -98,117 +179,3 @@ Related work: C\# expression trees (http://msdn.microsoft.com/en-us/library/bb39
 \todo{ambiguity - Cyrus}
 \subsection{Grammars as TSLs}
 \subsubsection{Ambiguity Checking (related to van wyk's work?) - Cyrus}
-
-
-%The examples above demonstrate the core mechanism used in Wyvern: each expression or declaration can contain at most one tilde (\verb|~|). The line following the term containing the tilde must begin an indented block. This block will be parsed according to a grammar associated with the expected type of the expression where the tilde occurred. In Figure \ref{f:dsl-arch}, this type was determined by an explicit type annotation. In Figures \ref{f:dsl-query} and \ref{f:dsl-presentation}, it was determined implicitly by the argument types of the function being called. Although a single tilde per expression may initially seem limiting, we can see in Figure 3 that the use of a \keyw{where} clause allows for the use of multiple DSLs within a single expression.
-%
-%Figure~\ref{f:dsl-if} shows how users equip types with domain-specific grammars, here for the Architecture example in Figure \ref{f:dsl-arch}. The grammar associated with \lstinline{Architecture} is defined at the top level by a specially-named production, \keyw{grammar}, and it also defines two sub-productions for component and policy specifications. Each component specification includes a name, a type and an optional list of attributes. The name is specified using the \keyw{ID} production, which is a globally-available production that matches valid Wyvern (i.e. the GPL's) identifiers. Similarly, the \keyw{TYPE} production matches Wyvern types. These productions cannot be extended directly, but can be used within DSLs as needed and thus conflicts are detected when the library is compiled, rather than deferred to link-time. 
-%
-%One component attribute in the Architecture DSL is \lstinline{location}. On line \ref{f:dsl-if}.6, we see the use of a production defined in another type, \verb|URL|. This means that only URL literals are valid at that position, but \emph{not} any Wyvern expression of type \verb|URL|. To instead ask for any Wyvern expression of a particular type, we use the notation used in the \lstinline{policy} production on line \ref{f:dsl-if}.8. Here, a named policy is defined as an identifier followed by an equals sign and a Wyvern expression of type \lstinline{Policy}. This is denoted by the form \keyw{EXP}\verb| : T|, where \verb|T| is a type in scope of the grammar definition. Unlike in the URL example above, if there is a DSL associated with this type, it can only be used within a whitespace-delimited block introduced by a tilde. This key distinction can be seen in Figure \ref{f:dsl-arch}. Again, it can be modularly verified that this grammar does not contain conflicts, assuming that the core Wyvern grammar does not change. We expect it to become stable relatively early in its development, with most new features introduced via the embedded DSL mechanism.
-%
-%\begin{figure}
-%  \centering\small
-%  \begin{lstlisting}[language=Python,morekeywords={type,grammar,where,ID,TYPE,EXP}]
-%type Architecture
-%  grammar ::= (component|policy)+ 
-%  component ::= "external"? "component" 
-%                     ID ":" TYPE 
-%                    ((componentAttr)*)?
-%  componentAttr ::= "location " URL.grammar
-%                       | "connects to" (ID ",")* ID
-%  policy ::= "policy" ID "=" (EXP : Policy)
-%  \end{lstlisting}
-%  \caption{Type-Associated Grammar}
-%  \label{f:dsl-if}
-%\end{figure}
-%
-%%In this example, we first parse the if condition using a standard
-%%expression parser \texttt{StdExpParser}.  The expression parser is
-%%passed a sub-stream that contains only tokens preceding the end of
-%%the line.  After parsing the condition expression, we then accept an
-%%\texttt{INDENT} token, indicating that we are now expecting one or
-%%more indented lines.  This token is consumed by using a DSL for
-%%parsing, which is modeled after BNF syntax.  The definition of this
-%%parsing DSL is not shown, but it can be defined using the same approach.
-%%%described in this section.
-%%
-%%After that, we use a standard statement parser to parse the indented lines as
-%%a series of one or more statements and construct and return
-%%an \texttt{IfAST} object representing the if statement.  The
-%%\texttt{IfAST} class is an ordinary class that implements the
-%%\texttt{AST} interface, which requires the class to define its semantics via
-%%an interpreter or via translation to lower-level constructs.  The
-%%details of the AST interface are out of scope here.  Once the
-%%semantics of \keyw{if} are defined, we can use it as shown in
-%%the \texttt{abs} method, which computes the absolute value of its
-%%argument.
-%%
-%%
-%\paragraph{Parsing and Typechecking}
-%Wyvern source code is parsed in two phases. The first phase uses a standard declarative whitespace-delimited parser (e.g. \cite{rule2013principled}) where all whitespace-delimited blocks are left as unparsed ``DSL literals''. The second phase occurs in tandem with typechecking. When a tilde is encountered, the compiler determines the expected type where the tilde appeared (based on function signatures, or explicit type annotations) and parses the subsequent whitespace-delimited block according to the grammar associated with that type. The baseline indentation is stripped from this block, so it appears to the parser as if the DSL begins on the leftmost column of the block. Any Wyvern expressions that occur internally to a DSL (such as the policy specification in Figure \ref{f:dsl-arch} or curly-brace-delimited expressions in Figure \ref{f:dsl-presentation}) are also parsed and typechecked at this time. After parsing a DSL block, it must be verified and translated to Wyvern code. The mechanism for doing this is similar, at a high level, to that for defining the grammar itself, but the details of these subsequent steps are beyond the scope of this paper.
-%
-%\paragraph{Procedural Parsing}
-%The grammar definition in Figure 4 is declarative and relies on a parser generator included as part of Wyvern. It may be desirable in some cases, such as when a grammar cannot easily be expressed within our declarative framework, or when an existing parser can be called into, to allow a parsing algorithms to be encoded directly. An important use case is for interoperability layers between Wyvern and other full-scale programming languages, particularly ones for which parsing is known to be difficult (e.g. C, Haskell, Python). 
-%
-%It can be observed that a declarative grammar inside a class definition can be seen as inducing a class method (that is, an operation defined on the class itself, which can be invoked by the compiler or run-time system -- a concept borrowed from Smalltalk \cite{smalltalk}) called \lstinline|parse|, that transforms a string to some AST representation. This lower-level interface is exposed directly to programmers who wish to specify parsing in a procedural manner.
-%
-%
-%%using a standard whitespace-delimited lexer followed by an initial typechecking and parsing phase that occurs in tandem.  The lexer for Wyvern generates a stream of tokens structured hierarchically, where indentation (and the equivalent bracket notation) increases the depth of the stream. Indentation and de-indentation can thus be simply  understood as a special pair of tokens, \texttt{INDENT} and \texttt{DEDENT}, generated by the lexer and delimiting portions of the stream that will be handled in a special way during the next phase.
-%%
-%%The standard Wyvern parser reads at a single level of the stream at a time. Initially, it parses the stream as a term of sort \verb|Exp|, which represents the core expressions and declaration forms of the language. This sort includes basic facilities for declaring and working with functions and variables, objects and perhaps other to-be-determined core data types. When an indented block is encountered, however, it is left in-place within the parsed syntax tree. 
-%
-%%When the parsing phase at a particular level is complete, it is typechecked according to a largely conventional protocol. 
-%%In Wyvern, the type of a function is determined by its declaration, and cannot be affected by its use (this constraint may be relaxed in some instances in future iterations of the language). Thus, when a function is being applied, the expected types of its arguments are known. If, at a particular location where a function argument was expected, an indented block is found, then it is parsed not according to the \verb|Exp| grammar, but according to the \emph{type-associated grammar} contained in that type's definition. Figure 4 shows an example of such a grammar. That grammar may contain productions of the form $\texttt{EXP of }\tau$ where $\tau$ is another type in scope. A delimited block must be present at this location as well, and it will be parsed by the type-associated grammar of $\tau$.
-%%
-%%A particular function application can contain only one \emph{primary} indented block. If multiple arguments support DSL syntax, then all those other than the first in the argument ordering must be invoked by a partially-indented keyword. This can be seen in Figure \ref{f:dsl-multi}. Note that this partially-indented keyword ends the first delimited block and begins a new block for the keyword argument \verb|toServer| of the function \verb|db.sendQuery|. This can be seen as similar in form to keywords in functions in Smalltalk \cite{smalltalk}.
-%
-%%Our approach supports not just key{\-}word-based extension, as in
-%%\keyw{if}, but also type-based syntax extensions.  Consider the
-%%database query DSL used in Figure~\ref{f:dsl-query}.  When parsing
-%%this code, the standard Wyvern parser reads the identifier
-%%\texttt{productDB} and discovers, based on the architecture from
-%%Figure~\ref{f:dsl-arch}, that \texttt{productDB} has type
-%%\texttt{Database}.  To support type-based syntax extension, the Wyvern
-%%parser examines this type, defined in Figure~\ref{f:dsl-define}, and
-%%discovers that the \texttt{Database} class object implements the
-%%\texttt{Parser} interface.  Note that we associate the parser with the
-%%\texttt{Database} \textit{class}, not the \texttt{Database}
-%%instance. This works well because the class is available at compile
-%%time, during parsing,
-%%but the instance is not available until execution.
-%
-%%\begin{figure}
-%%\centering
-%%\begin{lstlisting}
-%%db.sendQuery
-%%    select x where x > 10
-%%  toServer
-%%    www.server.org
-%%\end{lstlisting}
-%%\caption{Function applications involving multiple white-space delimited arguments use partially-indented keywords.}
-%%\label{f:dsl-multi}
-%%\end{figure}
-%%\begin{figure}
-%%  \centering
-%%  \begin{lstlisting}
-%%class Database class implements Parser
-%%	class meth parse(db : AST,
-%%	                 stream : TokStream):AST
-%%		if (stream ::= "where")
-%%			// parse where clause
-%%		else ... // parse other constructs
-%%	... // other definitions for Database
-%%
-%%// equivalent code for if using types
-%%class IfKeyType class implements Parser
-%%	class meth parse(ifKeyword : AST,
-%%	                 stream:ParseStream):AST
-%%		val cond = ... // same code as previous Figure
-%%	class prop instance = new IfKeyType // singleton
-%%val (@if@) = IfKeyType.instance
-%%  \end{lstlisting}
-%%  \caption{Type-based DSL definition}
-%%  \label{f:dsl-define}
-%%\end{figure}
-%%
-%
