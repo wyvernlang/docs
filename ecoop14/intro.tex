@@ -19,23 +19,23 @@ Because lists are a common data structure, many languages provide specialized no
 
 Although number, string and list literals are nearly ubiquitous features of modern languages, some languages also  provide specialized notation for other common data structures, like maps and sets, data formats, like XML and JSON, query languages, like regular expressions and SQL, and markup languages, like HTML. For example, a language with built-in syntax for HTML and SQL, with type-safe interpolation of host language terms via curly braces, might allow:
 \begin{lstlisting}
-val webpage : HTML = <html><body><h1>Results for {keyword}</h1>
+let webpage : HTML = <html><body><h1>Results for {keyword}</h1>
   <ul id="results">{to_list_items(query(db, 
     SELECT title, snippet FROM products WHERE {keyword} in title)}
 </ul></body></html>
 \end{lstlisting}
 to mean \todo{colors}:
 \begin{lstlisting}
-val webpage : HTML = new HTMLElement(new Dict(), [new BodyElement(new Dict(),
-  [new H1Element(new Dict(), [new TextNode("Results for " + keyword)]), 
-  new ULElement(new Dict().add("id", "results"), to_list_items(query(db, 
-    new SelectStmt(["title", "snippet"], "products", [new WhereClause(
-      new InPredicate(new StringLit(keyword), "title"))]))))]]]
+let webpage : HTML = HTMLElement(Dict(), [BodyElement(Dict(), 
+  [H1Element(Dict(), [TextNode("Results for " + keyword)]), 
+  ULElement(Dict().add("id", "results"), to_list_items(query(db, 
+    SelectStmt(["title", "snippet"], "products", 
+      [WhereClause(InPredicate(StringLit(keyword), "title"))]))))]]]
 \end{lstlisting}
 
 When a specialized notation is not available, and equivalent general-purpose notation is too cognitively demanding for comfort, developers typically turn to run-time mechanisms to make constructing data structures more convenient. Among the most common strategies in these situations, as we will discuss in Sec. \ref{s:study}, is to simply use a string representation that is parsed at run-time. Developers are frequently  tempted to write the example above as:
 \begin{lstlisting}
-val webpage : HTML = parse_html("<html><body><h1>Results for "+keyword+"</h1>
+let webpage : HTML = parse_html("<html><body><h1>Results for "+keyword+"</h1>
   <ul id=\"results\">" + to_string(to_list_items(query(db, parse_sql(
   	"SELECT title, snippet FROM products WHERE '"+keyword+"' in title")))) + 
 "</ul></body></html>")
@@ -65,19 +65,19 @@ Languages that allow users to introduce new syntax from within libraries hold pr
 
 In this paper, we describe an alternative parsing strategy that avoids these problems by shifting responsibility for parsing certain \emph{generic literal forms} into the typechecker. The typechecker, in turn, defers responsibility to user-defined types, by treating the body of the literal as a term of the   \emph{type-specific language (TSL)} associated with the type it is being checked against. The TSL rewrites this term to use only general-purpose notation. TSLs can contain expressions in the host language. This strategy avoids the problem of ambiguous syntax, because neither the base language nor TSLs are ever extended directly. It also avoids ambiguous semantics -- the meaning of a form like \verb|{ }| can differ depending  on its type, so it is safe to use it for empty sets, dictionaries and other data structures, like JSON literals. This also frees notation from being tied to the variant of a  data structure built into the standard library, which sometimes does not provide the exact semantics that a programmer needs (for example, Python dictionaries do not preserve order, while JSON does):
 \begin{lstlisting}
-val empty_set : Set = { }
-val empty_dict : Dict = { }
-val empty_json : JSON = { }
+let empty_set : Set = { }
+let empty_dict : Dict = { }
+let empty_json : JSON = { }
 \end{lstlisting}
 
-We develop our work as a variant of an emerging programming language called Wyvern \cite{Nistor:2013:WST:2489828.2489830}. To distill the essence of our proposal, the variant of Wyvern we develop here is simpler than the variant previously described: it is purely functional (there are no effects or mutable state) and it does not enforce a uniform access principle for objects (fields can be accessed directly). It also adds inductive datatypes, which we call \emph{case types}, similar to those found in ML. One can refer to our version of the language as \emph{TSL Wyvern} when the variant being discussed is not clear. Our work extends and makes concrete a mechanism sketched out in a short workshop paper by the Wyvern group \cite{Omar:2013:TWP:2489812.2489815}. We make the following novel contributions:
+We develop our work as a variant of an emerging programming language called Wyvern \cite{Nistor:2013:WST:2489828.2489830}. To allow us to focus on the essence of our proposal, the variant of Wyvern we develop here is simpler than the variant previously described: it is purely functional (there are no effects or mutable state) and it does not enforce a uniform access principle for objects (fields can be accessed directly). It also adds inductive datatypes, which we call \emph{case types}, similar to those found in ML. One can refer to our version of the language as \emph{TSL Wyvern} when the variant being discussed is not clear. Our work extends and makes concrete a mechanism sketched out in a short workshop paper by the Wyvern group \cite{Omar:2013:TWP:2489812.2489815}. We make the following novel contributions:
 \begin{enumerate}
-\item We specify a more complete layout-sensitive concrete syntax and show how it can be written without the need for a context-sensitive lexer or parser. It now includes a variety of inline literals and provides a full specification for the whitespace-delimited literal form introduced by a forward reference, \li{~}.
-\item The previous work gave a vague sketch of how to associate syntax with a type and no method for associating the corresponding semantics. We develop a general mechanism for associating metadata with a type. A TSL is then implemented by associating a parser (of type \li{Parser}) with a type. The parser is responsible for rewriting tokenstreams (of type \li{Tokenstream}) into Wyvern ASTs (of type \li{Exp}). These types are defined in the standard library.
+\item We specify a more complete layout-sensitive concrete syntax and show how it can be written without the need for a context-sensitive lexer or parser. It now includes a variety of inline literals, provides a full specification for the whitespace-delimited literal form introduced by a forward reference, \li{~}, and provides other forms of forward-referenced blocks.
+\item We develop a general mechanism for associating metadata with a type. A TSL is then implemented by associating a parser (of type \li{Parser}) with a type. The parser is responsible for rewriting tokenstreams (of type \li{Tokenstream}) into Wyvern ASTs (of type \li{Exp}). These types are defined in the standard library.
 \item This lower-level mechanism is general, but writing a hand-written parser and manipulating syntax trees manually is cognitively demanding. We observe that \emph{grammars} and \emph{quasiquotes} can both be seen as TSLs for parsers and ASTs respectively and discuss how to implement them as such.
-\item A na\"ive rewriting strategy would be \emph{unhygienic} -- it could allow for the inadvertent capture of local variables. We show a novel mechanism that ensures hygiene by requiring that the generated AST is closed except for subtrees derived from portions of the user's tokenstream that is interpreted as a nested Wyvern expression. We also show how to explicitly refer to local values available in the parser definition (e.g. helper functions) in a safe way. 
-\item We formalize the static semantics and rewriting rules of TSL Wyvern as a bidirectional type system. By distinguishing locations where an expression synthesizes a type from locations where an expression is being analyzed again a previously synthesized type, we can precisely state where generic literals can appear. This also formalizes the hygiene mechanism. We show that our type system is sound.
-\item We construct several examples of TSLs throughout the paper, but to examine how broadly applicable the technique is, we conduct a simple corpus analysis, finding that string languages are used ubiquitously\todo{sec. nums?}.
+\item A na\"ive rewriting strategy would be \emph{unhygienic} -- it could allow for the inadvertent capture of local variables. We show a novel mechanism that ensures hygiene by requiring that the generated AST is closed except for subtrees derived from portions of the user's tokenstream that are interpreted as nested Wyvern expressions. We also show how to explicitly refer to local values available in the parser definition (e.g. helper functions) in a safe way. 
+\item We formalize the static semantics and literal parsing rules of TSL Wyvern as a bidirectional type system. By distinguishing locations where an expression synthesizes a type from locations where an expression is being analyzed against a previously synthesized type, we can precisely state where generic literals can appear. This also formalizes the hygiene mechanism.
+\item We provide several examples of TSLs throughout the paper, but to examine how broadly applicable the technique is, we conduct a simple corpus analysis, finding that string languages are used ubiquitously.
 \end{enumerate}
 %\todo{Mention that the examples above look like this in Wyvern?}
 %\begin{lstlisting}

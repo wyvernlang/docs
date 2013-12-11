@@ -3,43 +3,45 @@
 \section{Type-Specific Languages in Wyvern}
 \label{s:motivation}
 
-To motivate our work we show an example, which illustrates the expressiveness that our approach provides, and also present results of a small empirical study that looked into how current Java projects could  benefit from using TSLs.
-
-\subsection{Motivating Example}
-
-In this subsection, we show an example that demonstrates the key features of our approach. Here we give an informal explanation of the Wyvern language and the TSL-related constructs; a formal and more detailed description is to follow in the subsequent sections.
-
-
 \begin{figure}[t]
 \begin{lstlisting}
-(* Assuming serve : HTML -> Unit; SearchBox : String -> HTML; 
-            db : DB; itemsFromDB : (DB, SQLQuery, Nat, Nat) -> HTML *)
-let images : URL = `images.example.com`
-let bgImage : URL = `{images}/background.gif`
-let productsPerPage : Nat = 10
-new : MyServer
+let imageBase : URL = <images.example.com>
+let bgImage : URL = <{imageBase}/background.png>
+new : SearchServer
   def serve_results(searchQuery : String, page : Nat) : Unit =
-    serve(~)
+    serve(~) (* serve : HTML -> Unit *)
       :html
         :head
           :title Search Results
           :style {~
             body { background-image: url({bgImage}) }
-            #search { background-color: {`#aabbcc`.darken(`20%`)} }
+            #search { background-color: {`#aabbcc`.darken(20pct)} }
           }
         :body
-          :h1 Results for "{searchQuery}"
+          :h1 Results for {searchQuery}
           :div[id="search"]
             Search again: {SearchBox("Go!")}
-          {fmt_results(db, ~, productsPerPage, page)
-             SELECT * FROM products WHERE {searchQuery} in title
+          { (* fmt_results : (DB, Query, Nat, Nat) -> HTML *)
+            fmt_results(db, ~, 10, page)
+              SELECT * FROM products WHERE {searchQuery} in title
           }
 \end{lstlisting}
-\caption{Wyvern Example.}
+\vspace{-10px}
+\caption{Wyvern Example \todo{better caption?}\todo{colors}}
 \label{f-example}
 \end{figure}
 
-\todo{Alex says: Jumpting straight into the delimiter pairs for distinguishing TSL from GPL is confusing. However, maybe Introduction will help with this.}
+We begin with an example in Fig. \ref{f-example} showing several different TSLs being used to define a fragment of a web application showing search results from a database. We will review this example below to develop intuitions about TSLs in Wyvern; a formal and more detailed description will follow in the subsequent sections.
+
+Our first TSL appears on line 1. The type of \li{imageBase} is \li{URL}, an \emph{object type} containing several fields representing the components of a URL: its protocol, domain name, port, path and so on. Instead of creating a new object and setting these fields explicitly, however, we instantiate them using the \emph{generic literal} \li{<images.example.com>}, using conventional notation for URLs. Because of the type annotation, this literal's \emph{expected type} is known to be \li{URL}, so the body of this literal (the characters between the angle brackets) is governed by the \li{URL} TSL. It will be parsed by this TSL \emph{at compile-time} to produce a Wyvern AST that instantiates a new object of type \li{URL} explicitly (see below).
+
+In addition to defining conventional notation for URLs, this TSL supports \emph{interpolation} of an expression of type \li{URL} to form a larger URL, using curly braces as a delimiter as seen on line 2. The TSL parses the portion between curly braces as a Wyvern expression and specifies its expected type as  \li{URL}. The TSL can then assume the interpolated value is of this type to construct an AST for the overall value; string interpolation does not occur.
+
+To introduce a value manually, we must use {general-purpose notation}. The general-purpose notation for introducing a value of an object type is to use \li{new}. This term is a syntactic \emph{forward reference} to the layout-delimited block of \emph{definitions} beginning on the line after the line \li{new} appears in and ending when the indentation level has returned to the baseline or the file ends (here, lines 4-20). An object in TSL Wyvern can contain methods, introduced using \li{def}, and fields, introduced using \li{val}. Here we have just a single method, \li{serve_results} taking two arguments. Object types in TSL Wyvern are simple structural types that constrain the signatures of fields and methods. The \emph{type ascription} around \li{new} checks that the object being introduced satisfies the signature of \li{SearchServer}.
+
+\todo{describe HTML, a case type not an obj type. these are the two user-defined types}
+
+
 
 One of the reasons that motivated our work is the aspiration to provide developers with a possibility to compose various language constructs together in a program in a simple intuitive way. Consider a piece of Wyvern code in Figure~\ref{f-example}. When executed, it produces a webpage that displays a bulleted list of products followed by a list of reviews, both retrieved from a database. Notably, this method is mere 14 lines long but comprises the host Wyvern language as well as 6 type-specific languages. Each of the TSLs is introduced either within a pair of delimiters (e.g., backticks (\lstinline{`}), quotation marks (\lstinline{"}), or matching angle brackets (\lstinline{<} and \lstinline{>})) or by a tilde (\lstinline{~}) on a preceding line. The escape back to the host language is also done with a use of a pair of delimiters (e.g., matching curly braces (\lstinline|{| and \lstinline|}|)). With this in mind, let us have a closer look at how the code on Figure~\ref{f-example} decomposes:
 
