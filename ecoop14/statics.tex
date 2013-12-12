@@ -4,93 +4,6 @@
 
 \todo{This section on Statics is going to go and simply be integrated into approach in the right places, right? Right now it is just a list of figures and some text descrbining parts of them, not a coherent section as such, right?}
 
-We present the abstract syntax of our system in Figure \ref{fig:core2-syntax}. A program $\rho$ is composed of a series of object type \keyw{objtype} and sum type \keyw{casetype} declarations, followed by expressions $e$. An object type is made of declarations of values \keyw{val}, methods \keyw{def} and \keyw{metadata}. A sum type is made of an enumeration of cases of the form $C$ \keyw{of} $\tau$, where $C$ is the name of the constructor and $\tau$ is the type of the expression constructed in this case, followed by metadata.
-
-The metadata of a type $t$ (either an \keyw{objtype} or a \keyw{casetype}) can contain arbitrary data, for eg. documentation, but it will necessarily contain a $parser$ field of type $Parser$. The $parser$ field has a $parse$ method that takes as argument a stream of tokens and generates an abstract syntax tree expression. This $parse$ method is used for parsing new TSLs of type $t$ defined by the user. 
-
-We differentiate between expressions that might contain a TSL expression and those that definitely do not contain a TSL expression by superscripting the latter with the symbol $\hat{}$. Thus we have two versions (one without $\hat{}$ and one with $\hat{}$) for programs $\rho$,  expressions $e$, cases $c$ of the sum types, and declarations $d$ of fields and methods. 
-
-An expression can be a variable, a function, an application of a function to an expression, a pair of expressions, a case analysis on pairs, the constructor of a case type, the destructor of a case type, a new expression declaring fields and methods, the invocation $e.x$ of a field or a method. We do not have $e.m$ and $e.f$ in the abstract syntax because the parser cannot differentiate between the two, only the type checker can do that. An expression can also be an expression with a type ascribed to it, the abstract syntax tree of an expression, a metaobject of a type, a TSL literal or an expression obtained from a token stream. Each expression has a corresponding static semantics rule in Figures \ref{fig:statics1} and \ref{fig:statics2}. 
-
-The abstract syntax also presents the definition of types, which can be unary types, arrow types corresponding to functions and product types corresponding to pairs. The context $\Gamma$ contains variables and their types. The context $\Delta$ contains types and their signatures. In $\Delta$ we need to keep track not only of a metadata's type, but we need to carry the actual metadata. This is because in the rule $\textit{T-literal}$ in Figure \ref{fig:statics2} we execute the $parse$ method on $\hat{e}_p$ and for this we need to know what the body of the $parse$ method is.
-
-
-
-
-\begin{figure}
-\centering
-\[
-\begin{array}[t]{lll} 
-\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=e \}; \rho \\
-     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=e \}; \rho\\
-     & \bnfalt & e
-     \\[1ex]
-e    & \bnfdef & x \\
-     & \bnfalt & \boldsymbol\lambda x{:}\tau . e \\ %
-     & \bnfalt & e(e) \\
-     & \bnfalt & (e, e) \\
-     & \bnfalt & \keyw{case}(e) \{(x, y) \Rightarrow e\}\\
-     & \bnfalt & t.C(e) \\
-     & \bnfalt & \keyw{case}(e)~\{ c \} \\
-     & \bnfalt & \keyw{new}~ \{ d \}\\
-     & \bnfalt & e.x \\
-     & \bnfalt & e : \tau\\
-     & \bnfalt & \keyw{valAST}(e) \\
-     & \bnfalt & t.\keyw{metaobject}\\
-     & \bnfalt & \lfloor literal \rfloor \\
-     & \bnfalt & \keyw{fromTS}[\Gamma](e, e)
-\\[1ex]	
-c    & \bnfdef & C(x) \Rightarrow e\\
-     & \bnfalt & c \bnfalt c
-	 \\[1ex]
-d   & \bnfdef & \varepsilon \\
-     & \bnfalt & \keyw{val}~ f:\tau = e;~d \\
-     & \bnfalt & \keyw{def}~ m:\tau = e;~d
-\\[1ex] 
-\end{array}
-\begin{array}[t]{lll}
-~~~
-\end{array}
-\begin{array}[t]{lll}
-
-
-\hat\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=\hat e \}; \hat\rho \\
-     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=\hat e \}; \hat\rho\\
-     & \bnfalt & \hat e
-     \\[1ex]
-\hat{e}    & \bnfdef & x \\
-     & \bnfalt & \boldsymbol\lambda x{:}\tau . \hat{e} \\ %
-     & \bnfalt & \hat{e}(\hat{e}) \\
-     & \bnfalt & \cdots \\
-     & \bnfalt & t.\keyw{metaobject} 
-\\[1ex]
-\hat c    & \bnfdef & ...
-	 \\[1ex]
-\hat d   & \bnfdef & ... 
-\\[1ex] 
-\chi & \bnfdef & C~\keyw{of}~\tau\\
-     & \bnfalt & \chi \bnfalt \chi 
-\\[1ex]
-\omega &\bnfdef & \varepsilon \\  
-         & \bnfalt & \keyw{val}~ f:\tau;~\omega\\
-         & \bnfalt & \keyw{def}~ m:\tau;~\omega 
-\\[1ex]
-\tau & \bnfdef & t\\
-     & \bnfalt & \tau \rightarrow \tau \\
-     & \bnfalt & \tau \times \tau 
-\\[1ex]
-\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau
-\\[1ex]
-\Delta & \bnfdef & \emptyset \bnfalt \Delta, t:\{\chi, e:\tau\} \bnfalt \Delta, t:\{\omega, e:\tau\}
-\\[1ex]
-
-\end{array}
-\]
-\caption{Abstract Syntax}
-\label{fig:core2-syntax}
-\end{figure}
-
-
 \begin{figure}
 \centering
 \[
@@ -100,7 +13,7 @@ d   & \bnfdef & \varepsilon \\
 & \bnfalt \ Lam\ of\ ID\ *\ Ty\ *\ Exp\\
 & \bnfalt \ App\ of\ Exp\ *\ Exp\\
 & \cdots\\
-& \bnfalt \ FromTokenStream\ of\ Exp\ *\ Exp\\
+& \bnfalt \ FromTS\ of\ Exp\ *\ Exp\\
 & \bnfalt \ Error\\
 \\
 \keyw{casetype}\ & Ty=\\
@@ -297,6 +210,7 @@ d   & \bnfdef & \varepsilon \\
 
 \end{array}
 \]
+\label{fig:dynsemantics}
 \caption{Dynamic Semantics Rules}
 \end{figure}
 
@@ -305,70 +219,92 @@ d   & \bnfdef & \varepsilon \\
 
 \begin{figure}
 \centering
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.53\textwidth}
   \centering
    \[
 \begin{array}{c}
 
 \infer[\textit{DExp-Var}]
-	{ x \triangleleft Exp.Var(\hat{e})   }
+	{ x \triangleleft_{\Gamma} Exp.Var(\hat{e})   }
 	{ ID(x)\ \text{is}\ \hat{e}} \\[3ex]
 
 \infer[\textit{DExp-Lam}]
-	{ \boldsymbol\lambda x{:}\tau . e'_1 \triangleleft Exp.Lam( \hat{e}, \tau, \hat{e}_1 )  }
-	{ID(x)\ \text{is}\ \hat{e} & e'_1 \triangleleft \hat{e}_1  } \\[3ex]
+	{ \boldsymbol\lambda x{:}\tau . e'_1 \triangleleft_{\Gamma} Exp.Lam( \hat{e}, \tau, \hat{e}_1 )  }
+	{ID(x)\ \text{is}\ \hat{e} & e'_1 \triangleleft_{\Gamma} \hat{e}_1  } \\[3ex]
 
 \infer[\textit{DExp-App}]
-	{ e'_1(e'_2)  \triangleleft Exp.App(\hat{e}_1,\hat{e}_2) }
-	{ e'_1 \triangleleft \hat{e}_1  & e'_2 \triangleleft \hat{e}_2   } \\[3ex]
+	{ e'_1(e'_2)  \triangleleft_{\Gamma} Exp.App(\hat{e}_1,\hat{e}_2) }
+	{ e'_1 \triangleleft_{\Gamma} \hat{e}_1  & e'_2 \triangleleft_{\Gamma} \hat{e}_2   } \\[3ex]
 
 \infer[\textit{DExp-Literal}]
-	{ \lfloor literal \rfloor \triangleleft Exp.Literal( \hat{e}_{ts} )  }
+	{ \lfloor literal \rfloor \triangleleft_{\Gamma} Exp.Literal( \hat{e}_{ts} )  }
 	{ \text{literal of}\ \hat{e}_{ts}\ \text{is}\ \lfloor literal \rfloor  } \\[3ex]
 
+\infer[\textit{DExp-FromTS}]
+          {\renewcommand{\arraystretch}{1}
+	    \begin{array}{r}
+	    fromTS[\Gamma](e_1,e_2) \triangleleft_{\Gamma}\\
+            Exp.FromTS(\hat{e}_1,\hat{e}_2)
+            \end{array}
+       }
+	  {e_1 \triangleleft_{\Gamma} \hat{e}_1 & e_2 \triangleleft_{\Gamma} \hat{e}_2  }
+	   \\[3ex] 
+
 \infer[\textit{DTy-Var}]
-	{ t \triangleleft Ty.Var(\hat{e})   }
+	{ t \triangleleft_{\Gamma} Ty.Var(\hat{e})   }
 	{ ID(t)\ \text{is}\ \hat{e}} \\[3ex]
 
 \infer[\textit{DTy-Arrow}]
-	{ \tau_1 \rightarrow \tau_2 \triangleleft Ty.Arrow(\hat{e}_1,\hat{e}_2 )  }
-	{ \tau_1 \triangleleft \hat{e}_1 & \tau_2 \triangleleft \hat{e}_2 } \\[3ex]
+	{ \tau_1 \rightarrow \tau_2 \triangleleft_{\Gamma} Ty.Arrow(\hat{e}_1,\hat{e}_2 )  }
+	{ \tau_1 \triangleleft_{\Gamma} \hat{e}_1 & \tau_2 \triangleleft_{\Gamma} \hat{e}_2 } \\[3ex]
    
 \end{array}
 \]
+\label{fig:dereification}
 \caption{Dereification Rules}
 \end{minipage}%
 \vline
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.47\textwidth}
   \centering
   \[
 \begin{array}{c}
 \infer[\textit{RExp-Var}]
-	{ x \triangleright Exp.Var(\hat{e})   }
+	{ x \triangleright_{\Gamma} Exp.Var(\hat{e})   }
 	{ ID(x)\ \text{is}\ \hat{e}} \\[3ex]
 
 \infer[\textit{RExp-Lam}]
-	{ \boldsymbol\lambda x{:}\tau . \hat{e}'_1 \triangleright Exp.Lam( \hat{e}, \tau, \hat{e}_1 )  }
-	{ID(x)\ \text{is}\ \hat{e} & \hat{e}'_1 \triangleright \hat{e}_1  } \\[3ex]
+	{ \boldsymbol\lambda x{:}\tau . \hat{e}'_1 \triangleright_{\Gamma} Exp.Lam( \hat{e}, \tau, \hat{e}_1 )  }
+	{ID(x)\ \text{is}\ \hat{e} & \hat{e}'_1 \triangleright_{\Gamma} \hat{e}_1  } \\[3ex]
 
 \infer[\textit{RExp-App}]
-	{ \hat{e}'_1(\hat{e}'_2)  \triangleright Exp.App(\hat{e_1},\hat{e}_2) }
-	{ \hat{e}'_1 \triangleright \hat{e}_1  & \hat{e}'_2 \triangleright \hat{e}_2   } \\[3ex]
+	{ \hat{e}'_1(\hat{e}'_2)  \triangleright_{\Gamma} Exp.App(\hat{e_1},\hat{e}_2) }
+	{ \hat{e}'_1 \triangleright_{\Gamma} \hat{e}_1  & \hat{e}'_2 \triangleright \hat{e}_2   } \\[3ex]
 
 \infer[\textit{RExp-Literal}]
-	{ \lfloor literal \rfloor \triangleright Exp.Literal( \hat{e}_{ts} )  }
+	{ \lfloor literal \rfloor \triangleright_{\Gamma} Exp.Literal( \hat{e}_{ts} )  }
 	{ \text{literal of}\ \hat{e}_{ts}\ \text{is}\ \lfloor literal \rfloor  } \\[3ex]
 
+\infer[\textit{RExp-FromTS}]
+          {\renewcommand{\arraystretch}{1}
+	    \begin{array}{r}
+	    fromTS[\Gamma](e_1,e_2) \triangleright_{\Gamma}\\
+           Exp.FromTS(\hat{e}_1,\hat{e}_2)
+            \end{array}
+       }
+	  {e_1 \triangleright_{\Gamma} \hat{e}_1 & e_2 \triangleright_{\Gamma} \hat{e}_2  }
+	   \\[3ex] 
+
 \infer[\textit{RTy-Var}]
-	{ t \triangleright Ty.Var(\hat{e})   }
+	{ t \triangleright_{\Gamma} Ty.Var(\hat{e})   }
 	{ ID(t)\ \text{is}\ \hat{e}} \\[3ex]
 
 \infer[\textit{RTy-Arrow}]
-	{ \tau_1 \rightarrow \tau_2 \triangleright Ty.Arrow(\hat{e}_1,\hat{e}_2 )  }
-	{ \tau_1 \triangleright \hat{e}_1 & \tau_2 \triangleright \hat{e}_2 } \\[3ex]
+	{ \tau_1 \rightarrow \tau_2 \triangleright_{\Gamma} Ty.Arrow(\hat{e}_1,\hat{e}_2 )  }
+	{ \tau_1 \triangleright_{\Gamma} \hat{e}_1 & \tau_2 \triangleright_{\Gamma} \hat{e}_2 } \\[3ex]
    
 \end{array}
 \]
+\label{fig:reification}
 \caption{Reification Rules}
 \end{minipage}
 \end{figure}
@@ -382,6 +318,7 @@ d   & \bnfdef & \varepsilon \\
 	{ t:\{\omega, \hat e:\tau\} \in \Delta & \Delta;\Gamma \vdash \hat d : \omega}
 \]
 \caption{Statics for $\hat e$}
+\label{fig:staticsHat}
 \end{figure}
 
 The judgement 
@@ -425,7 +362,8 @@ The rule \textit{T-introcase} introduces a case of the sum type and syntesizes t
 
 The rules \textit{T-elimcase} synthesizes the type of the resulting expression of a particular case of a sum type. Note that all the cases of the same sum type should synthesize to the same type. The rules  \textit{T-casehelper1} and \textit{T-casehelper2} help with the type checking of $c:\chi \Rightarrow \tau'$ in the rule \textit{T-elimcase}. Rule \textit{T-casehelper1} is used when $c$ is of the kind (matches) $C(\chi)\Rightarrow e$ , while rule \textit{T-casehelper2} is used when $c$ is of the kind $c_1 \bnfalt c_2$.
 
-The rule \textit{T-new} checks the type of a \keyw{new} expression. This rule is used to construct a \keyw{new} expression and it follows the convention of bidirectional type-checking, where type-checking is used for constructors of types. We need the additional premise $t\neq TokenStream$ because we do not want to allow users to create their own token stream. 
+The rule \textit{T-new} checks the type of a \keyw{new} expression. This rule is used to construct a \keyw{new} expression and it follows the convention of bidirectional type systems, where type-checking is used for constructors of types. We need the additional premise $t\neq TokenStream$ because we do not want to allow users to create their own token streams. This premise is related to hygienic macros \cite{DBLP:conf/esop/HermanW08} and that we do not want identifiers (names of fields or methods) defined by users to be shadowed by identifiers defined in a type. We have to differentiate between the two and we do this by annotating the code that comes from the user with $TokenStream$. 
+The rule \textit{T-new-hat} from Figure \ref{fig:staticsHat} allows the type $t$ to be $TokenStream$ because we need to allow the compiler to create token streams; the users are the ones who write expressions of the form $e$, while the compiler produces expressions of the form $\hat{e}$ which have already been translated from a specific TSL to Wyvern. 
 
 The rule \textit{DT-val} checks the type of a field \keyw{val} that is instantiated to the expression $e$.
 
@@ -443,22 +381,13 @@ The rule \textit{T-valAST} is used to transform an expression $e$ into an abstra
 
 The rule \textit{T-metaobject} synthesizes the type of the \keyw{metaobject} of the type $t$ by checking that $t$ is in the type context $\Delta$ and it has the right type.
 
-The rule \textit{T-fromTS} 
+The rule \textit{T-fromTS} checks the type of the \keyw{fromTS} expression. Expression $e_1$ represents a token stream, $e_2$ is a delimiter token and $e$ is the concrete expression that $e_1$ parses to using $e_2$ as end delimiter.
 
-The rule \textit{T-literal} is a crucial rule of the our system. The conclusion checks that the $\lfloor literal \rfloor$ expression has the type $t$ and that it is translated to the expression $e$ that does not contain a $\lfloor literal \rfloor$ expression. The premise checks that the $parser$ method of the \keyw{metaobject} of the $t$ type is of type $Parser$. Instead of using $t.\keyw{metaobject}.parser$ we use $e_p$ in the rest of the rule. The premise continues by denoting the token stream of the $\lfloor literal \rfloor$ expression by $e_{ts}$. When the token stream is parsed, it evaluates to $Exp.C(e')$, which is an expression that does not contain a $\lfloor literal \rfloor$ expression. Note that only expressions with a hat $\hat{}$ contain a $\lfloor literal \rfloor$ expression. The expression $Exp.C(e')$ is then translated to the expression $\hat{e'}$, which in turn is recursively translated to the $e$ expression, which does not contain a $\lfloor literal \rfloor$. This rule might not terminate in the general case, but we prove that it terminates in the ways that we use it. 
+The rule \textit{T-literal} is a crucial rule of the our system. The conclusion checks that the $\lfloor literal \rfloor$ expression has the type $t$ and that it is translated to the expression $\hat{e}$ that does not contain a $\lfloor literal \rfloor$ expression. The premise checks that the $parser$ method of the \keyw{metaobject} of the $t$ type is of type $Parser$. Instead of using $t.\keyw{metaobject}.parser$ we use $\hat{e}_p$ in the rest of the rule. The premise continues by denoting the token stream of the $\lfloor literal \rfloor$ expression by $\hat{e}_{ts}$. When the token stream is parsed with the method $parse$ that has as second argument a token used as a signal of the stream ending, it evaluates to $(\hat{e}',\hat{e}'_{ts})$. The expression $\hat{e}'$ is the actual result of the parsing and it does not contain a $\lfloor literal \rfloor$ expression, with $\hat{e}'_{ts}$ being the remainder of the token stream. Since we parse the token stream until the last token, $\hat{e}'_{ts}$ will be empty. Note that only expressions with a hat $\hat{}$ contain a $\lfloor literal \rfloor$ expression. The expression $\hat{e}'$ is then dereificated to the expression $e$. The dereification rules are found in Figure \ref{fig:dereification} and the reification rules are in Figure \ref{fig:reification}. 
 
+Dereification means transforming an expression of type $Exp$ or $Ty$ (from Figure \ref{fig:synExpTy}) into an expression that can be found in the abstract syntax Figure \ref{fig:core2-syntax}. The judgement for dereification is \fbox{$e_1 \triangleleft_{\Gamma} e_2$}, where $e_1$ is a form of the abstract syntax and $e_2$ is of type $Exp$ or $Ty$ . Reification is the reverse of dereification, where an expression found in the abstract syntax is transformed into an expression that the parser generates, of type $Exp$ or $Ty$. The judgement for reification is \fbox{$e_1 \triangleright_{\Gamma} e_2$}, where $e_1$ is a form of the abstract syntax and $e_2$ is of type $Exp$ or $Ty$ .
+ Expression $e$ is recursively translated to the $\hat{e}$ expression by using the same rule \textit{T-literal}. This rule might not terminate in the general case because the $parse$ function in the premise might not terminate, but termination of the parsing process is well studied \cite{DBLP:conf/sle/KrishnanW12} and the techniques can be applied to our system. 
 
-
-
-
-
-
-
-
-
-
-
-
-
+The most interesting dynamic semantics rules are presented in Figure \ref{fig:dynsemantics} (due to lack of space we do not present all the dynamic semantics rules). The $\keyw{metaobject}$ of a type steps to the expression $e$ representing the metaobject. The two dynamic rules related to $\keyw{valAST}$ describe how to step from an expression of the kind $keyw{valAST}(\hat{e})$ to an expression of type $Exp$ (o Figure \ref{fig:synExpTy}).
 
 
