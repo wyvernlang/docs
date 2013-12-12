@@ -19,7 +19,7 @@ TSL1      :html
 TSL1        :body
           :h1 Results for {searchQuery}
           :div[id="search"]
-            Search again: {TSL1 SearchBox("Go!") TSL1}
+            Search again: {TSL1 SearchBox(STR"Go!"STR) TSL1}
           {TSL1 (* fmt_results : (DB, SQLQuery, Nat, Nat) -> HTML *)
             fmt_results(db, ~, 10, page)
               SELECT * FROM products WHERE {searchQuery} in title
@@ -33,12 +33,12 @@ TSL1        :body
 \subsection{Inline Literals}
 \begin{figure}[t]
 \begin{lstlisting}[mathescape]
-`literal body here, ``inner backticks`` must be doubled`
-'literal body here, ''inner single quotes'' must be doubled'
-"literal body here, ""inner double quotes"" must be doubled"
-{literal body here, {inner braces} must be balanced}
-[literal body here, [inner brackets] must be balanced]
-<literal body here, <inner angle brackets> must be balanced>
+TSL1`literal body here, ``inner backticks`` must be doubled`TSL1
+TSL2'literal body here, ''inner single quotes'' must be doubled'TSL2
+TSL3"literal body here, ""inner double quotes"" must be doubled"TSL3
+{TSL4literal body here, {inner braces} must be balancedTSL4}
+[TSL5literal body here, [inner brackets] must be balancedTSL5]
+<TSL6literal body here, <inner angle brackets> must be balancedTSL6>
 12xyz (* no delimiters necessary for number literals *)
 \end{lstlisting}
 \vspace{-8px}
@@ -48,7 +48,7 @@ TSL1        :body
 \end{figure}
 Our first TSL appears on line 1. The type of \li{imageBase} is \li{URL}, an \emph{object type} containing several fields representing the components of a URL: its protocol, domain name, port, path and so on. Instead of creating a new object and setting these fields explicitly, however, we instantiate them using the \emph{generic literal} \li{<images.example.com>}, using conventional notation for URLs. Because of the type annotation on \li{imageBase}, this literal's \emph{expected type} is known to be \li{URL}, so the body of this literal (the characters between the angle brackets) is governed by the \li{URL} TSL. This TSL will parse it \emph{at compile-time} to produce a Wyvern AST that explicitly instantiates a new object of type \li{URL}  (see below). Any other delimited form in Fig. \ref{f-delims} could have been used equivalently.
 
-In addition to defining conventional notation for URLs, this TSL supports \emph{interpolation} of an expression of type \li{URL} to form a larger URL. The interpolated term is delimited by dollar signs, as seen on line 2. The TSL parses the portion between dollar signs as a Wyvern expression and specifies its expected type as  \li{URL}. The TSL can then assume the interpolated value is of this type to construct an AST for the overall value. String interpolation does not occur. Note that the delimiters that can be used to go from Wyvern to a TSL are determined by Wyvern (those in Fig. \ref{f-delims}) while the delimiters that can be used to go from a TSL back to Wyvern are chosen by the TSL (see \todo{section}).
+In addition to defining conventional notation for URLs, this TSL supports \emph{interpolation} of an expression of type \li{URL} to form a larger URL. The interpolated term is delimited by dollar signs, as seen on line 2. The TSL parses the portion between dollar signs as a Wyvern expression and specifies its expected type as  \li{URL}. The TSL can then assume the interpolated value is of this type to construct an AST for the overall value. String interpolation does not occur. Note that the delimiters that can be used to go from Wyvern to a TSL are determined by Wyvern (those in Fig. \ref{f-delims}) while the delimiters that can be used to go from a TSL back to Wyvern are chosen by the TSL (see \$\ref{ss:implementing-interpolation}).
 
 \subsection{General-Purpose Notation for Object Types}
 The general-purpose introductory form for object types is \li{new} (here, . This form is a syntactic \emph{forward reference} to the layout-delimited block of {definitions} beginning on the line after the line \li{new} appears in and ending when the indentation level has returned to the baseline or the file ends (here, lines 4-19). An object in TSL Wyvern can contain methods, introduced using \li{def}, and fields, introduced using \li{val}. Here we have just a single method, \li{serve_results} taking two arguments. Object types in TSL Wyvern are simple structural interfaces that constrain the signatures of fields and methods. The \emph{type ascription} around \li{new} checks that the object being introduced satisfies the signature of \li{SearchServer} (not shown).
@@ -65,18 +65,18 @@ casetype HTML
   | ...
   metadata = new : HasParser
     val parser : Parser = ~
-      start -> ':body'= child::start>
-        <HTML.BodyElement(([], $\verb|$|$child$\verb|$|$))>
+TSL1      start -> ':body'= child::start>
+TSL2        <HTML.BodyElement(([], $\verb|$|$child$\verb|$|$))>TSL2
       start -> ':style'= e::EXP[NEWLINE]>
-        let empty_attrs : Attributes = []
+TSL2        let empty_attrs : Attributes = []
         Exp.CaseIntro(Type.Var("HTML"), "StyleElement",
-          Exp.ProdIntro(valAST(empty_attr), e))
+          Exp.ProdIntro(valAST(empty_attr), e))TSL2
       $\cdots$
       start -> '{'= e::EXP['}']>
-        <$\verb|$|$e$\verb|$|$ : HTML>
+        <$\verb|$|$e$\verb|$|$ : HTML>TSL1
 \end{lstlisting}
 \vspace{-8px}
-\caption{A Wyvern case type with an associated TSL.\todo{colors}}
+\caption{A Wyvern case type with an associated TSL.}
 \vspace{-10px}
 \label{f-htmltype}
 \end{figure}
@@ -89,7 +89,7 @@ Each non-terminal (e.g. \li{start}) is defined by a number of disjunctive produc
 
 Each rule is followed by a Wyvern expression, in an indented block, that implements the rewriting logic for the associated rule. This expression should have type \li|Exp|, a case type built into the standard library representing Wyvern expression ASTs. The ASTs generated by named non-terminals in the rule (e.g. \li{child}) are bound to the corresponding variables within this logic. Here, we show how to generate an AST using general-purpose notation for \li{Exp} (lines 13-15) as well as the more natural \emph{quasiquote} style (lines 11 and 18). Quasiquotes are simply the TSL associated with \li{Exp} and support the full Wyvern concrete syntax as well as an additional delimiter form, written with \verb|$|s, that allows ``unquoting'': interpolating another AST into the one being generated. Again, interpolation is typesafe, structured and occurs at compile-time.
 
-\subsection{Implementing Interpolation}
+\subsection{Implementing Interpolation}\label{ss:implementing-interpolation}
 We have now seen several examples of interpolation. Within the TSL for \li{HTML}, we see it used in several ways:
 
 \subsubsection{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g. on line 13, 15 and 16-19 of Fig. \ref{f-example}). This is implemented on lines 17 and 18 of Fig. \ref{f-htmltype}. The special non-terminal %\li{EXP['}']}. 
