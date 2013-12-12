@@ -300,66 +300,43 @@
 \end{figure}
 
 The judgement 
-
 \fbox{$\Delta; \Gamma \vdash e\Rightarrow \tau \leadsto \hat{e}$} 
-\\
-\noindent
 means that from the type context $\Delta$ and the variable context $\Gamma$ we synthesize the type $\tau$ for $e$. The  expression $e$ possibly containing $\lfloor literal \rfloor$ forms is transformed into the expression $\hat{e}$ without literals.
-
 The judgement 
-
 \fbox{$\Delta; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$} 
-
 means that we check $e$ against the type $\tau$ and the expression $e$ is transformed into the expression $\hat{e}$. 
+In the following paragraphs, we are explaining the details of each of the static semantics rules.
 
 The rule \textit{RT-objtype} checks that the declaration of the object type $t$ is well-formed and the type of the expression $e$ is the same as the type of $t$'s metaobject.
+Similarly, in the rule \textit{RT-casetype} we check that the declaration of the sum type $t$ is well-formed and the type of the expression $e$ is the same as the type of $t$'s metaobject.
+The corresponding static rule for the third case of the program $\rho$ of the abstract syntax is \textit{RT-e}.
 
-The rule \textit{RT-casetype} checks that the declaration of the sum type $t$ is well-formed and the type of the expression $e$ is the same as the type of $t$'s metaobject.
-
-The rule \textit{RT-e} is the corresponding static rule for the third case of the program $\rho$ of the abstract syntax.
-
-The rule \textit{C-decl} checks that the type $\tau$ that is referenced by the name $C$ belongs to the type context $\Delta$.
-
+We check that the type $\tau$ that is referenced by the name $C$ belongs to the type context $\Delta$ in the rule \textit{C-decl} .
 The rule \textit{C-decls} allows a case type to have multiple cases, where each case will be checked by the rule \textit{C-decl}. We have to make sure that there are no two cases with the same names; we do this by checking that the domains of the $\chi$s are disjoint.
 
 The rule \textit{O-val} checks that the type of a field ($\keyw{val}$) belongs to the type context $\Delta$ and thus makes the declaration of a value well-formed (\texttt{ok}).
+In a similar fashion, we check that the type of a method ($\keyw{def}$) belongs to the type context $\Delta$ in the premise of the rule \textit{C-decl}. 
+Multiple declarations of values $val$ and methods $def$ to appear one after the other are allowed by the rule \textit{O-defs}. Each declaration will either be checked by the rule \textit{O-val} or \textit{O-def}. We have to make sure that there are no two values or methods with the same name; we do this by checking that the domains of the $\omega$s are disjoint.
 
-The rule \textit{O-def} checks that the type of a method ($\keyw{def}$) belongs to the type context $\Delta$ and thus makes the declaration of a method well-formed (\texttt{ok}).
+We mediate between synthesis and type checking by using the \textit{Syn2Check} rule. This rule states that syntesis is more powerful than type checking.
 
-The rule \textit{O-defs} allows multiple declarations of values $val$ and methods $def$ to appear one after the other. Each declaration will either be checked by the rule \textit{O-val} or \textit{O-def}. We have to make sure that there are no two values or methods with the same name; we do this by checking that the domains of the $\omega$s are disjoint.
+Rules \textit{T-varx}, \textit{T-abs} and \textit{T-appl} are conventional and we do not discuss them in detail here.
 
-The \textit{Syn2Check} rule mediates between synthesis and type checking. This rule states that syntesis is more powerful than type checking.
-
-The rule \textit{T-varx} synthesizes the type of the variable $x$ to be $\tau$, after checking that the variable context $\Gamma$ contains the $x:\tau$ declaration. 
-
-The rule \textit{T-abs} checks the type of the lambda abstraction and states what are the conditions for the type checking to go through.
-
-The rule \textit{T-appl} synthesizes the type of the application of one expression to the other and states what are the premises needed for this synthesis to happen.
-
-The rule \textit{T-introcase} introduces a case of the sum type and syntesizes the type of the resulting expression. To make it simpler, we precede the name of the case by the sum type that includes that case.
-
-The rules \textit{T-elimcase} synthesizes the type of the resulting expression of a particular case of a sum type. Note that all the cases of the same sum type should synthesize to the same type. The rules  \textit{T-casehelper1} and \textit{T-casehelper2} help with the type checking of $c:\chi \Rightarrow \tau'$ in the rule \textit{T-elimcase}. Rule \textit{T-casehelper1} is used when $c$ is of the kind (matches) $C(\chi)\Rightarrow e$ , while rule \textit{T-casehelper2} is used when $c$ is of the kind $c_1 \bnfalt c_2$.
+The rule \textit{T-introcase} introduces a case of the case type and syntesizes the type of the resulting expression. To make it simpler, we precede the name of the case by the sum type that includes that case.
+The type of the resulting expression of a particular case of a sum type is synthesized in the \textit{T-elimcase} rule. Note that all the cases of the same case type should synthesize to the same type. The rules  \textit{T-casehelper1} and \textit{T-casehelper2} help with the type checking of $c:\chi \Rightarrow \tau'$ in the rule \textit{T-elimcase}. Rule \textit{T-casehelper1} is used when $c$ is of the kind (matches) $C(\chi)\Rightarrow e$ , while rule \textit{T-casehelper2} is used when $c$ is of the kind $c_1 \bnfalt c_2$.
 
 The rule \textit{T-new} checks the type of a \keyw{new} expression. This rule is used to construct a \keyw{new} expression and it follows the convention of bidirectional type systems, where type-checking is used for constructors of types. We need the additional premise $t\neq TokenStream$ because we do not want to allow users to create their own token streams. This premise is related to hygienic macros \cite{DBLP:conf/esop/HermanW08} and that we do not want identifiers (names of fields or methods) defined by users to be shadowed by identifiers defined in a type. We have to differentiate between the two and we do this by annotating the code that comes from the user with $TokenStream$. 
 The rule \textit{T-new-hat} from Figure \ref{fig:staticsHat} allows the type $t$ to be $TokenStream$ because we need to allow the compiler to create token streams; the users are the ones who write expressions of the form $e$, while the compiler produces expressions of the form $\hat{e}$ which have already been translated from a specific TSL to Wyvern. 
 
-The rule \textit{DT-val} checks the type of a field \keyw{val} that is instantiated to the expression $e$.
-
-The rule \textit{DT-def} checks the type of a method \keyw{def} that is instantiated to the expression $e$.
-
+Rules \textit{DT-val} and \textit{DT-def} are used to check the type of a field or method when they are instantiated to an expression.
 The rule \textit{DT-defs} allows for multiple instatiations of fields or methods to take place one after the other. Each instantiation is checked with the rule \textit{DT-val} or \textit{DT-def}.
 
-The rule \textit{T-field} synthesizes the type of the field of an expression. The premise mentions that the field is declared as a value \keyw{val}.
+Rules \textit{T-field} and \textit{T-def}  synthesize the type of the field/the method of an expression. Each premise mentions whether the field is declared as a value \keyw{val} or a method (\keyw{def}).
 
-The rule \textit{T-def}  synthesizes the type of the method (\keyw{def}) of an expression. 
-
-The rule \textit{T-ascribe} ascribes (attributes) the type $\tau$ to $e$, after checking in the premise of the rule that the type of $e$ is $\tau$.
-
+We ascribe (attribute) the type $\tau$ to $e$ in the rule \textit{T-ascribe}, after checking in the premise of the rule that the type of $e$ is $\tau$.
 The rule \textit{T-valAST} is used to transform an expression $e$ into an abstract syntax tree of type $Exp$. The definition of type $Exp$ is given in Figure \ref{fig:synExpTy}. 
-
-The rule \textit{T-metaobject} synthesizes the type of the \keyw{metaobject} of the type $t$ by checking that $t$ is in the type context $\Delta$ and it has the right type.
-
-The rule \textit{T-fromTS} checks the type of the \keyw{fromTS} expression. Expression $e_1$ represents a token stream, $e_2$ is a delimiter token and $e$ is the concrete expression that $e_1$ parses to using $e_2$ as end delimiter.
+We synthesize the type of the \keyw{metaobject} of the type $t$ in rule \textit{T-metaobject}. We check that $t$ is in the type context $\Delta$ and it has the right type.
+The rule \textit{T-fromTS} checks the type of the \keyw{fromTS} expression. Expression $e_1$ represents a token stream, $e_2$ is a delimiter token and $e$ is the concrete expression that $e_1$ parses to using $e_2$ as end delimiter. 
 
 The rule \textit{T-literal} is a crucial rule of the our system. The conclusion checks that the $\lfloor literal \rfloor$ expression has the type $t$ and that it is translated to the expression $\hat{e}$ that does not contain a $\lfloor literal \rfloor$ expression. The premise checks that the $parser$ method of the \keyw{metaobject} of the $t$ type is of type $Parser$. Instead of using $t.\keyw{metaobject}.parser$ we use $\hat{e}_p$ in the rest of the rule. The premise continues by denoting the token stream of the $\lfloor literal \rfloor$ expression by $\hat{e}_{ts}$. When the token stream is parsed with the method $parse$ that has as second argument a token used as a signal of the stream ending, it evaluates to $(\hat{e}',\hat{e}'_{ts})$. The expression $\hat{e}'$ is the actual result of the parsing and it does not contain a $\lfloor literal \rfloor$ expression, with $\hat{e}'_{ts}$ being the remainder of the token stream. Since we parse the token stream until the last token, $\hat{e}'_{ts}$ will be empty. Note that only expressions with a hat $\hat{}$ contain a $\lfloor literal \rfloor$ expression. The expression $\hat{e}'$ is then dereificated to the expression $e$. The dereification rules are found in Figure \ref{fig:dereification} and the reification rules are in Figure \ref{fig:reification}. 
 
