@@ -13,7 +13,7 @@
 & \bnfalt \ Lam\ of\ ID\ *\ Ty\ *\ Exp\\
 & \bnfalt \ App\ of\ Exp\ *\ Exp\\
 & \cdots\\
-& \bnfalt \ FromTokenStream\ of\ Exp\ *\ Exp\\
+& \bnfalt \ FromTS\ of\ Exp\ *\ Exp\\
 & \bnfalt \ Error\\
 \\
 \keyw{casetype}\ & Ty=\\
@@ -210,6 +210,7 @@
 
 \end{array}
 \]
+\label{fig:dynsemantics}
 \caption{Dynamic Semantics Rules}
 \end{figure}
 
@@ -218,7 +219,7 @@
 
 \begin{figure}
 \centering
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.53\textwidth}
   \centering
    \[
 \begin{array}{c}
@@ -239,6 +240,16 @@
 	{ \lfloor literal \rfloor \triangleleft_{\Gamma} Exp.Literal( \hat{e}_{ts} )  }
 	{ \text{literal of}\ \hat{e}_{ts}\ \text{is}\ \lfloor literal \rfloor  } \\[3ex]
 
+\infer[\textit{DExp-FromTS}]
+          {\renewcommand{\arraystretch}{1}
+	    \begin{array}{r}
+	    fromTS[\Gamma](e_1,e_2) \triangleleft_{\Gamma}\\
+            Exp.FromTS(\hat{e}_1,\hat{e}_2)
+            \end{array}
+       }
+	  {e_1 \triangleleft_{\Gamma} \hat{e}_1 & e_2 \triangleleft_{\Gamma} \hat{e}_2  }
+	   \\[3ex] 
+
 \infer[\textit{DTy-Var}]
 	{ t \triangleleft_{\Gamma} Ty.Var(\hat{e})   }
 	{ ID(t)\ \text{is}\ \hat{e}} \\[3ex]
@@ -253,7 +264,7 @@
 \caption{Dereification Rules}
 \end{minipage}%
 \vline
-\begin{minipage}{.5\textwidth}
+\begin{minipage}{.47\textwidth}
   \centering
   \[
 \begin{array}{c}
@@ -272,6 +283,16 @@
 \infer[\textit{RExp-Literal}]
 	{ \lfloor literal \rfloor \triangleright_{\Gamma} Exp.Literal( \hat{e}_{ts} )  }
 	{ \text{literal of}\ \hat{e}_{ts}\ \text{is}\ \lfloor literal \rfloor  } \\[3ex]
+
+\infer[\textit{RExp-FromTS}]
+          {\renewcommand{\arraystretch}{1}
+	    \begin{array}{r}
+	    fromTS[\Gamma](e_1,e_2) \triangleright_{\Gamma}\\
+           Exp.FromTS(\hat{e}_1,\hat{e}_2)
+            \end{array}
+       }
+	  {e_1 \triangleright_{\Gamma} \hat{e}_1 & e_2 \triangleright_{\Gamma} \hat{e}_2  }
+	   \\[3ex] 
 
 \infer[\textit{RTy-Var}]
 	{ t \triangleright_{\Gamma} Ty.Var(\hat{e})   }
@@ -360,13 +381,13 @@ The rule \textit{T-valAST} is used to transform an expression $e$ into an abstra
 
 The rule \textit{T-metaobject} synthesizes the type of the \keyw{metaobject} of the type $t$ by checking that $t$ is in the type context $\Delta$ and it has the right type.
 
-The rule \textit{T-fromTS} 
+The rule \textit{T-fromTS} checks the type of the \keyw{fromTS} expression. Expression $e_1$ represents a token stream, $e_2$ is a delimiter token and $e$ is the concrete expression that $e_1$ parses to using $e_2$ as end delimiter.
 
-The rule \textit{T-literal} is a crucial rule of the our system. The conclusion checks that the $\lfloor literal \rfloor$ expression has the type $t$ and that it is translated to the expression $\hat{e}$ that does not contain a $\lfloor literal \rfloor$ expression. The premise checks that the $parser$ method of the \keyw{metaobject} of the $t$ type is of type $Parser$. Instead of using $t.\keyw{metaobject}.parser$ we use $\hat{e}_p$ in the rest of the rule. The premise continues by denoting the token stream of the $\lfloor literal \rfloor$ expression by $\hat{e}_{ts}$. When the token stream is parsed with the method $parse$ that has as second argument a token used as a signal of the stream ending, it evaluates to $(\hat{e}',\hat{e}'_{ts})$. The expression $\hat{e}'$ is the actual result of the parsing and it does not contain a $\lfloor literal \rfloor$ expression, with $\hat{e}'_{ts}$ being the remainder of the token strem. Note that only expressions with a hat $\hat{}$ contain a $\lfloor literal \rfloor$ expression. The expression $\hat{e}'$ is then dereificated to the expression $e$. The dereification rules are found in Figure \ref{fig:dereification} and the reification rules are in Figure \ref{fig:reification}. 
+The rule \textit{T-literal} is a crucial rule of the our system. The conclusion checks that the $\lfloor literal \rfloor$ expression has the type $t$ and that it is translated to the expression $\hat{e}$ that does not contain a $\lfloor literal \rfloor$ expression. The premise checks that the $parser$ method of the \keyw{metaobject} of the $t$ type is of type $Parser$. Instead of using $t.\keyw{metaobject}.parser$ we use $\hat{e}_p$ in the rest of the rule. The premise continues by denoting the token stream of the $\lfloor literal \rfloor$ expression by $\hat{e}_{ts}$. When the token stream is parsed with the method $parse$ that has as second argument a token used as a signal of the stream ending, it evaluates to $(\hat{e}',\hat{e}'_{ts})$. The expression $\hat{e}'$ is the actual result of the parsing and it does not contain a $\lfloor literal \rfloor$ expression, with $\hat{e}'_{ts}$ being the remainder of the token stream. Since we parse the token stream until the last token, $\hat{e}'_{ts}$ will be empty. Note that only expressions with a hat $\hat{}$ contain a $\lfloor literal \rfloor$ expression. The expression $\hat{e}'$ is then dereificated to the expression $e$. The dereification rules are found in Figure \ref{fig:dereification} and the reification rules are in Figure \ref{fig:reification}. 
 
 Dereification means transforming an expression of type $Exp$ or $Ty$ (from Figure \ref{fig:synExpTy}) into an expression that can be found in the abstract syntax Figure \ref{fig:core2-syntax}. The judgement for dereification is \fbox{$e_1 \triangleleft_{\Gamma} e_2$}, where $e_1$ is a form of the abstract syntax and $e_2$ is of type $Exp$ or $Ty$ . Reification is the reverse of dereification, where an expression found in the abstract syntax is transformed into an expression that the parser generates, of type $Exp$ or $Ty$. The judgement for reification is \fbox{$e_1 \triangleright_{\Gamma} e_2$}, where $e_1$ is a form of the abstract syntax and $e_2$ is of type $Exp$ or $Ty$ .
- Expression $e$ is recursively translated to the $\hat{e}$ expression by using the same rule \textit{T-literal}. This rule might not terminate in the general case because the $parse$ function in the premise might not terminate, but termination of the parsing process well studied \cite{DBLP:conf/sle/KrishnanW12} and the techniques can be applied to our system. 
+ Expression $e$ is recursively translated to the $\hat{e}$ expression by using the same rule \textit{T-literal}. This rule might not terminate in the general case because the $parse$ function in the premise might not terminate, but termination of the parsing process is well studied \cite{DBLP:conf/sle/KrishnanW12} and the techniques can be applied to our system. 
 
-
+The most interesting dynamic semantics rules are presented in Figure \ref{fig:dynsemantics} (due to lack of space we do not present all the dynamic semantics rules). The $\keyw{metaobject}$ of a type steps to the expression $e$ representing the metaobject. The two dynamic rules related to $\keyw{valAST}$ describe how to step from an expression of the kind $keyw{valAST}(\hat{e})$ to an expression of type $Exp$ (o Figure \ref{fig:synExpTy}).
 
 
