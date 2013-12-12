@@ -120,44 +120,47 @@ The judgement
 means that from the type context $\Delta$ and the variable context $\Gamma$ we synthesize the type $\tau$ for $e$. The  expression $e$ possibly containing $\lfloor literal \rfloor$ forms (and the \keyw{fromTS} form, which we will discuss shortly) is rewritten into the expression $\hat{e}$ without these forms.
 The judgement 
 \fbox{$\Delta; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$} 
-means that we check $e$ against the type $\tau$ and the expression $e$ is rewritten into the expression $\hat{e}$. The forms of $\Gamma$ and $\Delta$ are given in Fig. \ref{fig:core2-syntax}. Note that $\Delta$ carries the type's signature as well as the rewritten form of the metadata and its type.
+means that we check $e$ against the type $\tau$ and the expression $e$ is rewritten into the expression $\hat{e}$. The forms of $\Gamma$ and $\Delta$ are given in Fig. \ref{fig:core2-syntax}. Note that $\Delta$ carries the type's signature as well as the rewritten form of the metadata. The rules for these judgements, as well as key rules for several auxiliary judgements that are needed in their premises, are given in Figs. 8-12. 
 
-\subsection{Types and Metavalues}
-\begin{figure}
+These rules assume that a collection of built-in types are included by default at the top of programs (e.g. \li{Unit}, \li{Parser}, \li{Exp} already mentioned, and a few others), captured by an intial type context $\Delta_0$. We show the concrete syntax for the two key ones in Fig. 7. The static semantics and the dynamic semantics (defined for $\hat{e}$ only) are that of a conventional functional language with functions, inductive datatypes, products and records  with the addition of a few new forms. The key new dynamic semantics rules are described in Fig. 13. We will now describe how some of the novel rules that support TSLs work below. We refer the reader to \cite{Lovas08abidirectional} and excellent textbooks on type theory, e.g. \cite{pfpl} and \cite{tapl}, for the remainder.
+
+\begin{figure}[t]
 \begin{lstlisting}
-objtype HasParser
-  val parser : Parser
-objtype Parser = 
-  def parse(s : TokenStream) : ExpAST
+objtype Parser                                casetype Exp = 
+  def parse(ts : TokenStream) : Exp             Var of ID
+  metadata = new                              | Lam of ID * Type * Exp
+    val parser : Parser = new                 | App of Exp * Exp
+      val parse(ts : TokenStream) :           ... | FromTS of Exp * Exp
+         Exp * TokenStream =                  | Literal of TokenStream
+        (* ... parser generator based on      | Error of ErrorMessage
+           Adams' formalism here ... *)       metadata = (* quasiquotes *)
 \end{lstlisting}
-\caption{Wyvern objtype Parser}
+\caption{Two of the built-in types included in $\Delta_0$.}
 \label{fig:typeParser}
 \end{figure}
-\subsection{Bidirectional Type System}
-Our type-checking is syntax-directed and it requires terms to be fully annotated with types where necessary. A commonly used approach for making the syntax more compact is bidirectional type systems, . They introduce two mutually recursive judgements: one for expressions that have enough information in the context to synthesize a type, and one for expressions for which we know what type to expect, thus only needing to check against that type. Unique types can be determined for synthesis expressions, while analytical expressions have to be verified to have the right types. We chose to use bidirectional type systems in our formalism because they leverage the simplicity of syntax-directed type-checking while not needing to carry much additional type information.
+%\subsection{Bidirectional Type System}
+%Our type-checking is syntax-directed and it requires terms to be fully annotated with types where necessary. A commonly used approach for making the syntax more compact is bidirectional type systems, . They introduce two mutually recursive judgements: one for expressions that have enough information in the context to synthesize a type, and one for expressions for which we know what type to expect, thus only needing to check against that type. Unique types can be determined for synthesis expressions, while analytical expressions have to be verified to have the right types. We chose to use bidirectional type systems in our formalism because they leverage the simplicity of syntax-directed type-checking while not needing to carry much additional type information.
+%
+%In conventional bidirectional type systems, for constructors of a type one can propagate the type information $\tau$
+%into the term $e$, which means it should be used in the analysis
+%judgment $e \Leftarrow \tau$. When constructing a type, we do not have information about it and it is intuitive to use the analysis judgement, which is weaker than the synthesis judgement. On the other hand, destructors generate a result of a smaller type from a component of larger type and can be used for synthesis, propagating type information away from the term as in the synthesis judgement $e \Rightarrow \tau$. Our static semantics rules follow this conventional way of reasoning about constructors and destructors.
 
-In conventional bidirectional type systems, for constructors of a type one can propagate the type information $\tau$
-into the term $e$, which means it should be used in the analysis
-judgment $e \Leftarrow \tau$. When constructing a type, we do not have information about it and it is intuitive to use the analysis judgement, which is weaker than the synthesis judgement. On the other hand, destructors generate a result of a smaller type from a component of larger type and can be used for synthesis, propagating type information away from the term as in the synthesis judgement $e \Rightarrow \tau$. Our static semantics rules follow this conventional way of reasoning about constructors and destructors.
+\subsection{Defining a TSL Manually}
+In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator based on Adams' formalism. A parser generator is itself merely a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The signature for the built-in type \li{Parser} is shown in Fig. 7. It is an object type with a \li{parse} function taking in a \li{TokenStream} and producing an AST of a Wyvern expression, which is of type \li{Exp}. This built-in type is shown also in Fig. 7. Note that there is a form for each form in the abstract syntax, $e$, as well as an \li{Error} form for indicating error messages (in the theory, nothing is done with these messages). As previously mentioned, quasiquotes are merely a TSL that allows one to construct the abstract syntax, represented as this case type, using concrete syntax, with the addition of an unquote mechanism.
 
-\subsection{Procedural Parsing}
-
-The parsing of a new TSL is done by procedural parsing: the metaobject of a type contains a $parser$ field of type $Parser$ that has a method (or `procedure', thus the name `procedural parsing') $parse$. The type $Parser$ is defined in Figure \ref{fig:typeParser}. The user can write an arbitrary $parse$ method, specific for his/her new TSL. Another way of defining the parsing of a newly introduced TSL is by giving the grammar of that TSL, as in Figure \ref{f-htmltype}. In this case, the user will have to give an LALR grammar that contains the productions necessary to parse the new type specific language. This grammar will then be compiled to a $parse$ method written in Wyvern code. The grammar thus becomes a TSL for objects of type $Parser$. 
-
-One can think of elements in quotation marks as being TSLs for abstract syntax trees, such as $":body"$ in Figure \ref{f-htmltype}. The ASTs are written in Wyvern, while their nodes can contain elements written in arbitrary type specific languages, surrounded by quotation marks. The elements in quotations will be regarded as TSLs and translated into Wyvern, the language of the AST. C\# expression trees \cite{Csharp} are created in a similar way: code is represented in a tree-like data structure, where each node is an expression (for example, a method call). When creating a variable \lstinline{num} of type \lstinline{int} one would write
-
- \lstinline{ParameterExpression numParam = Expression.Parameter(typeof(int), "num")}.
-
- The variable \lstinline{num} is represented by a String, which would be considered a TSL in Wyvern (Wyvern does not have the built-in type String).
-
-\todo{how Parser works - Ligia}
-\subsubsection{Quotations as TSLs}
-Related work: C\# expression trees (http://msdn.microsoft.com/en-us/library/bb397951.aspx) -- mention also/instead in the section on quotations as TSLs
-
-\todo{Quotations are TSLs - Ligia}
+The \verb|parse| function for a type $t$ is called when checking a literal form against that type. This is seen in the key rule of our statics: \textit{T-literal}, in Fig. 9. The premises of these rules operate as follows:
+\begin{enumerate}
+\item A well-typed, rewritten parser object is extracted from the type's metadata. This is the step where the parser generator rewrites a grammar to a parse method, recursively using the TSL mechanism itself.
+\item A tokenstream, of type \li{TokenStream}, is generated from the body of the literal. This type is an object that that allows the reading of tokens, as well as an additional method discussed in the next section for parsing the stream as a Wyvern expression.
+\item The \li|parse| method is called with this extracted tokenstream to produce a syntax tree and a remaining tokenstream.
+\item The syntax tree, $\hat{e}'$ is \emph{dereified} into its corresponding term, $e$ (the hat is gone because the generated syntax tree might itself use TSLs). The judgement for this is indexed by the variable context $\Gamma$ because that is needed to dereify \li{FromTS}, described below.
+\item The dereified term is then recursively typechecked against the same type and rewritten, consistent with the semantics of TSLs as we have been describing them -- they must produce a term of the type they are being checked against.
+\item The TSL must consume the entire token stream, so this is checked.
+\end{enumerate}
+\subsection{Hygiene}
+ (the previous restriction ensured hygiene, but would break type safety if maintained because even TokenStreams generated by the would not be well typed).
+ 
 \subsection{Safety}
 \todo{type safety - Cyrus}
 \todo{discussion on decidability - Cyrus}
 \todo{ambiguity - Cyrus}
-\subsection{Grammars as TSLs}
-\subsubsection{Ambiguity Checking (related to van wyk's work?) - Cyrus}
