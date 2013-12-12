@@ -5,25 +5,25 @@
 We begin with an example in Fig. \ref{f-example} showing several different TSLs being used to define a fragment of a web application showing search results from a database. We will review this example below to develop intuitions about TSLs in Wyvern; a formal and more detailed description will follow in the subsequent sections.
 \begin{figure}[t]
 \begin{lstlisting}
-let imageBase : URL = <images.example.com>
-let bgImage : URL = <$\verb|$|$imageBase$\verb|$|$/background.png>
+let imageBase : URL = <SURLimages.example.comEURL>
+let bgImage : URL = <SURL%imageBase%/background.pngEURL>
 new : SearchServer
   def serve_results(searchQuery : String, page : Nat) : Unit =
     serve(~) (* serve : HTML -> Unit *)
-TSL1      :html
+SHTML      :html
         :head
           :title Search Results
-          :style TSL1 ~
-            TSL2body { background-image: url($\verb|$|$bgImage$\verb|$|$) }
-            #search { background-color: $\verb|$|$`#aabbcc`.darken(20pct)$\verb|$|$ } TSL2
-TSL1        :body
-          :h1 Results for {searchQuery}
+          :style EHTML~
+SCSS            body { background-image: url(%ECSSbgImageSCSS%) }
+            #search { background-color: %ECSS`SCOLOR#aabbccECOLOR`.darken(SPCT20pctEPCT)SCSS% }
+ECSSSHTML        :body
+          :h1 Results for {EHTMLsearchQuerySHTML}
           :div[id="search"]
-            Search again: {TSL1 SearchBox(STR"Go!"STR) TSL1}
-          {TSL1 (* fmt_results : (DB, SQLQuery, Nat, Nat) -> HTML *)
-            fmt_results(db, ~, 10, page)
-              SELECT * FROM products WHERE {searchQuery} in title
-          TSL1}TSL1
+            Search again: {EHTMLSearchBox(SSTR"Go!"ESTR)SHTML}
+          {EHTML (* fmt_results : (DB, SQLQuery, Nat, Nat) -> HTML *)
+            fmt_results(db, ~, SNAT10ENDNAT, page)
+              SSQLSELECT * FROM products WHERE {ESQLsearchQuerySSQL} in titleESQL
+          SHTML}
 \end{lstlisting}
 \vspace{-8px}
 \caption{Wyvern Example with Multiple TSLs}
@@ -76,7 +76,7 @@ TSL2        <HTML.BodyElement(([], $\verb|$|$child$\verb|$|$))>TSL2
 TSL2        let empty_attrs : Attributes = []
         Exp.CaseIntro(Type.Var("HTML"), "StyleElement",
           Exp.ProdIntro(valAST(empty_attr), e))TSL2
-      $\cdots$
+      ...
       start -> '{'= e::EXP['}']>
         <$\verb|$|$e$\verb|$|$ : HTML>TSL1
 \end{lstlisting}
@@ -97,7 +97,7 @@ Each rule is followed by a Wyvern expression, in an indented block, that impleme
 \subsection{Implementing Interpolation}\label{ss:implementing-interpolation}
 We have now seen several examples of interpolation. Within the TSL for \li{HTML}, we see it used in several ways:
 
-\subsubsection{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g. on line 13, 15 and 16-19 of Fig. \ref{f-example}). This is implemented on lines 17 and 18 of Fig. \ref{f-htmltype}. The special non-terminal \li{EXP['$\verb|}|$']} signals a switch into parsing a Wyvern expression. The tokenstream will be parsed as a Wyvern expression until a \li{$\verb|}|$} token is encountered \emph{that would otherwise trigger a parse error}. In other words, the Wyvern grammar binds more tightly to itself than to any surrounding TSL. The AST for the parsed Wyvern expression is given an expected type, \li{HTML}, by simply surrounding it with an ascription (line 18). Because interpolation must be structured (a string cannot be interpolated directly), injection and cross-site scripting attacks cannot occur. Safe string interpolation (which escapes any inner HTML) could be implemented using another delimiter.
+\subsubsection{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g. on line 13, 15 and 16-19 of Fig. \ref{f-example}). This is implemented on lines 17 and 18 of Fig. \ref{f-htmltype}. The special non-terminal \li{EXP[?]} signals a switch into parsing a Wyvern expression. The tokenstream will be parsed as a Wyvern expression until a \li{?} token is encountered \emph{that would otherwise trigger a parse error}. In other words, the Wyvern grammar binds more tightly to itself than to any surrounding TSL. The AST for the parsed Wyvern expression is given an expected type, \li{HTML}, by simply surrounding it with an ascription (line 18). Because interpolation must be structured (a string cannot be interpolated directly), injection and cross-site scripting attacks cannot occur. Safe string interpolation (which escapes any inner HTML) could be implemented using another delimiter.
 
 \subsubsection{CSS Interpolation} After the \li{:style} tag appears (e.g. on line 9 of Fig. \ref{f-example}), instead of hard-coding CSS syntax into the HTML DSL, we instead wish to use the TSL associated with a type representing a CSS stylesheet: \li{CSS}. We do this by again interpolating a Wyvern expression (lines 12-15 of Fig. \ref{f-htmltype}), making sure that it appears in a position where the expected type is \li{CSS} (the second piece of data associated with the \li{StyleElement} constructor, in this case). Wyvern is given control until a full expression has been read and an unexpected newline appears (that is, a newline that does not introduce a layout-delimited block).
 
