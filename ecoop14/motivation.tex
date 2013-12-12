@@ -92,20 +92,18 @@ Each rule is followed by a Wyvern expression, in an indented block, that impleme
 \subsection{Implementing Interpolation}
 We have now seen several examples of interpolation. Within the TSL for \li{HTML}, we see it used in several ways:
 
-\subsubsection{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g. on line 13, 15 and 16-19 of Fig. \ref{f-example}). This is implemented on lines 17 and 18 of Fig. \ref{f-htmltype}. The special non-terminal %\li{EXP['}']}. 
+\subsubsection{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g. on line 13, 15 and 16-19 of Fig. \ref{f-example}). This is implemented on lines 17 and 18 of Fig. \ref{f-htmltype}. The special non-terminal \li{EXP['$\verb|}|$']} signals a switch into parsing a Wyvern expression. The tokenstream will be parsed as a Wyvern expression until a \li{$\verb|}|$} token is encountered \emph{that would otherwise trigger a parse error}. In other words, the Wyvern grammar binds more tightly to itself than to any surrounding TSL. The AST for the parsed Wyvern expression is given an expected type, \li{HTML}, by simply surrounding it with an ascription (line 18). Because interpolation must be structured (a string cannot be interpolated directly), injection and cross-site scripting attacks cannot occur. Safe string interpolation (which escapes any inner HTML) could be implemented using another delimiter.
 
-\subsubsection{CSS Interpolation} 2) At
+\subsubsection{CSS Interpolation} After the \li{:style} tag appears (e.g. on line 9 of Fig. \ref{f-example}), instead of hard-coding CSS syntax into the HTML DSL, we instead wish to use the TSL associated with a type representing a CSS stylesheet: \li{CSS}. We do this by again interpolating a Wyvern expression (lines 12-15 of Fig. \ref{f-htmltype}), making sure that it appears in a position where the expected type is \li{CSS} (the second piece of data associated with the \li{StyleElement} constructor, in this case). Wyvern is given control until a full expression has been read and an unexpected newline appears (that is, a newline that does not introduce a layout-delimited block).
 
-\subsubsection{Interpolation within the CSS TSL} aAjsd
+\subsubsection{Interpolation within the CSS TSL} The TSL for \li{CSS} itself has support for interpolation in a similar manner, choosing $\verb|$|$ as the delimiter. It chooses the type based on the semantics of the surrounding CSS form. For example, when a Wyvern expression appears inside \li{url}, as on line 10 of Fig. \ref{f-example}, it must be of type \li{URL}. When a Wyvern expression appears where a color is needed, the \li{Color} type is used. This type itself has a TSL associated with it that interprets CSS color strings, showing that TSLs can be used within TSLs by simply escaping out to Wyvern, the host language, and then back in. 
+In this case, we emphasize that TSLs produced structured values by calling the \li{darken} method on it to produce a new color. This method itself takes a \li{Percentage} as an argument. The TSL for this type accepts literal bodies containing numbers followed by \li{pct}, or simply a real number without a suffix. These literal bodies, because they begin with a number (and no other form in Wyvern can), does not require delimiters (Fig. \ref{f-delims}). 
 
-\subsubsection{Interpolation within the SQLQuery TSL}
+\subsubsection{Interpolation within the SQLQuery TSL} The TSL used for SQL queries on line 18 of Fig. \ref{f-example} follows an identical pattern, allowing strings to be interpolated into portions of a query in a safe manner. This prevents SQL injection attacks.
 
-The \li{HTML} TSL has several features of note. First, when the \li{:style} notation is used, 
+\todo{Move this stuff:} This strategy, where nesting TSLs occurs by briefly entering the host language, ensures that ambiguities cannot occur. The host language ensures that TSLs are delimited unambiguously, and the TSL ensures that the host language is delimited unambiguously. The body of the TSL is interpreted by a fixed grammar -- the one associated with its expected type. This avoids the kinds of conflicts that simply merging the grammars would cause\todo{to discussion?}. %Because the language where a language switch 
 
-\todo{describe the CSS stuff}
-\todo{describe the Color thing}
-
-Apart from the large number of TSL that can be composed together in a short piece of code and produce meaningful results, we aim at providing a safe composability guarantees that other language extension solutions don't (cf.~\cite{Erdweg:2013:FEL:2517208.2517210} \todo{more citations?}). For instance, in the above Wyvern code the SQL TSLs use similar syntax; however, since they are triggered by methods expecting different types of arguments, namely \lstinline{items_from_db} method takes in a list of \lstinline{Item}s whereas \lstinline{reviews_from_db} method takes in a list of \lstinline{Review}s, the overlapping keywords used in the TSLs do not cause any ambiguities and can be safely composed.
+Apart from the large number of TSL that can be composed together in a short piece of code and produce meaningful results, we aim at providing a safe composability guarantees that other language extension solutions don't (cf.~\cite{Erdweg:2013:FEL:2517208.2517210} \todo{more citations?}).
 
 %
 %\begin{figure}
