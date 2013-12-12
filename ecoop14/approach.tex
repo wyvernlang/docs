@@ -23,6 +23,90 @@ Production rules for \lstinline{d} represent zero or more field and method defin
 \subsubsection{Extraction to Abstract Delimited Form}
 \todo{extraction - Darya}
 
+\begin{figure}
+\centering
+\[
+\begin{array}[t]{lll} 
+\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=e \}; \rho \\
+     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=e \}; \rho\\
+     & \bnfalt & e
+     \\[1ex]
+e    & \bnfdef & x \\
+     & \bnfalt & \boldsymbol\lambda x{:}\tau . e \\ %
+     & \bnfalt & e(e) \\
+     & \bnfalt & (e, e) \\
+     & \bnfalt & \keyw{case}(e) \{(x, y) \Rightarrow e\}\\
+     & \bnfalt & t.C(e) \\
+     & \bnfalt & \keyw{case}(e)~\{ c \} \\
+     & \bnfalt & \keyw{new}~ \{ d \}\\
+     & \bnfalt & e.x \\
+     & \bnfalt & e : \tau\\
+     & \bnfalt & \keyw{valAST}(e) \\
+     & \bnfalt & t.\keyw{metaobject}\\
+     & \bnfalt & \lfloor literal \rfloor \\
+     & \bnfalt & \keyw{fromTS}[\Gamma](e, e)
+\\[1ex]	
+c    & \bnfdef & C(x) \Rightarrow e\\
+     & \bnfalt & c \bnfalt c
+	 \\[1ex]
+d   & \bnfdef & \varepsilon \\
+     & \bnfalt & \keyw{val}~ f:\tau = e;~d \\
+     & \bnfalt & \keyw{def}~ m:\tau = e;~d
+\\[1ex] 
+\end{array}
+\begin{array}[t]{lll}
+~~~
+\end{array}
+\begin{array}[t]{lll}
+
+
+\hat\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=\hat e \}; \hat\rho \\
+     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=\hat e \}; \hat\rho\\
+     & \bnfalt & \hat e
+     \\[1ex]
+\hat{e}    & \bnfdef & x \\
+     & \bnfalt & \boldsymbol\lambda x{:}\tau . \hat{e} \\ %
+     & \bnfalt & \hat{e}(\hat{e}) \\
+     & \bnfalt & \cdots \\
+     & \bnfalt & t.\keyw{metaobject} 
+\\[1ex]
+\hat c    & \bnfdef & ...
+	 \\[1ex]
+\hat d   & \bnfdef & ... 
+\\[1ex] 
+\chi & \bnfdef & C~\keyw{of}~\tau\\
+     & \bnfalt & \chi \bnfalt \chi 
+\\[1ex]
+\omega &\bnfdef & \varepsilon \\  
+         & \bnfalt & \keyw{val}~ f:\tau;~\omega\\
+         & \bnfalt & \keyw{def}~ m:\tau;~\omega 
+\\[1ex]
+\tau & \bnfdef & t\\
+     & \bnfalt & \tau \rightarrow \tau \\
+     & \bnfalt & \tau \times \tau 
+\\[1ex]
+\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau
+\\[1ex]
+\Delta & \bnfdef & \emptyset \bnfalt \Delta, t:\{\chi, e:\tau\} \bnfalt \Delta, t:\{\omega, e:\tau\}
+\\[1ex]
+
+\end{array}
+\]
+\caption{Abstract Syntax}
+\label{fig:core2-syntax}
+\end{figure}
+
+We present the abstract syntax of our system in Figure \ref{fig:core2-syntax}. A program $\rho$ is composed of a series of object type \keyw{objtype} and sum type \keyw{casetype} declarations, followed by expressions $e$. An object type is made of declarations of values \keyw{val}, methods \keyw{def} and \keyw{metadata}. A sum type is made of an enumeration of cases of the form $C$ \keyw{of} $\tau$, where $C$ is the name of the constructor and $\tau$ is the type of the expression constructed in this case, followed by metadata.
+
+The metadata of a type $t$ (either an \keyw{objtype} or a \keyw{casetype}) can contain arbitrary data, for eg. documentation, but it will necessarily contain a $parser$ field of type $Parser$. The $parser$ field has a $parse$ method that takes as argument a stream of tokens and generates an abstract syntax tree expression. This $parse$ method is used for parsing new TSLs of type $t$ defined by the user. 
+
+We differentiate between expressions that might contain a TSL expression and those that definitely do not contain a TSL expression by superscripting the latter with the symbol $\hat{}$. Thus we have two versions (one without $\hat{}$ and one with $\hat{}$) for programs $\rho$,  expressions $e$, cases $c$ of the sum types, and declarations $d$ of fields and methods. 
+
+An expression can be a variable, a function, an application of a function to an expression, a pair of expressions, a case analysis on pairs, the constructor of a case type, the destructor of a case type, a new expression declaring fields and methods, the invocation $e.x$ of a field or a method. We do not have $e.m$ and $e.f$ in the abstract syntax because the parser cannot differentiate between the two, only the type checker can do that. An expression can also be an expression with a type ascribed to it, the abstract syntax tree of an expression, a metaobject of a type, a TSL literal or an expression obtained from a token stream. Each expression has a corresponding static semantics rule in Figures \ref{fig:statics1} and \ref{fig:statics2}. 
+
+The abstract syntax also presents the definition of types, which can be unary types, arrow types corresponding to functions and product types corresponding to pairs. The context $\Gamma$ contains variables and their types. The context $\Delta$ contains types and their signatures. In $\Delta$ we need to keep track not only of a metadata's type, but we need to carry the actual metadata. This is because in the rule $\textit{T-literal}$ in Figure \ref{fig:statics2} we execute the $parse$ method on $\hat{e}_p$ and for this we need to know what the body of the $parse$ method is.
+
+
 \subsection{Types and Metavalues}
 \todo{object types, case types, metavalues - Ligia}
 
