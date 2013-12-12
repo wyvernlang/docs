@@ -191,11 +191,27 @@ A second facet of hygiene is being able to refer to local variables available wi
 
 \subsection{Safety}
 The semantics we have defined constitute a type safe language.
-\begin{lemma}[A]
-abc
-\end{lemma}
 
-The abstract syntax form $e$ represents a 
-\todo{type safety - Cyrus}
-\todo{discussion on decidability - Cyrus}
-\todo{ambiguity - Cyrus}
+We begin with a lemma that shows that the statics for $e$ and $\hat{e}$ are consistent. This is nearly obvious, but for the slight difference in how \li{TokenStream} is treated. 
+\begin{lemma}[Forward Consistency]
+If $\Delta; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$ then $\Delta; \Gamma \vdash \hat{e} : \tau$. 
+\end{lemma}
+\begin{proof}
+Here, $\hat{e}$ is more permissive (Fig. 10), so forward consistency is easily seen by observing that for each form shared by both $e$ and $\hat{e}$, the bidirectional system simply rewrites to the corresponding form of $\hat{e}$ recursively. Thus, these cases are direct applications of the IH. The only remaining cases are the literal form, where the lemma follows by applying the IH to the inductive premises.
+% TODO: err, maybe? I think fromTS might be a bit more complex
+\end{proof}
+
+We then need to show type safety of $\hat{e}$. Because it doesn't contain any non-standard terms other than $\keyw{valAST}$ and $t.\keyw{metadata}$, both of which have straightforward semantics (Fig. 13), this follows by the standard progress and preservation techniques with the addition of a simple well-formedness check on $\Delta$, because metadata needs to be well-typed (not shown).
+
+\begin{lemma}[Preservation]
+If $\Delta; \emptyset \vdash \hat{e} : \tau$ and $\vdash \Delta~\texttt{ok}$ and $\hat{e} \xmapsto[\Delta]{} \hat{e}'$ then $\Delta; \emptyset \vdash \hat{e}' : \tau$.
+\end{lemma}
+\begin{lemma}[Progress]
+If If $\Delta; \emptyset \vdash \hat{e} : \tau$ and $\vdash \Delta~\texttt{ok}$ then either $\hat{e}~\texttt{val}$ or $\hat{e} \xmapsto[\Delta]{} \hat{e}'$.
+\end{lemma}
+These lemmas and judgements can be lifted to the level of programs by applying them to the top-level expression the program contains (simple, not shown). As a result, we have type safety: well-typed programs cannot ``get stuck''.
+\begin{theorem}[Type Safety]
+If $\Delta_0; \emptyset \vdash \rho : \tau \leadsto \hat{\rho}$ then $\Delta_0; \emptyset \vdash \hat{\rho} : \tau$ and either $\hat{\rho}~\texttt{val}$ or $\hat{\rho} \xmapsto[\Delta_0]{} \hat{\rho}'$ such that $\Delta_0; \emptyset \vdash \hat{\rho}' : \tau$.
+\end{theorem}
+
+Because we are executing user-defined parsers during typechecking, we do not have a straightforward statement of decidability (i.e. termination) of typechecking. The parser might not terminate, or it might generate a term that contains itself. Non-decidability is strictly due to these parsers. Termination of the parsing process is well studied (e.g. \cite{DBLP:conf/sle/KrishnanW12}) and the techniques can be applied to user-defined parsers to increase confidence in termination.
