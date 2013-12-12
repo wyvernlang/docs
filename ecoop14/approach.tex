@@ -1,20 +1,37 @@
 % !TEX root = ecoop14.tex
-\section{Approach}
+\section{Syntax}
 \label{s:approach}
-Use a core language, TSL Wyvern, based on the statics we've developed...
-
-\todo{If DSL's are now TSL's, what is GPL/Wyvern now called?}
 
 \subsection{Concrete Syntax}
+We will now describe the concrete syntax of Wyvern declaratively, using the same layout-sensitive formalism that we have introduced for TSL grammars, developed recently by Adams \cite{Adams:2013:PPI:2429069.2429129}. Such a formalism is useful because it allows us to implement  layout-sensitive syntax, like that we've been describing, without relying on context-sensitive lexers or parsers. Most existing layout-sensitive languages (e.g. Python and Haskell) use hand-rolled context-sensitive lexers or parsers (keeping track of, for example, the indentation level using special \li{INDENT} and \li{DEDENT} tokens), but these are more problematic because they cannot be used to generate editor modes, syntax highlighters and other tools automatically. In particular, we will show how the forward references we have described can be correctly encoded without requiring a context-sensitive parser or lexer using this formalism. It is also useful for the TSL for \li{Parser} to use the same parser technology as the host language, so that it can be used to generate quasiquotes.
 
-Wyvern is a whitespace-delimited programming language. We found it convenient to describe concrete grammar for it using Adams' formalism~\cite{Adams:2013:PPI:2429069.2429129}. Most of Wyvern's concrete syntax is shown in Figure~\ref{f-grammar}. The next paragraph gives an intuition behind the grammar formalism presented by Adams, and if the reader is already familiar with it, it is possible to skip to the subsequent paragraph.
+Wyvern's concrete syntax, with a few minor omissions for concision, is shown in Figure~\ref{f-grammar}. We first review Adams' formalism in some additional detail, then describe some key features of our grammar.
 
-For each production rule of a grammar, Adams proposed to use comparison operators, such as =, >, <, $\geq$, and $\leq$, in the superscript of the terms on the right-hand side roughly speaking to specify the indentation at which those terms need to be with respect to the term on the left-hand side. The meaning of the comparison operators is akin to their mathematical meaning: = means that the term on the right-hand side has to be at exactly the same indentation level as the term on the left-hand side; > (<) means that the term on the right-hand side has to be indented strictly further (less) to the left than the term on the left-hand side; $\geq$ ($\leq$) is like > (<), except the term on the right could also be at the same indentation level as the term on the left-hand side. For example, the production rule of the form \lstinline{A $\rightarrow$ B$^=$ '='$^\geq$ C$^>$} approximately reads as: ``Term \lstinline{B} must be at the same indentation level as term \lstinline{A}, term \lstinline{'='} may be at the same or a greater indentation level as term \lstinline{A}, and term \lstinline{C} must be at an indentation level greater than term \lstinline{A}'s.'' Now we can proceed to the discussion of the Wyvern concrete syntax depicted in Figure~\ref{f-grammar}.
+\subsection{Background: Adams' Formalism}
+For each terminal and non-terminal in a rule, Adams proposed associating with them a relational operator, such as =, > and $\geq$ to specify the indentation at which those terms need to be with respect to the non-terminal on the left-hand side of the rule. The indentation level of a term can be identified as the column at which the left-most character of that term appears (not simply the first character, in the case of terms that span multiple lines). The meaning of the comparison operators is akin to their mathematical meaning: = means that the term on the right-hand side has to be at exactly the same indentation as the term on the left-hand side; >  means that the term on the right-hand side has to be indented strictly further to the right than the term on the left-hand side; $\geq$ is like >, except the term on the right could also be at the same indentation level as the term on the left-hand side. For example, the production rule of the form \lstinline{A $\rightarrow$ B$^=$ C$^\geq$ D$^>$} approximately reads as: ``Term \lstinline{B} must be at the same indentation level as term \lstinline{A}, term \lstinline{C} may be at the same or a greater indentation level as term \lstinline{A}, and term \lstinline{D} must be at an indentation level greater than term \lstinline{A}'s.'' In particular, if \li{D} contains a \lstinline{NEWLINE} character, the next line must be indented past the position of the left-most character of \lstinline{A} (typically constructed so that it must appear at the beginning of a line). There are no constraints relating \lstinline{D} to \lstinline{B} or \lstinline{C} other than the standard sequencing constraint: the first character of \lstinline{D} must be to further in the file than the others. Using Adam's formalism, the grammars of real-world languages like Python and Haskell can be written declaratively. This formalism can be integrated into LR and LALR parser generators.
 
 \input{grammar}
+\subsection{TSL Wyvern's Concrete Syntax}
+\begin{figure}[h]
+\begin{lstlisting}
+objtype T
+  val y : HTML
+let page : HTML -> HTML = fn x => ~
+  :html
+    :body
+      {x}
+page(case(5 : Nat))
+  Z(_) => (new : T).y
+    val y : HTML = ~
+      :h1 Zero!
+  S(x) => ~
+    :h1 Successor!
+\end{lstlisting}
+\caption{An example Wyvern program demonstrating forward references.}
+\end{figure}
+An example Wyvern program showing several unique syntactic features of TSL Wyvern is shown in Fig. \ref{f-frefs}. The top level of a program (the \lstinline{p} non-terminal) consists of a series of type declarations -- object types using \lstinline{objtype} or case types using \lstinline{casetype} -- followed by an expression, \lstinline{e}. Each type declaration contains associated declarations -- signatures for fields and methods in  \lstinline{objdecls} and case declarations in \lstinline{casedecls} (not shown on the figure). Each also includes a metadata declaration. Metadata is simply an expression associated with the type, used to store TSL logic (and in future work, other logic). Sequences of top-level declarations use the form \lstinline{p$^=$} to signify that all the succeeding \lstinline{p} terms must begin at the same indentation.
 
-At the top level of a program (the \lstinline{p} rules), there can be either a type declaration\textemdash an object type \lstinline{objtype} or a sum type \lstinline{casetype}\textemdash or a language expression. Each type declaration comprises associated declarations \lstinline{objdecls} and \lstinline{casedecls} (not shown on the figure) and their definitions in the \lstinline{metadatadecl}. \lstinline{p} rules end with the non-terminal \lstinline{p$^=$} which signifies that 1) there is a sequence of type declarations or at least one expression to follow and 2) all the succeeding \lstinline{p} terms must begin at the same level of indentation at the \lstinline{p} term on the left-hand side.
-
+Forward references 
 Wyvern expressions can be of two major types: those that do not contain forward references (\lstinline{$\overline{\texttt{e}}$}) and those that do (\lstinline{$\widetilde{\texttt{e}}$[fwd]}). Expressions that have a forward reference are either a tilde, saying that a TSL literal is to follow, a new object, or an introductory form of the sum type. Both of the major types of expressions can be a lambda, an application, a pair (for a product type), a \lstinline{let} expression, a field access, expressions for the sum type, a type ascription, or a special built-in operator (\lstinline{valAST()}). The difference between the major expression types is that \lstinline{$\overline{\texttt{e}}$} is not allowed to contain an expression with a forward reference and thus includes expressions for a variable, access to a type's \lstinline{metadata}, and an inline literal. On the other hand, \lstinline{$\widetilde{\texttt{e}}$[fwd]} must have a forward reference. It is important to note that, per line, there can be only one forward reference, which needs to be followed by the `announced' type of expression on the following line (\lstinline{NEWLINE$^>$ $NT^>$} at the end of expressions containing a forward reference).
 
 Production rules for \lstinline{d} represent zero or more field and method definitions, where \lstinline{argsig} is a possibly empty list of typed arguments for the method (omitted from the figure). Production rules for \lstinline{c} represent cases of the sum type, and \lstinline{$\overline{\texttt{al}}$}, \lstinline{$\overline{\texttt{al}}_{\texttt{nonempty}}$}, and \lstinline{$\widetilde{\texttt{al}}$[fwd]} are argument lists without and with forward references. Finally, there are production rules for inline TSL literals, which were discussed in section~\ref{s:motivation} above. Next we are going to look at Wyvern's abstract syntax and the interplay between the concrete and abstract syntaxes.
