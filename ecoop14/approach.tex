@@ -3,9 +3,9 @@
 \label{s:approach}
 
 \subsection{Concrete Syntax}
-We will now describe the concrete syntax of Wyvern declaratively, using the same layout-sensitive formalism that we have introduced for TSL grammars, developed recently by Adams \cite{Adams:2013:PPI:2429069.2429129}. Such a formalism is useful because it allows us to implement  layout-sensitive syntax, like that we've been describing, without relying on context-sensitive lexers or parsers. Most existing layout-sensitive languages (e.g. Python and Haskell) use hand-rolled context-sensitive lexers or parsers (keeping track of, for example, the indentation level using special \li{INDENT} and \li{DEDENT} tokens), but these are more problematic because they cannot be used to generate editor modes, syntax highlighters and other tools automatically. In particular, we will show how the forward references we have described can be correctly encoded without requiring a context-sensitive parser or lexer using this formalism. It is also useful for the TSL for \li{Parser} to use the same parser technology as the host language, so that it can be used to generate quasiquotes.
+We will now describe the concrete syntax of Wyvern declaratively, using the same layout-sensitive formalism that we have introduced for TSL grammars, developed recently by Adams \cite{Adams:2013:PPI:2429069.2429129}. Such a formalism is useful because it allows us to implement  layout-sensitive syntax, like that we've been describing, without relying on context-sensitive lexers or parsers. Most existing layout-sensitive languages (e.g. Python and Haskell) use hand-rolled context-sensitive lexers or parsers (keeping track of, for example, the indentation level using special \li{INDENT} and \li{DEDENT} tokens), but these are more problematic because they cannot be used to generate editor modes, syntax highlighters and other tools automatically. In particular, we will show how the forward references we have described can be correctly encoded without requiring a context-sensitive parser or lexer using this formalism. It is also useful that the TSL for \li{Parser}, above, uses the same parser technology as the host language, so that it can be used to generate quasiquotes.
 
-Wyvern's concrete syntax, with a few minor omissions for concision, is shown in Figure~\ref{f-grammar}. We first review Adams' formalism in some additional detail, then describe some key features of our grammar.
+Wyvern's concrete syntax, with a few minor omissions for concision, is shown in Figure~\ref{f-grammar}. We first review Adams' formalism in some additional detail, then describe some key features of this syntax.
 
 \subsection{Background: Adams' Formalism}
 For each terminal and non-terminal in a rule, Adams proposed associating with them a relational operator, such as =, > and $\geq$ to specify the indentation at which those terms need to be with respect to the non-terminal on the left-hand side of the rule. The indentation level of a term can be identified as the column at which the left-most character of that term appears (not simply the first character, in the case of terms that span multiple lines). The meaning of the comparison operators is akin to their mathematical meaning: = means that the term on the right-hand side has to be at exactly the same indentation as the term on the left-hand side; >  means that the term on the right-hand side has to be indented strictly further to the right than the term on the left-hand side; $\geq$ is like >, except the term on the right could also be at the same indentation level as the term on the left-hand side. For example, the production rule of the form \lstinline{A $\rightarrow$ B$^=$ C$^\geq$ D$^>$} approximately reads as: ``Term \lstinline{B} must be at the same indentation level as term \lstinline{A}, term \lstinline{C} may be at the same or a greater indentation level as term \lstinline{A}, and term \lstinline{D} must be at an indentation level greater than term \lstinline{A}'s.'' In particular, if \li{D} contains a \lstinline{NEWLINE} character, the next line must be indented past the position of the left-most character of \lstinline{A} (typically constructed so that it must appear at the beginning of a line). There are no constraints relating \lstinline{D} to \lstinline{B} or \lstinline{C} other than the standard sequencing constraint: the first character of \lstinline{D} must be to further in the file than the others. Using Adam's formalism, the grammars of real-world languages like Python and Haskell can be written declaratively. This formalism can be integrated into LR and LALR parser generators.
@@ -29,7 +29,7 @@ page(case(5 : Nat))
 \end{lstlisting}
 \caption{An example Wyvern program demonstrating forward references.}
 \end{figure}
-An example Wyvern program showing several unique syntactic features of TSL Wyvern is shown in Fig. \ref{f-frefs}. The top level of a program (the \lstinline{p} non-terminal) consists of a series of type declarations -- object types using \lstinline{objtype} or case types using \lstinline{casetype} -- followed by an expression, \lstinline{e}. Each type declaration contains associated declarations -- signatures for fields and methods in  \lstinline{objdecls} and case declarations in \lstinline{casedecls} (not shown on the figure). Each also can also include a metadata declaration. Metadata is simply an expression associated with the type, used to store TSL logic (and in future work, other logic). Sequences of top-level declarations use the form \lstinline{p$^=$} to signify that all the succeeding \lstinline{p} terms must begin at the same indentation.
+An example Wyvern program showing several unique syntactic features of TSL Wyvern is shown in Fig. \ref{f-frefs}. The top level of a program (the \lstinline{p} non-terminal) consists of a series of type declarations -- object types using \lstinline{objtype} or case types using \lstinline{casetype} -- followed by an expression, \lstinline{e}. Each type declaration contains associated declarations -- signatures for fields and methods in  \lstinline{objdecls} and case declarations in \lstinline{casedecls} (not shown on the figure). Each also can also include a metadata declaration. Metadata is simply an expression associated with the type, used to store TSL logic (and in future work, other logic). Sequences of top-level declarations use the form \lstinline{p$^=$} to signify that all the succeeding \lstinline{p} terms must begin at the same indentation.\todo{fig ref}
 \subsection{Forward Referenced Blocks}
 Wyvern makes extensive use of forward referenced blocks to make its syntax clean. In particular, layout-delimited TSLs, the general-purpose introductory form for object types and the elimination form for case types and product types all use forward referenced blocks. Fig. \ref{f-frefs} shows all of these in use (assuming suitable definitions of casetypes \li{Nat} and \li{HTML}, not included). In the grammar, note particularly the rules for \li{let} and that inline literals, even those containing nested expressions with forward references, can be treated as expressions not containing forward references -- \emph{in the initial phase of parsing, before typechecking commences, all literal forms are left unparsed}.
 
@@ -109,8 +109,21 @@ d   & \bnfdef & \varepsilon \\
 \label{fig:core2-syntax}
 \end{figure}
 
-\section{Typechecking and Rewriting}
-The context $\Gamma$ contains variables and their types. The context $\Delta$ contains types and their signatures. In $\Delta$ we need to keep track not only of a metadata's type, but we need to carry the actual metadata. This is because in the rule $\textit{T-literal}$ in Figure \ref{fig:statics2} we execute the $parse$ method on $\hat{e}_p$ and for this we need to know what the body of the $parse$ method is.
+\section{Bidirectional Typechecking and Literal Rewriting}
+We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2-syntax}. Conventional type systems are specified using a typechecking judgement like $\Delta; \Gamma \vdash e : \tau$, where the variable context, $\Gamma$, tracks the types of variables, and the type context, $\Delta$, tracks types and their signatures. However, this conventional formulation does not separately consider how, when deriving this judgement, it will be considered algorithmically -- will a type be provided, so that we simply need to check $e$ against it, or do we need to synthesize a type for $e$? For our system, this distinction is crucial: a generic literal can only be used in the first situation. 
+
+\emph{Bidirectional type systems}, as presented by Lovas and Pfenning \cite{Lovas08abidirectional}, make this distinction clear by specifying the type system instead using two simultaneously defined judgements: one for expressions that can \emph{synthesize} a type based on the surrounding context (e.g. variables and elimination forms), and another for expressions for which we know what type to \emph{check} or \emph{analyze} the term against (e.g. generic literals and some introductory forms). 
+Our work builds upon this work, making the following core additions: the tye context $\Delta$ now tracks the metadata in addition to type signatures, and as we typecheck, we need to also perform literal rewriting by calling the parser associated with the type that a literal is being analyzed against, typechecking the AST it produces and ensuring that hygiene is maintained.
+
+The judgement 
+\fbox{$\Delta; \Gamma \vdash e\Rightarrow \tau \leadsto \hat{e}$} 
+means that from the type context $\Delta$ and the variable context $\Gamma$ we synthesize the type $\tau$ for $e$. The  expression $e$ possibly containing $\lfloor literal \rfloor$ forms is transformed into the expression $\hat{e}$ without literals.
+The judgement 
+\fbox{$\Delta; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$} 
+means that we check $e$ against the type $\tau$ and the expression $e$ is transformed into the expression $\hat{e}$. 
+
+
+In $\Delta$ we need to keep track not only of a metadata's type, but we need to carry the actual metadata. This is because in the rule $\textit{T-literal}$ in Figure \ref{fig:statics2} we execute the $parse$ method on $\hat{e}_p$ and for this we need to know what the body of the $parse$ method is.
 
 
 \subsection{Types and Metavalues}
@@ -127,20 +140,8 @@ objtype Parser =
 \caption{Wyvern objtype Parser}
 \label{fig:typeParser}
 \end{figure}
-
-\begin{figure}
-\begin{lstlisting}
-casetype ExpAST = 
-  Var of ID 
-| Lam of Var * ExpAST | Ap of Exp * Exp 
-| CaseIntro of TyAST * String * ExpAST | ...
-\end{lstlisting}
-\caption{Wyvern casetype ExpAST}
-\label{fig:wyvExpAST}
-\end{figure}
-
 \subsection{Bidirectional Type System}
-Our type-checking is syntax-directed and it requires terms to be fully annotated with types where necessary. A commonly used approach for making the syntax more compact is bidirectional type systems, as presented by Lovas and Pfenning \cite{Lovas08abidirectional}. They introduce two mutually recursive judgements: one for expressions that have enough information in the context to synthesize a type, and one for expressions for which we know what type to expect, thus only needing to check against that type. Unique types can be determined for synthesis expressions, while analytical expressions have to be verified to have the right types. We chose to use bidirectional type systems in our formalism because they leverage the simplicity of syntax-directed type-checking while not needing to carry much additional type information.
+Our type-checking is syntax-directed and it requires terms to be fully annotated with types where necessary. A commonly used approach for making the syntax more compact is bidirectional type systems, . They introduce two mutually recursive judgements: one for expressions that have enough information in the context to synthesize a type, and one for expressions for which we know what type to expect, thus only needing to check against that type. Unique types can be determined for synthesis expressions, while analytical expressions have to be verified to have the right types. We chose to use bidirectional type systems in our formalism because they leverage the simplicity of syntax-directed type-checking while not needing to carry much additional type information.
 
 In conventional bidirectional type systems, for constructors of a type one can propagate the type information $\tau$
 into the term $e$, which means it should be used in the analysis
