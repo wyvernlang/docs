@@ -2,17 +2,17 @@
 \section{Motivation}
 \label{s:intro}
 By using a general-purpose abstraction mechanism to encode a data structure, one immediately benefits from a body of established reasoning principles and primitive operations. For example, inductive datatypes can be used to express data structures like lists: intuitively, a list can either be empty, or be broken down into a value (its \emph{head}) and another list (its \emph{tail}). In an ML-like language, this concept is conventionally written:
-\begin{lstlisting}
+\begin{lstlisting}[numbers=none]
 datatype 'a list = Nil | Cons of 'a * 'a list
 \end{lstlisting}
 By encoding lists in this way, we can reason about them by structural induction, construct them by choosing the appropriate case and inspect them by pattern matching. In object-oriented languages, one can encode lists similarly as singly-linked cells, reason about them using a variety of program analysis techniques, construct them using \li{new} and inspect them by traversing the links iteratively. In each case, the programmer only needs to provide an encoding of the structure of lists; the semantics are inherited.
 
 While inheriting semantics can be quite useful, inheriting associated general-purpose syntax can sometimes be a liability. For example, few would claim that writing a list of numbers as a sequence of \li{Cons} cells is convenient:
-\begin{lstlisting}
+\begin{lstlisting}[numbers=none]
 Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
 \end{lstlisting}
 General-purpose object-oriented notation is similarly inconvenient:
-\begin{lstlisting}
+\begin{lstlisting}[numbers=none]
 new Cons<int>(1, new Cons<int>(2, new Cons<int>(3, new Cons<int>(4))))
 \end{lstlisting}
 Because lists are a common data structure, many languages provide specialized notation for constructing them, e.g. \li{[1, 2, 3, 4]}. This notation is semantically equivalent to the general-purpose notation shown above, but brings cognitive benefits by drawing attention to the content of the list, rather than the nature of the encoding. More specifically, it is more \emph{terse}, \emph{visible} and \emph{maps more closely} to the intuitive notion of a list, to use terminology from the literature on the cognitive dimensions of notations \cite{green1996usability}.
@@ -21,8 +21,8 @@ Although number, string and list literals are nearly ubiquitous features of mode
 \begin{lstlisting}
 let webpage : HTML = SHTML<html><body><h1>Results for {EHTMLkeywordSHTML}</h1>
   <ul id="results">{EHTMLto_list_items(query(db, 
-    SSQLSELECT title, snippet FROM products WHERE {ESQLkeywordSSQL} in title)ESQLSHTML}
-</ul></body></html>EHTML
+    SSQLSELECT title, snippet FROM products WHERE {ESQLkeywordSSQL} in titleESQL)SHTML}
+  </ul></body></html>EHTML
 \end{lstlisting}
 to mean:
 \begin{lstlisting}
@@ -37,8 +37,8 @@ When a specialized notation is not available, and equivalent general-purpose not
 \begin{lstlisting}
 let webpage : HTML = parse_html($\texttt{"}$SSTR<html><body><h1>Results for ESTR$\texttt{"}$+keyword+$\texttt{"}$SSTR</h1>
   <ul id=\$\texttt{\color{cyan}"}$results\$\texttt{\color{cyan}"}$>$\texttt{"}$ESTR + to_string(to_list_items(query(db, parse_sql(
-  	$\texttt{"}$SSTRSELECT title, snippet FROM products WHERE '$\texttt{"+keyword"}$' in title$\texttt{"}$ESTR)))) + 
-$\texttt{"}$SSTR</ul></body></html>$\texttt{")}$
+  	$\texttt{"}$SSTRSELECT title, snippet FROM products WHERE '$\texttt{"+keyword+"}$' in title$\texttt{"}$ESTR)))) + 
+  $\texttt{"}$SSTR</ul></body></html>$\texttt{")}$
 \end{lstlisting}
 
 Though recovering much of the notational convenience of the literal version, it is still more awkward to write, requiring explicit conversions to and from structured representations and escaping when the syntax of the language clashes with the syntax of string literals (line 2). But code like this also causes a number of more serious problems beyond cognitive load. Because parsing occurs at run-time, syntax errors will not be discovered statically, causing potential problems in production scenarios. Run-time parsing also incurs performance overhead, particularly relevant when code like this is executed often (as on a heavily-trafficked website, or in a loop). But the most serious issue with this code is that it is fundamentally insecure: it is vulnerable to cross-site scripting attacks (line 1) and SQL injection attacks (line 3). For example, if a user provided the keyword \li{'; DROP TABLE products --}, the entire product database could be erased. These attack vectors are considered to be two of the most serious security threats on the web today \cite{owasp2013}. Although developers are cautioned to sanitize their input, it can be difficult to verify that this was done correctly throughout a codebase. The most straightforward way to avoid these problems is to use structured representations throughout the codebase, aided by specialized notation like that above \cite{Bravenboer:2007:PIA:1289971.1289975}.

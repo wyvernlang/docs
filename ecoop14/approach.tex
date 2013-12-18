@@ -15,11 +15,11 @@ For each terminal and non-terminal in a rule, Adams proposed associating with th
 \subsection{Programs}
 
 \begin{figure}[t]
-\begin{minipage}{.57\textwidth}
+\begin{minipage}[t]{.54\textwidth}
 \begin{lstlisting}
 objtype T
   val y : HTML
-let page : HTML->HTML = fn x : HTML => ~
+let page : HTML->HTML = fn x:HTML => ~
   :html
     :body
       {x}
@@ -31,26 +31,27 @@ page(case(5 : Nat))
     :h1 Successor!
 \end{lstlisting}
 \end{minipage}%
-\begin{minipage}{.47\textwidth}
+\begin{minipage}[t]{.45\textwidth}
  \centering
 \[
 \begin{array}{l}
 \keyw{objtype} \ T\ \{ \\
   ~~~\keyw{val}\ y : HTML, \\
   ~~~\keyw{metadata} = (\keyw{new}\ \{\}) : Unit\ \}; \\
-  (\boldsymbol\lambda page : HTML \rightarrow HTML\ .\\
+  (\boldsymbol\lambda page : HTML \rightarrow HTML.\\
   ~page(\keyw{case}(\lfloor 5 \rfloor : Nat)\ \{ \\
   ~~~~Z(\_) \Rightarrow ((\keyw{new}\ \{ \\
-    ~~~~~~~\keyw{val}\ y : HTML = \lfloor :h1\ Zero! \rfloor\}) : T).y\ | \\
-   ~~~~S(x) \Rightarrow \lfloor :h1\ Successor! \rfloor\})) \\
-  (\boldsymbol\lambda x : HTML\ .\ \lfloor :html \\
-    ~~~~~~~~~~~:body \\
-      ~~~~~~~~~~~~~~\{x\} \rfloor)
+    ~~~~~~~\keyw{val}\ y : HTML = \lfloor :h1\ Z! \rfloor\}) : T).y\ \\
+   ~~~~| S(x) \Rightarrow \lfloor :h1\ S! \rfloor\})) \\
+  ~~~~(\boldsymbol\lambda x : HTML.\ \lfloor :html \\
+    ~~:body \\
+      ~~~~\{x\} \rfloor)
 \end{array}
 \]
 \end{minipage}
-\caption{An example Wyvern program demonstrating forward references}
+\caption{An example Wyvern program demonstrating forward references. The corresponding abstract syntax, where forward references are inlined, is on the right.}
 \label{fig:fwd-ref}
+\vspace{-10px}
 \end{figure}
 An example Wyvern program showing several unique syntactic features of TSL Wyvern is shown in Fig. \ref{f-example}. The top level of a program (the \lstinline{p} non-terminal) consists of a series of type declarations -- object types using \lstinline{objtype} or case types using \lstinline{casetype} -- followed by an expression, \lstinline{e}. Each type declaration contains associated declarations -- signatures for fields and methods in  \lstinline{objdecls} and case declarations in \lstinline{casedecls} (not shown on the figure). Each also can also include a metadata declaration. Metadata is simply an expression associated with the type, used to store TSL logic (and in future work, other logic). Sequences of top-level declarations use the form \lstinline{p$^=$} to signify that all the succeeding \lstinline{p} terms must begin at the same indentation.
 
@@ -80,8 +81,8 @@ e    & \bnfdef & x \\
      & \bnfalt & e : \tau\\
      & \bnfalt & \keyw{valAST}(e) \\
      & \bnfalt & t.\keyw{metadata}\\
-     & \bnfalt & \lfloor literal \rfloor \\
-     & \bnfalt & \keyw{fromTS}[\Gamma](e, e)
+     & \bnfalt & \keyw{fromTS}(e)\\
+     & \bnfalt & \lfloor body \rfloor
 \\[1ex]	
 c    & \bnfdef & C(x) \Rightarrow e\\
      & \bnfalt & c \bnfalt c
@@ -89,14 +90,11 @@ c    & \bnfdef & C(x) \Rightarrow e\\
 d   & \bnfdef & \varepsilon \\
      & \bnfalt & \keyw{val}~ f:\tau = e;~d \\
      & \bnfalt & \keyw{def}~ m:\tau = e;~d
-\\[1ex] 
 \end{array}
 \begin{array}[t]{lll}
 ~~~
 \end{array}
 \begin{array}[t]{lll}
-
-
 \hat\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=\hat e \}; \hat\rho \\
      & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=\hat e \}; \hat\rho\\
      & \bnfalt & \hat e
@@ -108,7 +106,7 @@ d   & \bnfdef & \varepsilon \\
      & \bnfalt & t.\keyw{metadata} 
 \\[1ex]
 \hat c    & \bnfdef & ...
-	 \\[1ex]
+	 \\[.5ex]
 \hat d   & \bnfdef & ... 
 \\[1ex] 
 \chi & \bnfdef & C~\keyw{of}~\tau\\
@@ -122,14 +120,14 @@ d   & \bnfdef & \varepsilon \\
      & \bnfalt & \tau \rightarrow \tau \\
      & \bnfalt & \tau \times \tau 
 \\[1ex]
-\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau
+\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau~~~~~~~\delta \bnfdef - \bnfalt \hat{e} : \tau
 \\[1ex]
-\Delta & \bnfdef & \emptyset \bnfalt \Delta, t:\{\chi, \hat e:\tau\} \bnfalt \Delta, t:\{\omega, \hat e:\tau\}
-\\[1ex]
-
+\Delta & \bnfdef & \emptyset \bnfalt \Delta, t:\{\chi, \delta\} \bnfalt \Delta, t:\{\omega, \delta\}
 \end{array}
 \]
+\vspace{-12px}
 \caption{Abstract Syntax}
+\vspace{-15px}
 \label{fig:core2-syntax}
 \end{figure}
 
@@ -140,27 +138,54 @@ We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2
 Our work builds upon this work, making the following core additions: the tye context $\Delta$ now tracks the metadata in addition to type signatures, and as we typecheck, we need to also perform literal rewriting by calling the parser associated with the type that a literal is being analyzed against, typechecking the AST it produces and ensuring that hygiene is maintained.
 
 The judgement 
-\fbox{$\Delta; \Gamma \vdash e\Rightarrow \tau \leadsto \hat{e}$} 
-means that from the type context $\Delta$ and the variable context $\Gamma$ we synthesize the type $\tau$ for $e$. The  expression $e$ possibly containing $\lfloor literal \rfloor$ forms (and the \keyw{fromTS} form, which we will discuss shortly) is rewritten into the expression $\hat{e}$ without these forms.
+\fbox{$\Delta; \Gamma'; \Gamma \vdash e\Rightarrow \tau \leadsto \hat{e}$} 
+means that from the type context $\Delta$, the \emph{surrounding variable context}, $\Gamma'$, and the \emph{local variable context}, $\Gamma$, we synthesize the type $\tau$ for $e$ and rewrite it to  $\hat{e}$ (which does not contain literals or the special form $\keyw{fromTS}(e)$, which makes the surrounding context available; see below).
 The judgement 
-\fbox{$\Delta; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$} 
-means that we check $e$ against the type $\tau$ and the expression $e$ is rewritten into the expression $\hat{e}$. The forms of $\Gamma$ and $\Delta$ are given in Fig. \ref{fig:core2-syntax}. Note that $\Delta$ carries the type's signature as well as the rewritten form of the metadata. The rules for these judgements, as well as key rules for several auxiliary judgements that are needed in their premises, are given in Figs. 8-12. 
+\fbox{$\Delta; \Gamma'; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$} similarly 
+means that we check $e$ against the type $\tau$ and the expression $e$ is rewritten into the expression $\hat{e}$. The forms of $\Gamma$ and $\Delta$ are given in Fig. \ref{fig:core2-syntax}. Note that $\Delta$ carries the type's signature as well as the rewritten form of the metadata. The rules for these judgements, as well as key rules for several auxiliary judgements that are needed in their premises, are given in Figs. 8-11. 
 
-These rules assume that a collection of built-in types are included by default at the top of programs (e.g. \li{Unit}, \li{Parser}, \li{Exp} already mentioned, and a few others), captured by an intial type context $\Delta_0$. We show the concrete syntax for the two key ones in Fig. 7. The static semantics and the dynamic semantics (defined for $\hat{e}$ only) are that of a conventional functional language with functions, inductive datatypes, products and records  with the addition of a few new forms. The key new dynamic semantics rules are described in Fig. 13. We will now describe how some of the novel rules that support TSLs work below. We refer the reader to \cite{Lovas08abidirectional} and excellent textbooks on type theory, e.g. \cite{pfpl} and \cite{tapl}, for the remainder.
+These rules assume that a collection of built-in types are included by default at the top of programs (e.g. \li{Unit}, \li{Parser}, \li{Exp} already mentioned, and a few others), captured by an intial type context $\Delta_0$. We show the concrete syntax for the two key ones in Fig. 7. The static semantics and the dynamic semantics (defined for $\hat{e}$ only) are that of a conventional functional language with functions, inductive datatypes, products and records  with the addition of a few new forms. The key new dynamic semantics rules are described in Figs. 12 and 13. We will now describe how some of the novel rules that support TSLs work below. We refer the reader to \cite{Lovas08abidirectional} and texts on type systems, e.g. \cite{pfpl,tapl}, for the remainder.
 
 \begin{figure}[t]
+\begin{subfigure}[t]{.55\textwidth}
 \begin{lstlisting}
-objtype Parser                                casetype Exp = 
-  def parse(ts : TokenStream) : Exp             Var of ID
-  metadata = new                              | Lam of ID * Type * Exp
-    val parser : Parser = new                 | App of Exp * Exp
-      val parse(ts : TokenStream) :           ... | FromTS of Exp * Exp
-         Exp * TokenStream =                  | Literal of TokenStream
-        (* ... parser generator based on      | Error of ErrorMessage
-           Adams' formalism here ... *)       metadata = (* quasiquotes *)
+objtype Parser                          
+  def parse(ts : TokenStream) : (Exp * 
+    TokenStream)
+  metadata = new                        
+    val parser : Parser = new           
+      val parse(ts : TokenStream) : (
+          Exp * TokenStream) =            
+        (* parser generator based
+           on Adams' formalism *)
 \end{lstlisting}
-\caption{Two of the built-in types included in $\Delta_0$.}
-\label{fig:typeParser}
+\end{subfigure}
+\begin{subfigure}[t]{.55\textwidth}
+\begin{lstlisting}[linewidth=.5\textwidth]
+casetype Exp 
+    Var of ID
+  | Lam of ID * Type * Exp
+  | App of Exp * Exp
+  ... 
+  | FromTS of Exp * Exp
+  | Literal of TokenStream
+  | Error of ErrorMessage
+  metadata = (* quasiquotes *)
+\end{lstlisting}
+\end{subfigure}
+%\begin{lstlisting}
+%objtype Parser                                casetype Exp 
+%  def parse(ts : TokenStream) : Exp               Var of ID
+%  metadata = new                                | Lam of ID * Type * Exp
+%    val parser : Parser = new                   | App of Exp * Exp
+%      val parse(ts : TokenStream) :             ... | FromTS of Exp * Exp
+%         Exp * TokenStream =                    | Literal of TokenStream
+%           ... parser generator based on        | Error of ErrorMessage
+%           Adams' formalism here ...            metadata = (* quasiquotes *)
+%\end{lstlisting}
+\caption{Two of the built-in types included in $\Delta_0$ (concrete syntax).}
+\vspace{-10px}
+%\label{fig:typeParser}
 \end{figure}
 %\subsection{Bidirectional Type System}
 %Our type-checking is syntax-directed and it requires terms to be fully annotated with types where necessary. A commonly used approach for making the syntax more compact is bidirectional type systems, . They introduce two mutually recursive judgements: one for expressions that have enough information in the context to synthesize a type, and one for expressions for which we know what type to expect, thus only needing to check against that type. Unique types can be determined for synthesis expressions, while analytical expressions have to be verified to have the right types. We chose to use bidirectional type systems in our formalism because they leverage the simplicity of syntax-directed type-checking while not needing to carry much additional type information.
@@ -170,49 +195,62 @@ objtype Parser                                casetype Exp =
 %judgment $e \Leftarrow \tau$. When constructing a type, we do not have information about it and it is intuitive to use the analysis judgement, which is weaker than the synthesis judgement. On the other hand, destructors generate a result of a smaller type from a component of larger type and can be used for synthesis, propagating type information away from the term as in the synthesis judgement $e \Rightarrow \tau$. Our static semantics rules follow this conventional way of reasoning about constructors and destructors.
 
 \subsection{Defining a TSL Manually}
+\input{statics}
 In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator based on Adams' formalism. A parser generator is itself merely a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The signature for the built-in type \li{Parser} is shown in Fig. 7. It is an object type with a \li{parse} function taking in a \li{TokenStream} and producing an AST of a Wyvern expression, which is of type \li{Exp}. This built-in type is shown also in Fig. 7. Note that there is a form for each form in the abstract syntax, $e$, as well as an \li{Error} form for indicating error messages (in the theory, nothing is done with these messages). As previously mentioned, quasiquotes are merely a TSL that allows one to construct the abstract syntax, represented as this case type, using concrete syntax, with the addition of an unquote mechanism.
 
-The \verb|parse| function for a type $t$ is called when checking a literal form against that type. This is seen in the key rule of our statics: \textit{T-literal}, in Fig. 9. The premises of these rules operate as follows:
+The \verb|parse| function for a type $t$ is called when checking a literal form against that type. This is seen in the key rule of our statics: \textit{T-lit}, in Fig. 9. The premises of these rules operate as follows:
 \begin{enumerate}
+\setlength{\itemsep}{1pt}
+\item This rule uses some built-in types. We first ensure they are available.
 \item A well-typed, rewritten parser object is extracted from the type's metadata. This is the step where the parser generator rewrites a grammar to a parse method, recursively using the TSL mechanism itself.
 \item A tokenstream, of type \li{TokenStream}, is generated from the body of the literal. This type is an object that that allows the reading of tokens, as well as an additional method discussed in the next section for parsing the stream as a Wyvern expression.
 \item The \li|parse| method is called with this extracted tokenstream to produce a syntax tree and a remaining tokenstream.
-\item The syntax tree, $\hat{e}'$ is \emph{dereified} into its corresponding term, $e$ (the hat is gone because the generated syntax tree might itself use TSLs). The judgement for this is indexed by the variable context $\Gamma$ because that is needed to dereify \li{FromTS}, described below.
-\item The dereified term is then recursively typechecked against the same type and rewritten, consistent with the semantics of TSLs as we have been describing them -- they must produce a term of the type they are being checked against. It is checked under the empty variable context to ensure hygiene (below).
+\item The syntax tree, $\hat{e}'$ is \emph{dereified} into its corresponding term, $e$ (the hat is gone because the generated syntax tree might itself use TSLs). This is the only way terms of the form $\keyw{fromTS}(e)$ can be generated (see below).
+\item The dereified term is then recursively typechecked against the same type and rewritten, consistent with the semantics of TSLs as we have been describing them -- they must produce a term of the type they are being checked against. It is checked under the empty local context to ensure hygiene (below).
 \item The TSL must consume the entire token stream, so this is checked.
 \end{enumerate}
 \subsection{Hygiene}
 A concern with any term rewriting system is \emph{hygiene} -- how should variables in the generated AST be bound? In particular, if the rewriting system generates an \emph{open term}, then it is making assumptions about the names of variables in scope at the site where the TSL is being used, which is incorrect - those variables should only be identifiable up to alpha renaming. Only the \emph{user} of a TSL knows which variables are in scope. Strict hygiene would simply reject all open terms, but this would prevent even nested Wyvern expressions which the user provided from referring to local variables.
 
-The solution to being able to capture variables in portions of the tokenstream that are parsed as Wyvern only is to add a new term to the abstract syntax that has no corresponding form in the concrete syntax: $\keyw{fromTS}[\Gamma](ts, tok)$. This means: "this is a term that was parsed from the tokenstream $ts$ terminated by the token $tok$; it's surrounding context was $\Gamma$". It can be generated by calling \li{ts.as_wyv_exp(tok)}. When we attempt to typecheck it, which will be starting from an empty context (above), we add in the bindings available in Gamma (to any that were introduced by the TSL, such as the TSL for \li{Parser} does with named non-terminals). This can be seen in the rule \textit{T-fromTS}, which calls the parser for concrete syntax internally to generate the abstract syntax so that it can be checked (but does not expose this to the user).
+The solution to being able to capture variables in portions of the tokenstream that are parsed as Wyvern only is to add a new term to the abstract syntax that has no corresponding form in the concrete syntax: $\keyw{fromTS}(e)$. This means: "this is a term that was parsed from the user's tokenstream". It can be generated by calling \li{ts.as_wyv_exp(tok)}, which returns a the remaining tokenstream as well as the value  \li{Exp.FromTS(ts, tok)}. When we dereify this term, we turn this into the form $\keyw{fromTS}(e)$.
 
-For this mechanism to truly ensure hygiene, one must not be able to sidestep it by generating a tokenstream manually: expressions from a tokenstream must have actually come from the use site. This is ensured by preventing users from checking \li{new} against \li{TokenStream} in the statics. This creates a small subtlety in the safety theorem, discussed in the next section.
+When we attempt to typecheck this form, which will be starting from an empty local variable context by moving all the available variables into the surrounding variable context (in the \textit{T-Lit} rule, above), we add in the bindings available in the surrounding variable context (to any that were introduced by the TSL, such as the TSL for \li{Parser} does with named non-terminals). In other words, variables in the surrounding variable context can only be used within a term of the form $\keyw{fromTS}(e)$. These variables are precisely those that only the user can know exist, but not the extension.
+
+For this mechanism to truly ensure hygiene, one must not be able to sidestep it by generating a tokenstream manually: expressions from a tokenstream must have actually come from the use site. This is ensured by preventing users from checking \li{new} against \li{TokenStream} in the statics.
 
 A second facet of hygiene is being able to refer to local variables available within the parser itself, such as local helper functions, for convenience. This can be done using the primitive $\keyw{valAST}(e)$. The semantics for this, shown in Fig. 13, first evaluate $e$ to a value, then \emph{reify} this value to an AST. This can be used to ``bake in'' a value known at compile time into the generated code safely. The rules for reification, used here, and dereification, used in the literal rule described above, are essentially dual, as seen in Figs. 11 and 12.
 
 \subsection{Safety}
+
 The semantics we have defined constitute a type safe language.
 
-We begin with a lemma that shows that the statics for $e$ and $\hat{e}$ are consistent. This is nearly obvious, but for the slight difference in how \li{TokenStream} is treated. 
+We begin with a lemma that shows that the statics for $e$ and $\hat{e}$ are consistent. This makes us sure that the splitting of variable contexts to maintain hygiene was done correctly (because they can be brought back together at the end). 
 \begin{lemma}[Forward Consistency]
-If $\Delta; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$ then $\Delta; \Gamma \vdash \hat{e} : \tau$. 
+\begin{enumerate}
+\item \hspace{-5px}
+If $\vdash \Delta$ and $\Delta \vdash \Gamma'$ and $\Delta \vdash \Gamma$ and $\Delta; \Gamma'; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$ then $\Delta; \Gamma', \Gamma \vdash \hat{e} : \tau$. 
+\item \hspace{-5px} If $\vdash \Delta$ and $\Delta \vdash \Gamma'$ and $\Delta \vdash \Gamma$ and $\Delta; \Gamma'; \Gamma \vdash e \Rightarrow \tau \leadsto \hat{e}$ then $\Delta; \Gamma', \Gamma \vdash \hat{e} : \tau$. 
+\end{enumerate}
 \end{lemma}
 \begin{proof}
-Here, $\hat{e}$ is more permissive (Fig. 10), so forward consistency is easily seen by observing that for each form shared by both $e$ and $\hat{e}$, the bidirectional system simply rewrites to the corresponding form of $\hat{e}$ recursively. Thus, these cases are direct applications of the IH. The only remaining cases are the literal form, where the lemma follows by applying the IH to the inductive premises.
+Forward consistency is easily seen by observing that for each form shared by both $e$ and $\hat{e}$, the bidirectional system simply rewrites to the corresponding form of $\hat{e}$ recursively. Thus, these cases are direct applications of the IH. For the literal form, we can apply the IH to arrive at the fact that $\Delta_0, \Delta; \Gamma', \Gamma, \emptyset \vdash \hat{e} : t$ which by congruence (removing the empty context at the end) is what we wish to show. Similarly, for the form $\keyw{fromTS(e)}$ we have by the IH that $\Delta; \emptyset, \Gamma', \Gamma \vdash \hat{e} : \tau$ which again implies what we wish to show by simple congruence of contexts.
 % TODO: err, maybe? I think fromTS might be a bit more complex
 \end{proof}
 
-We then need to show type safety of $\hat{e}$. Because it doesn't contain any non-standard terms other than $\keyw{valAST}$ and $t.\keyw{metadata}$, both of which have straightforward semantics (Fig. 13), this follows by the standard progress and preservation techniques with the addition of a simple well-formedness check on $\Delta$, because metadata needs to be well-typed (not shown).
+We then need to show type safety of $\hat{e}$. Because it doesn't contain any non-standard terms other than $\keyw{valAST}$ and $t.\keyw{metadata}$, both of which have straightforward semantics (Fig. 13), this follows by the standard progress and preservation techniques. The only tricky case is \textit{Dyn-valAST2}, which requires the following straightforward lemma about the reification rules in Fig. 12, as well as standard structural properties for the contexts (weakening; not shown).
+\begin{lemma}[Reification]
+If $\hat{e} \triangleright \hat{e}'$ then $\Delta_0; \emptyset \vdash \hat{e}' : Exp$. 
+\end{lemma}
 
 \begin{lemma}[Preservation]
-If $\Delta; \emptyset \vdash \hat{e} : \tau$ and $\vdash \Delta~\texttt{ok}$ and $\hat{e} \xmapsto[\Delta]{} \hat{e}'$ then $\Delta; \emptyset \vdash \hat{e}' : \tau$.
+If $\vdash \Delta$ and $\Delta; \emptyset \vdash \hat{e} : \tau$ and  $\hat{e} \xmapsto[\Delta]{} \hat{e}'$ then $\Delta; \emptyset \vdash \hat{e}' : \tau$.
 \end{lemma}
 \begin{lemma}[Progress]
-If If $\Delta; \emptyset \vdash \hat{e} : \tau$ and $\vdash \Delta~\texttt{ok}$ then either $\hat{e}~\texttt{val}$ or $\hat{e} \xmapsto[\Delta]{} \hat{e}'$.
+If  $\vdash \Delta$ and $\Delta; \emptyset \vdash \hat{e} : \tau$ then either $\hat{e}~\texttt{val}$ or $\hat{e} \xmapsto[\Delta]{} \hat{e}'$.
 \end{lemma}
-These lemmas and judgements can be lifted to the level of programs by applying them to the top-level expression the program contains (simple, not shown). As a result, we have type safety: well-typed programs cannot ``get stuck''.
+These lemmas and associated judgements can be lifted to the level of programs by applying them to the top-level expression the program contains (simple, not shown). As a result, we have type safety: well-typed programs cannot ``get stuck''.
 \begin{theorem}[Type Safety]
-If $\Delta_0; \emptyset \vdash \rho : \tau \leadsto \hat{\rho}$ then $\Delta_0; \emptyset \vdash \hat{\rho} : \tau$ and either $\hat{\rho}~\texttt{val}$ or $\hat{\rho} \xmapsto[\Delta_0]{} \hat{\rho}'$ such that $\Delta_0; \emptyset \vdash \hat{\rho}' : \tau$.
+If $\Delta_0 \vdash \rho : \tau \leadsto \hat{\rho}$ then $\Delta_0 \vdash \hat{\rho} : \tau$ and either $\hat{\rho}~\texttt{val}$ or $\hat{\rho} \xmapsto[\Delta_0]{} \hat{\rho}'$ such that $\Delta_0 \vdash \hat{\rho}' : \tau$.
 \end{theorem}
-
-Because we are executing user-defined parsers during typechecking, we do not have a straightforward statement of decidability (i.e. termination) of typechecking. The parser might not terminate, or it might generate a term that contains itself. Non-decidability is strictly due to these parsers. Termination of the parsing process is well studied (e.g. \cite{DBLP:conf/sle/KrishnanW12}) and the techniques can be applied to user-defined parsers to increase confidence in termination.
+\subsection{Decidability}
+Because we are executing user-defined parsers during typechecking, we do not have a straightforward statement of decidability (i.e. termination) of typechecking. The parser might not terminate, or it might generate a term that contains itself. Non-decidability is strictly due to user-defined parsing code. Typechecking of programs that do not contain literals is guaranteed to terminate, as is typechecking of $\hat{e}$ (which we do not actually need to do in practice by Lemma 1). Termination of parsers and parser generators has previously been studied (e.g. \cite{DBLP:conf/sle/KrishnanW12}) and the techniques can be applied to user-defined parsing code to increase confidence in termination. Few compilers, even those with high demands for correctness (e.g. CompCert \cite{compcert}), have made it a priority to fully verify and prove termination of the parser. This is because it is perceived that most bugs in compilers arise due to incorrect optimization passes, not initial parsing and elaboration logic.
