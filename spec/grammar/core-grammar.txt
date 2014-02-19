@@ -1,40 +1,50 @@
 p ::= e
-	| de
+    | d NEWLINE p
 
-de ::= e
-	|  d NEWLINE de
+type ::= type "->" ID
+	|    type "*" type
+	|    type "|" type
+	|    "(" type ")"
+	|	 type "." ID
+	|	 ID
+
+typeasc ::= ":" type
 
 d ::= "class" ID INDENT objd DEDENT
     | "type" ID INDENT typd DEDENT
+    | "class" ID
+    | "type" ID
     | val
     | def
-    | "var" ID TYPEASC "=" e
-    | "var" ID TYPEASC "=" INDENT e DEDENT
+    | "var" ID typeasc "=" e
+    | "var" ID typeasc "=" INDENT e DEDENT
 
-val ::= "val" ID TYPEASC "=" e
-    |   "val" ID "=" e
-    |   "val" ID TYPEASC "=" INDENT e DEDENT
-    |   "val" ID "=" INDENT e DEDENT
+namedecl ::= ID | ID typeasc
 
-def ::= "def" ID "(" params ")" TYPEASC "=" e
-    |   "def" ID "(" params ")" TYPEASC INDENT p DEDENT
+val ::= "val" namedecl "=" e
+    |   "val" namedecl "=" INDENT e DEDENT
 
-tdef ::= "def" ID "(" params ")" TYPEASC
+def ::= "def" ID "(" params ")" typeasc "=" e
+    |   "def" ID "(" params ")" typeasc INDENT p DEDENT
 
-params ::= ID TYPEASC | params "," ID TYPEASC | epsilon
+tdef ::= "def" ID "(" params ")" typeasc
+
+params  ::= "(" iparams ")"
+	|		"(" ")"
+	
+iparams ::= ID typeasc | iparams "," ID typeasc
 
 metadata ::= "metadata" "=" e
 
-objd ::= epsilon | objid objd
+objd ::= objid objd | objid
 
 objid ::=val
 	|    def
 	|    "class" ID INDENT objd DEDENT 
 	|    "type" ID INDENT typd DEDENT
 
-typd ::= epsilon | typeid typd
-typeid ::=val
-	| 	  tdef
+typd ::= typeid typd | typeid
+typeid ::=tdef
 	|	  metadata
 
 //Example, add extensible operators?
@@ -42,15 +52,16 @@ e ::= mul | mul "+" e | mul "-" e
 mul ::= term | term "*" mul | term "/" mul
 
 term ::= ID
-	| "fn" ID TYPEASC "=>" e
-	| e tuple
+	| "fn" ID typeasc "=>" e
+	| term tuple
 	| tuple
-	| e "." ID
+	| term "." ID
 	| TYPE "." ID
-	| e TYPEASC
+	| term typeasc
 	| "valAST" "(" e ")"
 	| TYPE "." "metadata"
 	| inlinelit
 
 tuple ::= "(" it ")"
-it ::= e | it "," e | epsilon
+	| 	  "("")"
+it ::= e | it "," e 
