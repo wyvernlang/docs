@@ -1,0 +1,194 @@
+\documentclass{sig-alternate}
+\usepackage{amsmath}
+\usepackage{latexsym}
+\usepackage{verbatim}
+\usepackage[T1]{fontenc}
+\usepackage{proof,amssymb,enumerate}
+\usepackage{math-cmds}
+\usepackage{listings}
+\usepackage[scaled]{beramono}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{mathtools}
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{compatibility=false}
+
+\usepackage{fancyvrb}
+\renewcommand{\theFancyVerbLine}{%
+\color{gray}\ttfamily{\scriptsize
+\arabic{FancyVerbLine}}}
+
+\def\implies{\Rightarrow}
+\newcommand{\todo}[1]{\textbf{[TODO: #1]}}
+\newcommand{\keyw}[1]{\textbf{#1}}
+\newcommand{\qs}[1]{}%\textit{#1}}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{dfn}{Definition}
+
+\lstset{tabsize=2, 
+basicstyle=\ttfamily\fontsize{8pt}{1em}\selectfont, 
+commentstyle=\itshape\rmfamily, breaklines=true,
+numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt,escapechar=@, morekeywords=[1]{let,fn,val,def,casetype,objtype,metadata,of,*,datatype},deletekeywords={for,double},classoffset=0,belowskip=\smallskipamount,
+moredelim=**[is][\color{cyan}]{SSTR}{ESTR},
+moredelim=**[is][\color{OliveGreen}]{SHTML}{EHTML},
+moredelim=**[is][\color{purple}]{SCSS}{ECSS},
+moredelim=**[is][\color{brown}]{SSQL}{ESQL},
+moredelim=**[is][\color{orange}]{SCOLOR}{ECOLOR},
+moredelim=**[is][\color{magenta}]{SPCT}{EPCT}, 
+moredelim=**[is][\color{gray}]{SNAT}{ENDNAT}, 
+moredelim=**[is][\color{blue}]{SURL}{EURL},
+moredelim=**[is][\color{SeaGreen}]{SQT}{EQT},
+moredelim=**[is][\color{Periwinkle}]{SGRM}{EGRM},
+moredelim=**[is][\color{YellowGreen}]{SID}{EID}
+}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\let\li\lstinline
+
+\begin{document}
+
+\conferenceinfo{HotSoS}{'14 Raleigh, NC, USA}
+%\CopyrightYear{2014} % Allows default copyright year (20XX) to be over-ridden - IF NEED BE.
+%\crdata{0-12345-67-8/90/01}  % Allows default copyright data (0-89791-88-6/97/05) to be over-ridden - IF NEED BE.
+
+\title{Type-Specific Languages to Fight Injection Attacks}
+
+\numberofauthors{6}
+
+\author{
+% 1st. author
+\alignauthor Cyrus Omar\\
+       \affaddr{Carnegie Mellon University}\\
+       \email{comar@cs.cmu.edu}
+% 2nd. author
+\alignauthor Darya Kurilova\\
+       \affaddr{Carnegie Mellon University}\\
+       \email{darya@cs.cmu.edu}
+% 3rd. author
+\alignauthor Ligia Nistor\\
+       \affaddr{Carnegie Mellon University}\\
+       \email{lnistor@cs.cmu.edu}
+\and  % use '\and' if you need 'another row' of author names
+% 4th. author
+\alignauthor Benjamin Chung\\
+       \affaddr{Carnegie Mellon University}\\
+       \email{bwchung@cs.cmu.edu}
+% 5th. author
+\alignauthor Alex Potanin\\
+       \affaddr{Victoria University of Wellington}\\
+       \email{alex@ecs.vuw.ac.nz}
+% 6th. author
+\alignauthor Jonathan Aldrich\\
+       \affaddr{Carnegie Mellon University}\\
+       \email{aldrich@cs.cmu.edu}
+}
+
+\maketitle
+
+%\category{H.4}{Information Systems Applications}{Miscellaneous}
+%\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
+%
+%\keywords{ACM proceedings, \LaTeX, text tagging}
+
+\section{The Science}
+
+By systematic accumulation of knowledge concerning programming language extensibility, we developed a novel approach that solves various issues pertaining to this topic and provides features that are enhancements to the currently available extension mechanisms~\cite{tsl14}. Further, as a special case of applying our approach, it is possible to address prominent security problems, such as injection attacks, which we are presenting here. Hence, our mechanism makes a contribution in both research fields---Programming Languages and Software Security.
+
+\section{Problem and Motivation}
+\qs{Clearly state the problem being addressed and explain the reasons for seeking a solution to this problem.}
+
+Injection vulnerabilities have topped rankings of the most critical web application vulnerabilities for several years~\cite{cwsans,owasp}. They can occur anywhere where user input may be erroneously executed as code. The injected input is typically aimed at gaining unauthorized access to the system or to private information within it, corrupting the system's data, or disturbing system availability. In essence, an injection attack on a web application occurs when a user---anyone with access to the application and a vulnerable input field---submits maliciously crafted input that has been made to appear and execute as code in a browser. Injection vulnerabilities and are tedious and difficult to prevent.
+
+Modern programming languages  provide specialized notations for common data structures, data formats, query languages, and markup languages. For example, a language with built-in syntax for HTML and SQL, with type-safe interpolation of host language terms via curly braces, might allow:
+
+\begin{lstlisting}
+let webpage : HTML = SHTML<html><body><h1>Results for {EHTMLkeywordSHTML}</h1>
+  <ul id="results">{EHTMLto_list_items(query(db, 
+    SSQLSELECT title, snippet FROM products WHERE {ESQLkeywordSSQL} in titleESQL)SHTML}
+  </ul></body></html>EHTML
+\end{lstlisting}
+
+to mean:
+
+\begin{lstlisting}
+let webpage : HTML = HTMLElement(Dict(), [BodyElement(Dict(),
+  [H1Element(Dict(), [TextNode($\texttt{"}$SSTRResults for $\texttt{"}$ESTR + keyword)]), 
+  ULElement(Dict().add($\texttt{"}$SSTRid$\texttt{"}$ESTR, $\texttt{"}$SSTRresults$\texttt{"}$ESTR, to_list_items(query(db, 
+    SelectStmt([$\texttt{"}$SSTRtitle$\texttt{"}$ESTR, $\texttt{"}$SSTRsnippet$\texttt{"}$ESTR], $\texttt{"}$SSTRproducts$\texttt{"}$ESTR, 
+      [WhereClause(InPredicate(StringLit(keyword), $\texttt{"}$SSTRtitle$\texttt{"}$ESTR))]))))]]]
+\end{lstlisting}
+
+When a specialized notation is not available and equivalent general-purpose notation is too cognitively demanding, developers typically turn to using a string representation that is parsed at runtime. Developers are frequently  tempted to write the example above as:
+
+\begin{lstlisting}
+let webpage : HTML = parse_html($\texttt{"}$SSTR<html><body><h1>Results for ESTR$\texttt{"}$+keyword+$\texttt{"}$SSTR</h1>
+  <ul id=\$\texttt{\color{cyan}"}$results\$\texttt{\color{cyan}"}$>$\texttt{"}$ESTR + to_string(to_list_items(query(db, parse_sql(
+  	$\texttt{"}$SSTRSELECT title, snippet FROM products WHERE '$\texttt{"+keyword+"}$' in title$\texttt{"}$ESTR)))) + 
+  $\texttt{"}$SSTR</ul></body></html>$\texttt{")}$
+\end{lstlisting}
+
+Although recovering much of the notational convenience of the literal version, this code is fundamentally insecure as it is vulnerable to cross-site scripting (XSS) attacks and SQL injection attacks. For example, the \li{keyword} in line 1 may introduce a \li{<script>} tag and provide malicious JavaScript code to execute, or alternatively, a user may provide the \li{keyword} ``\li{'; DROP TABLE products --}'' in line 3, and the entire product database could be erased.
+
+Albeit developers are cautioned to sanitize their input, it can be difficult to verify that this was done correctly throughout a codebase. The most straightforward way to avoid these problems is to use structured representations throughout the codebase, aided by specialized notation like that above \cite{Bravenboer:2007:PIA:1289971.1289975}. Unfortunately, prior mechanisms either limit expressiveness or are not safely composable, i.e., individually-unambiguous extensions can cause ambiguities when used together. We introduce \emph{type-specific languages} (TSLs), where  logic associated with a type that determines how generic literal forms, which are able to contain arbitrary syntax, are parsed and expanded into general-purpose syntax. 
+
+\section{Background and Related Work}
+\qs{Describe the specialized (but pertinent) background necessary to appreciate the work. Include references to the literature where appropriate, and briefly explain where your work departs from that done by others.}
+
+As input injection vulnerabilities are one of the most common and dangerous web security issues, numerous projects from the programming language community have attempted to solve this problem. To begin with, there are radically different solutions that do a runtime verification, for example, by employing taint analysis, such as~\cite{fortify,wasp,PLAS12,scriptgard}. Then, there are solutions that use a type system to resolve these security problems but use it in a very different way and rely upon special records and annotations, such as~\cite{urOSDI,ur/Web,swift,swamy08fable}. The main disadvantage of these approaches, as was noted earlier, is that, requiring sophisticated notations, they impose significant mental overhead on software developers, which our approach strives to avoid.
+
+From the language extensibility perspective, implementing new notations within an existing programming language requires cooperation of the language designer as, with conventional parsing strategies, not all notations can safely coexist. For example, a conflict can arise if there are simultaneous extensions for HTML and XML, different variants of SQL, etc., and a designer is needed to make choices about which syntactic forms are available and what their semantics are (e.g., in systems like \cite{Erdweg:2011:SLL:2048147.2048199} or more generally \cite{Erdweg:2013:FEL:2517208.2517210}). In contrast, TSLs guarantee safe and unambiguous language extension composition.
+
+
+\section{Approach}
+\qs{Describe your approach in attacking the problem and clearly state how your approach is novel.}
+
+We develop our work as a variant of an emerging programming language called Wyvern \cite{Nistor:2013:WST:2489828.2489830}. We propose an alternative parsing strategy that avoids the above-mentioned problems by shifting responsibility for parsing certain generic literal forms into the typechecker. The typechecker, in turn, defers responsibility to user-defined types, by treating the body of the literal as a term of the \emph{type-specific language} (TSL) associated with the type it is being checked against. The TSL rewrites this term to use only general-purpose notation and can contain expressions of the host language. This strategy avoids the problem of ambiguous syntax, because neither the base language nor TSLs are ever extended directly. It also avoids ambiguous semantics and frees notation from being tied to the variant of a  data structure built into the standard library, which sometimes does not provide the exact semantics that a programmer needs.
+
+\begin{figure}[t]
+\begin{lstlisting}
+let imageBase : URL = <SURLimages.example.comEURL>
+let bgImage : URL = <SURL%EURLimageBaseSURL%/background.pngEURL>
+new : SearchServer
+  def serve_results(searchQuery : String, page : Nat) : Unit =
+    serve(~) (* serve : HTML -> Unit *)
+SHTML      :html
+        :head
+          :title Search Results
+          :style EHTML~
+SCSS            body { background-image: url(%ECSSbgImageSCSS%) }
+            #search { background-color: %ECSS`SCOLOR#aabbccECOLOR`.darken(SPCT20pctEPCT)SCSS% }
+ECSSSHTML        :body
+          :h1 Results for {EHTMLsearchQuerySHTML}
+          :div[id="search"]
+            Search again: {EHTMLSearchBox($\texttt{"}$SSTRGo!ESTR$\texttt{"}$)SHTML}
+          {EHTML (* fmt_results : (DB, SQLQuery, Nat, Nat) -> HTML *)
+            fmt_results(db, ~, SNAT10ENDNAT, page)
+              SSQLSELECT * FROM products WHERE {ESQLsearchQuerySSQL} in titleESQL
+          SHTML}
+\end{lstlisting}
+%\vspace{-8px}
+\caption{Wyvern Example with Multiple TSLs}
+\label{f-example}
+\vspace{-10px}
+\end{figure}
+
+Fig. \ref{f-example} presents a 19-line piece of Wyvern code that comprises 8 different TSLs (marked with different colors) used to define a fragment of a web application showing search results from a database. Using the code layout and white-spaces to delimit the host language, customizable literals, such as \li{'} and \li{%}, to delimit inline TSLs, and a special literal \li{~} to forward-reference a multiline TSL makes the code easy to read and thus reduces cognitive load on the developer.
+
+\textbf{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g. on line 13, 15 and 16-19 of Fig. \ref{f-example}). This functionality is implemented in the Wyvern type \li{HTML} (not shown). Because interpolation must be structured, i.e., a string cannot be interpolated directly, injection and cross-site scripting attacks cannot occur. Safe string interpolation (which escapes any inner HTML) could be implemented using another delimiter.
+
+\textbf{SQL Interpolation} The TSL used for SQL queries on line 18 of Fig. \ref{f-example} follows an identical pattern, allowing strings to be interpolated into portions of a query in a safe manner. This prevents SQL injection attacks.
+
+\section{Contributions}
+\qs{Clearly show how the results of your work contribute to computer science and explain the significance of those results.}
+
+Our contribution is two-fold: Firstly, we introduced type-specific languages (TSLs), a mechanism for safely composing language extensions that associates the logic determining how generic literal forms are parsed and expanded into general-purpose syntax with a type and that aims at lessening the developer's cognitive burden. We incorporated this mechanism into the Wyvern programming language. Secondly, we showed how, using TSLs, injection attacks, such as cross-site scripting (XSS) attacks and query injection attacks, are prevented enhancing the security of software written in Wyvern.
+
+
+\bibliographystyle{abbrv}
+\small
+\bibliography{hotsos14-short}
+
+\end{document}
