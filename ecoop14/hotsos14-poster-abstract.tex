@@ -101,32 +101,40 @@ Injection vulnerabilities have topped rankings of the most critical web applicat
 Modern programming languages  provide specialized notations for common data structures, data formats, query languages, and markup languages. For example, a language with built-in syntax for HTML and SQL, with type-safe interpolation of host language terms via curly braces, might allow:
 
 \begin{lstlisting}
-let webpage : HTML = SHTML<html><body><h1>Results for {EHTMLkeywordSHTML}</h1>
+let webpage : HTML = SHTML<html><body>
+  <h1>Results for {EHTMLkeywordSHTML}</h1>
   <ul id="results">{EHTMLto_list_items(query(db, 
-    SSQLSELECT title, snippet FROM products WHERE {ESQLkeywordSSQL} in titleESQL)SHTML}
+    SSQLSELECT title, snippet FROM products
+    WHERE {ESQLkeywordSSQL} in titleESQL)SHTML}
   </ul></body></html>EHTML
 \end{lstlisting}
 
 to mean:
 
 \begin{lstlisting}
-let webpage : HTML = HTMLElement(Dict(), [BodyElement(Dict(),
-  [H1Element(Dict(), [TextNode($\texttt{"}$SSTRResults for $\texttt{"}$ESTR + keyword)]), 
-  ULElement(Dict().add($\texttt{"}$SSTRid$\texttt{"}$ESTR, $\texttt{"}$SSTRresults$\texttt{"}$ESTR, to_list_items(query(db, 
+let webpage : HTML = HTMLElement(Dict.empty(),
+  [BodyElement(Dict.empty(), [H1Element(Dict.empty(),
+  [TextNode(concat($\texttt{"}$SSTRResults for $\texttt{"}$ESTR, keyword))]), 
+  ULElement(Dict.add(Dict.empty(),
+  ($\texttt{"}$SSTRid$\texttt{"}$ESTR, $\texttt{"}$SSTRresults$\texttt{"}$ESTR)), to_list_items(query(db, 
     SelectStmt([$\texttt{"}$SSTRtitle$\texttt{"}$ESTR, $\texttt{"}$SSTRsnippet$\texttt{"}$ESTR], $\texttt{"}$SSTRproducts$\texttt{"}$ESTR, 
-      [WhereClause(InPredicate(StringLit(keyword), $\texttt{"}$SSTRtitle$\texttt{"}$ESTR))]))))]]]
+    [WhereClause(InPredicate(StringLit(keyword),
+    $\texttt{"}$SSTRtitle$\texttt{"}$ESTR))]))))])])
 \end{lstlisting}
 
 When a specialized notation is not available and equivalent general-purpose notation is too cognitively demanding, developers typically turn to using a string representation that is parsed at runtime. Developers are frequently  tempted to write the example above as:
 
 \begin{lstlisting}
-let webpage : HTML = parse_html($\texttt{"}$SSTR<html><body><h1>Results for ESTR$\texttt{"}$ + keyword + $\texttt{"}$SSTR</h1>
-  <ul id=\$\texttt{\color{cyan}"}$results\$\texttt{\color{cyan}"}$>$\texttt{"}$ESTR + to_string(to_list_items(query(db, parse_sql(
-  	$\texttt{"}$SSTRSELECT title, snippet FROM products WHERE '$\texttt{" + keyword + "}$' in title$\texttt{"}$ESTR)))) + 
+let webpage : HTML = parse_html($\texttt{"}$SSTR<html><body>$\texttt{" +}$
+  $\texttt{"}$<h1>Results for ESTR$\texttt{"}$ + keyword + $\texttt{"}$SSTR</h1>$\texttt{" +}$
+  $\texttt{"}$<ul id=\$\texttt{\color{cyan}"}$results\$\texttt{\color{cyan}"}$>$\texttt{"}$ESTR + to_string(to_list_items(
+    query(db, parse_sql($\texttt{"}$SSTRSELECT title, snippet$\texttt{" +}$
+      $\texttt{"}$FROM products$\texttt{" +}$
+      $\texttt{"}$WHERE '$\texttt{" + keyword +}$ ${\texttt{"}}$' in title$\texttt{"}$ESTR)))) + 
   $\texttt{"}$SSTR</ul></body></html>$\texttt{")}$
 \end{lstlisting}
 
-Although recovering much of the notational convenience of the literal version, this code is fundamentally insecure as it is vulnerable to cross-site scripting (XSS) attacks and SQL injection attacks. For example, the \li{keyword} in line 1 may introduce a \li{<script>} tag and provide malicious JavaScript code to execute, or alternatively, a user may provide the \li{keyword} ``\li{'; DROP TABLE products --}'' in line 3, and the entire product database could be erased.
+Although recovering much of the notational convenience of the literal version, this code is fundamentally insecure as it is vulnerable to cross-site scripting (XSS) attacks and SQL injection attacks. For example, the \li{keyword} in line 2 may introduce a \li{<script>} tag and provide malicious JavaScript code to execute, or alternatively, a user may provide the \li{keyword} ``\li{'; DROP TABLE products --}'' in line 6, and the entire product database will be erased.
 
 Developers are cautioned to sanitize their input; however, it can be difficult to verify that this was done correctly throughout a codebase. The most straightforward way to avoid these problems is to use structured representations, aided by specialized notation like that above. Unfortunately, prior mechanisms either limit expressiveness or are not safely composable, i.e., individually-unambiguous extensions can cause ambiguities when used together. We introduce \emph{type-specific languages} (TSLs), where  logic associated with a type that determines how generic literal forms, which are able to contain arbitrary syntax, are parsed and expanded into general-purpose syntax. 
 
@@ -146,7 +154,7 @@ Our work applies programming language theory to discover a new foundational prin
 \section{Approach}
 \qs{Describe your approach in attacking the problem and clearly state how your approach is novel.}
 
-We develop our work as a variant of an emerging programming language called Wyvern \cite{Nistor:2013:WST:2489828.2489830}. We propose an alternative parsing strategy that avoids the above-mentioned problems by shifting responsibility for parsing certain generic literal forms into the typechecker. The typechecker, in turn, defers responsibility to user-defined types, by treating the body of the literal as a term of the \emph{type-specific language} (TSL) associated with the type it is being checked against. The TSL rewrites this term to use only general-purpose notation and can contain expressions of the host language. This strategy eschews the problem of ambiguous syntax, because neither the base language nor TSLs are ever extended directly. It also avoids ambiguous semantics and frees notation from being tied to the variant of a  data structure built into the standard library, which sometimes does not provide the exact semantics that a programmer needs.
+We develop our work as a variant of an emerging programming language called Wyvern \cite{Nistor:2013:WST:2489828.2489830}. We propose an alternative strategy that allows to extend the host language with easy-to-understand user-defined literal forms while preventing injection attacks. This is achieved by shifting responsibility for parsing certain generic literal forms into the typechecker. The typechecker, in turn, defers responsibility to user-defined types, by treating the body of the literal as a term of the \emph{type-specific language} (TSL) associated with the type it is being checked against. The TSL rewrites this term to use only general-purpose notation and can contain expressions of the host language. This strategy eschews the problem of ambiguous syntax, because neither the base language nor TSLs are ever extended directly. It also avoids ambiguous semantics and frees notation from being tied to the variant of a  data structure built into the standard library, which sometimes does not provide the exact semantics that a developer needs.
 
 \begin{figure}[t]
 \begin{lstlisting}
@@ -160,15 +168,14 @@ SHTML      :html
           :title Search Results
           :style EHTML~
 SCSS            body { background-image: url(%ECSSbgImageSCSS%) }
-            #search { background-color: %ECSS`SCOLOR#aabbccECOLOR`.darken(SPCT20pctEPCT)SCSS% }
+            #search { background-color: %ECSSdarken(`SCOLOR#a7cECOLOR`, SPCT20pctEPCT)SCSS% }
 ECSSSHTML        :body
           :h1 Results for {EHTMLsearchQuerySHTML}
           :div[id="search"]
             Search again: {EHTMLSearchBox($\texttt{"}$SSTRGo!ESTR$\texttt{"}$)SHTML}
-          {EHTML
-            fmt_results(db, ~, SNAT10ENDNAT, page)
-              SSQLSELECT * FROM products WHERE {ESQLsearchQuerySSQL} in titleESQL
-          SHTML}
+            {EHTMLfmt_results(db, ~, SNAT10ENDNAT, page)
+              SSQLSELECT * FROM products
+                WHERE {ESQLsearchQuerySSQL} in titleESQLSHTML}
 \end{lstlisting}
 \vspace{-1px}
 \caption{Wyvern Example with Multiple TSLs}
@@ -176,11 +183,11 @@ ECSSSHTML        :body
 \vspace{-10px}
 \end{figure}
 
-Figure \ref{f-example} presents a 19-line piece of Wyvern code that comprises 8 different TSLs (marked with different colors) used to define a fragment of a web application showing search results from a database. Using the code layout and white-spaces to delimit the host language, customizable literals, such as \li{'}, \li{%}, \li{"}, \li{<} and \li{>}, etc., to delimit inline TSLs, and a special literal \li{~} (tilde) to forward-reference a multiline TSL makes the code easy to read and thus reduces cognitive load on the developer.
+Figure \ref{f-example} presents a 18-line piece of Wyvern code that comprises 8 different TSLs (marked with different colors) used to define a fragment of a web application showing search results from a database. Using the code layout and whitespaces to delimit the host language, customizable literals, such as \li{'}, \li{%}, \li{"}, \li{<} and \li{>}, etc., to delimit inline TSLs, and a special literal \li{~} (tilde) to forward-reference a multiline TSL makes the code easy to read and thus reduces cognitive load on the developer.
 
-\textbf{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g., on line 13, 15, and 16-19 of Figure \ref{f-example}). This functionality is implemented in the Wyvern type \li{HTML} (not shown). Because interpolation must be structured, i.e., a string cannot be interpolated directly, injection and cross-site scripting attacks cannot occur. Safe string interpolation (which escapes any inner HTML) could be implemented using another delimiter.
+\textbf{HTML Interpolation} At any point where a tag should appear, we can also interpolate a Wyvern expression of type \li{HTML} by enclosing it within curly braces (e.g., on lines 13, 15, and 16-18 of Figure \ref{f-example}). This functionality is implemented in the Wyvern type \li{HTML} (not shown). Because interpolation must be structured, i.e., a string cannot be interpolated directly, injection and cross-site scripting attacks cannot occur. Safe string interpolation (which escapes any inner HTML) could be implemented using another delimiter.
 
-\textbf{SQL Interpolation} The TSL used for SQL queries on line 18 of Figure \ref{f-example} follows an identical pattern, allowing strings to be interpolated into portions of a query in a safe manner. This prevents SQL injection attacks.
+\textbf{SQL Interpolation} The TSL used for SQL queries on lines 17-18 of Figure \ref{f-example} follows an identical pattern, allowing strings to be interpolated into portions of a query in a safe manner. This prevents SQL injection attacks.
 
 \section{Contributions}
 \qs{Clearly show how the results of your work contribute to computer science and explain the significance of those results.}
