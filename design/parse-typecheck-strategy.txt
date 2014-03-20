@@ -1,0 +1,61 @@
+Example: as simple as possible while exercizing interesting uses of parser
+==========================================================================
+
+Structure of example:
+	define type (e.g. HTML)
+	define data structure and constructors for the type
+	type defines a TSL in the metadata
+		declarative specification of the grammar (complex, but requires Copper)
+		allow embedded Wyvern expressions (extension)
+		construct AST using constructors (simple)
+		quoting (extension)
+	create an instance of the type using a TSL
+		- using ''
+		- using indentation (extension)
+	use the instance in some way
+	
+For the example, see PostFixExpr.wyv in the examples folder
+
+	
+How the example executes
+========================
+	Copper lexes, parses the top level
+		the TSL is captured in the token
+	We call typecheck on the top level
+		Typechecking proceeds one group of mutually recursive declarations at a time
+			Phase 0 (mutual recursive only): get the names of the types defined in mutually recursive decls
+			Phase 1 (mutual recursive only): each decl contributes its type to shared environment
+			Phase 2 (all): typecheck the components
+			After typechecking a line, check if it has a ~ or a new (or maybe a case, etc.) in it
+				if a new, typecheck the next line as a new
+				if a ~, with an associated expected type:
+					get the parser for that type
+						note: if the metadata has not been computed yet, this is an error!
+					invoke the parser
+					call typecheck on the resulting expression, and check against the expected type
+				if nothing, but there's an indented block, this is an error
+			Phase 3: if we are at the top level, do a pass looking for declarations with metadata expressions
+				call execute on the metadata expression to reduce it to a value
+				if we come to a grammar DSL
+					generate a copper file from the grammar
+					compile the copper file to Java
+					compile the Java file to bytecode
+					create an object whose parse method invokes the compiled Java bytecode
+				** how to handle embedded Wyvern expressions?
+				** how to handle quoting?
+				[don't want to do if below the top level, because not all decls in scope have been typechecked]
+	We call execute at the top level
+	
+	** issue: think about side effects
+		can metadata evaluation have a side effect?
+		can metadata evaluation invoke functions in scope?  Can those have side effects?
+		
+	
+Questions for van Wyk
+====================================
+	(1) Can Copper's lexer grab a multi-line literal token based on indentation?  How?
+		lexer state about whether we are in a DSL block or not
+		disambiguation to tell whether we get a new DSL_LINE token, or if indent has gone down to host lang level
+	(2) Can Copper handle {} style DSL literals?
+		keep track of how deeply nested the { are (in case of multiple TSLs per file, or nested TSLs/Wyvern)
+		it seems likely this won't be a problem but we should discuss it
