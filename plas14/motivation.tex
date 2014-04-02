@@ -2,8 +2,6 @@
 
 \section{Introduction / Motivation}
 
-\todo{Revise, rewrite.}
-
 Weaknesses categorized as \emph{injection vulnerabilities} have topped
 rankings of the most critical web application vulnerabilities for
 several years in a row amongst industry groups \cite{owasp, cwsans}.
@@ -11,6 +9,8 @@ Web application vulnerabilities achieve top rankings by being quite
 onerous. Injection vulnerabilities are tedious and
 difficult to prevent, and are often easily exploitable with
 severe technical consequences.
+
+\todo{handlebars stuff here or close to this?}
 
 Injection vulnerabilities can occur anywhere that user input may be erroneously
 executed as code. In essence, an injection attack on a web application
@@ -23,31 +23,41 @@ it is in an HTML context. Likewise, if the browser has determined
 a string is CSS and is processing it using its CSS engine, we call
 the context the CSS context.
 
-Given an injection vulnerability, the browser context gives us a clue
-of what specific category the vulnerability falls under.
-For example, a malicious input that can force the browser into a Javascript
-context, for example by including a \texttt{<script>} tag within the HTML,
-is typically referred to as a Cross-Site Scripting (XSS) vulnerability.
-Additionally, the browser context helps us determine a sound way to
-fix the vulnerability. An input that is supposed to appear in an HTML
-context can be HTML entity encoded, for example replacing control characters such
-as \texttt{<} with escapes such as \texttt{\&lt};, to ensure that the browser will
-not change to an unintended context and process it as code. 
+To ensure user inputs are not erroneously executed as a code, the inputs
+must be properly encoded before they are placed in a vulnerable context. Using 
+the correct encoding for a given context ensures the input will be recognized as 
+data and not code. Traditionally, developers have had to create sanitizers to perform 
+this encoding process themselves and then must place each sanitizer manually within
+their application's code to prevent injection vulnerabilities. Many researchers have
+noted that developers have significant trouble making and placing sanitizers manually \todo{cite these studies}. While the problem of creating correct sanitizers has largely been solved by the use of mainstream security libraries and frameworks, there is no accepted solution for sanitizer placement.
 
-The injected input is typically aimed at changing the browser or web application's
-behavior, altering state at the client or server, or stealing information.
-Injection vulnerabilities are exploited by attackers to achieve goals such as
-gaining unauthorized access to the system or to private information
-within it, corrupting the system's data, or disturbing system availability.
+To prevent mistakes in placing sanitizers, several researchers have presented approaches 
+that automatically place sanitizers in the correct locations for existing programs. 
+The earliest fully automatic approach was presented by Samuel \emph{et al}., which
+generates type constraints for contexts and solves those constraints to automatically place
+sanitizers in small Google Closure programs \cite{Samuel:2011}. This 
+approach may not scale to large, complicated applications due to its dependency on 
+a custom constraint solver. Livshits \emph{et al}. instead use a dataflow analysis that
+statically places sanitizers in existing code where possible \cite{Livshits:2013}. Where the 
+type of the input cannot be determined statically, this approach must dynamically instrument
+the program to determine the proper sanitizer outside of the program's existing logic. This
+approach also cannot currently handle cases where inputs of different types are concatenated.
 
-There are many ways to exploit injection vulnerabilities. An attacker could use their own browser to directly exploit a vulnerability, or they could trick an unsuspecting victim into running the exploit by clicking a link or visiting a malicious page. There are also tools such as sqlmap \cite{sqlmap} that are capable of automatically finding
-and exploiting SQL injection (SQLi) vulnerabilities, even ones that would
-be complicated for a human to exploit. Given these diverse sources
-of attacks and the ability for an attacker to cause damage to the
-application and victimize the application's users, developers have
-great incentive to avoid injection vulnerabilities.
+Both approaches support source sensitivity and sink sensitivity. \emph{Sink sensitivity} encodes user inputs based on the sink that consumes them, but cannot on its own allow different security policies to be enforced based on the source of input. \emph{Source sensitivity} allows for policies to be enforced based on the source of the input. 
 
+We present a scalable approach that utilizes Type-Specific Languages (TSLs) \todo{cite ecoop paper} to allow developers using the Wyvern programming language \todo{cite something more for Wyvern?}
+to safely splice user inputs into their webpages. TSLs allow the developer to
+specify their webpages using a \todo{fill in a high level TSL and injection prevention description}.
 
+Our approach makes the following contributions:
+
+\todo{My wording here sucks...}
+\begin{itemize}
+\item We safely handle the concatenation of inputs of multiple types by requiring the developer to express their intent through statically checkable type conversion annotations. A failure to do so is a compile error.
+\item We do not introduce dynamic checks into programs aside from those inherent in the program's structure at implementation time.
+\item Existing programs developed using popular template systems may be integrated without change.
+\item Our approach utilizes sink sensitivity by default. As a result, Wyvern applications implement the most secure tactic for preventing injection vulnerabilities in a given context unless the developer intentionally weakens the outcome. The ability to weaken the outcome is how we implement source sensitivity.
+\end{itemize}
 \subsection{Motivating Example}
 
 \todo{Revise, rewrite, add.}
