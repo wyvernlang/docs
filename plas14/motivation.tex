@@ -1,0 +1,151 @@
+% !TEX root = plas14.tex
+
+\section{Introduction / Motivation}
+
+Weaknesses categorized as \emph{injection vulnerabilities} have topped
+rankings of the most critical web application vulnerabilities for
+several years in a row amongst industry groups \cite{owasp, cwsans}.
+Web application vulnerabilities achieve top rankings by being quite
+onerous. Injection vulnerabilities are tedious and
+difficult to prevent, and are often easily exploitable with
+severe technical consequences.
+
+\todo{handlebars stuff here or close to this?}
+
+Injection vulnerabilities can occur anywhere that user input may be erroneously
+executed as code. In essence, an injection attack on a web application
+occurs when a user---anyone with access to the application and a
+vulnerable input field---submits maliciously crafted input that has
+been made to appear and execute as code in a specific browser context.
+The term \emph{browser context} refers to the browser's parsing state
+when processing a string. If the browser is parsing a string as HTML,
+it is in an HTML context. Likewise, if the browser has determined
+a string is CSS and is processing it using its CSS engine, we call
+the context the CSS context.
+
+To ensure user inputs are not erroneously executed as a code, the inputs
+must be properly encoded before they are placed in a vulnerable context. Using 
+the correct encoding for a given context ensures the input will be recognized as 
+data and not code. Traditionally, developers have had to create sanitizers to perform 
+this encoding process themselves and then must place each sanitizer manually within
+their application's code to prevent injection vulnerabilities. Many researchers have
+noted that developers have significant trouble making and placing sanitizers manually \todo{cite these studies}. While the problem of creating correct sanitizers has largely been solved by the use of mainstream security libraries and frameworks, there is no accepted solution for sanitizer placement.
+
+To prevent mistakes in placing sanitizers, several researchers have presented approaches 
+that automatically place sanitizers in the correct locations for existing programs. 
+The earliest fully automatic approach was presented by Samuel \emph{et al}., which
+generates type constraints for contexts and solves those constraints to automatically place
+sanitizers in small Google Closure programs \cite{Samuel:2011}. This 
+approach may not scale to large, complicated applications due to its dependency on 
+a custom constraint solver. Livshits \emph{et al}. instead use a dataflow analysis that
+statically places sanitizers in existing code where possible \cite{Livshits:2013}. Where the 
+type of the input cannot be determined statically, this approach must dynamically instrument
+the program to determine the proper sanitizer outside of the program's existing logic. This
+approach also cannot currently handle cases where inputs of different types are concatenated.
+
+Both approaches support source sensitivity and sink sensitivity. \emph{Sink sensitivity} encodes user inputs based on the sink that consumes them, but cannot on its own allow different security policies to be enforced based on the source of input. \emph{Source sensitivity} allows for policies to be enforced based on the source of the input. 
+
+We present a scalable approach that utilizes Type-Specific Languages (TSLs) \todo{cite ecoop paper} to allow developers using the Wyvern programming language \todo{cite something more for Wyvern?}
+to safely splice user inputs into their webpages. TSLs allow the developer to
+specify their webpages using a \todo{fill in a high level TSL and injection prevention description}.
+
+Our approach makes the following contributions:
+
+\todo{My wording here sucks...}
+\begin{itemize}
+\item We safely handle the concatenation of inputs of multiple types by requiring the developer to express their intent through statically checkable type conversion annotations. A failure to do so is a compile error.
+\item We do not introduce dynamic checks into programs aside from those inherent in the program's structure at implementation time.
+\item Existing programs developed using popular template systems may be integrated without change.
+\item Our approach utilizes sink sensitivity by default. As a result, Wyvern applications implement the most secure tactic for preventing injection vulnerabilities in a given context unless the developer intentionally weakens the outcome. The ability to weaken the outcome is how we implement source sensitivity.
+\end{itemize}
+\subsection{Motivating Example}
+
+\todo{Revise, rewrite, add.}
+
+Web blogs are a convenient
+example of such an application. A web blog, or simply a blog, is a
+website that promotes discussion and information sharing on a specific
+topic or a set of topics and that consists of discrete entries called posts.
+Typically, a blog author will write posts by typing up the message
+and formatting it in a text field that is available only to the blog's
+authors. This message is later published for public consumption. The
+post author formats their post by using HTML and CSS. However, the
+post author does not need access to the full subset of HTML, and there
+is in fact a lot of incentive for blog hosting providers (e.g. Blogger
+\cite{blogger}) to limit the HTML/CSS tags that are available. In other words, sometimes the developer wants to override the default of non-executability, but control execution by limiting the set of tags that are interpreted by the browser.
+
+Due to their relative simplicity and ubiquity, we use XSS and SQLi
+vulnerabilities as the platform for illustrating our approach. The
+approach generalizes to other web application injection vulnerabilities.
+Figure \ref{fig:Motivating-Example-Code} shows a simple example that
+contains an XSS and SQLi vulnerability in a PHP-like psuedocode. This
+sample presents the user with a prompt to enter her username. When
+the user enters her username and hits the submit button, a SQL query
+is executed to get her last login time from a database table named
+UserLog. Her last login time is then printed in a message below
+the form, along with the username she entered. 
+
+A SQLi vulnerability exists because the username the user entered
+is concatenated into the SQL statement exactly as it was entered.
+If the user had entered SQL code as their username instead, the extra
+SQL statements they entered would be executed by the database. For
+example, entering \texttt{';DROP TABLE UserLog; -{}- }as the username
+would cause the UserLog table to be deleted from the database. The
+attacker could have just as easily injected SQL to perform operations
+such as adding fake data to the database, dumping the contents of
+the database to try to steal password hashes, etc. 
+
+The XSS vulnerability is equally simple.
+The XSS vulnerability exists because the user name is being directly
+written to a context the attacker can leverage to execute Javascript.
+An attacker could enter the username \texttt{<script> alert(``XSS!''); </script>},
+thus causing a Javascript pop-up to appear. The XSS exploit could
+have also read the user's cookie and sent it to a different website,
+defaced the website to turn it into a phishing form, or set-up a \texttt{document.onkeypress}
+event handler to keylog the webpage. These exploits don't need to
+be entered into the form directly.
+
+The form uses the HTTP GET method, which allows the attacker to enter
+his exploit into the URL using the \texttt{usr} parameter. As a
+result, the attacker could craft a URL that contains the exploit and
+trick a user into clicking the malicious link, thus causing the user's
+browser to execute the exploit instead.
+
+
+\begin{figure}
+\begin{lstlisting}
+let user_input_s = readline_user
+let author_input_s = readline_author
+let user_input : HTML = parse_user(user_input_s)
+let author_input : HTML_A = parse_author(author_input_s)
+let page : HTML = ~
+   >html
+      >title Best Author's Blog
+      >body
+      >h1 Post Title
+      >div
+         < admin_input : HTML_A (* htmla_to_html(author_input)*)
+      >h2 Comments
+      >div
+         < user_input
+      ... 
+\end{lstlisting}
+\caption{A Wyvern Example}
+\label{fig:wyvern-example}
+\end{figure}
+
+
+\begin{figure}
+\begin{lstlisting}
+casetype HTML_A
+   IFrame of HTMLA
+   Div of HTMLA
+   ...
+
+casetype HTML
+   Div of HTML
+   ...
+\end{lstlisting}
+\caption{Wyvern HTML Type}
+\label{fig:wyvern-example}
+\end{figure}

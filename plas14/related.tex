@@ -1,0 +1,146 @@
+% !TEX root = plas14.tex
+\section{Related Work\label{sec:Related-Work}}
+
+\todo{Revise, rewrite.}
+\todo{Add~\cite{Livshits:2013,Samuel:2011} and potentially~\cite{Doupe:2013}}
+
+As input injection vulnerabilities are one of the most common and dangerous web security
+issues, numerous projects from the programming language community
+have attempted to solve this problem. The approaches taken so far fall into one of the two categories: static or dynamic prevention. Static prevention enforces security properties by tracking appropriate invariants at the source code level; whereas dynamic prevention detects and blocks suspicious or malicious behaviors by monitoring application execution at runtime.
+
+
+\subsection{Static Prevention}
+
+\textbf{Ur/Web.} Type systems are used to eliminate injection vulnerabilities
+in a number of projects. Ur/Web~\cite{urOSDI, ur/Web} is representative of type system based approaches. Ur/Web uses first-class
+records and names to facilitate the development of web applications.
+It outputs HTML in a special XML tree type whose type indices track
+which tags are allowed. Furthermore, it uses similar strongly-typed
+syntax trees for any kind of code executed by web browsers or database
+servers to guarantee the absence of code injection vulnerabilities. Case studies
+showed that Ur/Web requires few type annotations when writing small
+web applications.
+%to use the type-level map feature.
+
+One disadvantage of this approach is that the programming language
+developer has to keep track of frequent updates to web standards and
+update the system code appropriately, continuing to extend the type
+system with new types. In addition, the programming language's type
+system might not include all of the necessary tags (e.g.,
+Ur/Web's current implementation supports only a subset of all legal HTML tags)
+and thus may be incomplete to begin with,
+again prompting extra work for the developer. Furthermore, while
+the type system can guarantee that user input won't be executable,
+it is more difficult for the application developer or a security auditor
+to use and reason about.  For example, the application developer may need to use
+types representing all of HTML and CSS for web page fragments produced
+solely by his application, while using types representing a limited subset of HTML
+for input controlled by the user\footnote{HTML 5 together with CSS 3 is Turing
+complete, so a type that permits both allows execution}.  
+
+Even if the types are
+understandable---and that is questionable given that many web developers are not
+even used to ordinary types---this is not necessarily the most
+natural way for the application developer to prevent injection vulnerabilities.  If the
+application developer does not understand the types, he may use them incorrectly,
+introducing the possibility for vulnerabilities.  Hence using a type system to
+deal with injection vulnerabilities may make the developer's job more difficult without
+necessarily providing a more flexible solution.
+
+\textbf{Swift.} The Swift system \cite{swift} provides another
+way to develop secure web applications by automatically partitioning
+application code into the code that is run on the client side and the code that is run on the server side.
+It provides assurance that resulting placement
+is secure and efficient. Developers explicitly annotate information
+security requirements, and then the compiler uses these annotations to determine where the application code
+and the system data should be placed to ensure information confidentiality
+and integrity. For performance reasons, general code and data are placed on
+the client side while security-critical code and data are always placed
+on the server side. This approach provides certain security guarantees, but it does not have a direct mechanism to prevent injection vulnerabilities. Furthermore, Swift incurs at least two challenges that impede its use for the real world applications: firstly, Swift partitions the code at the execution statement level which might be too fine grained, and, secondly, Swift burdens the developer with the need to annotate the code. Hence, the Swift system is not widely used in practice.
+
+\textbf{SELinks.} SELinks is a programming language that targets secure multi-tier Web applications~\cite{corcoran09selinks}. Under the hood, SELink uses a type system, FABLE, to encode, enforce and verify security policies like access control rules~\cite{swamy08fable}. In comparison to other type system based approaches, SELink integrates data access code in the framework. Furthermore, it provides a database residing security check facility to reduce the burden for developers and to improve performance.  Typically, when calls to enforcement
+functions occur in database queries, the SELinks compiler translates the calls to user-defined functions accessible during query processing. Experiments show that this approach improves performance by up to 9.5X. 
+
+\subsection{Dynamic Prevention}
+
+\textbf{JavaMOP.} An emerging research area, Runtime Verification
+(RV), is a generic way to check program correctness by encoding
+system specifications within a target program and enforcing the specifications
+during execution. It is natural and very promising to use RV to
+detect and avoid security vulnerabilities since security policies can
+be expressed as runtime properties. Hessein et al.~\cite{PLAS12}
+proposes an approach to use JavaMOP, a state-of-the-art RV framework,
+to specify and prevent common security vulnerabilities, including code injection.
+The evaluation shows that RV systems are capable of expressing a variety of
+security policies.
+%Combining RV with security enforcement is an exciting development.
+%JA: not sure what this adds to the above
+
+\textbf{Taint analysis.} Taint analysis is a classic way to
+detect security vulnerabilities. There are two flavors: static taint analysis and dynamic taint analysis. Taint analysis will be discussed more in section
+\ref{sec:Preventing-Injection-Without}. Dytan~\cite{dytan} provides a generic framework to conduct taint analysis for x86 binaries, which can be used to track data provided by the user to identify possible injection vulnerabilities. Detecting vulnerabilities can require a fine granularity in tainting data. Although
+fine granularity allows for more precisely tracking how tainted data
+flows in applications, its overhead of 30x to 50x is too high for use in real
+world systems. Specialized hardware can greatly reduce the
+overhead~\cite{ASE}, but it is inapplicable to web applications
+since it is infeasible to impose control over the users' hardware platforms.
+
+\indent Dynamic taint analysis is also implemented in \textbf{Perl} \cite{perl} and \textbf{Ruby} \cite{ruby}, which are widely used in the development of web applications. However, to make use of the taint analysis feature, the developer has to explicitly enable it, and the analysis is not used to prevent injection vulnerabilities but, instead, to warn the developer about their possibility. Hence, the burden of dealing with injection vulnerabilities still remains on the application developer. In addition, taint propagation is used in Fortify software ~\cite{fortify} which is able to scan the code of a web application and detect possible sources of injection vulnerabilities. Yet again, Fortify just warns the developer but does not do the work of fixing the vulnerabilities.
+
+\textbf{ScriptGard} \cite{scriptgard} uses runtime positive taint-tracking to determine the portion of
+an output string that should be sanitized. In the case of strings
+in the .NET platform, the taint status of each string object maintains
+metadata that identifies if the string is untrusted. If so, it identifies
+the portion of the string that is untrusted. Taint propagation, capturing
+direct data dependencies between string objects, is implemented by
+using wrapper functions for all operations in string classes. Each
+wrapper function updates the taint status of string objects at runtime.
+Since ScriptGard can be seen as a runtime testing aid, it has the
+advantage of finding clear, reproducible test cases over static analysis
+tools. The disadvantage is that it adds runtime overhead and it does not output a general analysis but an analysis for the specific input.
+
+\textbf{WASP Tool} ~\cite{wasp} also uses the dynamic positive taint tracking technique to prevent SQLi vulnerabilities on databases used in web-based systems. It does not merely warn the developer about possible injection vulnerabilities but goes one extra step by actually blocking database queries that are suspected to be malicious. However, WASP's focus is exclusively on SQLi and, thus, it does not handle other types of injection vulnerabilities, such as XSS.
+
+% From other sections
+
+Unless the data the developer is attempting to validate has trivial
+structure, the process of validating the safety of a user input is
+difficult and error prone. On the web, the developer must worry about
+many complications before even attempting to address the complexity
+of their input and correctly implementing a validator for it. These
+complications include such matters as correctly canonicalizing data
+that may appear in many equivalent and nestable representations and
+detecting erroneous constructs that the browser will still act on
+as if they are valid. Additionally, the developer must typically implement a validator that is powerful enough to validate the expected input. For example, a regular expression is not necessarily powerful enough to validate HTML input. It is little surprise that bypassing input validation
+has been widely discussed \cite{validationbypass1,validationbypass2} and that
+validator implementations regularly fail \cite{validationexploit1, validationexploit2, validationexploit3}.
+
+There are two types of taint analysis: static and dynamic. Static taint analysis tracks taint at
+the source code level \cite{static_taint_taj, static_taint_wassermann, static_taint_sridharan}. The analysis is performed
+over multiple paths of a program, usually on a control flow graph
+where statements are nodes and there is an edge between nodes if there
+is a possible transfer of control. When there is a confluence of paths,
+the static analysis must either under or over-approximate the tainting.
+
+An accidental vulnerability could occur due to the use of an inline
+frame. Inline frames are introduced using the iframe HTML tag. They
+allow a developer to include a page from a different domain in a frame
+on the developer's own website. The browser will enforce the Same
+Origin Policy (SOP) on the page in the inline frame, which essentially
+means that the included page cannot access the hosting page's Document
+Object Model, cookies, or other content. However, inline frames are
+subject to abuse related to frame-busting \cite{framebusting1, framebusting2} that allow
+the included page to break into the hosting page's origin, thus bypassing
+the SOP. Attacks based on the use of iframes can be difficult to defend against
+and their consequences can be quite severe, so a blog provider may
+choose to preclude their use. Even more concerning, HTML/CSS
+tags could be used to intentionally host exploits on a blog.
+
+The job of determining which tags should be allowed is quite difficult
+because tags that seem innocent, such as iframe, can in fact be quite
+vulnerable. Additionally, other seemingly innocent tags can be used
+to craft exploits. For example, it was recently possible to steal
+a website visitor's browser history using little more than CSS \cite{historyhack}.
+As a result, the best practice in allowing tags is to only allow the
+subset of tags and the subset of fields for those tags that are absolutely
+necessary. 
