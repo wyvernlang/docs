@@ -60,102 +60,134 @@ Wyvern makes extensive use of forward referenced blocks to make its syntax clean
 
 \subsection{Abstract Syntax}
 The concrete syntax of a Wyvern program, \li{p}, is parsed to produce a program in the abstract syntax, $\rho$, shown on the left side of Fig. \ref{fig:core2-syntax}. Forward references are internalized. In particular, note that all literal forms are unified into the abstract literal form $\lfloor body \rfloor$, including the layout-delimited form and number literals. The abstract syntax contains a form, $\keyw{fromTS}(e)$, that has no analog in the concrete syntax. This will be used internally to ensure hygiene, as we will discuss in the next section.
-
+\newcommand{\ih}{\hat{\imath}}
 \begin{figure}[t]
-\centering
-\[
-\begin{array}[t]{lll} 
-\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=e \}; \rho \\
-     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=e \}; \rho\\
-     & \bnfalt & e
-\\[1ex]
+$
+\begin{array}[t]{lcl} 
+\rho & \bnfdef & {\keyw{objtype}[T, \omega, e]; \rho} \\
+     & \bnfalt & {\keyw{casetype}[T, \chi, e]; \rho}\\
+     & \bnfalt & \keyw{expr}[e]
 \end{array}
-\begin{array}[t]{lll}
-~~~
-\end{array}
-\begin{array}[t]{lll}
-\hat\rho & \bnfdef & \keyw{objtype}~ t~ \{ \omega, \keyw{metadata}=\hat i \}; \hat\rho \\
-     & \bnfalt & \keyw{casetype}~ t~ \{ \chi, \keyw{metadata}=\hat i \}; \hat\rho\\
-     & \bnfalt & \hat i
-\\[1ex]
-\end{array}
-\]
-\[
-\begin{array}[t]{lll} 
+$~~~
+$\begin{array}[t]{lcl}
+\omega & \bnfdef & \emptyset \bnfalt \keyw{membdecl}[\ell, \tau]; \omega\\
+\chi & \bnfdef & \emptyset \bnfalt \keyw{casedecl}[C, \tau]; \chi\\
+\tau & \bnfdef & \keyw{named}[T]  \bnfalt \keyw{arrow}[\tau, \tau]
+\end{array}$\\
+% & \bnfalt & \tau \times \tau
+%\end{array}$~
+%$\begin{array}[t]{lcl}
+%\omega & \bnfdef & \keyw{membdecl}[f, \tau]; \omega\\
+%% & \bnfalt & \keyw{defdecl}[f, \tau, \tau]\\
+% & \bnfalt & \cdot
+%\end{array}$~
+%$\begin{array}[t]{lcl}
+%\chi & \bnfdef & \keyw{casedecl}[C, \tau]; \chi\\
+% & \bnfalt & \cdot
+%\end{array}
+%$\\
+~\\
+$
+\begin{array}[t]{lcl} 
 e    & \bnfdef & x \\
-     & \bnfalt & \boldsymbol\lambda x{:}\tau . e \\ %
-     & \bnfalt & e(e) \\
-     & \bnfalt & (e, e) \\
-     & \bnfalt & \keyw{case}(e) \{(x, y) \Rightarrow e\}\\
-     & \bnfalt & t.C(e) \\
-     & \bnfalt & \keyw{case}(e)~\{ c \} \\
-     & \bnfalt & \keyw{new}~ \{ d \}\\
-     & \bnfalt & e.x \\
-     & \bnfalt & e : \tau\\
-     & \bnfalt & \keyw{valAST}(e) \\
-     & \bnfalt & t.\keyw{metadata}\\
-     & \bnfalt & \lfloor body \rfloor
+     & \bnfalt & \keyw{easc}[\tau](e)\\
+     & \bnfalt & \keyw{elam}(x . e) \\ %
+     & \bnfalt & \keyw{eap}(e; e) \\
+%     & \bnfalt & \keyw{pair}(e; e) \\
+%     & \bnfalt & \keyw{prj}(e; x,y.e)\\
+     & \bnfalt & \keyw{enew}\, \{ m \}\\
+     & \bnfalt & \keyw{eprj}[\ell](e) \\
+%     & \bnfalt & \keyw{call}[m](e; e) \\
+     & \bnfalt & \keyw{einj}[C](e) \\
+     & \bnfalt & \keyw{ecase}(e)\,\{ r \} \\
+     & \bnfalt & \keyw{etoast}(e) \\
+     & \bnfalt & \keyw{emetadata}[T]\\
+     & \bnfalt & \keyw{lit}[body]
 \\[1ex]	
-c    & \bnfdef & C(x) \Rightarrow e\\
-     & \bnfalt & c \bnfalt c
+d   & \bnfdef & \emptyset\\
+     & \bnfalt & \keyw{eval}[\ell](e); d\\
+     & \bnfalt & \keyw{edef}[\ell](x.e); d
 \\[1ex]
-d   & \bnfdef & \varepsilon \\
-     & \bnfalt & \keyw{val}~ f:\tau = e;~d \\
-     & \bnfalt & \keyw{def}~ m:\tau = e;~d
+r    & \bnfdef & \emptyset\\
+     & \bnfalt & \keyw{erule}[C](x.e); r
+\end{array}
+\begin{array}[t]{lcl}
+~~~~~~
+\end{array}
+\begin{array}[t]{lcl}
+\ih    & \bnfdef & x \\
+     & \bnfalt & \keyw{hasc}[\tau](\ih)\\
+     & \bnfalt & \keyw{hlam}(x . \ih) \\ %
+     & \bnfalt & \keyw{hap}(\ih; \ih) \\
+%     & \bnfalt & \keyw{pair}(\ih; \ih) \\
+%     & \bnfalt & \keyw{prj}(\ih; x,y.\ih)\\
+     & \bnfalt & \keyw{hnew}\, \{ \hat{d} \}\\
+     & \bnfalt & \keyw{hprj}[\ell](\ih) \\
+%     & \bnfalt & \keyw{call}[m](\ih; \ih) \\
+     & \bnfalt & \keyw{hinj}[C](\ih) \\
+     & \bnfalt & \keyw{hcase}(\ih)\,\{ \hat{r} \} \\
+     & \bnfalt & \keyw{htoast}(\ih) \\
+     & \bnfalt & \keyw{hmetadata}[T]\\
+     & \bnfalt & \keyw{spliced}[e]
+\\[1ex]	
+\hat{d}   & \bnfdef & \emptyset \\
+	 & \bnfalt & \keyw{hval}[\ell](\ih); \hat{d}\\
+     & \bnfalt & \keyw{hdef}[\ell](x.\ih); \hat{d}
+\\[1ex]
+\hat{r}    & \bnfdef & \emptyset \\
+      & \bnfalt & \keyw{hrule}[C](x.\ih); \hat{r}
+%\\[1ex]
+%\\
+%\\
+%\chi & \bnfdef & C~\keyw{of}~\tau\\
+%     & \bnfalt & \chi \bnfalt \chi 
+%\\[1ex]
+%\omega &\bnfdef & \varepsilon \\  
+%         & \bnfalt & \keyw{val}~ f:\tau;~\omega\\
+%         & \bnfalt & \keyw{def}~ m:\tau;~\omega 
+%\\[1ex]
 \end{array}
 \begin{array}[t]{lll}
-~~~
+~~~~~~
 \end{array}
-\begin{array}[t]{lll}
-\hat{i}    & \bnfdef & x \\
-     & \bnfalt & \boldsymbol\lambda x{:}\tau . \hat{i} \\ %
-     & \bnfalt & \hat{i}(\hat{i}) \\
-     & \bnfalt & \cdots \\
-     & \bnfalt & t.\keyw{metadata} \\
-     & \bnfalt & \keyw{spliced}(e)
-\\[1ex]
-\hat c    & \bnfdef & ...
-	 \\[.5ex]
-\hat d   & \bnfdef & ... 
-\\[1ex]
-\\
-\\
-\chi & \bnfdef & C~\keyw{of}~\tau\\
-     & \bnfalt & \chi \bnfalt \chi 
-\\[1ex]
-\omega &\bnfdef & \varepsilon \\  
-         & \bnfalt & \keyw{val}~ f:\tau;~\omega\\
-         & \bnfalt & \keyw{def}~ m:\tau;~\omega 
-\\[1ex]
-\end{array}
-\begin{array}[t]{lll}
-~~~
-\end{array}
-\begin{array}[t]{lll} 
+\begin{array}[t]{lcl} 
 i    & \bnfdef & x \\
-     & \bnfalt & \boldsymbol\lambda x{:}\tau . i \\ %
-     & \bnfalt & i(i) \\
-     & \bnfalt & \cdots \\
-     & \bnfalt & t.\keyw{metadata}
+     & \bnfalt & \keyw{iasc}[\tau](i)\\
+     & \bnfalt & \keyw{ilam}(x . i) \\ %
+     & \bnfalt & \keyw{iap}(i; i) \\
+%     & \bnfalt & \keyw{pair}(i; i) \\
+%     & \bnfalt & \keyw{prj}(i; x,y.i)\\
+     & \bnfalt & \keyw{inew}\, \{ \dot{d} \}\\
+     & \bnfalt & \keyw{iprj}[\ell](i) \\
+%     & \bnfalt & \keyw{call}[m](i; i) \\
+     & \bnfalt & \keyw{iinj}[C](i) \\
+     & \bnfalt & \keyw{icase}(i)\,\{ \dot{r} \} \\
+     & \bnfalt & \keyw{itoast}(i) \\
+     & \bnfalt & \keyw{imetadata}[T]\\
+     & ~ & ~%& \bnfalt & \keyw{spliced}[e]
+\\[1ex]	
+\dot{d}   & \bnfdef & \emptyset\\
+     & \bnfalt & \keyw{ival}[\ell](i); \dot{d} \\
+     & \bnfalt & \keyw{idef}[\ell](x.i); \dot{d}
 \\[1ex]
-\dot{c}    & \bnfdef & ...
-	 \\[.5ex]
-\dot{d}   & \bnfdef & ... 
-\\[1ex] 
-\\
-\\
-\\
-\tau & \bnfdef & t\\
-     & \bnfalt & \tau \rightarrow \tau \\
-     & \bnfalt & \tau \times \tau 
-\\[1ex]
-\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau~~~~~~~\delta \bnfdef - \bnfalt \hat{i} : \tau
-\\[1ex]
-\Sigma & \bnfdef & \emptyset \bnfalt \Sigma, t:\{\chi, \delta\} \bnfalt \Sigma, t:\{\omega, \delta\}
+\dot{r}    & \bnfdef & \emptyset\\
+     & \bnfalt & \keyw{irule}[C](x.i); \dot{r}
+%\\[1ex] 
+%\\
+%\\
+%\\
+%\tau & \bnfdef & t\\
+%     & \bnfalt & \tau \rightarrow \tau \\
+%     & \bnfalt & \tau \times \tau 
+%\\[1ex]
+%\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau~~~~~~~\delta \bnfdef - \bnfalt \hat{\imath} : \tau
+%\\[1ex]
+%\Sigma & \bnfdef & \emptyset \bnfalt \Sigma, t:\{\chi, \delta\} \bnfalt \Sigma, t:\{\omega, \delta\}
 \end{array}
-\]
-\vspace{-12px}
-\caption{Abstract Syntax}
+$
+%\vspace{-12px}
+\caption{Abstract Syntax of TSL Wyvern. $T$ ranges over type name, $\ell$ ranges over object member labels, $C$ ranges over case labels, $x$ ranges over variables and $body$ ranges over literal bodies. Tuples can be introduced as derived forms: $(i_1, i_2) := \keyw{inew}\,\{\keyw{ival}[\ell_1](i_1); \keyw{ival}[\ell_2](i_2)\}$.
+}
 \vspace{-15px}
 \label{fig:core2-syntax}
 \end{figure}
@@ -252,18 +284,45 @@ For this mechanism to truly ensure hygiene, one must not be able to sidestep it 
 A second facet of hygiene is being able to refer to local variables available within the parser itself, such as local helper functions, for convenience. This can be done using the primitive $\keyw{valAST}(e)$. The semantics for this, shown in Fig. 13, first evaluate $e$ to a value, then \emph{reify} this value to an AST. This can be used to ``bake in'' a value known at compile time into the generated code safely. The rules for reification, used here, and dereification, used in the literal rule described above, are essentially dual, as seen in Figs. 11 and 12.
 
 \subsection{Safety}
-\begin{figure}
-\[
+\begin{figure}[t]
+$\fbox{$\Gamma \vdash_\Sigma i \Leftarrow \tau$}$~
+$\fbox{$\Gamma \vdash_\Sigma i \Rightarrow \tau$}$~~$\cdots$
+\vspace{-25px}\[
 \begin{array}{c}
-\infer[\textit{IT-obj-intro}]
-	{\Gamma \vdash_\Sigma \keyw{new}~\{d\} : t}
-	{t\,\{\omega, \_\} \in \Sigma & 
-	 \Gamma \vdash_\Sigma^t \dot{d} : \omega}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\infer[\textit{IT-obj-intro}]
+	{\Gamma \vdash_\Sigma \keyw{inew}\,\{\dot{d}\} \Leftarrow \keyw{named}[T]}
+	{T[\omega,\mu] \in \Sigma & 
+	\Gamma \vdash_\Sigma^T \dot{d} \Leftarrow \omega}
 \end{array}
 \]
-\caption{Internal language typing ...}
+\vspace{-12px}
+\caption{Statics for internal terms, $i$. Each rule in Fig. \ref{fig:statics1} corresponds to an analogous rule here by removing the elaboration portion. Only the rule for object introduction differs, in that it does not restrict the introduction of parse streams. }
 \label{it-statics}
+\vspace{-5px}
 \end{figure}
+\begin{figure}[t]
+$\fbox{$i \xmapsto[\Sigma]{} i$}$~~$\cdots$
+%$\fbox{$i~\texttt{val}$}$
+\vspace{-10px}\[
+\begin{array}{c}
+\infer[\textit{D1}]
+	{\keyw{imetadata}[T] \xmapsto[\Sigma]{} i} 
+	{T[\delta,i:\tau] \in \Sigma}
+~~~~
+\infer[\textit{D2}]
+	{\keyw{itoast}(i) \xmapsto[\Sigma]{} \keyw{itoast}(i') } 
+	{i \xmapsto[\Sigma]{} i'}
+~~~~
+\infer[\textit{D3}]
+	{\keyw{itoast}(i)  \xmapsto[\Sigma]{} i' } 
+	{i\ \texttt{val} & i \downarrow i' }\\[2ex]
+\end{array}
+\]
+\vspace{-15px}
+\caption{Dynamics for internal terms, $i$. Only internal terms have a dynamic semantics. Most constructs in TSL Wyvern are standard and omitted, as our focus in this paper is on the statics (see \cite{pfpl} Chs. XXXX). The rules for the operators for extracting metadata and extracting an AST from a value are shown.}
+\label{fig:dynsemantics}
+\end{figure}
+
 The semantics we have defined constitute a type safe language.
 
 We begin with a lemma that shows that the statics for $e$ and $\hat{e}$ are consistent. This makes us sure that the splitting of variable contexts to maintain hygiene was done correctly (because they can be brought back together at the end). 
