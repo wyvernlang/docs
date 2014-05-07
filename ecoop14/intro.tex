@@ -15,14 +15,17 @@ While this is all quite useful, this generality can sometimes come at a cost: ge
 Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
 \end{lstlisting}
 
-Because lists are a common data structure, many languages include \emph{literal notation} for introducing them, e.g. \li{[1, 2, 3, 4]}. This notation is semantically equivalent to the general-purpose notation shown above, but brings cognitive benefits by drawing attention to the content of the list, rather than the nature of the encoding. Using terminology from Green's cognitive dimensions of notations \cite{green1996usability}, it is more \emph{terse}, \emph{visible} and \emph{maps more closely} to the intuitive notion of a list. Stoy, in discussing the value of good notation, writes \cite{stoy1977denotational}:
-\begin{quote}A good notation thus conceals much of the inner workings behind suitable abbreviations, while allowing us to consider it in more detail if we require: matrix and tensor notations provide further good examples of this. It may be summed up in the saying: ``A notation is important for what it leaves out.''\end{quote}
+Since lists are a common data structure, many languages include \emph{literal notation} for introducing them, e.g. \li{[1, 2, 3, 4]}. This notation is semantically equivalent to the general-purpose notation shown above, but brings cognitive benefits by drawing attention to the content of the list, rather than the nature of the encoding. Using terminology from Green's cognitive dimensions of notations \cite{green1996usability}, it is more \emph{terse}, \emph{visible} and \emph{maps more closely} to the intuitive notion of a list.
+
+% To save space (alex, great quote though!):
+%Stoy, in discussing the value of good notation, writes \cite{Stoy:1977:DSS:540155}:%stoy1977denotational}:
+%\begin{quote}A good notation thus conceals much of the inner workings behind suitable abbreviations, while allowing us to consider it in more detail if we require: matrix and tensor notations provide further good examples of this. It may be summed up in the saying: ``A notation is important for what it leaves out.''\end{quote}
 
 Although list, number and string literals are nearly ubiquitous features of modern languages, some languages additionally  provide specialized notation for other common data structures (like maps, sets, vectors and matrices), data formats (like XML and JSON), query languages (like regular expressions and SQL), markup languages (like HTML and Markdown) and many other types of data. For example, a language with built-in notation for HTML and SQL, supporting type safe \emph{splicing} via curly braces, might define:
 \begin{lstlisting}
 let webpage : HTML = SHTML<html><body><h1>Results for {EHTMLkeywordSHTML}</h1>
   <ul id="results">{EHTMLto_list_items(query(db, 
-    SSQLSELECT title, snippet FROM products WHERE {ESQLkeywordSSQL} in titleESQL)SHTML}
+    SSQLSELECT title, snippet FROM products WHERE {ESQLkeywordSSQL} in titleESQL))SHTML}
   </ul></body></html>EHTML
 \end{lstlisting}
 as shorthand for:
@@ -31,7 +34,7 @@ let webpage : HTML = HTMLElement(Dict.empty(), [BodyElement(Dict.empty(),
   [H1Element(Dict.empty(), [TextNode($\texttt{"}$SSTRResults for $\texttt{"}$ESTR + keyword)]), 
   ULElement((Dict.add Dict.empty() ($\texttt{"}$SSTRid$\texttt{"}$ESTR, $\texttt{"}$SSTRresults$\texttt{"}$ESTR)), to_list_items(query(db, 
     SelectStmt([$\texttt{"}$SSTRtitle$\texttt{"}$ESTR, $\texttt{"}$SSTRsnippet$\texttt{"}$ESTR], $\texttt{"}$SSTRproducts$\texttt{"}$ESTR, 
-      [WhereClause(InPredicate(StringLit(keyword), $\texttt{"}$SSTRtitle$\texttt{"}$ESTR))]))))]]]
+      [WhereClause(InPredicate(StringLit(keyword), $\texttt{"}$SSTRtitle$\texttt{"}$ESTR))]))))])])
 \end{lstlisting}
 
 When a specialized notation like this is not available, but the equivalent general-purpose notation is too cognitively demanding for comfort, developers typically turn to run-time mechanisms to make constructing data structures more convenient. Among the most common strategies across language paradigms in these situations is to simply use a string representation parsed at run-time:% Developers across language paradigms frequently write examples like the above as:
@@ -42,7 +45,7 @@ let webpage : HTML = parse_html($\texttt{"}$SSTR<html><body><h1>Results for ESTR
   $\texttt{"}$SSTR</ul></body></html>$\texttt{")}$
 \end{lstlisting}
 
-Though recovering some of the notational convenience of the literal version, it is still more awkward to write, requiring explicit conversions to and from structured representations (\li{parse_html} and \li{to_string}, respectively) and escaping when the syntax of the language interferes with the syntax of string literals (line 2). Code like this also causes a number of problems beyond cognitive load. Because parsing occurs at run-time, syntax errors will not be discovered statically, causing potential problems in production scenarios. Run-time parsing also incurs performance overhead, particularly relevant when code like this is executed often (as on a heavily-trafficked website). But the most serious issue with this code is that it is fundamentally insecure: it is vulnerable to cross-site scripting attacks (line 1) and SQL injection attacks (line 3). For example, if a user entered the keyword \li{'; DROP TABLE products --}, the entire product database could be erased. These attack vectors are considered to be two of the most serious security threats on the web today \cite{owasp2013}. Although developers are cautioned to sanitize their input, it can be difficult to verify that this was done correctly throughout a codebase. The best way to avoid these problems today is to avoid strings and insist on structured representations, despite the inconvenient notation.
+Though recovering some of the notational convenience of the literal version, it is still more awkward to write, requiring explicit conversions to and from structured representations (\li{parse_html} and \li{to_string}, respectively) and escaping when the syntax of the language interferes with the syntax of string literals (line 2). Such code also causes a number of problems beyond cognitive load. Because parsing occurs at run-time, syntax errors will not be discovered statically, causing potential problems in production scenarios. Run-time parsing also incurs performance overhead, particularly relevant when code like this is executed often (as on a heavily-trafficked website). But the most serious issue with this code is that it is fundamentally insecure: it is vulnerable to cross-site scripting attacks (line 1) and SQL injection attacks (line 3). For example, if a user entered the keyword \li{'; DROP TABLE products --}, the entire product database could be erased. These attack vectors are considered to be two of the most serious security threats on the web today \cite{owasp2013}. Although developers are cautioned to sanitize their input, it can be difficult to verify that this was done correctly throughout a codebase. The best way to avoid these problems today is to avoid strings and insist on structured representations, despite the inconvenient notation.
 
 Unfortunately, situations like this, where maintaining strong correctness, performance and security guarantees entails significant syntactic overhead, causing developers to turn to worse solutions that are more convenient, are quite common. To emphasize this, let us return to our running example of pattern literals. A small regular expression like \li{(\d\d):(\d\d)\w*((am)|(pm))} might be written using general-purpose notation as:
 \begin{lstlisting}
