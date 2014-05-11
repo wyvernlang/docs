@@ -1,16 +1,16 @@
 % !TEX root = ecoop14.tex
 \section{Motivation}
 \label{s:intro}
-Many data types can be seen, semantically, as modes of use of recursive product and sum types. 
+Many data types can be seen, semantically, as modes of use of general purpose product and sum types. 
 %By using a general-purpose construct to define a data structure, one immediately benefits from a body of useful operators, established reasoning principles, well-optimized implementations and tool support. 
-For example, lists can be defined using a more general mechanism for defining recursive sum types by observing that a list can either be empty, or be broken down into a product of the \emph{head} element and the \emph{tail}, another list. In an ML-like functional language, sums are exposed as datatypes and products as tuples and records, so list types can be defined as follows:
+For example, lists can be seen as recursive sums by observing that a list can either be empty, or be broken down into a product of the \emph{head} element and the \emph{tail}, another list. In an ML-like functional language, sums are exposed as datatypes and products as tuples and records, so list types can be defined as follows:
 \begin{lstlisting}[numbers=none]
 datatype 'a list = Nil | Cons of 'a * 'a list
 \end{lstlisting}
-In class-based object-oriented language, objects are products of their fields and class-based method dispatch exposes a form of sum type \cite{pfpl}. 
+In class-based object-oriented language, objects can be seen as products of their instance data and classes as the labels of a sum type \cite{pfpl}. 
 
-By defining types like \li{int list} in terms of these general purpose semantic mechanisms, we immediately benefit from powerful reasoning principles (e.g. in ML, structural induction) and language support (e.g.  pattern matching). They are already well optimized by compilers and benefit from general-purpose editor support as well. %The programmer only needs to provide an encoding of the structure of lists; the semantics and implementation are filled in by the general-purpose abstraction mechanism.
-While this is all quite useful, this generality can sometimes come at a cost: general-purpose \emph{syntax} is often a burden even when a general-purpose semantics is useful. For example, few would claim that writing a list of numbers as a sequence of \li{Cons} cells is convenient:
+By defining data types in terms of these general purpose type constructors, we immediately benefit from powerful reasoning principles (e.g. induction), language support (e.g.  pattern matching) and compiler support. %The programmer only needs to provide an encoding of the structure of lists; the semantics and implementation are filled in by the general-purpose abstraction mechanism.
+But this semantic generality can come with a \emph{syntactic} cost. For example, few would claim that writing a list of numbers as a sequence of \li{Cons} cells is convenient:
 \begin{lstlisting}[numbers=none]
 Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
 \end{lstlisting}
@@ -44,22 +44,23 @@ let webpage : HTML = parse_html($\texttt{"}$SSTR<html><body><h1>Results for ESTR
 
 Though recovering some of the notational convenience of the literal version, it is still more awkward to write, requiring explicit conversions to and from structured representations (\li{parse_html} and \li{to_string}, respectively) and escaping when the syntax of the language interferes with the syntax of string literals (line 2). Code like this also causes a number of problems beyond cognitive load. Because parsing occurs at run-time, syntax errors will not be discovered statically, causing potential problems in production scenarios. Run-time parsing also incurs performance overhead, particularly relevant when code like this is executed often (as on a heavily-trafficked website). But the most serious issue with this code is that it is fundamentally insecure: it is vulnerable to cross-site scripting attacks (line 1) and SQL injection attacks (line 3). For example, if a user entered the keyword \li{'; DROP TABLE products --}, the entire product database could be erased. These attack vectors are considered to be two of the most serious security threats on the web today \cite{owasp2013}. Although developers are cautioned to sanitize their input, it can be difficult to verify that this was done correctly throughout a codebase. The best way to avoid these problems today is to avoid strings and insist on structured representations, despite the inconvenient notation.
 
-Unfortunately, situations like this, where maintaining strong correctness, performance and security guarantees entails significant syntactic overhead, causing developers to turn to worse solutions that are more convenient, are quite common. To emphasize this, let us return to our running example of pattern literals. A small regular expression like \li{(\d\d):(\d\d)\w*((am)|(pm))} might be written using general-purpose notation as:
-\begin{lstlisting}
-Seq(Group(Seq(Digit, Digit), Seq(Char($\texttt{"}$SSTR:ESTR$\texttt{"}$), Seq(Group(Seq(Digit, Digit)), 
-  Seq(ZeroOrMore(Whitespace), Group(Or(Group(Seq(Char($\texttt{"}$SSTRaESTR$\texttt{"}$), Char($\texttt{"}$SSTRmESTR$\texttt{"}$))), 
-  Group(Seq(Char($\texttt{"}$SSTRpESTR$\texttt{"}$), Char($\texttt{"}$SSTRmESTR$\texttt{"}$))))))))))
-\end{lstlisting}
-This is clearly more cognitively demanding, both when writing the regular expression and when reading it. Among the most common strategies in these situations, for users of any kind of language, is again to simply use a string representation that is parsed at run-time:
-\begin{lstlisting}
-rx_from_str($\texttt{"}$SSTR(\\d\\d):(\\d\\d)\\w*((am)|(pm))ESTR$\texttt{"}$)
-\end{lstlisting}
-%%
-%%For example, in languages without SQL literals, developers can implement a builder pattern:
-%%\begin{lstlisting}
-%%new SQLQuery().SELECT("*").FROM("table").WHERE("username").Eq(username)
-%%\end{lstlisting}
-This is problematic, for all of the reasons described above: excessive conversions between representations, interference issues with string syntax, correctness problems, performance overhead and security issues.
+Unfortunately, situations like this, where maintaining strong correctness, performance and security guarantees entails significant syntactic overhead, causing developers to turn to worse solutions that are more convenient, are quite common. We will survey existing practice in Sec. ....
+%To emphasize this, let us return to our running example of pattern literals. A small regular expression like \li{(\d\d):(\d\d)\w*((am)|(pm))} might be written using general-purpose notation as:
+%\begin{lstlisting}
+%Seq(Group(Seq(Digit, Digit), Seq(Char($\texttt{"}$SSTR:ESTR$\texttt{"}$), Seq(Group(Seq(Digit, Digit)), 
+%  Seq(ZeroOrMore(Whitespace), Group(Or(Group(Seq(Char($\texttt{"}$SSTRaESTR$\texttt{"}$), Char($\texttt{"}$SSTRmESTR$\texttt{"}$))), 
+%  Group(Seq(Char($\texttt{"}$SSTRpESTR$\texttt{"}$), Char($\texttt{"}$SSTRmESTR$\texttt{"}$))))))))))
+%\end{lstlisting}
+%This is clearly more cognitively demanding, both when writing the regular expression and when reading it. Among the most common strategies in these situations, for users of any kind of language, is again to simply use a string representation that is parsed at run-time:
+%\begin{lstlisting}
+%rx_from_str($\texttt{"}$SSTR(\\d\\d):(\\d\\d)\\w*((am)|(pm))ESTR$\texttt{"}$)
+%\end{lstlisting}
+%%%
+%%%For example, in languages without SQL literals, developers can implement a builder pattern:
+%%%\begin{lstlisting}
+%%%new SQLQuery().SELECT("*").FROM("table").WHERE("username").Eq(username)
+%%%\end{lstlisting}
+%This is problematic, for all of the reasons described above: excessive conversions between representations, interference issues with string syntax, correctness problems, performance overhead and security issues.
 
 Today, supporting new literal notations within an existing language requires the cooperation of the language designer. This is primarily because, with conventional parsing strategies, not all notations can unambiguously coexist, so a designer is needed to make choices about which syntactic forms are available and what their semantics should be. For example, conventional notations for sets and maps are both delimited by curly braces. When Python introduced set literals, it chose to distinguish them based on whether the literal contained only elements (e.g. \verb|{3}|), or key-element pairs (\verb|{"x": 3}|). But this causes an ambiguity with the syntactic form \verb|{ }| -- should it mean an empty set or an empty map (called a dictionary in Python)? The designers of Python chose the latter interpretation (for backwards compatibility reasons).
 
