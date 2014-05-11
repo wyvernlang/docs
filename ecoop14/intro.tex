@@ -73,15 +73,15 @@ We present our work as a variant of an emerging programming language called Wyve
 
 The remainder of the paper is organized as a language design for TSL Wyvern:
 \begin{enumerate}
-\item In Sec. \ref{s:motivation}, we introduce TSL Wyvern with a substantial practical example, discussing both inline and forward referenced literal forms, case and object type definitions and an example of a TSL definition.
+\item In Sec. \ref{s:motivation}, we introduce TSL Wyvern with a practical example. We introduce  both inline and forward referenced literal forms, splicing, case and object types and an example of a TSL definition.
 \item In Sec. \ref{s:approach}, we specify the layout-sensitive concrete syntax of TSL Wyvern with an Adams grammar and introduce the abstract syntax of TSL Wyvern.
 \item In Sec. \ref{s:statics}, we specify the static semantics of TSL Wyvern as a \emph{bidirectionally typed elaboration semantics}: 
 \begin{enumerate}
-\item \textbf{Bidirectional Typechecking}: By distinguishing locations where an expression synthesizes a type from locations where an expression is being analyzed against a known type, we can precisely specify where generic literals can appear and how dispatch to a TSL definition (an object associated as metadata with a  type) occurs.
-\item \textbf{Hygienic Elaboration}: Elaboration must not cause the inadvertent capturing or shadowing of variables in the surrounding context. However, it must remain possible to capture these variables in portions of the parse stream treated as spliced expressions. We show a clean type-theoretic formulation that supports this notion of hygiene.
+\item \textbf{Bidirectional Typechecking}: By distinguishing locations where an expression must synthesize a type from locations where an expression is being analyzed against a known type, we precisely specify where generic literals can appear and how dispatch to a TSL definition (an object with a parse method associated as metadata with a type) occurs.
+\item \textbf{Hygienic Elaboration}: Elaboration of literals must not cause the inadvertent capture or shadowing of variables in the context where the literal appears. It must, however, remain possible to do so in portions of the parse stream designated during parsing as spliced expressions. The language cannot know \emph{a priori} where these spliced portions will be. We show a clean type-theoretic formulation for this notion of hygiene.
 \end{enumerate}
-\item In Sec. \ref{s:study}, we gather initial data on how broadly applicable our technique may be by conducting a corpus analysis, finding that strings are used ubiquitously in existing code to support specialized syntax.
-\item In Sec. \ref{s:implementation}, we briefly report on the current implementation status of our work atop the Java Virtual Machine. 
+\item In Sec. \ref{s:study}, we gather initial data on how broadly applicable our technique may be by conducting a corpus analysis, finding that strings are used ubiquitously by existing code where specialized syntax might be more appropriate.
+\item In Sec. \ref{s:implementation}, we briefly report on the current implementation status of our work. 
 \item We discuss related work in Sec. \ref{s:related} and conclude in Sec. \ref{s:discussion} with a discussion of present limitations and future research directions.
 \end{enumerate}
 
@@ -119,7 +119,6 @@ ECSSSHTML        >body
              fmt_results(db, ~, SNAT10ENDNAT, page)
                SSQLSELECT * FROM products WHERE {ESQLsearchQuerySSQL} in titleESQL
 \end{lstlisting}
-\vspace{-10px}
 \caption{Wyvern Example with Multiple TSLs}
 \label{f-example}
 %\vspace{-10px}
@@ -146,14 +145,13 @@ $\texttt{'}$SURLliteral body here, ''inner single quotes'' must be doubledEURL$\
 $\texttt{"}$SURLliteral body here, ""inner double quotes"" must be doubledEURL$\texttt{"}$
 SURL12xyzEURL (* no delimiters necessary for number literals; suffix optional *)
 \end{lstlisting}
-\vspace{-8px}
 \caption{Inline Generic Literal Forms}
 %\vspace{-10px}
 \label{f-delims}
 \end{figure}
 Our first TSL appears on the right-hand side of the variable binding on line 1. The variable \li{imageBase} is annotated with its type, \li{URL}. This is a named {object type}\footnote{We do not currently support polymorphic types in Wyvern, so in our discussion types and type constructors are indistinguishable, and we will simply use ``types'' for concision.} declaring several fields representing the components of a URL: its protocol, domain name, port, path and so on (not shown). We could have created a value of type \li{URL} using general-purpose notation:
 \begin{lstlisting}
-let imageBase : URL = new
+let imageBase = new : URL
   val protocol = $\text{"}$SUShttpEUS$\texttt{"}$
   val subdomain = $\texttt{"}$SUSimagesEUS$\texttt{"}$
   (* ... *)
@@ -191,7 +189,6 @@ SGRM      start <- '>style'= attributes EXP>
 SGRM      start <- '<'= EXP>EGRM 
         fn e => `SQT%EQTeSQT% : HTMLEQT`
 \end{lstlisting}
-\vspace{-8px}
 \caption{A Wyvern case type with an associated TSL.}
 \label{f-htmltype}
 \end{figure}
