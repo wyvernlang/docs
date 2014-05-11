@@ -1,0 +1,295 @@
+\documentclass[11pt]{article}
+\usepackage{palatino}
+\usepackage{latexsym}
+\usepackage{verbatim}
+\usepackage{alltt}
+\usepackage{amsmath,proof,amsthm,amssymb,enumerate}
+\usepackage{math-cmds}
+\usepackage{listings}
+
+% \usepackage{china2e} % to get \Integer, \Natural
+% No such package on Mac??? So I simply copied the relevant symbols below. (Alex)
+\DeclareSymbolFont{numbers}{OT1}{chin}{m}{n}
+\DeclareMathSymbol{\Real}{\mathord}{numbers}{210}
+\DeclareMathSymbol{\Natural}{\mathord}{numbers}{206}
+\DeclareMathSymbol{\Integer}{\mathord}{numbers}{218}
+\DeclareMathSymbol{\Rational}{\mathord}{numbers}{209}
+\DeclareMathSymbol{\Complex}{\mathord}{numbers}{195}
+\DeclareMathSymbol{\REAL}{\mathord}{numbers}{190}
+\DeclareMathSymbol{\NATURAL}{\mathord}{numbers}{188}
+\DeclareMathSymbol{\INTEGER}{\mathord}{numbers}{191}
+\DeclareMathSymbol{\RATIONAL}{\mathord}{numbers}{189}
+\DeclareMathSymbol{\COMPLEX}{\mathord}{numbers}{187}
+
+\def\implies{\Rightarrow}
+\newcommand{\TODO}[1]{\textbf{[TODO: #1]}}
+\newcommand{\keyw}[1]{\textbf{#1}}
+\newcommand{\cut}[1]{}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{dfn}{Definition}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\title{The Wyvern Language\\
+Specification and Rationale}
+\author{The Plaid Group}
+\date{\today}
+
+\begin{document}
+\begin{sloppypar}
+
+\maketitle
+
+This document is a work in progress, intended to specify the Wyvern language and provide a rationale for its design.  It will contain the following sections:
+
+\begin{enumerate}
+
+\item Motivation for the language, and high-level design rationale.
+
+\item Lexical structure of the language, including rationale.
+
+\item Source-level language description, completely defining the source-level syntax of Wyvern and providing the rationale for each construct.
+
+\item An internal core language, the rationale for its design, its static and dynamic semantics, and an elaboration from the source-level language into the core.
+
+\item The specification and rationale for the interoperation with Java and JavaScript, and the compilation strategy used.
+
+\end{enumerate}
+
+\section{Motivation and Rationale}
+\section{Lexical Structure}
+\section{Source-Level Language}
+\TODO{write me}
+
+\section{Core Language}
+
+\subsection{Core Syntax}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% FEATHERWEIGHT WYVERN %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Featherweight Wyvern}
+
+\begin{figure}
+\centering
+\[
+\begin{array}{lll}
+
+e    & \bnfdef & x \\
+     & \bnfalt & \boldsymbol\lambda x{:}\tau . e \\
+     & \bnfalt & e(e) \\
+     & \bnfalt & \boldsymbol\Lambda t . e \\
+     & \bnfalt & e[\tau] \\
+     & \bnfalt & \keyw{new}~ \tau \{ \overline{d} \} \\	% t may be inferred
+     & \bnfalt & e.m \\
+     & \bnfalt & e.f \\
+     & \bnfalt & e.f = e \\
+\\[1ex]
+
+\tau & \bnfdef & t\\
+     & \bnfalt & e.t\\				% e must be pure
+     & \bnfalt & \forall t . \tau\\
+     & \bnfalt & \tau[\overline{t{=}\tau}]\\
+     & \bnfalt & \tau \rightarrow \tau \\
+     & \bnfalt & \keyw{obj}~ t . \overline{\tau_d}\\ % internal syntax makes recursive type explicit
+\\[1ex]
+
+\end{array}
+\begin{array}{lll}
+~~~~
+\end{array}
+\begin{array}{lll}
+	 
+d    & \bnfdef & \keyw{var}~ f:\tau = e \\
+     & \bnfalt & \keyw{val}~ f:\tau = e \\
+     & \bnfalt & \keyw{def}~ m:\tau = e \\
+     & \bnfalt & \keyw{type}~ t~ = \tau  \\
+\\[1ex]
+
+\tau_d & \bnfdef & \keyw{def}~ m:\tau \\
+       & \bnfalt & \keyw{val}~ f:\tau \\
+       & \bnfalt & \keyw{type}~ t  \\
+       & \bnfalt & \keyw{type}~ t~ = \tau  \\
+\\[1ex]
+
+\sigma & \bnfdef & \tau \\
+       & \bnfalt & \keyw{obj}~ t . \overline{\sigma_d} \\
+\\[1ex]
+
+\sigma_d & \bnfdef & \keyw{var}~ f:\tau \\
+         & \bnfalt & \tau_d \\
+
+\end{array}
+\]
+\caption{Featherweight Wyvern Syntax}
+\label{fig:core2-syntax}
+\end{figure}
+
+The core of Wyvern is represented by Featherweight Wyvern, shown in Figure~\ref{fig:core2-syntax}.  Featherweight Wyvern's goal is to express the essential type theory of the Wyvern language in as simple a matter as possible.  It includes the lambda calculus, polymorphic functions, object creation, method calls, and field reads and writes.  Declarations inside an object creation includes mutable \keyw{var} fields, immutable \keyw{val} fields, method definitions \keyw{def}, and type members.
+
+The type system supports the expression and declaration forms described above, including type variables, function types, recursive object types, and type quantification.  Note that mutable \keyw{var} fields may not be exposed in the type of an object; instead, getters and setters can be provided.  We do expose \keyw{val} fields to better support type members, as described below.  In order to give a type to \keyw{this}, we provide an extended type $\sigma$ that include a special object type that includes mutable fields.  $\sigma$ cannot appear in the program source but is used internally as the type for \keyw{this}.
+
+Since objects may have type members, so types include $e.t$ where $e$ must be a path---i.e. a variable followed by one or more dereferences of \keyw{val} fields.  In the future, we plan to allow \keyw{val} declarations in the types to be implemented by any function that always returns the same value.  As type members may be abstract, a convenience is provided to specify that the abstract type members $t$ must be equal to particular concrete types $\tau$.
+
+\TODO{support val decls with constant functions}
+
+A design consideration is that we want to be sure Wyvern's type system is as simple as possible and that typechecking is decidable.  Some designs in which objects have type members have been undecidable (e.g. Odersky et al. A Nominal Theory of Objects with Dependent Types, ECOOP 2003), but follow-on work has shown that this need not be the case (e.g. Cremet et al., A Core Calculus for Scala Type Checking, MFCS 2006).  The benefit of type members is that one mechanism can support generics (while allowing the member type to be unspecified when we don't care) as well as modules with abstract types.
+
+We will likely want to add the equivalent of bounded polymorphism.  We believe this will not lead to undecidability if we implement the equivalent of the kernel subtyping rule from System $F_{<:}$.  Alternatively, we could leave out bounded polymorphism and let programmers use intersection types when they need to impose a concrete constraint; a simple experiment suggests that this may also be similar to the kernel subtyping rule in expressiveness.  We do expect we will need dependent function types to achieve the desired level of expressiveness.
+
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% TAGS %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Tags}
+
+\begin{figure}
+\centering
+\[
+\begin{array}{lll}
+
+e    & \bnfdef & \ldots \\
+     & \bnfalt & \keyw{case}(e)~ \overline{p => e} \\ % if e is a var then its type is updated
+\\[1ex]
+
+p    & \bnfdef & \tau \\
+     & \bnfalt & \keyw{default} \\
+\\[1ex]
+
+%\tau & \bnfdef & \ldots\\
+%     & \bnfalt & \tau \& \tau\\		% for combining tags
+	 
+\end{array}
+\begin{array}{lll}
+~~~~
+\end{array}
+\begin{array}{lll}
+	 
+d    & \bnfdef & \ldots\\
+     & \bnfalt & \keyw{tag}~ t:\tau ~ [\keyw{case}~\keyw{of}~\tau] ~ [\keyw{comprises}~ \overline{\tau}] \\
+\\[1ex]
+
+\tau_d & \bnfdef & \ldots \\
+       & \bnfalt & \keyw{tag}~ t:\tau ~ [\keyw{case}~\keyw{of}~\tau] ~ [\keyw{comprises}~ \overline{\tau}] \\
+\\[1ex]
+
+\end{array}
+\]
+\caption{Featherweight Wyvern Tag Syntax}
+\label{fig:tag-syntax}
+\end{figure}
+
+We extend Featherweight Wyvern to support tagged types with the extensions shown in Figure~\ref{fig:tag-syntax}.  A \keyw{tag} declaration associates a tag $t$ with a type $\tau$, and optionally declares that $t$ is a subtag of some other tag, in which case the tagged type must be a subtype of the supertag's tagged type.  In addition, the \keyw{comprises} clause can optionally be added to declare the complete set of subtags of $t$.  All tags referenced in \keyw{case} \keyw{of} and \keyw{comprises} clauses must be defined.  If $t$ has a \keyw{comprises} clause, it is a type error to declare a tag $t'$ as a subtag unless $t'$ was listed in that clause.  Likewise, if $t'$ is in the \keyw{comprises} clause of $t$, then $t'$ must declare it is a subtag of $t$.  If $t$ has a \keyw{comprises} clause, it may not be used as the type of a newly instantiated object; instead, one of its subtags must be used.
+
+A tag $t$ can be used as a type; type $t$ is a subtype of any other tag $t'$ of which $t$ is a case, and it is also a subtype of the type being tagged.
+
+Tags can be used in a \keyw{case} statement, which has a number of branches.  The expression $e$ must be an instance of some tag $t$.  Each ordinary case branch lists a tag $t'$, which must be a subtag of $t$, and that branch is executed if the run-time tag matches that subtag.  The last branch can be \keyw{default}, which always succeeds.  If \keyw{default} is left out, then $t$ must have a \keyw{comprises} clause and all cases must be covered in the branches of the \keyw{case} statement.
+
+\TODO{support richer pattern-matching}
+
+In the future, we plan to allow tags to be used in a cast statement, where execution halts with an error (or an exception is thrown) on cast failure.
+
+\TODO{cast syntax}
+
+
+
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% MODULES %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Modules}
+
+\begin{figure}
+\centering
+\[
+\begin{array}{lll}
+
+U    & \bnfdef & M \\
+
+M    & \bnfdef & \keyw{package}~ \textit{URI} ~[\keyw{at}~ \textit{URL}]~
+%    &         & \keyw{version}~ \textit{version-string} \\
+     B ~[\keyw{signature}~ \tau]\\
+
+B    & \bnfdef & \keyw{import}~ \textit{URL} ~[\keyw{as}~ x]~ B\\
+     & \bnfalt & \keyw{from}~ \textit{URL} ~\keyw{import}~ \overline{x}~ B \\
+     & \bnfalt & \overline{d} \\
+	 
+\end{array}
+\begin{array}{lll}
+~~~~
+\end{array}
+\begin{array}{lll}
+
+% could put stuff here if needed	 
+
+\end{array}
+\]
+\caption{Featherweight Wyvern Module Syntax}
+\label{fig:module-syntax}
+\end{figure}
+
+A compilation unit $U$ may be a package, which is a module intended for separate distribution.  A package has an identity, which is specified as a URI.  The URI must have a path part, and the last segment in the path part must be a legal Wyvern identifier that serves as the short name of the module.
+
+The package URI serves as identity and is therefore a URN; but it may also be a URL that specifies a canonical location at which the latest version of that package can be found.  If it is not a URL, a separate URL can optionally be specified with the \keyw{at} clause.
+
+\TODO{A package must be associated with a version string.  Define the version-string syntax; look at what OSGI and other standards do.  Add version strings to the import statement syntax.}
+
+The body of a package includes a series of \keyw{import} declarations that import other from the URL provided.  This defines a variable in scope whose name is, by default, the last segment in the path part of the URL.  To avoid name clashes, this default can be overridden with an optional \keyw{as} clause.  The \keyw{as} clause \textit{must} be used if the short name declared in the imported package does not match the last segment in the path part of the URL; this serves to avoid errors in which the wrong module is unintentionally imported.
+
+After the body of a module comes a \keyw{signature}, specified as a type $\tau$, which can refer to type declarations in the module or from imports.  
+
+In the future, we plan to support compilation units that are scripts, or that are sub-modules of another module.
+
+\TODO{define submodules and recursive imports; see wyvern-14-04-07.txt}
+
+\TODO{define scripts}
+
+%A compilation unit $CU$ can be a sequence of declarations, representing a script that executes the declarations in order for their side effects.
+%\TODO{A script is actually equivalent to a method body; figure out the concrete and abstract syntax for this and reuse it here.}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% META-OBJECTS (FIX ME) %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cut{
+\begin{figure}
+\centering
+\[
+\begin{array}{lll}
+e    & \bnfdef & \ldots \\
+     & \bnfalt & 'dsl' \\
+\\[1ex]
+\tau & \bnfdef & t\\
+     & \bnfdef & \tau.t\\
+     & \bnfalt & \tau \rightarrow \tau \\
+\\[1ex]
+\end{array}
+\begin{array}{lll}
+~~~~
+\end{array}
+\begin{array}{lll}	 
+d    & \bnfdef & \keyw{var}~ f:\tau = e \\
+     & \bnfalt & \keyw{def}~ m:\tau = e \\
+     & \bnfalt & \keyw{type}~ t~ = \{ \overline{\tau_d}, \keyw{metaobject}=e \} \\
+     & \bnfalt & \keyw{type}~ t~ = \{ \tau \}  \\
+\\[1ex]
+\tau_d   & \bnfdef & \keyw{def}~ m:\tau \\
+\\[1ex]
+\sigma & \bnfdef & \tau \\
+       & \bnfalt & \{ \overline{\sigma_d} \} \\
+\\[1ex]
+\sigma_d & \bnfdef & \keyw{var}~ f:\tau \\
+         & \bnfalt & \tau_d \\
+\end{array}
+\]
+\caption{Featherweight Wyvern Metaobject Syntax}
+\label{fig:meta-syntax}
+\end{figure}
+}
+\section{Java Interoperability}
+
+Interoperation with Java is supported through two mechanisms.  Java standard library elements can be imported with a URL of the form \texttt{java:java.lang.Long}.  Importing third-party Java libraries is supported by first importing a URL to the jar file containing the library, then using the Java import described above.  This aovids the need to use an extra-lingual Java classpath mechanism.
+
+\end{sloppypar}
+\end{document}

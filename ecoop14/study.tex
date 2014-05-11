@@ -1,64 +1,40 @@
 % !TEX root = ecoop14.tex
+
 \section{Corpus Analysis}
 \label{s:study}
 
-An important question when introducing a new approach is how it would change the existing solutions and at what places it could be used. To answer these questions we performed a code analysis and tried to identify potential uses of the TSLs in the existing Java code. Our analysis is limited in scope and focused only on the class constructors. We are interested in class constructors because they are the programmatic constructs that potentially could be equipped with Wyvern types. For example, a Java class constructor such as 
+We performed a corpus analysis on existing Java code to assess how frequently there are opportunities to use TSLs. As a proxy for this goal, we examined \lstinline{String} arguments passed into Java constructors, for two reasons:
 
-\begin{lstlisting}
-Path(String path) {...}
-\end{lstlisting}
+\begin{enumerate}
+\item The \lstinline{String} type may be used to represent a large variety of notations, many of which may be expressed using TSLs.
+\item We hypothesized that opportunities to use TSLs would often come when initializing an object with state described by the TSL.
+\end{enumerate}
 
-\noindent which takes in a single \lstinline{String} and makes sure that it is of a specific format, could be equipped with a Wyvern type \lstinline{Path} that would check for the format of the string. We examined this type of Java constructors in the first part of our analysis.
+\paragraph{Methodology.} We ran our analysis on a recent version (20130901r) of the Qualitas Corpus~\cite{QualitasCorpus:APSEC:2010}, consisting of 107 Java projects, and searched for constructors that used \lstinline{String}s that could be substituted with TSLs. To perform the search, we used command line tools, such as \lstinline{grep} and \lstinline{sed}, and a text editor features such as search and substitution. After we found the constructors, we chose those that took at least one \lstinline{String} as an argument. Via a visual scan of the names of the constructors and their \lstinline{String} arguments, we inferred how the constructors and the arguments were intended to be used.
 
-Further, having the pool of Java constructors we wanted to see in how many of them a TSL could be used. A place where we believe a TSL could be used is a \lstinline{String} argument that has a specific format, for instance, constructors such as:
 
-\begin{lstlisting}
-FileUpdatedEvent(Object source, String path) {...}
-\end{lstlisting}
-
-\noindent Here, the second argument \lstinline{path}, which is of type \lstinline{String}, could be represented using a Wyvern type \lstinline{Path} that would guarantee that the passed in argument is of the required format.
-
-\paragraph{Methodology}
-
-To perform our analysis, we used a recent version (20130901r) of 107 Java projects in the Qualitas Corpus~\cite{QualitasCorpus:APSEC:2010} and searched for the two types of constructors described above. We used command line tools, such as \lstinline{grep} and \lstinline{sed}, and editor features such as search and substitution. In a semi-manual procedure, we scanned though the Java code and picked out class constructors. After that, we chose constructors that take at least one \lstinline{String} as an argument, and looking at the names of the constructors and their arguments, we inferred the intended use of the classes associated with them.
-
-\paragraph{Results} 
+\paragraph{Results.} We found 124,873 constructors and that 19,288 (15\%) of them could use TSLs. Table~\ref{strings-in-constructors} gives more details on types of \lstinline{String} arguments we found that could be substituted with TSLs. The ``Identifier'' category comprises process IDs, user IDs, column or row IDs, etc. that usually must be unique; the ``Pattern'' category includes regular expressions, prefixes and suffixes, delimiters, format templates, etc.; the ``Other'' category contains \lstinline{String}s used for ZIP codes, passwords, queries, IP addresses, versions, HTML and XML code, etc.; and the ``Directory path'' and ``URL/URI'' categories are self-explanatory.
 
 \begin{table}
    \centering
     \begin{tabular}[t]{l | c | c}
-    \bf Constructors & \bf Number & \bf \% of Total \\ \hline
-    Total analyzed & 124,873 & 100 \\
-    Have a String argument & 30,161 & 24 \\
-    Could be equipped with a TSL & 603 & 0.5 \\
-    Could use a TSL & 19,288 & 15 \\
-    \end{tabular}
-    \vspace{0.15in}
-    \caption{Summary of the Analyses Results}
-    \label{t-summary}
-\end{table}
-
-\begin{table}
-   \centering
-    \begin{tabular}[t]{l | c | c}
-    \bf Type of String & \bf Number & \bf \% of Total \\ \hline
-    Name & 14,307 & 74.2 \\
-    ID	& 1,335 & 6.9 \\
-    Directory path& 823 & 4.3 \\
-    Pattern & 495 & 2.6 \\
-    URL/URI & 396 & 2.0 \\
-    Other (zip code, password, query, & 1,932 & 10.0 \\
+    \bf Type of String & \bf Number & \bf Percentage \\ \hline
+    Identifier & 15,642 & 81\% \\
+    Directory path& 823 & 4\% \\
+    Pattern & 495 & 3\% \\
+    URL/URI & 396 & 2\% \\
+    Other (ZIP code, password, query, & 1,932 & 10\% \\
     ~~HTML/XML, IP address, version, etc.)  & & \\ \hline
-    \bf Total: & \bf 19,288 & \bf 100.0
+    \bf Total: & \bf 19,288 & \bf 100\%
     \end{tabular}
     \vspace{0.15in}
-    \caption{Types of \lstinline{String} Arguments in Java Constructors}
-    \label{t-strs-in-constrs}
+    \caption{Types of \lstinline{String} arguments in Java constructors that could use TSLs}
+    \label{strings-in-constructors}
 \end{table}
 
-Our findings are summarized in Figure~\ref{t-summary} and~\ref{t-strs-in-constrs}. For the first part of our analysis, looking through the Java constructors, we found that there is 0.5\% (603 out of 124,873 examined constructors) which could be equipped with a TSL. Those constructors were used for classes that represent URLs and URIs, identification numbers, versions, directory paths, and various types of names (e.g., user name, database name, column name, etc.).
+\paragraph{Limitations.} There are three limitations to our corpus analysis. First, the proxy that we chose for finding how often TSLs could be used in existing Java code is imprecise. Our corpus analysis focused exclusively on Java constructors and thus did not consider other programming constructs, such as method calls, variable assignments, etc., that could possibly use TSLs. Also, there are other datatypes, not just \lstinline{String}, that could be substituted with TSLs, e.g. \lstinline{Path} and \lstinline{URL}. Second, our search for constructors with the use of command line tools and text editor features may not have identified all the Java constructors present in the corpus. Finally, the inference of the intended functionality of the constructor and the passed in \lstinline{String} argument was based on the authors' programming experience and was thus subjective.
 
-For the second part of our analysis, we found that there is 15\% (19,288 out of 124,873 constructors) of constructors that could use a TSL. More details on the kinds of \lstinline{String} arguments that are passed into constructors can be found in Table~\ref{t-strs-in-constrs}. The ``Name'' category refers to the name of a file, a user, a class, etc. that do not have to be unique; the ``ID'' category comprises process IDs, user IDs, column or row IDs, etc. that must have the uniqueness property; the ``Pattern'' category includes regular expressions, prefixes and suffixes, delimiters, format templates, etc.; the ``Other'' category contains \lstinline{String}s used for ZIP codes, passwords, queries, IP addresses, versions, HTML and XML code, etc.; and the ``Directory path'' and ``URL/URI'' categories are self-explanatory.
+\vspace{10px}
 
-Hence, our empirical study has shown that there is significant portion of Java constructors that have a potential of taking advantage of TSLs. It is important to keep in mind that our analysis was narrow: it focused exclusively on the constructors and thus forwent many other types of programming constructs, such as methods, variable assignments, etc., that could possibly also benefit from our approach.
+Despite the limitations of our corpus analysis, it shows that there is the potential to enhance existing code with type-specific languages since numerous \lstinline{String}s could be substituted with TSLs and a significant portion of Java constructors could take advantage of this fact.
 
