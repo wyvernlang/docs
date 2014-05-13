@@ -490,22 +490,114 @@ The rule \textit{T-metadata} shows how the appropriate metadata is extracted fro
 %into the term $e$, which means it should be used in the analysis
 %judgment $e \Leftarrow \tau$. When constructing a type, we do not have information about it and it is intuitive to use the analysis judgement, which is weaker than the synthesis judgement. On the other hand, destructors generate a result of a smaller type from a component of larger type and can be used for synthesis, propagating type information away from the term as in the synthesis judgement $e \Rightarrow \tau$. Our static semantics rules follow this conventional way of reasoning about constructors and destructors.
 
-\subsection{Defining a TSL Manually}
+\subsection{Literals}
 \input{statics}
-In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator using an Adams grammar. As we noted, a parser generator can itself be seen as a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The signature for the built-in type \li{Parser} is shown in Fig. 7. It is an object type with a \li{parse} function taking in a \li{TokenStream} and producing an AST of a Wyvern expression, which is of type \li{Exp}. This built-in type is shown also in Fig. 7. Note that there is a form for each form in the abstract syntax, $e$, as well as an \li{Error} form for indicating error messages (in the theory, nothing is done with these messages). As previously mentioned, quasiquotes are merely a TSL that allows one to construct the abstract syntax, represented as this case type, using concrete syntax, with the addition of an unquote mechanism.
+In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator based an Adams grammars. As we noted, a parser generator can itself be seen as a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The declaration for the prelude type \li{Parser}, shown in Fig. \ref{f-prelude}, shows that it is an object type with a \li{parse} function taking in a \li{ParseStream} and producing a \li{Result}, which is a case type that indicates either that parsing succeeded, in which case an elaboration of type \li{Exp} is paired with the remaining parse stream (to allow one parser to call another), or that parsing failed, in which case an error message and location is provided. This function is called by the typechecker when analyzing the literal form, as shown in the key rule of our system, \textit{T-lit}, shown in Fig. \ref{fig:statics-lit}. Note that we do not explicitly handle failure in the specification, but in practice we would use the data provided for the failure case to report to the user. 
 
-The \verb|parse| function for a type $t$ is called when checking a literal form against that type. This is seen in the key rule of our statics: \textit{T-lit}, in Fig. 9. The premises of these rules operate as follows:
+\noindent
+The rule \textit{T-lit} operates as follows:
 \begin{enumerate}
 \setlength{\itemsep}{1pt}
-\item This rule uses some built-in types. We first ensure they are available.
-\item A well-typed, rewritten parser object is extracted from the type's metadata. This is the step where the parser generator rewrites a grammar to a parse method, recursively using the TSL mechanism itself.
-\item A tokenstream, of type \li{TokenStream}, is generated from the body of the literal. This type is an object that that allows the reading of tokens, as well as an additional method discussed in the next section for parsing the stream as a Wyvern expression.
-\item The \li|parse| method is called with this extracted tokenstream to produce a syntax tree and a remaining tokenstream.
-\item The syntax tree, $\hat{e}'$ is \emph{dereified} into its corresponding term, $e$ (the hat is gone because the generated syntax tree might itself use TSLs). This is the only way terms of the form $\keyw{fromTS}(e)$ can be generated (see below).
-\item The dereified term is then recursively typechecked against the same type and rewritten, consistent with the semantics of TSLs as we have been describing them -- they must produce a term of the type they are being checked against. It is checked under the empty local context to ensure hygiene (below).
-\item The TSL must consume the entire token stream, so this is checked.
+\item This rule requires that the prelude is available. For technical reasons, we include a check that the prelude was actually included in the named type context.
+\item The metadata of the type the literal is being checked against, which must be of type $HasTSL$, is extracted from the named type context. Note that in a language with subtyping or richer forms of type equality, which would be necessary for situations where the metadata might serve other roles, the check that $i_m$ defines a TSL would require an additional premise. 
+\item A parse stream, an internal term of type \li{ParseStream}, $i_{ps}$, is generated from the body of the literal. This type is an object that that allows the reading of tokens, as well as additional methods, discussed further below.
+\item The \li|parse| method is called with this parse stream. If it produces an reified elaboration, $i_{ast}$ (of type \li{Exp}) and a remaining parse stream, $i_{ps}$, then parsing was successful. Note that we use shorthand for pairs in the rule for concision. 
+\item The reified elaboration is \emph{dereified} into a corresponding \emph{translational term}, $\ih$, as specified in Fig. \ref{fig:dereification}. The syntax for translational terms mirrors that of external terms, but does not include literal forms. It adds the form $\keyw{spliced}[e]$, representing an external term  spliced into a literal body. 
+
+The key rule is \textit{U-Spl} -- the only way to generate a translational term of this form is by asking for (a portion of) a parse stream to be parsed as a Wyvern expression or identifier. The reified form, unlike the translational form it corresponds to, does not contain the expression itself, but rather just a portion of the parse stream that should be recognized. Because parse streams (and thus portions thereof) can originate only metatheoretically, we know that $e$ must be an external term written concretely by the TSL client in the body of the literal being analyzed. This is key to guaranteeing hygiene in the final step.
+
+The prelude methods \li{parse_exp} and \li{parse_id} return a value having this reified form corresponding to the first external term found in the parse stream (but, as just described, not necessarily the term itself) paired with the remainder of the parse stream. These methods themselves are not treated specially by the compiler but, for convenience, are associated with  \li{ParseStream}.
+\item The final step is to typecheck and elaborate this translational term. This involves the bidirectional typing judgements shown in Fig. \ref{fig:staticsHat}. This judgement has a form similar to that for external terms, but with the addition of an ``outer typing context'', written $\Gamma_{\text{out}}$ in the rules. This holds the context that the literal appeared in, so that the ``main'' typing context can be emptied to ensure that elaborations are closed except for portions derived from the parse stream. 
+Each rule in Fig. \ref{fig:statics1} should be thought of as having a corresponding rule in Fig. \ref{fig:staticsHat}. Two examples are shown for concision. The outer context is threaded two opaquely in all cases except the rule for spliced external terms. We discuss these rules further below.
 \end{enumerate}
-\subsection{Hygiene}
+
+\begin{figure}[t]
+\centering
+\begin{minipage}[t]{.48\textwidth}
+$\fbox{$i \uparrow \ih$}$
+\vspace{-20px}
+   \[
+\begin{array}{c}
+\infer[\textit{U-Var}]
+	{ \keyw{iinj}[Var](i_{id}) \uparrow x}
+	{ i_{id} \uparrow x} \\[2ex]
+
+\infer[\textit{U-Asc}]
+	{\keyw{iinj}[Asc]((i_1, i_2)) \uparrow \keyw{hasc}[\tau](\ih)}
+	{i_1 \uparrow \tau & i_2 \uparrow \ih}\\[2ex]
+	
+\infer[\textit{U-Lam}]
+	{ \keyw{iinj}[Lam]((i_{id}, i)) \uparrow \keyw{hlam}(x.\ih) }
+	{ i_{id} \uparrow x & i \uparrow \ih } \\[2ex]
+
+\infer[\textit{U-Ap}]
+	{ \keyw{iinj}[Ap]((i_1, i_2)) \uparrow  \keyw{hap}(\ih_1, \ih_2)}
+	{ i_1 \uparrow \ih_1 & i_2 \uparrow \ih_2  } \\[1ex]
+\cdots\\[1ex]
+\infer[\textit{U-Spl}]
+      {\keyw{iinj}[Spliced](i_{ps}) \uparrow \keyw{spliced}[e]}
+	  {\texttt{body}(i_{ps})\texttt{=}body & \texttt{eparse}(body)\texttt{=}e}
+\end{array}
+\]
+$\fbox{$i \uparrow \tau$}$
+\vspace{-15px}
+\[
+\begin{array}{c}
+\infer[\textit{U-N}]
+	{ \keyw{iinj}[Named](i_{name}) \uparrow \keyw{named}[T]}
+	{ i_{name} \uparrow T} \\[2ex]
+
+\infer[\textit{U-A}]
+	{ \keyw{iinj}[Arrow]((i_1, i_2)) \uparrow \keyw{arrow}[\tau_1, \tau_2]}
+	{ i_1 \uparrow \tau_1 & i_2 \uparrow \tau_2}
+\end{array}
+\]
+\caption{Dereification rules, used by rule \textit{T-lit} (above) to determine the translational term encoded by the internal term of type $\keyw{named}[Exp]$.}
+\label{fig:dereification}
+\end{minipage}%
+~\vline\,
+\begin{minipage}[t]{.44\textwidth}
+$\fbox{$i \downarrow i$}$
+\vspace{-20px}
+  \[
+\begin{array}{c}
+\infer[\textit{R-Var}]
+	{x \downarrow \keyw{iinj}[Var](i_{id})}
+	{x \downarrow i_{id}} \\[2ex]
+
+\infer[\textit{R-Asc}]
+	{\keyw{iasc}[\tau](i) \downarrow \keyw{iinj}[Asc]((i_1, i_2))}
+	{\tau \downarrow i_1 & i \downarrow i_2}\\[2ex]
+	
+\infer[\textit{R-Lam}]
+	{ \keyw{ilam}(x.i) \downarrow \keyw{iinj}[Lam]((i_{id}, i')) }
+	{x \downarrow i_{id} & i \downarrow i'} \\[2ex]
+
+\infer[\textit{R-Ap}]
+	{ \keyw{iap}(i_1; i_2) \downarrow \keyw{iinj}[Ap]((i_1', i_2))}
+	{ i_1 \downarrow i_1' & i_2 \downarrow i_2' }\\[1ex]
+\cdots
+\vspace{-10px}
+\end{array}
+\]
+$\fbox{$\tau \downarrow i$}$
+\vspace{-12px}
+\[
+\begin{array}{c}
+\infer[\textit{R-N}]
+	{ \keyw{named}[T] \downarrow \keyw{iinj}[Named](i_{name}) }
+	{ T \downarrow i_{name}} \\[2ex]
+
+\infer[\textit{R-A}]
+	{ \keyw{arrow}[\tau_1,\tau_2] \downarrow \keyw{iinj}[Arrow]((i_1, i_2))  }
+	{ \tau_1 \downarrow i_1 & \tau_2 \downarrow i_2 }
+\end{array}
+\]
+\caption{Reification rules, used by the $\keyw{itoast}$ (``to AST'') operator (Fig. \ref{fig:dynsemantics}) to permit generating an internal term of type $\keyw{named}[Exp]$ corresponding to the value of the argument (a form of serialization).}
+\label{fig:reification}
+\end{minipage}
+%\vspace{-15px}
+\end{figure}
 \newcommand{\Gout}{\Gamma_{\text{out}}}
 \newcommand{\Gin}{\Gamma}
 \begin{figure}[t]
@@ -530,19 +622,34 @@ $\fbox{$\Gamma; \Gamma \vdash_\Theta \ih \leadsto i \Leftarrow \tau$}$
 	{\Gout \vdash_\Theta e \leadsto i \Rightarrow \tau}
 \end{array}
 \]
-\caption{Statics for translational terms, $\ih$. Each rule in Fig. \ref{fig:statics1} corresponds to an analagous rule here by threading the outer context through opaquely (e.g. the rules for variables and functions, shown here). The outer context is only used by the rules for $\keyw{spliced}[e]$, representing external terms that were spliced into TSL bodies. Only these terms can access outer variables, achieving hygiene (see text). Note that elaboration is implicitly capture-avoiding here (we assume globally unique names for internal variables can be generated whenever necessary, see Sec. \ref{s:implementation}).}
+\caption{Statics for translational terms, $\ih$. Each rule in Fig. \ref{fig:statics1} corresponds to an analagous rule here by threading the outer context through opaquely (e.g. the rules for variables and functions, shown here). The outer context is only used by the rules for $\keyw{spliced}[e]$, representing external terms that were spliced into TSL bodies. Only these terms can access outer variables, achieving hygiene (see text). Note that elaboration is implicitly capture-avoiding here (we assume unique names for internal variables can be generated whenever necessary, see Sec. \ref{s:implementation}).}
 \label{fig:staticsHat}
 \end{figure}
+\begin{figure}[t]
+$\fbox{$i \xmapsto{} i$}$~~~~~~$\cdots$~~~~$\begin{array}{c}
+\infer[\textit{D-Toast-1}]
+	{\keyw{itoast}(i) \xmapsto{} \keyw{itoast}(i') } 
+	{i \xmapsto{} i'}
+~~~~~~
+\infer[\textit{D-Toast-2}]
+	{\keyw{itoast}(i)  \xmapsto{} i' } 
+	{i\ \texttt{val} & i \downarrow i' }\\[2ex]
+\end{array}
+$
+\caption{Dynamics for internal terms, $i$. Only internal terms have a dynamic semantics. Most constructs in TSL Wyvern are standard and omitted, as our focus in this paper is on the statics. The only novel internal form, $\keyw{itoast}(i)$, extracts an AST (of type $\keyw{named}[Exp]$) from the value of $i$, shown.}
+\label{fig:dynsemantics}
+\end{figure}
+\subsection{Hygiene}
 
-A concern with any term rewriting system is \emph{hygiene} -- how should variables in the generated AST be bound? In particular, if the rewriting system generates an \emph{open term}, then it is making assumptions about the names of variables in scope at the site where the TSL is being used, which is incorrect - those variables should only be identifiable up to alpha renaming. Only the \emph{user} of a TSL knows which variables are in scope. Strict hygiene would simply reject all open terms, but this would prevent even nested Wyvern expressions which the user provided from referring to local variables.
 
-The solution to being able to capture variables in portions of the tokenstream that are parsed as Wyvern only is to add a new term to the abstract syntax that has no corresponding form in the concrete syntax: $\keyw{fromTS}(e)$. This means: "this is a term that was parsed from the user's tokenstream". It can be generated by calling \li{ts.as_wyv_exp(tok)}, which returns a the remaining tokenstream as well as the value  \li{Exp.FromTS(ts, tok)}. When we dereify this term, we turn this into the form $\keyw{fromTS}(e)$, where $e$ is the result of parsing the tokenstream as a Wyvern expression until an unexpected token \li{tok} appears.
+A concern with any term rewriting system is \emph{hygiene} -- how should variables in the generated AST be bound? In particular, if the rewriting system generates an \emph{open term}, then it is making assumptions about the names of variables in scope at the site where the TSL is being used, which is incorrect. Those variables should only be identifiable up to alpha renaming. Only the \emph{user} of a TSL knows which variables are in scope. The strictest rule would simply reject all open terms, but this would prevent even spliced terms written by the TSL client, who presumably is aware of variable bindings at the use site, from referring to local variables. Moreover, the variables in these terms should be bound to what the client expects. The elaboration should not be able to surreptitiously or accidentally shadow variables in spliced terms that {may} be otherwise bound at the use site (e.g. variables named \li{tmp}).
 
-When we attempt to typecheck this form, which will be starting from an empty local variable context by moving all the available variables into the surrounding variable context (in the \textit{T-Lit} rule, above), we add in the bindings available in the surrounding variable context (to any that were introduced by the TSL, such as the TSL for \li{Parser} does with named non-terminals). In other words, variables in the surrounding variable context can only be used within a term of the form $\keyw{fromTS}(e)$. These variables are precisely those that only the user can know exist, but not the extension.
+The solution to both of these issues, which we have outlined above, is quite simple: we construct the system so that we know which sub-terms originate from the TSL client, marking them as $\keyw{spliced}[e]$. These terms can refer only to variables in the client's context, $\Gout$, as seen in the premises of the two rules for this form (one for analysis, one for synthesis). The remainder of the term is generated by the TSL provider, so it can refer only to variables introduced earlier in the elaboration, tracked by the context $\Gamma$. The two are kept separate. If the TSL wishes to introduce variables in spliced terms, it must do so by via a function application (as in the TSL for \li{Parser} discussed earlier), ensuring that the client has full control over variable binding.
 
-For this mechanism to truly ensure hygiene, one must not be able to sidestep it by generating a tokenstream manually: expressions from a tokenstream must have actually come from the use site. This is ensured by preventing users from checking \li{new} against \li{TokenStream} in the statics.
+\subsection{Lifting Values to ASTs}
+In some rewriting systems, free variables become bound to their values at the generation site, rather than the use site. In the formulation just discussed, this does not directly occur -- all free variables lead to errors when returned by a TSL definition. To permit lifting values bound at the generation site to ASTs for use at the use site, we include the primitive operator \li{toast(e)}. This simply takes the value of \li{e} and reifies it, producing a term of type \li{Exp}, as specified in Figs. \ref{fig:dynsemantics} and Fig. \ref{fig:reification}. This can be used to ``bake in'' a value known at compile time into the generated code safely. The rules for reification, used here, and dereification, used in the literal rule described above, are notionally dual.
 
-A second facet of hygiene is being able to refer to local variables available within the parser itself, such as local helper functions, for convenience. This can be done using the primitive $\keyw{valAST}(e)$. The semantics for this, shown in Fig. 13, first evaluate $e$ to a value, then \emph{reify} this value to an AST. This can be used to ``bake in'' a value known at compile time into the generated code safely. The rules for reification, used here, and dereification, used in the literal rule described above, are essentially dual, as seen in Figs. 11 and 12.
+The TSL associated with \li{Exp}, implementing quasiquotes, can perform a free variable analysis and insert these terms automatically (by itself treating the free variables as spliced terms), so they are only explicitly needed when generating an AST manually.
 
 \subsection{Safety}
 \begin{figure}[t]
@@ -560,20 +667,7 @@ $\\[1ex]
 \label{it-statics}
 \vspace{-5px}
 \end{figure}
-\begin{figure}[t]
-$\fbox{$i \xmapsto{} i$}$~~~~~~$\cdots$~~~~$\begin{array}{c}
-\infer[\textit{D-Toast-1}]
-	{\keyw{itoast}(i) \xmapsto{} \keyw{itoast}(i') } 
-	{i \xmapsto{} i'}
-~~~~~~
-\infer[\textit{D-Toast-2}]
-	{\keyw{itoast}(i)  \xmapsto{} i' } 
-	{i\ \texttt{val} & i \downarrow i' }\\[2ex]
-\end{array}
-$
-\caption{Dynamics for internal terms, $i$. Only internal terms have a dynamic semantics. Most constructs in TSL Wyvern are standard and omitted, as our focus in this paper is on the statics (see \cite{pfpl} Chs. XXXX). The only novel internal form, $\keyw{itoast}(i)$, extracts an AST (of type $\keyw{named}[Exp]$) from the value of $i$, shown.}
-\label{fig:dynsemantics}
-\end{figure}
+
 
 The semantics we have defined constitute a type safe language.
 
