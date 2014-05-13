@@ -4,60 +4,56 @@
 
 \subsection{Concrete Syntax}
 \input{grammar}
-We will begin our formal treatment by describing the concrete syntax of Wyvern declaratively, using the same layout-sensitive formalism that we have introduced for TSL grammars, developed recently by Adams \cite{Adams:2013:PPI:2429069.2429129}. Such a formalism is useful because it allows us to implement  layout-sensitive syntax, like that we've been describing, without relying on context-sensitive lexers or parsers. Most existing layout-sensitive languages (e.g. Python and Haskell) use hand-rolled context-sensitive lexers or parsers (keeping track of, for example, the indentation level using special \li{INDENT} and \li{DEDENT} tokens), but these are more problematic because they cannot be used to generate editor modes, syntax highlighters and other tools automatically. In particular, we will show how the forward references we have described can be correctly encoded without requiring a context-sensitive parser or lexer using this formalism. It is also useful that the TSL for \li{Parser}, above, uses the same parser technology as the host language, so that it can be used to generate quasiquotes.
+We will begin our formal treatment by specifying the concrete syntax of Wyvern declaratively, using the same layout-sensitive formalism that we have introduced for TSL grammars, developed recently by Adams \cite{Adams:2013:PPI:2429069.2429129}. Adams grammars are useful because they allow us to implement  layout-sensitive syntax, like that we've been describing, without relying on context-sensitive lexers or parsers. Most existing layout-sensitive languages (e.g. Python and Haskell) use hand-rolled context-sensitive lexers or parsers (keeping track of, for example, the indentation level using special \li{INDENT} and \li{DEDENT} tokens), but these are more problematic because they could not be used to generate editor modes, syntax highlighters and other tools automatically. In particular, we will show how the forward references we have described can be correctly encoded without requiring a context-sensitive parser or lexer using this formalism. It is also useful that the TSL for \li{Parser}, above, uses the same parser technology as the host language, so that it can be used to generate the quasiquote TSL for \li{Exp} more easily.
 
-Wyvern's concrete syntax, with a few minor omissions for concision, is shown in Figure~\ref{f-grammar}. We first review Adams' formalism in some additional detail, then describe some key features of this syntax.
-
-\subsection{Background: Adams Grammars}
-For each terminal and non-terminal in a rule, Adams proposed associating with them a relational operator, such as =, > and $\geq$ to specify the indentation at which those terms need to be with respect to the non-terminal on the left-hand side of the rule. The indentation level of a term can be identified as the column at which the left-most character of that term appears (not simply the first character, in the case of terms that span multiple lines). The meaning of the comparison operators is akin to their mathematical meaning: = means that the term on the right-hand side has to be at exactly the same indentation as the term on the left-hand side; >  means that the term on the right-hand side has to be indented strictly further to the right than the term on the left-hand side; $\geq$ is like >, except the term on the right could also be at the same indentation level as the term on the left-hand side. For example, the production rule of the form \lstinline{A $\rightarrow$ B$^=$ C$^\geq$ D$^>$} approximately reads as: ``Term \lstinline{B} must be at the same indentation level as term \lstinline{A}, term \lstinline{C} may be at the same or a greater indentation level as term \lstinline{A}, and term \lstinline{D} must be at an indentation level greater than term \lstinline{A}'s.'' In particular, if \li{D} contains a \lstinline{NEWLINE} character, the next line must be indented past the position of the left-most character of \lstinline{A} (typically constructed so that it must appear at the beginning of a line). There are no constraints relating \lstinline{D} to \lstinline{B} or \lstinline{C} other than the standard sequencing constraint: the first character of \lstinline{D} must be further along in the file than the others. Using Adam's formalism, the grammars of real-world languages like Python and Haskell can be written declaratively. This formalism can be integrated into LR and LALR parser generators.
-
-\subsection{Programs}
+\subsection{Program Structure}
 
 \begin{figure}[t]
-\begin{minipage}[t]{.54\textwidth}
+\begin{minipage}[t]{.50\textwidth}
 \begin{lstlisting}
 objtype T
   val y : HTML
-let page : HTML->HTML = fn x:HTML => ~
-  :html
-    :body
-      {x}
+let page : HTML->HTML = (fn(x) => ~)
+  >html
+    >body
+      <{x}
 page(case(5 : Nat))
   Z(_) => (new : T).y
-    val y : HTML = ~
-      :h1 Zero!
+    val y = ~
+      >h1 Zero!
   S(x) => ~
-    :h1 Successor!
+    >h1 Successor!
 \end{lstlisting}
 \end{minipage}%
 \begin{minipage}[t]{.45\textwidth}
- \centering
-\[
-\begin{array}{l}
-\keyw{objtype} \ T\ \{ \\
-  ~~~\keyw{val}\ y : HTML, \\
-  ~~~\keyw{metadata} = (\keyw{new}\ \{\}) : Unit\ \}; \\
-  (\boldsymbol\lambda page : HTML \rightarrow HTML.\\
-  ~page(\keyw{case}(\lfloor 5 \rfloor : Nat)\ \{ \\
-  ~~~~Z(\_) \Rightarrow ((\keyw{new}\ \{ \\
-    ~~~~~~~\keyw{val}\ y : HTML = \lfloor :h1\ Z! \rfloor\}) : T).y\ \\
-   ~~~~| S(x) \Rightarrow \lfloor :h1\ S! \rfloor\})) \\
-  ~~~~(\boldsymbol\lambda x : HTML.\ \lfloor :html \\
-    ~~:body \\
-      ~~~~\{x\} \rfloor)
-\end{array}
+\vspace{-5pt}\[\begin{array}{l}
+\keyw{objtype}[T, (y[\keyw{named}[HTML]], \emptyset), 
+  ()]; \emptyset;\\
+\keyw{elet}(\keyw{easc}[\keyw{arrow}[\keyw{named}[HTML], \\
+\quad \keyw{named}[HTML]]](\keyw{elam}(x.\keyw{lit}[\textit{>html}\\
+\quad \textit{>body}\\
+\quad\quad \textit{<\{x\}}])), page.\\
+\keyw{eap}(page; \keyw{ecase}(\keyw{easc}[\keyw{named}[Nat]](\keyw{lit}[5]))\,\{\\
+\quad \keyw{erule}[Z](\_.\keyw{eprj}[y](\keyw{easc}[\keyw{named}[T](\keyw{enew}\,\{\\
+\quad\quad \keyw{eval}[y](\keyw{lit}[\textit{>h1 Zero!}])\})));\\
+\quad \keyw{erule}[S](x.\keyw{lit}[\textit{>h1 Sucessor!}]); \emptyset\\
+\}))\end{array}
 \]
 \end{minipage}
-\caption{An example Wyvern program demonstrating forward references. The corresponding abstract syntax, where forward references are inlined, is on the right.}
+\caption{An example Wyvern program demonstrating all three forward referenced forms. The corresponding abstract syntax is on the right.}
 \label{fig:fwd-ref}
 \end{figure}
-An example Wyvern program showing several unique syntactic features of TSL Wyvern is shown in Fig.~\ref{f-prelude}. The top level of a program (the \lstinline{p} non-terminal) consists of a series of type declarations -- object types using \lstinline{objtype} or case types using \lstinline{casetype} -- followed by an expression, \lstinline{e}. Each type declaration contains associated declarations -- signatures for fields and methods in  \lstinline{objdecls} and case declarations in \lstinline{casedecls}. Each also can also include a metadata declaration. Metadata is simply an expression associated with the type, used to store TSL logic (and in future work, other logic). Sequences of top-level declarations use the form \lstinline{p$^=$} to signify that all the succeeding \lstinline{p} terms must begin at the same indentation.
+The concrete syntax of TSL Wyvern is shown in Fig \ref{f-grammar}. An example Wyvern program showing several unique syntactic features of TSL Wyvern is shown in Fig. \ref{fig:fwd-ref} (left). 
+
+The top level of a program (the \lstinline{p} non-terminal) consists of a series of named type declarations -- object types using \lstinline{objtype} or case types using \lstinline{casetype} -- followed by an expression, \lstinline{e}. Each named type declaration can also include a metadata declaration. Metadata is simply an expression associated with the type, used to store TSL logic (and in future work, other metadata). In the grammar, sequences of top-level declarations use the form \lstinline{p$^=$} to signify that all the succeeding \lstinline{p} terms must begin at the same indentation. We do not specify separate compilation here, as this is an orthogonal issue.
 
 \subsection{Forward Referenced Blocks}
-Wyvern makes extensive use of forward referenced blocks to make its syntax clean. In particular, layout-delimited TSLs, \keyw{new} expressions for creating objects, and the \keyw{case} statement for eliminating case types all use forward referenced blocks. Fig. \ref{fig:fwd-ref} shows all of these in use (assuming suitable definitions of casetypes \li{Nat} and \li{HTML}, not included). In the grammar, note particularly the rules for \li{let} and that inline literals, even those containing nested expressions with forward references, can be treated as expressions not containing forward references -- \emph{in the initial phase of parsing, before typechecking commences, all literal forms are left unparsed}.
+Wyvern makes extensive use of forward referenced blocks to make its syntax clean. In particular, layout-delimited TSLs, \li{new} expressions for introducing objects, and \keyw{case} expressions for eliminating case types all make use of forward referenced blocks. Fig. \ref{fig:fwd-ref} shows all of these in use (assuming suitable definitions of casetypes \li{Nat} and \li{HTML}). 
+
+Each line in the concrete syntax can contain either zero or one forward references. We distinguish these in the grammar by defining separate non-terminals $\overline{\texttt{e}}$ and $\widetilde{\texttt{e}}$. Note particularly the rules for \li{let} (which permit an expression to span multiple lines and so can be used to support multiple forward references in a single expression).
 
 \subsection{Abstract Syntax}
-The concrete syntax of a Wyvern program, \li{p}, is parsed to produce a program in the abstract syntax, $\rho$, shown on the left side of Fig. \ref{fig:core2-syntax}. Forward references are internalized. In particular, note that all literal forms are unified into the abstract literal form $\lfloor body \rfloor$, including the layout-delimited form and number literals. The abstract syntax contains a form, $\keyw{fromTS}(e)$, that has no analog in the concrete syntax. This will be used internally to ensure hygiene, as we will discuss in the next section.
+The concrete syntax of a Wyvern program, \li{p}, is parsed to a program in the abstract syntax, $\rho$, shown in Fig. \ref{fig:core2-syntax}. Forward references are internalized. Note that all literal forms are unified into the abstract literal form $\keyw{lit}[\mathit{body}]$, including the layout-delimited form and number literals. The body remains completely unparsed at this stage. The abstract syntax for the example in Fig. \ref{fig:fwd-ref} is shown to its right and demonstrates the key rewriting done at this stage. Simple product types can be rewritten as object types in this phase. We assume that this occurs so that we can avoid specifying them separately in the remainder of the paper, though we continue to use tuple notation for concision.
 \newcommand{\ih}{\hat{e}}
 \begin{figure}[t]
 $
@@ -189,7 +185,7 @@ i    & \bnfdef & x \\
 \end{array}
 $\\[2ex]
 %\vspace{-12px}
-\caption{Abstract Syntax of TSL Wyvern programs ($\rho$), type declarations ($\theta$), types ($\tau$), external terms ($e$), translational terms ($\ih$) and internal terms ($i$) and auxiliary forms. Metavariable $T$ ranges over type names, $\ell$ over object member (field and method) labels, $C$ over case labels, $x$ over variables and $\mathit{body}$ over literal bodies. Tuple types are a mode of use of object types, so they are not included in the abstract syntax. For concision, we continue to write pairs as $(i_1, i_2)$ in the rules below.
+\caption{Abstract Syntax of TSL Wyvern programs ($\rho$), type declarations ($\theta$), types ($\tau$), external terms ($e$), translational terms ($\ih$) and internal terms ($i$) and auxiliary forms. Metavariable $T$ ranges over type names, $\ell$ over object member (field and method) labels, $C$ over case labels, $x$ over variables and $\mathit{body}$ over literal bodies. Tuple types are a mode of use of object types, so they are not included in the abstract syntax. For concision, we continue to write unit as $()$ and pairs as $(i_1, i_2)$ as needed.
 }
 \label{fig:core2-syntax}
 \end{figure}
@@ -198,10 +194,10 @@ $\\[2ex]
 
 \section{Bidirectional Typechecking and Elaboration}
 \label{s:statics}
-We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2-syntax}. Conventional type systems are specified using a typing judgement written like $\Gamma \vdash_{\Theta} e : \tau$, where the typing context, $\Gamma$, maps bound variables to types, and the named type context, $\Theta$, maps type names to their declarations. Typing judgements do not consider how, when writing a typechecker, it should be considered algorithmically: will a type be provided from the surrounding syntactic context (e.g. when the term appears as a function argument, or an explicit ascription has been provided), so that we simply need to \emph{analyze} $e$ against it, or do we need to \emph{synthesize} a type for $e$ (e.g. when the term appears at the  top-level)? Here, this distinction is crucial: a literal can only appear in an analytic context. 
+We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2-syntax}. Conventional type systems are specified using a typing judgement written like $\Gamma \vdash_{\Theta} e : \tau$, where the typing context, $\Gamma$, maps bound variables to types, and the named type context, $\Theta$, maps type names to their declarations. Such typing judgements do not fully specify wheter, when writing a typechecker, the type should be considered an input or an output. In some situations, a type propagates in from the surrounding syntactic context (e.g. when the term appears as a function argument, or an explicit ascription has been provided), so that we simply need to \emph{analyze} $e$ against it. In others, we need to \emph{synthesize} a type for $e$ (e.g. when the term appears at the  top-level). Here, this distinction is crucial: a literal can only appear in an analytic context. 
 
 \emph{Bidirectional type systems} \cite{Pierce:2000:LTI:345099.345100} make this distinction explicit by specifying the type system instead using two simultaneously defined typechecking judgements corresponding to these two situations. %In the latter situation, type annotations are unnecessary. 
-For TSL Wyvern, we need to also simultaneously perform an elaboration of the external language, which contains literals, to an ``internal language'', $i$, the syntax for which is shown on the right side of Fig. \ref{fig:core2-syntax}. The internal language does not have literals, nor a form for accessing the metadata of a named type explicitly (the elaboration process inserts the statically known metadata value, tracked by the named type context, directly). The judgement $\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$ means that under typing context $\Gamma$ and named type context $\Theta$, external term $e$ elaborates to internal term $i$ and synthesizes type $\tau$. The judgement $\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau$ is analagous but for situations where we are analyzing $e$ against type $\tau$. This manner of specifying a type-directed mapping from external terms to a smaller collection internal terms, which are the only terms that are given a dynamic semantics, is stylistically related to the Harper-Stone elaboration semantics for Standard ML \cite{Harper00atype-theoretic} so  our semantics for TSL Wyvern is a form of \emph{bidirectionally typed elaboration semantics}.% Note that both external and internal terms are classified by the same types (we will state this more precisely when we return to the metatheory in Sec. \ref{s:metatheory}).
+For TSL Wyvern, we need to also simultaneously perform an elaboration of the external language, which contains literals, to an \emph{internal language}, $i$, the syntax for which is shown on the right side of Fig. \ref{fig:core2-syntax}. The internal language does not have literals, nor a form for accessing the metadata of a named type explicitly (the elaboration process inserts the statically known metadata value, tracked by the named type context, directly). The judgement $\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$ means that under typing context $\Gamma$ and named type context $\Theta$, external term $e$ elaborates to internal term $i$ and synthesizes type $\tau$. The judgement $\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau$ is analagous but for situations where we are analyzing $e$ against type $\tau$. This manner of specifying a type-directed mapping from external terms to a smaller collection internal terms, which are the only terms that are given a dynamic semantics, is stylistically related to the Harper-Stone elaboration semantics for Standard ML \cite{Harper00atype-theoretic} so  our semantics for TSL Wyvern is a form of \emph{bidirectionally typed elaboration semantics}.% Note that both external and internal terms are classified by the same types (we will state this more precisely when we return to the metatheory in Sec. \ref{s:metatheory}).
 
 \begin{figure}[t]
 $\fbox{$\rho \sim \Theta \leadsto i : \tau$}$
