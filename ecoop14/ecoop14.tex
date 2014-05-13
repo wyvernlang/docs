@@ -39,7 +39,7 @@
 basicstyle=\ttfamily\fontsize{8pt}{1em}\selectfont, 
 commentstyle=\itshape\ttfamily, 
 stringstyle=\ttfamily,
-numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast},deletekeywords={for,double,in},classoffset=0,belowskip=\smallskipamount,
+numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast},deletekeywords={for,double,in,type},classoffset=0,belowskip=\smallskipamount,
 moredelim=**[is][\color{cyan}]{SSTR}{ESTR},
 moredelim=**[is][\color{OliveGreen}]{SHTML}{EHTML},
 moredelim=**[is][\color{purple}]{SCSS}{ECSS},
@@ -80,6 +80,7 @@ Alex Potanin,$^{1}$ and Jonathan Aldrich}
 and
 \texttt{\scriptsize alex@ecs.vuw.ac.nz}$^{1}$}
 \setlength{\abovecaptionskip}{0pt}
+\setlength{\belowcaptionskip}{0pt}
 \authorrunning{Omar, Kurilova, Nistor, Chung, Potanin, Aldrich} % To fix excessive length.
 
 \maketitle
@@ -127,6 +128,74 @@ Allowing library providers to modularly extend a language with new notations cou
 
 \appendix
 \section{Appendix}
+\begin{figure}
+$\fbox{$\vdash_\Theta \theta \sim \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{rec-decls}]
+  {\vdash_{\Theta_0} \theta \sim \Theta}
+  { \vdash_{\Theta_0} \theta \sim_{\text{names}} \Theta_{\text{names}}
+  & \vdash_{\Theta_0 \Theta_{\text{names}}} \theta \sim_{\text{decls}} \Theta_{\text{decls}}
+  & \vdash_{\Theta_0 \Theta_{\text{decls}}} \theta \sim_{\text{metadata}} \Theta
+  } 
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{names}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-names}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{names}} \emptyset}
+  { }\\[1ex] 
+  
+\infer[\textit{OT-names}]
+  {\vdash_{\Theta} \keyw{objtype}[T,\omega,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
+  { \vdash_{\Theta} \omega
+  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-names}]
+  {\vdash_{\Theta} \keyw{casetype}[T,\chi,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
+  { \vdash_{\Theta} \omega
+  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{decls}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-decls}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{decls}} \emptyset}
+  { }\\[1ex] 
+  
+\infer[\textit{OT-decl}]
+  {\vdash_{\Theta} \keyw{objtype}[T,\omega,e_m];\theta' \sim_{\text{decls}} T[\keyw{ot}[\omega], ?]; \Theta'}
+  { \vdash_\Theta \omega
+  & \vdash _\Theta \theta' \sim_{\text{decls}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-decl}]
+  {\vdash_{\Theta} \keyw{casetype}[T,\chi,e_m];\theta' \sim_{\text{decls}} T[\keyw{ct}[\chi], ?]; \Theta'}
+  { \vdash_\Theta \chi
+  & \vdash _\Theta \theta' \sim_{\text{decls}} \Theta'}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{metadata}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-metadata}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{metadata}} \emptyset}
+  { }\\[1ex]
+\infer[\textit{OT-metadata}]
+  {\vdash_{\Theta_0, T[\keyw{ot}[\omega],?], \Theta} \keyw{objtype}[T, \omega, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
+  { \vdash_{\Theta_0, T[\keyw{ot}[\omega], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  & \vdash_{\Theta_0, T[\keyw{ot}[\omega], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-metadata}]
+  {\vdash_{\Theta_0, T[\keyw{ct}[\chi],?], \Theta} \keyw{casetype}[T, \chi, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
+  { \vdash_{\Theta_0, T[\keyw{ct}[\chi], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  & \vdash_{\Theta_0, T[\keyw{ct}[\chi], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}
+\end{array}
+\]
+\caption{The type declaration judgement in the paper only supports recursive types. Here, we include support for mutually recursive types by splitting the three key premises of the paper rule into three distinct judgements, which each process the entire list of type declarations all the way through before going on to the next one.}
+\end{figure}
+
 \begin{figure}[h]
 \centering
 \[

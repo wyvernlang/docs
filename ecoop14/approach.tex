@@ -58,19 +58,21 @@ Wyvern makes extensive use of forward referenced blocks to make its syntax clean
 
 \subsection{Abstract Syntax}
 The concrete syntax of a Wyvern program, \li{p}, is parsed to produce a program in the abstract syntax, $\rho$, shown on the left side of Fig. \ref{fig:core2-syntax}. Forward references are internalized. In particular, note that all literal forms are unified into the abstract literal form $\lfloor body \rfloor$, including the layout-delimited form and number literals. The abstract syntax contains a form, $\keyw{fromTS}(e)$, that has no analog in the concrete syntax. This will be used internally to ensure hygiene, as we will discuss in the next section.
-\newcommand{\ih}{\hat{\imath}}
+\newcommand{\ih}{\hat{e}}
 \begin{figure}[t]
 $
 \begin{array}[t]{lcl} 
-\rho & \bnfdef & {\keyw{objtype}[T, \omega, e]; \rho} \\
-     & \bnfalt & {\keyw{casetype}[T, \chi, e]; \rho}\\
-     & \bnfalt & \keyw{expr}[e]
+\rho & \bnfdef & \theta; e\\
+\theta & \bnfdef & \emptyset\\
+ & \bnfalt & \keyw{objtype}[T, \omega, e]; \theta \\
+     & \bnfalt & \keyw{casetype}[T, \chi, e]; \theta
 \end{array}
-$~~~
+$~~~~~~
 $\begin{array}[t]{lcl}
-\omega & \bnfdef & \emptyset \bnfalt \keyw{membdecl}[\ell, \tau]; \omega\\
-\chi & \bnfdef & \emptyset \bnfalt \keyw{casedecl}[C, \tau]; \chi\\
-\tau & \bnfdef & \keyw{named}[T]  \bnfalt \keyw{arrow}[\tau, \tau]
+\tau & \bnfdef & \keyw{named}[T]  \bnfalt \keyw{arrow}[\tau, \tau]\\
+~\\
+\omega & \bnfdef & \emptyset \bnfalt \ell[\tau]; \omega\\
+\chi & \bnfdef & \emptyset \bnfalt C[\tau]; \chi \\
 \end{array}$\\
 % & \bnfalt & \tau \times \tau
 %\end{array}$~
@@ -89,6 +91,7 @@ $
 \begin{array}[t]{lcl} 
 e    & \bnfdef & x \\
      & \bnfalt & \keyw{easc}[\tau](e)\\
+     & \bnfalt & \keyw{elet}(e; x.e)\\
      & \bnfalt & \keyw{elam}(x . e) \\ %
      & \bnfalt & \keyw{eap}(e; e) \\
 %     & \bnfalt & \keyw{pair}(e; e) \\
@@ -100,11 +103,11 @@ e    & \bnfdef & x \\
      & \bnfalt & \keyw{ecase}(e)\,\{ r \} \\
      & \bnfalt & \keyw{etoast}(e) \\
      & \bnfalt & \keyw{emetadata}[T]\\
-     & \bnfalt & \keyw{lit}[body]
+     & \bnfalt & \keyw{lit}[\mathit{body}]
 \\[1ex]	
-d   & \bnfdef & \emptyset\\
-     & \bnfalt & \keyw{eval}[\ell](e); d\\
-     & \bnfalt & \keyw{edef}[\ell](x.e); d
+m   & \bnfdef & \emptyset\\
+     & \bnfalt & \keyw{eval}[\ell](e); m\\
+     & \bnfalt & \keyw{edef}[\ell](x.e); m
 \\[1ex]
 r    & \bnfdef & \emptyset\\
      & \bnfalt & \keyw{erule}[C](x.e); r
@@ -115,11 +118,12 @@ r    & \bnfdef & \emptyset\\
 \begin{array}[t]{lcl}
 \ih    & \bnfdef & x \\
      & \bnfalt & \keyw{hasc}[\tau](\ih)\\
+     & \bnfalt & \keyw{hlet}(\ih; x.\ih)\\
      & \bnfalt & \keyw{hlam}(x . \ih) \\ %
      & \bnfalt & \keyw{hap}(\ih; \ih) \\
 %     & \bnfalt & \keyw{pair}(\ih; \ih) \\
 %     & \bnfalt & \keyw{prj}(\ih; x,y.\ih)\\
-     & \bnfalt & \keyw{hnew}\, \{ \hat{d} \}\\
+     & \bnfalt & \keyw{hnew}\, \{ \hat{m} \}\\
      & \bnfalt & \keyw{hprj}[\ell](\ih) \\
 %     & \bnfalt & \keyw{call}[m](\ih; \ih) \\
      & \bnfalt & \keyw{hinj}[C](\ih) \\
@@ -128,9 +132,9 @@ r    & \bnfdef & \emptyset\\
      & \bnfalt & \keyw{hmetadata}[T]\\
      & \bnfalt & \keyw{spliced}[e]
 \\[1ex]	
-\hat{d}   & \bnfdef & \emptyset \\
-	 & \bnfalt & \keyw{hval}[\ell](\ih); \hat{d}\\
-     & \bnfalt & \keyw{hdef}[\ell](x.\ih); \hat{d}
+\hat{m}   & \bnfdef & \emptyset \\
+	 & \bnfalt & \keyw{hval}[\ell](\ih); \hat{m}\\
+     & \bnfalt & \keyw{hdef}[\ell](x.\ih); \hat{m}
 \\[1ex]
 \hat{r}    & \bnfdef & \emptyset \\
       & \bnfalt & \keyw{hrule}[C](x.\ih); \hat{r}
@@ -151,22 +155,23 @@ r    & \bnfdef & \emptyset\\
 \begin{array}[t]{lcl} 
 i    & \bnfdef & x \\
      & \bnfalt & \keyw{iasc}[\tau](i)\\
+     & \bnfalt & \keyw{ilet}(i; x.i)\\
      & \bnfalt & \keyw{ilam}(x . i) \\ %
      & \bnfalt & \keyw{iap}(i; i) \\
 %     & \bnfalt & \keyw{pair}(i; i) \\
 %     & \bnfalt & \keyw{prj}(i; x,y.i)\\
-     & \bnfalt & \keyw{inew}\, \{ \dot{d} \}\\
+     & \bnfalt & \keyw{inew}\, \{ \dot{m} \}\\
      & \bnfalt & \keyw{iprj}[\ell](i) \\
 %     & \bnfalt & \keyw{call}[m](i; i) \\
      & \bnfalt & \keyw{iinj}[C](i) \\
      & \bnfalt & \keyw{icase}(i)\,\{ \dot{r} \} \\
      & \bnfalt & \keyw{itoast}(i) \\
-     & \bnfalt & \keyw{imetadata}[T]\\
-     & ~ & ~%& \bnfalt & \keyw{spliced}[e]
+     & ~\\
+     & ~%& \bnfalt & \keyw{spliced}[e]
 \\[1ex]	
-\dot{d}   & \bnfdef & \emptyset\\
-     & \bnfalt & \keyw{ival}[\ell](i); \dot{d} \\
-     & \bnfalt & \keyw{idef}[\ell](x.i); \dot{d}
+\dot{m}   & \bnfdef & \emptyset\\
+     & \bnfalt & \keyw{ival}[\ell](i); \dot{m} \\
+     & \bnfalt & \keyw{idef}[\ell](x.i); \dot{m}
 \\[1ex]
 \dot{r}    & \bnfdef & \emptyset\\
      & \bnfalt & \keyw{irule}[C](x.i); \dot{r}
@@ -180,33 +185,263 @@ i    & \bnfdef & x \\
 %\\[1ex]
 %\Gamma & \bnfdef & \emptyset \bnfalt \Gamma, x:\tau~~~~~~~\delta \bnfdef - \bnfalt \hat{\imath} : \tau
 %\\[1ex]
-%\Sigma & \bnfdef & \emptyset \bnfalt \Sigma, t:\{\chi, \delta\} \bnfalt \Sigma, t:\{\omega, \delta\}
+%\Theta & \bnfdef & \emptyset \bnfalt \Theta, t:\{\chi, \delta\} \bnfalt \Theta, t:\{\omega, \delta\}
 \end{array}
 $\\[2ex]
 %\vspace{-12px}
-\caption{Abstract Syntax of TSL Wyvern external terms ($e$), internal terms ($i$) and translational internal terms ($\ih$). Metavariable $T$ ranges over type names, $\ell$ over object member (field and method) labels, $C$ over case labels, $x$ over variables and $body$ over literal bodies. Tuples can be introduced as derived forms, so we omit them from the abstract syntax: $(i_1, i_2) := \keyw{inew}\,\{\keyw{ival}[\ell_1](i_1); \keyw{ival}[\ell_2](i_2)\}$.
+\caption{Abstract Syntax of TSL Wyvern programs ($\rho$), type declarations ($\theta$), types ($\tau$), external terms ($e$), translational terms ($\ih$) and internal terms ($i$) and auxiliary forms. Metavariable $T$ ranges over type names, $\ell$ over object member (field and method) labels, $C$ over case labels, $x$ over variables and $\mathit{body}$ over literal bodies. Tuple types are a mode of use of object types, so they are not included in the abstract syntax. For concision, we continue to write pairs as $(i_1, i_2)$ in the rules below.
 }
 \label{fig:core2-syntax}
 \end{figure}
 
 
 
-\section{Bidirectional Typechecking and Literal Rewriting}
+\section{Bidirectional Typechecking and Elaboration}
 \label{s:statics}
-We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2-syntax}. Conventional type systems are specified using a typechecking judgement like $\Delta; \Gamma \vdash e : \tau$, where the variable context, $\Gamma$, tracks the types of variables, and the type context, $\Delta$, tracks types and their signatures. However, this conventional formulation does not separately consider how, when deriving this judgement, it will be considered algorithmically -- will a type be provided, so that we simply need to check $e$ against it, or do we need to synthesize a type for $e$? For our system, this distinction is crucial: a generic literal can only be used in the first situation. 
+We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2-syntax}. Conventional type systems are specified using a typing judgement written like $\Gamma \vdash_{\Theta} e : \tau$, where the typing context, $\Gamma$, maps bound variables to types, and the named type context, $\Theta$, maps type names to their declarations. Typing judgements do not consider how, when writing a typechecker, it should be considered algorithmically: will a type be provided from the surrounding syntactic context (e.g. when the term appears as a function argument, or an explicit ascription has been provided), so that we simply need to \emph{analyze} $e$ against it, or do we need to \emph{synthesize} a type for $e$ (e.g. when the term appears at the  top-level)? Here, this distinction is crucial: a literal can only appear in an analytic context. 
 
-\emph{Bidirectional type systems}, as presented by Lovas and Pfenning \cite{Lovas08abidirectional}, make this distinction clear by specifying the type system instead using two simultaneously defined judgements: one for expressions that can \emph{synthesize} a type based on the surrounding context (e.g. variables and elimination forms), and another for expressions for which we know what type to \emph{check} or \emph{analyze} the term against (e.g. generic literals and some introductory forms). 
-Our work builds upon this work, making the following core additions: the tye context $\Delta$ now tracks the metadata in addition to type signatures, and as we typecheck, we need to also perform literal rewriting by calling the parser associated with the type that a literal is being analyzed against, typechecking the AST it produces and ensuring that hygiene is maintained.
+\emph{Bidirectional type systems} \cite{Pierce:2000:LTI:345099.345100} make this distinction explicit by specifying the type system instead using two simultaneously defined typechecking judgements corresponding to these two situations. %In the latter situation, type annotations are unnecessary. 
+For TSL Wyvern, we need to also simultaneously perform an elaboration of the external language, which contains literals, to an ``internal language'', $i$, the syntax for which is shown on the right side of Fig. \ref{fig:core2-syntax}. The internal language does not have literals, nor a form for accessing the metadata of a named type explicitly (the elaboration process inserts the statically known metadata value, tracked by the named type context, directly). The judgement $\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$ means that under typing context $\Gamma$ and named type context $\Theta$, external term $e$ elaborates to internal term $i$ and synthesizes type $\tau$. The judgement $\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau$ is analagous but for situations where we are analyzing $e$ against type $\tau$. This manner of specifying a type-directed mapping from external terms to a smaller collection internal terms, which are the only terms that are given a dynamic semantics, is stylistically related to the Harper-Stone elaboration semantics for Standard ML \cite{Harper00atype-theoretic} so  our semantics for TSL Wyvern is a form of \emph{bidirectionally typed elaboration semantics}.% Note that both external and internal terms are classified by the same types (we will state this more precisely when we return to the metatheory in Sec. \ref{s:metatheory}).
 
-The judgement 
-\fbox{$\Delta; \Gamma'; \Gamma \vdash e\Rightarrow \tau \leadsto \hat{e}$} 
-means that from the type context $\Delta$, the \emph{surrounding variable context}, $\Gamma'$, and the \emph{local variable context}, $\Gamma$, we synthesize the type $\tau$ for $e$ and rewrite it to  $\hat{e}$ (which does not contain literals or the special form $\keyw{fromTS}(e)$, which makes the surrounding context available; see below).
-The judgement 
-\fbox{$\Delta; \Gamma'; \Gamma \vdash e \Leftarrow \tau \leadsto \hat{e}$} similarly 
-means that we check $e$ against the type $\tau$ and the expression $e$ is rewritten into the expression $\hat{e}$. The forms of $\Gamma$ and $\Delta$ are given in Fig. \ref{fig:core2-syntax}. Note that $\Delta$ carries the type's signature as well as the rewritten form of the metadata. The rules for these judgements, as well as key rules for several auxiliary judgements that are needed in their premises, are given in Figs. 8-11. 
+\begin{figure}[t]
+$\fbox{$\rho \sim \Theta \leadsto i : \tau$}$
+~~~~$\Theta ::= \emptyset \bnfalt \Theta, T[\delta, \mu]$~~~~$\delta ::=~? \bnfalt \keyw{ot}[\omega] \bnfalt \keyw{ct}[\chi]$ ~~~~ $\mu ::=~? \bnfalt i : \tau$
+\vspace{-5px}\[\begin{array}{c}
+\infer[\textit{Compile}]
+{
+\theta; e \sim \Theta \leadsto i : \tau
+}
+{
+\vdash_{\Theta_0} \theta \sim \Theta &
+\emptyset \vdash_{\Theta_0\Theta} e \leadsto i \Rightarrow \tau
+}
+\end{array}
+\vspace{-15px}\]
+$\fbox{$\vdash_\Theta \theta \sim \Theta$}$~
+\[
+\begin{array}{c}
+\infer[\textit{OT}]
+          {%\renewcommand{\arraystretch}{1}
+	    %\begin{array}{c}
+	    \vdash_\Theta  \keyw{objtype}[T, \omega, e_{m}]; \theta \sim T[\keyw{ot}[\omega], i_m : \tau_m]; \Theta'
+       }
+	  {T \notin \text{dom}(\Theta) &
+	  \vdash_{\Theta, T[?,?]} \omega &
+	   \emptyset \vdash_{\Theta, T[\keyw{ot}[\omega],?]} e_{m} \leadsto i_{m} \Rightarrow \tau_{m} &  \vdash_{\Theta, T[\keyw{ot}[\omega], i_{m} : \tau_{m}]} \theta \leadsto \Theta' }
+	   \\[2ex] 
+\infer[\textit{CT}]
+          {%\renewcommand{\arraystretch}{1}
+	    %\begin{array}{c}
+	    \vdash_\Theta  \keyw{casetype}[T, \chi, e_{m}]; \theta \sim T[\keyw{ct}[\chi], i_m : \tau_m]; \Theta'
+       }
+	  {T \notin \text{dom}(\Theta) &
+	  \vdash_{\Theta, T[?,?]} \chi &
+	   \emptyset \vdash_{\Theta, T[\keyw{ct}[\chi],?]} e_{m} \leadsto i_{m} \Rightarrow \tau_{m} &  \vdash_{\Theta, T[\keyw{ct}[\chi], i_{m} : \tau_{m}]} \theta \leadsto \Theta' }
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \omega$}$~~
+%\vspace{pt}
+$
+\begin{array}{c}
+\infer[\textit{M-decl}]
+	{\vdash_\Theta \ell[\tau]; \omega}
+	{ \ell \notin \text{dom}(\omega) & \vdash_\Theta \tau & \vdash_\Theta \omega}
+%~~~~~~	
+%\infer[\textit{O-d}]
+%	{\vdash_\Theta \keyw{defdecl}[f, \tau]}
+%	{\vdash_\Theta \tau_1 & \vdash_\Theta \tau_2}
+%~~~~~~
+%\infer[\textit{M-decls}]
+%	{\vdash_\Theta \keyw{memberdecls}[\omega_1, \omega_2]}
+%	{\vdash_\Theta \omega_1 &
+%	\vdash_\Theta \omega_2 &
+%	\text{dom}(\omega_1) \intersect \text{dom}(\omega_2) = \emptyset}
+\end{array}
+$~~~~~
+$\fbox{$\vdash_\Theta \chi$}$~~
+$
+\begin{array}{c}
+\infer[\textit{C-decl}]
+	{\vdash_\Theta C[\tau]; \chi} 
+	{C \notin \text{dom}(\chi) & \vdash_\Theta \tau & \vdash_\Theta \chi}
+\end{array}
+$\\[1ex]
+$\fbox{$\vdash_\Theta \tau$}$~~
+$\begin{array}{c}\infer[\textit{Ty-named}]
+{\vdash_\Theta \keyw{named}[T]}
+{T[\delta,\mu] \in \Theta}~~~~~~
+\infer[\textit{Ty-arrow}]
+{\vdash_\Theta \keyw{arrow}[\tau_1, \tau_2]}
+{\vdash_\Theta \tau_1 & \vdash_\Theta \tau_2}
+\end{array}$\\[1ex]
+\caption{Typechecking and elaboration of programs, $\rho$. Note that type declarations can only be recursive, not mutually recursive, with these rules. The prelude $\Theta_0$ (see Fig. \ref{f-prelude}) defines mutually recursive types, so we cannot write a $\theta_0$ corresponding to $\Theta_0$ given the rules above. For concision, the rules to support mutual recursion as well as omitted rules for empty declarations are available in a technical report \cite{TR}.}
+\label{f-statics-programs}
+\end{figure}
+\subsection{Programs and Type Declarations}
+Before considering these judgements in detail, let us briefly discuss the steps leading up to typechecking and elaboration of the top-level term, specified by the compilation judgement, $\rho \sim \Theta \leadsto i : \tau$, defined in Fig. \ref{f-statics-programs}. We first load the prelude, $\Theta_0$ (see Fig. \ref{f-prelude}),  then validate the provided user-defined type declarations, $\theta$, to produce a corresponding named typed context, $\Theta$. During this process, we synthesize a type for the associated metadata terms (under the empty typing context) and store their elaborations in the type context $\Theta$ (we do not evaluate the elaboration to a value immediately here, though in a language with effects, the choice of when to evaluate the term is important). Note that type names must be unique (we plan to use a URI-based mechanism in practice). Finally, the top-level external term must synthesize a type $\tau$ and produces an elaboration $i$ under an empty typing context and a named type context combining the prelude with the named type context induced by the user-defined types, written $\Theta_0 \Theta$.
 
-These rules assume that a collection of built-in types are included by default at the top of programs (e.g. \li{Unit}, \li{Parser}, \li{Exp} already mentioned, and a few others), captured by an intial type context $\Delta_0$. We show the concrete syntax for the two key ones in Fig. 7. The static semantics and the dynamic semantics (defined for $\hat{e}$ only) are that of a conventional functional language with functions, inductive datatypes, products and records  with the addition of a few new forms. The key new dynamic semantics rules are described in Figs. 12 and 13. We will now describe how some of the novel rules that support TSLs work below. We refer the reader to \cite{Lovas08abidirectional} and texts on type systems, e.g. \cite{pfpl,tapl}, for the remainder.
+\begin{figure}
+$\fbox{$\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$}$~
+$\fbox{$\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau$}$~~~~
+$\Gamma \bnfdef \emptyset \bnfalt \Gamma, x : \tau$
+\[
+\begin{array}{c}
+\infer[\textit{T-syn-to-ana}]
+	{\Gamma \vdash_\Theta  e \leadsto i\Leftarrow \tau } 
+	{\Gamma \vdash_\Theta e  \leadsto i\Rightarrow \tau  }
+~~~~~~
+\infer[\textit{T-asc}]
+	{\Gamma  \vdash_\Theta \keyw{easc}[\tau](e) \leadsto \keyw{iasc}[\tau](i) \Rightarrow \tau}
+	{\vdash_\Theta \tau & \Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau} \\[2ex]
 
+\infer[\textit{T-var}]
+	{\Gamma \vdash_\Theta x \leadsto x \Rightarrow\tau } 
+	{x:\tau \in \Gamma }
+~~~~~~
+\infer[\textit{T-let}]
+    {\Gamma \vdash_\Theta \keyw{elet}(e_1; x.e_2) \leadsto \keyw{ilet}(i_1; x.i_2) \Rightarrow \tau}
+    {\Gamma \vdash_\Theta e_1 \leadsto i_1 \Rightarrow \tau_1 &
+    \Gamma, x : \tau_1 \vdash_\Theta e_2 \leadsto i_2 \Rightarrow \tau}\\[2ex]
+\infer[\textit{T-abs}]
+	{\Gamma \vdash_\Theta  \keyw{elam}(x . e) \leadsto \keyw{ilam}(x .i) \Leftarrow \keyw{arrow}[\tau_1, \tau_2]} 
+	{\Gamma, x:\tau_1 \vdash_\Theta e\leadsto i\Leftarrow \tau_2 }\\[2ex]
+
+\infer[\textit{T-ap}]
+	{\Gamma \vdash_\Theta  \keyw{eap}(e_1; e_2) \leadsto \keyw{iap}(i_1; i_2) \Rightarrow \tau_2  } 
+	{\Gamma \vdash_\Theta e_1 \leadsto i_1 \Rightarrow \tau_1 \rightarrow \tau_2    & \Gamma \vdash_\Theta e_2  \leadsto i_2 \Leftarrow \tau_1}\\[2ex]
+
+%\infer[\textit{T-prod-intro}]
+%	{\Gamma \vdash_\Theta (e_1, e_2)  \leadsto (i_1, i_2) \Leftarrow \tau_1 \times \tau_2}
+%	{\Gamma \vdash_\Theta e_1 \leadsto i_1 \Leftarrow \tau_1 & 
+%	 \Gamma \vdash_\Theta e_2  \leadsto i_2 \Leftarrow \tau_2}
+%	 \\[2ex]
+%\infer[\textit{T-prod-elim}]
+%	{\Gamma \vdash_\Theta \keyw{case}(e)~\{ (x, y) \Rightarrow e' \} \leadsto \keyw{case}(i)~\{ (x, y) \Rightarrow i' \} \Rightarrow \tau}
+%	{\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau_1 \times \tau_2& 
+%	 \Gamma, x : \tau_1, y : \tau_2 \vdash_\Theta e' \leadsto i' \Rightarrow \tau}
+%	\\[2ex]
+\infer[\textit{T-new}]
+	{\Gamma \vdash_\Theta \keyw{enew}\,\{ m \}  \leadsto \keyw{inew}\,\{\dot m\} \Leftarrow  \keyw{named}[T]}
+	{ T\neq ParseStream & T[\keyw{ot}[\omega], \mu] \in \Theta & \Gamma \vdash_\Theta^T m \leadsto \dot m \Leftarrow \omega} \\[2ex]
+\infer[\textit{T-prj}]
+	{\Gamma \vdash_\Theta  \keyw{eprj}[\ell](e) \leadsto \keyw{iprj}[\ell](i) \Rightarrow \tau} 
+	{\Gamma \vdash_\Theta e \leadsto i \Rightarrow \keyw{named}[T] & T[\keyw{ot}[\omega], \mu] \in \Theta & \ell[\tau] \in \omega}\\[2ex]
+%
+%\infer[\textit{T-meth}]
+%	{\Gamma \vdash_\Theta  e_1.m(e_2) \leadsto i_1.m(i_2) \Rightarrow \tau_2} 
+%	{\Gamma \vdash_\Theta e_1 \leadsto i_1 \Rightarrow t & t\,\{\omega, \_\} \in \Theta & \keyw{def}\ m(\tau_1) \rightarrow \tau_2 \in \omega & \Gamma \vdash_\Theta e_2 \leadsto i_2 \Leftarrow \tau_1}\\[2ex]
+%	
+	\infer[\textit{T-inj}]
+	{\Gamma \vdash_\Theta  \keyw{einj}[C](e) \leadsto \keyw{iinj}[C](i) \Leftarrow \keyw{named}[T]} 
+	{T[\keyw{ct}[\chi], \mu] \in \Theta & C[\tau] \in \chi &\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau }\\[2ex]
+
+\infer[\textit{T-case}]
+	{\Gamma \vdash_\Theta  \keyw{ecase}(e)\,\{r \}   \leadsto \keyw{icase}(i)\,\{ \dot{r} \} \Rightarrow \tau} 
+	{\Gamma \vdash_\Theta e   \leadsto i \Rightarrow \keyw{named}[T] & T[\keyw{ct}[\chi], \mu] \in \Theta & \Gamma \vdash_\Theta r \leadsto \dot{r} \Leftarrow \chi \Rightarrow \tau}\\[2ex]
+	
+\infer[\textit{T-toast}]
+        {\Gamma \vdash_\Theta \keyw{etoast}(e) \leadsto \keyw{itoast}(i) \Rightarrow \keyw{named}[Exp]}
+	{\Theta_0 \subset \Theta & \Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau } \\[2ex]
+
+\infer[\textit{T-metadata}]
+        {\Gamma \vdash_\Theta \keyw{emetadata}[T]  \leadsto i  \Rightarrow \tau}
+	{T[\delta, i : \tau] \in \Theta}
+\end{array}
+\]
+$\fbox{$\Gamma \vdash_\Theta^T m \leadsto \dot m \Leftarrow \omega$}$
+\vspace{-15px}\[
+\begin{array}{c}
+%\infer[\textit{T-emp}]
+%	{\Gamma \vdash_\Theta^t \epsilon  \leadsto \epsilon \Leftarrow \epsilon}
+%	{ }
+%~~~~~~
+\infer[\textit{T-unit}]{\Gamma \vdash_\Theta^T \emptyset \leadsto \emptyset \Leftarrow \emptyset}{ }
+\\[2ex]
+\infer[\textit{T-val}]
+	{\Gamma \vdash_\Theta^T \keyw{eval}[\ell](e); m \leadsto \keyw{ival}[\ell](i); \dot{m} \Leftarrow \ell[\tau]; \omega}
+	{\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau & \Gamma \vdash_\Theta^T m \leadsto \dot{m} \Leftarrow \omega} \\[2ex]
+	
+\infer[\textit{T-def}]
+	{\Gamma \vdash_\Theta^T \keyw{edef}[\ell](x.e); m  \leadsto \keyw{idef}[\ell](x.i); \dot m \Leftarrow \ell[\tau]; \omega}
+	{\Gamma, x : \keyw{named}[T] \vdash_\Theta e \leadsto i \Leftarrow \tau & \Gamma \vdash_\Theta^T m \leadsto \dot m \Leftarrow \omega}
+\end{array}
+\]
+$\fbox{$\Gamma \vdash_\Theta r \leadsto \dot{r} \Leftarrow \chi \Rightarrow \tau$}$
+\vspace{-15px}\[
+\begin{array}{c}
+\infer[\textit{T-void}]
+	{\Gamma \vdash_\Theta \emptyset \leadsto \emptyset \Leftarrow \emptyset \Rightarrow \tau}{ }\\[2ex]
+\infer[\textit{T-rule}]
+	{\Gamma \vdash_\Theta  \keyw{erule}[C](x.e); r \leadsto \keyw{irule}[C](x.i); \dot{r} \Leftarrow C[\tau_1]; \chi \Rightarrow \tau_2} 
+	{\Gamma, x:\tau_1 \vdash_\Theta e \leadsto i \Rightarrow \tau_2
+	 & \Gamma\vdash_\Theta r \leadsto \dot{r} \Leftarrow \chi \Rightarrow \tau_2}\\[2ex]
+%
+%\infer[\textit{T-cases}]
+%	{\Gamma \vdash_\Theta \keyw{erules}[c_1, c_2] \leadsto \keyw{irules}[\dot{c}_1, \dot{c}_2] \Leftarrow \keyw{casedecls}[\chi_1, \chi_2] \Rightarrow \tau  } 
+%	{\Gamma \vdash_\Theta c_1 \leadsto \dot{c_1} \Leftarrow \chi_1 \Rightarrow \tau & \Gamma \vdash_\Theta c_2 \leadsto \dot{c_2} \Leftarrow \chi_2 \Rightarrow \tau}
+\end{array}
+\]
+\vspace{-10px}
+\caption{Statics for external terms, $e$. The rule for literals is shown in Fig. \ref{fig:statics-lit}.}
+\label{fig:statics1}
+\end{figure}
+\subsection{External Terms}
+\begin{figure}[t]
+\centering
+\[
+\footnotesize
+\begin{array}{c}
+\infer[\textit{T-lit}]
+	  {\Gamma \vdash_\Theta \keyw{lit}[\mathit{body}] \leadsto i \Leftarrow \keyw{named}[T]}
+	  {\begin{array}{c}
+	   \Theta_0 \subset \Theta ~~~~
+	   T[\delta, i_m : HasTSL] \in \Theta ~~~~
+	   \mathtt{parsestream}(\mathit{body})=i_{ps} \\
+	   i_m.parser.parse(i_{ps}) \Downarrow \keyw{iinj}[OK]((i_{ast}, i'_{ps}))\\
+	   i_{ast} \uparrow \ih~~~~
+	   \Gamma; \emptyset \vdash_\Theta \ih \leadsto i \Leftarrow \keyw{named}[T]
+	   \end{array}}
+%	  {\renewcommand{\arraystretch}{1}
+%	    \begin{array}{r}
+%	    \vdash \Delta_0, \Delta ~~~ \Delta_0, \Delta ;\emptyset; \emptyset \vdash t.\keyw{metadata}.parser\Leftarrow Parser \leadsto i_p ~~~ \texttt{TS(}\lfloor body \rfloor \texttt{)}\ \texttt{is}\ i_{ts}\\
+%            i_p.parse(i_{ts}) \Downarrow_{\Delta_0, \Delta} (i', \hat e_{ts}') ~~~  e \triangleleft  i'~~~ \Delta_0, \Delta;\Gamma', \Gamma; \emptyset\vdash e\Leftarrow t \leadsto i ~~~ \hat e_{ts}'\ \texttt{empty}
+%            \end{array}
+%       }
+%\infer[\textit{T-Tvar}]{
+%	\vdash_\Theta t
+%}{
+%	t : \{\_, \delta \} \in \Delta
+%}
+%~~~~~~~
+%\infer[\textit{T-Arr}]{
+%	\vdash_\Theta \tau_1 \rightarrow \tau_2
+%}{
+%	\vdash_\Theta \tau_1 & \vdash_\Theta \tau_2
+%}
+%~~~~~~~
+%\infer[?]{
+%	\vdash \emptyset
+%}{ }
+%~~~~
+%\infer[?]{
+%	\vdash \Delta, t : \{ \omega, \delta \}
+%}{
+%	\vdash \Delta & \vdash_\Theta \omega~\texttt{ok} & \Delta, t : \{\omega, -\} \vdash \delta
+%}
+\end{array}
+\]
+\caption{Statics for external terms, $e$, continued. This is the key rule (see text).}
+\label{fig:statics-lit}
+%\vspace{-10px}
+\end{figure}
+
+The bidirectional typechecking and elaboration rules for external terms are shown beginning in Fig. \ref{fig:statics1}. Nearly all the rules are standard for simply typed lambda calculus with labeled sums and labeled products, and the elaborations are direct. We refer the reader to standard texts on type systems (e.g. \cite{pfpl}) to understand the basic constructs, and to course material\footnote{\small \url{http://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf}} on bidirectional typechecking for background. In our presentation, all introductory forms are analytic and all elimination forms are synthetic. 
+
+The introductory form for object types, $\keyw{enew}\,\{m\}$, prevents the manual introduction of parse streams (only the semantics can introduce parse streams, to permit us to enforce hygiene, as we will discuss below). The auxiliary judgement $\Gamma \vdash_\Theta^T m \leadsto \dot{m} \Leftarrow \omega$ analyzes the member definitions $m$ against the member declarations $\omega$ while rewriting them to the internal member definitions, $\dot{m}$. Method definitions involve a self-reference, so the judgement keeps track of the type  name, $T$. We implicitly assume that member definitions and declarations are congruent up to reordering.
+
+The introduction form for case types is written $\keyw{einj}[C](e)$, where $C$ is the case name and $e$ is the associated data. The type of the data associated with each case is stored in the case type's declaration, $\chi$. Because the introductory form is analytic, multiple case types can use the same case names (unlike in, for example, ML). The elimination form, $\keyw{ecase}(e)\,\{r\}$, performs simple exhaustive case analysis (we leave support for nested pattern matching as future work) using the auxiliary judgement $\Gamma \vdash_\Theta r \leadsto \dot{r} \Leftarrow \chi \Rightarrow \tau$, which checks that each case in $\chi$ appears in a rules in the rule sequence $r$, rewriting it to the internal rule sequence $\dot{r}$. Every rule must synthesize the same type, $\tau$.
+
+The rule \textit{T-metadata} shows how the appropriate metadata is extracted from the named type context and inserted directly in the elaboration. We will return to the rule \textit{T-toast} when discussing hygiene.
 %\begin{figure}[t]
 %\begin{subfigure}[t]{.55\textwidth}
 %\begin{lstlisting}
@@ -257,7 +492,7 @@ These rules assume that a collection of built-in types are included by default a
 
 \subsection{Defining a TSL Manually}
 \input{statics}
-In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator based on Adams' formalism. A parser generator is itself merely a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The signature for the built-in type \li{Parser} is shown in Fig. 7. It is an object type with a \li{parse} function taking in a \li{TokenStream} and producing an AST of a Wyvern expression, which is of type \li{Exp}. This built-in type is shown also in Fig. 7. Note that there is a form for each form in the abstract syntax, $e$, as well as an \li{Error} form for indicating error messages (in the theory, nothing is done with these messages). As previously mentioned, quasiquotes are merely a TSL that allows one to construct the abstract syntax, represented as this case type, using concrete syntax, with the addition of an unquote mechanism.
+In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator using an Adams grammar. A parser generator is itself merely a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The signature for the built-in type \li{Parser} is shown in Fig. 7. It is an object type with a \li{parse} function taking in a \li{TokenStream} and producing an AST of a Wyvern expression, which is of type \li{Exp}. This built-in type is shown also in Fig. 7. Note that there is a form for each form in the abstract syntax, $e$, as well as an \li{Error} form for indicating error messages (in the theory, nothing is done with these messages). As previously mentioned, quasiquotes are merely a TSL that allows one to construct the abstract syntax, represented as this case type, using concrete syntax, with the addition of an unquote mechanism.
 
 The \verb|parse| function for a type $t$ is called when checking a literal form against that type. This is seen in the key rule of our statics: \textit{T-lit}, in Fig. 9. The premises of these rules operate as follows:
 \begin{enumerate}
@@ -271,6 +506,34 @@ The \verb|parse| function for a type $t$ is called when checking a literal form 
 \item The TSL must consume the entire token stream, so this is checked.
 \end{enumerate}
 \subsection{Hygiene}
+\newcommand{\Gout}{\Gamma_{\text{out}}}
+\newcommand{\Gin}{\Gamma}
+\begin{figure}[t]
+$\fbox{$\Gamma; \Gamma \vdash_\Theta \ih \leadsto i \Rightarrow \tau$}$~
+$\fbox{$\Gamma; \Gamma \vdash_\Theta \ih \leadsto i \Leftarrow \tau$}$
+\[
+\begin{array}{c}
+\infer[\textit{H-var}]
+	{\Gout; \Gin \vdash_\Theta x \leadsto x \Rightarrow\tau } 
+	{x:\tau \in \Gin }
+~~~~~
+\infer[\textit{H-abs}]
+	{\Gout; \Gin \vdash_\Theta  \keyw{hlam}(x . \ih) \leadsto \keyw{ilam}(x.i) \Leftarrow \keyw{arrow}[\tau_1,  \tau_2] } 
+	{\Gout; \Gin, x:\tau_1 \vdash_\Theta \ih\leadsto i\Leftarrow \tau_2 }\\[1ex]
+\cdots\\[1ex]
+\infer[\textit{H-spl-A}]
+	{\Gout; \Gin \vdash_\Theta \keyw{spliced}[e] \leadsto i \Leftarrow \tau}
+	{\Gout \vdash_\Theta e \leadsto i \Leftarrow \tau}~~~~
+
+\infer[\textit{H-spl-S}]
+	{\Gout; \Gin \vdash_\Theta \keyw{spliced}[e] \leadsto i \Rightarrow \tau}
+	{\Gout \vdash_\Theta e \leadsto i \Rightarrow \tau}
+\end{array}
+\]
+\caption{Statics for translational terms, $\ih$. Each rule in Fig. \ref{fig:statics1} corresponds to an analagous rule here by threading the outer context through opaquely (e.g. the rules for variables and functions, shown here). The outer context is only used by the rules for $\keyw{spliced}[e]$, representing external terms that were spliced into TSL bodies. Only these terms can access outer variables, achieving hygiene (see text). Note that elaboration is implicitly capture-avoiding here (we assume globally unique names for internal variables can be generated whenever necessary, see Sec. \ref{s:implementation}).}
+\label{fig:staticsHat}
+\end{figure}
+
 A concern with any term rewriting system is \emph{hygiene} -- how should variables in the generated AST be bound? In particular, if the rewriting system generates an \emph{open term}, then it is making assumptions about the names of variables in scope at the site where the TSL is being used, which is incorrect - those variables should only be identifiable up to alpha renaming. Only the \emph{user} of a TSL knows which variables are in scope. Strict hygiene would simply reject all open terms, but this would prevent even nested Wyvern expressions which the user provided from referring to local variables.
 
 The solution to being able to capture variables in portions of the tokenstream that are parsed as Wyvern only is to add a new term to the abstract syntax that has no corresponding form in the concrete syntax: $\keyw{fromTS}(e)$. This means: "this is a term that was parsed from the user's tokenstream". It can be generated by calling \li{ts.as_wyv_exp(tok)}, which returns a the remaining tokenstream as well as the value  \li{Exp.FromTS(ts, tok)}. When we dereify this term, we turn this into the form $\keyw{fromTS}(e)$, where $e$ is the result of parsing the tokenstream as a Wyvern expression until an unexpected token \li{tok} appears.
@@ -283,14 +546,14 @@ A second facet of hygiene is being able to refer to local variables available wi
 
 \subsection{Safety}
 \begin{figure}[t]
-$\fbox{$\Gamma \vdash_\Sigma i \Leftarrow \tau$}$~
-$\fbox{$\Gamma \vdash_\Sigma i \Rightarrow \tau$}$~~~~~~$\cdots$
+$\fbox{$\Gamma \vdash_\Theta i \Rightarrow \tau$}$~
+$\fbox{$\Gamma \vdash_\Theta i \Leftarrow \tau$}$~~~~~~$\cdots$
 $
 \begin{array}{c}
-~~~~~~\infer[\textit{IT-obj-intro}]
-	{\Gamma \vdash_\Sigma \keyw{inew}\,\{\dot{d}\} \Leftarrow \keyw{named}[T]}
-	{T[\omega,\mu] \in \Sigma & 
-	\Gamma \vdash_\Sigma^T \dot{d} \Leftarrow \omega}
+~~~~~~\infer[\textit{IT-new}]
+	{\Gamma \vdash_\Theta \keyw{inew}\,\{\dot{m}\} \Leftarrow \keyw{named}[T]}
+	{T[\omega,\mu] \in \Theta & 
+	\Gamma \vdash_\Theta^T \dot{m} \Leftarrow \omega}
 \end{array}
 $\\[1ex]
 \caption{Statics for internal terms, $i$. Each rule in Fig. \ref{fig:statics1} corresponds to an analogous rule here by removing the elaboration portion. Only the rule for object introduction differs, in that it does not restrict the introduction of parse streams. }
@@ -298,21 +561,17 @@ $\\[1ex]
 \vspace{-5px}
 \end{figure}
 \begin{figure}[t]
-$\fbox{$i \xmapsto[\Sigma]{} i$}$~~~~~~$\cdots$~~~~$\begin{array}{c}
-\infer[\textit{D1}]
-	{\keyw{imetadata}[T] \xmapsto[\Sigma]{} i} 
-	{T[\delta,i:\tau] \in \Sigma}
-~~~~
-\infer[\textit{D2}]
-	{\keyw{itoast}(i) \xmapsto[\Sigma]{} \keyw{itoast}(i') } 
-	{i \xmapsto[\Sigma]{} i'}
-~~~~
-\infer[\textit{D3}]
-	{\keyw{itoast}(i)  \xmapsto[\Sigma]{} i' } 
+$\fbox{$i \xmapsto{} i$}$~~~~~~$\cdots$~~~~$\begin{array}{c}
+\infer[\textit{D-Toast-1}]
+	{\keyw{itoast}(i) \xmapsto{} \keyw{itoast}(i') } 
+	{i \xmapsto{} i'}
+~~~~~~
+\infer[\textit{D-Toast-2}]
+	{\keyw{itoast}(i)  \xmapsto{} i' } 
 	{i\ \texttt{val} & i \downarrow i' }\\[2ex]
 \end{array}
 $
-\caption{Dynamics for internal terms, $i$. Only internal terms have a dynamic semantics. Most constructs in TSL Wyvern are standard and omitted, as our focus in this paper is on the statics (see \cite{pfpl} Chs. XXXX). The rules for the operators for extracting metadata and extracting an AST from a value are shown.}
+\caption{Dynamics for internal terms, $i$. Only internal terms have a dynamic semantics. Most constructs in TSL Wyvern are standard and omitted, as our focus in this paper is on the statics (see \cite{pfpl} Chs. XXXX). The only novel internal form, $\keyw{itoast}(i)$, extracts an AST (of type $\keyw{named}[Exp]$) from the value of $i$, shown.}
 \label{fig:dynsemantics}
 \end{figure}
 
