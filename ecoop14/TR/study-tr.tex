@@ -1,0 +1,487 @@
+% !TEX root = ecoop14-tr.tex
+
+\appendix
+
+\section{Corpus Analysis Methodology}
+
+Due to space limitations for our ECOOP'14 paper, some of the details of the methodology used to perform the corpus analysis were omitted. Here we restore the omission and provide a more detailed description of the used methodology.
+
+For our analysis we used a recent version (20130901r) of the Qualitas Corpus~\cite{QualitasCorpus:APSEC:2010}, consisting of 107 Java projects. As the projects in the corpus contained various types of files that are necessary for a correct project setup in a programming environment but we were interested solely in the \lstinline{.java} files, we ran the following commands in a terminal to remove all the non-Java files:
+
+\begin{lstlisting}
+find . -type f -not -name "*.java" -exec rm {} \;
+find . -type d -empty -delete
+\end{lstlisting}
+
+Having obtained a set of exclusively Java files, we ran the following commands to find all constructors in the code:
+
+\begin{lstlisting}
+grep -r -n '[[:space:]]*public[[:space:]]*[A-Z][a-zA-Z0-9_-]*[[:space:]]*(' . >~/tmp/public-constructors.txt 2>/dev/null;
+grep -r -n '[[:space:]]*protected[[:space:]]*[A-Z][a-zA-Z0-9_-]*[[:space:]]*(' . >~/tmp/protected-constructors.txt 2>/dev/null;
+grep -r -n '[[:space:]]*private[[:space:]]*[A-Z][a-zA-Z0-9_-]*[[:space:]]*(' . >~/tmp/private-constructors.txt 2>/dev/null;
+grep -r -n '^[[:space:]]*[A-Z][a-zA-Z0-9_-]*[[:space:]]*(' . >~/tmp/package-private-constructors.txt 2>/dev/null;
+\end{lstlisting}
+
+These commands use several observations pertaining to Java constructors:
+
+\begin{enumerate}
+\item Constructor names start with a capital letter.
+\item Constructor names are usually followed by an opening parenthesis.
+\item Constructor names may be prepended by scope-related keywords, such as \lstinline{public}, \lstinline{protected}, and \lstinline{private}, or may not have any keywords in front of them (which means they are package private).
+\item Constructor names or their scope-related keywords may have zero or more whitespace characters before them and no other characters.
+\item There may be zero or more whitespace characters between the constructor name and an opening parenthesis and no other characters.
+\end{enumerate}
+
+According to these observations, the first command is to find all public constructors, second all protected constructors, third all private constructors, and fourth all package-private constructors. After the four corresponding files were created, we did a quick visual scan through to verify that only constructors were found, merged the four files into one, and concluded that there were 124,873 Java constructors.
+
+Having obtained a collection of constructors, we used the following \emph{vi} text editor's command to find constructors that take in at least one \lstinline{String} argument:
+
+\begin{lstlisting}
+:g/String /
+\end{lstlisting}
+
+Running this command, we found that there were 30,161 constructors, i.e., 24\% of the total, that had at least one \lstinline{String} argument. Then, we searched for constructors that used \lstinline{String}s that could be substituted with TSLs. We did a visual scan of the constructors' signatures and inferred the functionality of the constructor and the \lstinline argument it was taking in. To give an intuition for how the inference process went, below we give a positive example, i.e., an example of a constructor in which we concluded that a TSL could be used instead of the \lstinline{String} argument, and a negative example, i.e., an example of a constructor in which we concluded that, although the constructor had a \lstinline{String} argument, using a TSL instead might not have benefited the implementation.
+
+
+\paragraph{Positive Example} Consider the following example, which was positively classified in our code analysis:
+
+\vspace{10px}
+
+\begin{small}
+
+\noindent \textbf{Constructor:} public IPAddressConversion(String IPaddr)
+
+\noindent \textbf{File:} \path{jtopen-7.1/com/ibm/as400/util/commtrace/IPAddressConversion.java}
+
+\noindent \textbf{Line:} 51
+
+\end{small}
+
+\vspace{10px}
+
+
+This constructor was found in the JROpen project, on line 51 in a file called \mbox{\lstinline{IPAddressConversion.java}}. The constructor is called \lstinline{IPAddressConversion} and the name of the \lstinline{String} argument is \lstinline{IPaddr}. From these pieces of information, we inferred that the \lstinline{String} argument represented an IP address, which is usually of the form:
+
+\begin{lstlisting}
+D.D.D.D
+\end{lstlisting}
+
+\noindent where D is a number between 0 and 255. This format could be represented by a Wyvern TSL\footnote{We assume an IP address of IPv4, but an IP address of IPv6 can be represented by a TSL in a similar fashion.}:
+
+\begin{lstlisting}
+casetype IPAddress
+  ...
+  metadata = new : HasTSL
+    val parser = ~
+      start <- e1::EXP '.' e2::EXP '.' e3::EXP '.' e4::EXP
+        '%e1% : Number0to255'
+        '%e2% : Number0to255'
+        '%e3% : Number0to255'
+        '%e4% : Number0to255'
+\end{lstlisting}
+
+\noindent where \lstinline{Number0to255} is another Wyvern TSL denoting numbers from 0 to 255.
+
+Hence, the constructor could use a TSL instead of the \lstinline{String} argument and thus benefit from a guarantee that at the runtime the passed-in argument adheres to the necessary format.
+
+
+\paragraph{Negative Example} A negative example in our inference process, i.e., a constructor that has at least one \lstinline{String} argument but may not benefit from substituting it with a TSL, is presented below:
+
+\vspace{10px}
+
+\begin{small}
+
+\noindent \textbf{Constructor:} public InternalEntity(String name, String text, \mbox{boolean inExternalSubset})
+
+\noindent \textbf{File:} \path{xerces-2.10.0/src/org/apache/xerces/impl/XMLEntityManager.java}
+
+\noindent \textbf{Line:} 2,486
+
+\end{small}
+
+\vspace{10px}
+
+This constructor was found in the Xerces project, on line 2,486 of a file called \mbox{\lstinline{XMLEntityManager.java}}. The name of the constructor is \lstinline{InternalEntity}, and it has two \lstinline{String} arguments: one called \lstinline{name} and the other called \lstinline{text}. The name of the constructor and the names of the passed-in \lstinline{String} arguments are generic and thus we cannot infer the exact functionality of the constructor. In turn, we cannot suggest a TSL to be used to capture the functionality. Therefore, it is not obvious that the constructor would benefit from using a TSL instead of any of its \lstinline{String} arguments, and we classify this example as negative.
+
+To give an insight into all types of \lstinline{String}s that we identified, we provide examples for each type: Figure~\ref{identifier} presents examples for the ``Identifier'' category; Figure~\ref{path} presents examples for the ``Directory path'' category; Figure~\ref{pattern} presents examples for the ``Pattern'' category; Figure~\ref{url} presents examples for the ``URL/URI'' category; Figure~\ref{other} presents examples for the ``Other'' category (containing several subtypes of \lstinline{String}s).
+
+
+
+\begin{figure}
+
+\begin{enumerate}
+
+\item
+\textbf{Constructor:} \mbox{public CatalogEntry(String publicID, CatalogReader catalog)}
+
+\textbf{File:} \path{netbeans-6.9.1/xml.catalog/src/org/netbeans/modules/xml/catalog/CatalogEntry.java}
+
+\textbf{Line:} 64
+
+\vspace{6px}
+
+\item
+\textbf{Constructor:} \mbox{public ConfigurableAwtMenu(String menuID, VariableBundle vars)}
+
+\textbf{File:} \path{pooka-3.0-080505/net/suberic/util/gui/ConfigurableAwtMenu.java}
+
+\textbf{Line:} 35
+
+\vspace{6px}
+
+\item
+\textbf{Constructor:} public ExternalRuleID(String id)
+
+\textbf{File:} \path{pmd-4.2.5/src/net/sourceforge/pmd/ExternalRuleID.java}
+
+\textbf{Line:} 11
+
+\end{enumerate}
+
+\vspace{-12px}
+
+\caption{Examples of constructors in the ``Identifier'' category (process ID, user ID, column or row IDs, etc.)}
+\label{identifier}
+\end{figure}
+
+
+\begin{figure}
+
+\begin{enumerate}
+
+\item
+\textbf{Constructor:} public VersionRelease(String homeDir)
+
+\textbf{File:} \path{jboss-5.1.0/build/VersionRelease.java}
+
+\textbf{Line:} 72
+
+\vspace{6px}
+
+%\item
+%\textbf{Constructor:} public Shard(long version, String dir, long gen)
+%
+%\textbf{File:} \path{hadoop-1.0.0/src/contrib/index/src/java/org/apache/hadoop/contrib/index/mapred/Shard.java}
+%
+%\textbf{Line:} 113
+%
+%\vspace{6px}
+
+\item
+\textbf{Constructor:} public DataQueueDocument (AS400 system, String path)
+
+\textbf{File:} \path{jtopen-7.1/com/ibm/as400/vaccess/DataQueueDocument.java}
+
+\textbf{Line:} 140
+
+\vspace{6px}
+
+\item
+\textbf{Constructor:} public ClassPathContextResource(String path, ClassLoader classLoader)
+
+\textbf{File:} \path{springframework-3.0.5/projects/org.springframework.core/src/main/java/org/springframework/core/io/DefaultResourceLoader.java}
+
+\textbf{Line:} 127
+
+\end{enumerate}
+
+\vspace{-12px}
+
+\caption{Examples of constructors in the ``Directory path'' category}
+\label{path}
+\end{figure}
+
+
+\begin{figure}
+
+\begin{enumerate}
+
+\item
+\textbf{Constructor:} public RegexFilter(String regex)
+
+\textbf{File:} \path{drjava-stable-20100913-r5387/src/edu/rice/cs/drjava/config/RecursiveFileListProperty.java}
+
+\textbf{Line:} 61
+
+\vspace{6px}
+
+\item
+\textbf{Constructor:} public NameEndsWith(String suffix)
+
+\textbf{File:} \path{struts-2.2.1/src/xwork-core/src/main/java/com/opensymphony/xwork2/util/ResolverUtil.java}
+
+\textbf{Line:} 141
+
+\vspace{6px}
+
+\item
+\textbf{Constructor:} public NumberEditor(JSpinner jSpinner, \mbox{String decimalFormat)}
+
+\textbf{File:} \path{netbeans-6.9.1/html/src/org/netbeans/modules/html/palette/items/OLCustomizer.java}
+
+\textbf{Line:} 303
+
+%\vspace{6px}
+%
+%\item
+%\textbf{Constructor:} public JDSQLTokenizer(String statement, String delimiters)
+%
+%\textbf{File:} \path{jtopen-7.1/com/ibm/as400/access/JDSQLTokenizer.java}
+%
+%\textbf{Line:} 79
+
+\end{enumerate}
+
+\vspace{-12px}
+
+\caption{Examples of constructors in the ``Pattern'' category (regular expressions, prefixes and suffixes, delimiters, format templates, etc.)}
+\label{pattern}
+\end{figure}
+
+
+\begin{figure}
+
+\begin{enumerate}
+
+\item
+\textbf{Constructor:} public XConnection(ExpressionContext exprContext, String driver, String dbURL, String user, String password)
+
+\textbf{File:} \path{xalan-2.7.1/src/org/apache/xalan/lib/sql/XConnection.java}
+
+\textbf{Line:} 239
+
+\vspace{6px}
+
+\item
+\textbf{Constructor:} public DOMLocatorImpl(int lineNumber, int \mbox{columnNumber,} String uri)
+
+\textbf{File:} \path{xerces-2.10.0/src/org/apache/xerces/dom/DOMLocatorImpl.java}
+
+\textbf{Line:} 82
+
+\vspace{6px}
+
+\item
+\textbf{Constructor:} public MockHttpServletRequest(ServletContext \mbox{servletContext,} String method, String requestURI)
+
+\textbf{File:} \path{springframework-3.0.5/projects/org.springframework.web/src/test/java/org/springframework/mock/web/MockHttpServletRequest.java}
+
+\textbf{Line:} 223
+
+%\vspace{6px}
+%
+%\item
+%\textbf{Constructor:} public WebBrowserInput(String url)
+%
+%\textbf{File:} \path{rssowl-2.0.5/org.rssowl.ui/src/org/rssowl/ui/internal/editors/browser/WebBrowserInput.java}
+%
+%\textbf{Line:} 54
+
+\end{enumerate}
+
+\vspace{-12px}
+
+\caption{Examples of constructors in the ``URL/URI'' category}
+\label{url}
+\end{figure}
+
+
+\begin{figure}
+
+\begin{enumerate}
+\item \textit{ZIP code}
+
+\textbf{Constructor:} public Customer(Integer customerId, String zip)
+
+\textbf{File:} \path{netbeans-6.9.1/websvc.rest/test/unit/data/testsrc/com/acme/Customer.java}
+
+\textbf{Line:} 69
+
+\vspace{6px}
+
+%\textbf{Constructor:} public Address(Student student, String type, String street, String city, String stateProvince, String postalCode, String country)
+%
+%\textbf{File:} \path{hibernate-4.2.2/project/hibernate-core/src/test/java/org/hibernate/test/querycache/Address.java}
+%
+%\textbf{Line:} 22
+%
+%\vspace{6px}
+
+
+\item \textit{Password}
+
+%\textbf{Constructor:} public SimpleDriverDataSource(Driver driver, String url, String username, String password)
+%
+%\textbf{File:} \path{springframework-3.0.5/projects/org.springframework.jdbc/src/main/java/org/springframework/jdbc/datasource/SimpleDriverDataSource.java}
+%
+%\textbf{Line:} 83
+%
+%\vspace{6px}
+
+\textbf{Constructor:} public WrappedConnectionRequestInfo(final String user, final String password)
+
+\textbf{File:} \path{jboss-5.1.0/connector/src/main/org/jboss/resource/adapter/jdbc/WrappedConnectionRequestInfo.java}
+
+\textbf{Line:} 39
+
+\vspace{6px}
+
+
+\item \textit{Query}
+
+%\textbf{Constructor:} public SqlFunction(DataSource ds, String sql, int[] types, Class$<$T$>$ resultType)
+%
+%\textbf{File:} \path{springframework-3.0.5/projects/org.springframework.jdbc/src/main/java/org/springframework/jdbc/object/SqlFunction.java}
+%
+%\textbf{Line:} 104
+%
+%\vspace{6px}
+
+\textbf{Constructor:} public JDBCXYDataset(Connection con, String query)
+
+\textbf{File:} \path{jfreechart-1.0.13/source/org/jfree/data/jdbc/JDBCXYDataset.java}
+
+\textbf{Line:} 175
+
+\vspace{6px}
+
+
+\item \textit{HTML/XML}
+
+\textbf{Constructor:} public HtmlContentPopUp(java.awt.Frame parent, String title, boolean modal, String html)
+
+\textbf{File:} \path{jag-6.1/src/com/finalist/jaggenerator/HtmlContentPopUp.java}
+
+\textbf{Line:} 88
+
+\vspace{6px}
+
+%\textbf{Constructor:} public PortalConfigData(String xml)
+%
+%\textbf{File:} \path{exoportal-v1.0.2 copy/services/portal/impl/src/java/org/exoplatform/services/portal/impl/PortalConfigData.java}
+%
+%\textbf{Line:} 23
+%
+%\vspace{6px}
+
+
+\item \textit{IP address}
+
+%\textbf{Constructor:} public IPAddressConversion(String IPaddr)
+%
+%\textbf{File:} \path{jtopen-7.1/com/ibm/as400/util/commtrace/IPAddressConversion.java}
+%
+%\textbf{Line:} 51
+%
+%\vspace{6px}
+
+\textbf{Constructor:} public HostRecord(String ip, String name, boolean ssh)
+
+\textbf{File:} \path{netbeans-6.9.1/cnd.remote/src/org/netbeans/modules/cnd/remote/ui/wizard/HostsListTableModel.java}
+
+\textbf{Line:} 173
+
+\vspace{6px}
+
+
+\item \textit{Version}
+
+%\textbf{Constructor:} public SQLiteAdapter(String version)
+%
+%\textbf{File:} \path{netbeans-6.9.1/ruby.railsprojects/src/org/netbeans/modules/ruby/railsprojects/database/SQLiteAdapter.java}
+%
+%\textbf{Line:} 59
+%
+%\vspace{6px}
+
+\textbf{Constructor:} public EncryptHeader(short type, String version)
+
+\textbf{File:} \path{jgroups-2.10.0/src/org/jgroups/protocols/ENCRYPT.java}
+
+\textbf{Line:} 1,147
+
+\end{enumerate}
+
+\vspace{-12px}
+
+\caption{Examples of constructors in the ``Other'' category}
+\label{other}
+\end{figure}
+
+% EXAMPLES %
+%
+%\begin{itemize}
+%\item Identifier
+%\begin{lstlisting}
+%./netbeans-6.9.1/j2ee.samples/samples_src/JsfJpa/src/java/enterprise/jsf_jpa_war/Wuser.java:88:    public Wuser(Integer id, String firstname, String lastname, String username, String password) {
+%./netbeans-6.9.1/xml.catalog/src/org/netbeans/modules/xml/catalog/CatalogEntry.java:64:    public CatalogEntry(String publicID, CatalogReader catalog) {
+%./pooka-3.0-080505/net/suberic/util/gui/ConfigurableAwtMenu.java:35:  public ConfigurableAwtMenu(String menuID, VariableBundle vars) {
+%./pmd-4.2.5/src/net/sourceforge/pmd/ExternalRuleID.java:11:    public ExternalRuleID(String id) {
+%\end{lstlisting}
+%
+%\item Directory path
+%\begin{lstlisting}
+%./jboss-5.1.0/build/VersionRelease.java:72:   public VersionRelease(String homeDir)
+%./hadoop-1.0.0/src/contrib/index/src/java/org/apache/hadoop/contrib/index/mapred/Shard.java:113:  public Shard(long version, String dir, long gen) {
+%./jtopen-7.1/com/ibm/as400/vaccess/DataQueueDocument.java:140:    public DataQueueDocument (AS400 system, String path)
+%./springframework-3.0.5/projects/org.springframework.core/src/main/java/org/springframework/core/io/DefaultResourceLoader.java:127:		public ClassPathContextResource(String path, ClassLoader classLoader) {
+%\end{lstlisting}
+%
+%\item Pattern
+%\begin{lstlisting}
+%./drjava-stable-20100913-r5387/src/edu/rice/cs/drjava/config/RecursiveFileListProperty.java:61:    public RegexFilter(String regex) {
+%./struts-2.2.1/src/xwork-core/src/main/java/com/opensymphony/xwork2/util/ResolverUtil.java:141:        public NameEndsWith(String suffix) { this.suffix = suffix; }
+%./netbeans-6.9.1/html/src/org/netbeans/modules/html/palette/items/OLCustomizer.java:303:        public NumberEditor(JSpinner jSpinner, String decimalFormat) {
+%./jtopen-7.1/com/ibm/as400/access/JDSQLTokenizer.java:79:  public JDSQLTokenizer(String statement, String delimiters)
+%\end{lstlisting}
+%
+%\item URL/URI
+%\begin{lstlisting}
+%./xalan-2.7.1/src/org/apache/xalan/lib/sql/XConnection.java:239:  public XConnection( ExpressionContext exprContext, String driver, String dbURL, String user, String password )
+%./xerces-2.10.0/src/org/apache/xerces/dom/DOMLocatorImpl.java:82:   public DOMLocatorImpl (int lineNumber, int columnNumber, String uri ){
+%./springframework-3.0.5/projects/org.springframework.web/src/test/java/org/springframework/mock/web/MockHttpServletRequest.java:223:	public MockHttpServletRequest(ServletContext servletContext, String method, String requestURI) {
+%./rssowl-2.0.5/org.rssowl.ui/src/org/rssowl/ui/internal/editors/browser/WebBrowserInput.java:54:  public WebBrowserInput(String url) {
+%\end{lstlisting}
+%
+%\item Other:
+%\begin{itemize}
+%\item ZIP code
+%\begin{lstlisting}
+%./netbeans-6.9.1/websvc.rest/test/unit/data/testsrc/com/acme/Customer.java:69:    public Customer(Integer customerId, String zip) {
+%./hibernate-4.2.2/project/hibernate-core/src/test/java/org/hibernate/test/querycache/Address.java:22:	public Address(Student student, String type, String street, String city, String stateProvince, String postalCode, String country) {
+%\end{lstlisting}
+%
+%\item password
+%\begin{lstlisting}
+%./springframework-3.0.5/projects/org.springframework.jdbc/src/main/java/org/springframework/jdbc/datasource/SimpleDriverDataSource.java:83:	public SimpleDriverDataSource(Driver driver, String url, String username, String password) {
+%./jboss-5.1.0/connector/src/main/org/jboss/resource/adapter/jdbc/WrappedConnectionRequestInfo.java:39:   public WrappedConnectionRequestInfo(final String user, final String password)
+%\end{lstlisting}
+%
+%\item query
+%\begin{lstlisting}
+%./springframework-3.0.5/projects/org.springframework.jdbc/src/main/java/org/springframework/jdbc/object/SqlFunction.java:104:	public SqlFunction(DataSource ds, String sql, int[] types, Class<T> resultType) {
+%./jfreechart-1.0.13/source/org/jfree/data/jdbc/JDBCXYDataset.java:175:    public JDBCXYDataset(Connection con, String query) throws SQLException {
+%\end{lstlisting}
+%
+%\item HTML/XML
+%\begin{lstlisting}
+%./jag-6.1/src/com/finalist/jaggenerator/HtmlContentPopUp.java:88:   public HtmlContentPopUp(java.awt.Frame parent, String title, boolean modal, String html) {
+%./exoportal-v1.0.2 copy/services/portal/impl/src/java/org/exoplatform/services/portal/impl/PortalConfigData.java:23:  public PortalConfigData(String xml ) throws Exception {
+%\end{lstlisting}
+%
+%\item IP address
+%\begin{lstlisting}
+%./jtopen-7.1/com/ibm/as400/util/commtrace/IPAddressConversion.java:51public IPAddressConversion(String IPaddr) {
+%./netbeans-6.9.1/cnd.remote/src/org/netbeans/modules/cnd/remote/ui/wizard/HostsListTableModel.java:173:        public HostRecord(String ip, String name, boolean ssh) {
+%\end{lstlisting}
+%
+%\item version
+%\begin{lstlisting}
+%./netbeans-6.9.1/ruby.railsprojects/src/org/netbeans/modules/ruby/railsprojects/database/SQLiteAdapter.java:59:    public SQLiteAdapter(String version) {
+%./jgroups-2.10.0/src/org/jgroups/protocols/ENCRYPT.java:1147:        public EncryptHeader(short type,String version) {
+%\end{lstlisting}
+%
+%\end{itemize}
+%
+%\end{itemize}
+%
