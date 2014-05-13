@@ -35,7 +35,7 @@ page(case(5 : Nat))
 \quad\quad \textit{<\{x\}}])), page.\\
 \keyw{eap}(page; \keyw{ecase}(\keyw{easc}[\keyw{named}[Nat]](\keyw{lit}[5]))\,\{\\
 \quad \keyw{erule}[Z](\_.\keyw{eprj}[y](\keyw{easc}[\keyw{named}[T](\keyw{enew}\,\{\\
-\quad\quad \keyw{eval}[y](\keyw{lit}[\textit{>h1 Zero!}])\})));\\
+\quad\quad \keyw{eval}[y](\keyw{lit}[\textit{>h1 Zero!}]); \emptyset\})));\\
 \quad \keyw{erule}[S](x.\keyw{lit}[\textit{>h1 Sucessor!}]); \emptyset\\
 \}))\end{array}
 \]
@@ -48,9 +48,9 @@ The concrete syntax of TSL Wyvern is shown in Fig \ref{f-grammar}. An example Wy
 The top level of a program (the \lstinline{p} non-terminal) consists of a series of named type declarations -- object types using \lstinline{objtype} or case types using \lstinline{casetype} -- followed by an expression, \lstinline{e}. Each named type declaration can also include a metadata declaration. Metadata is simply an expression associated with the type, used to store TSL logic (and in future work, other metadata). In the grammar, sequences of top-level declarations use the form \lstinline{p$^=$} to signify that all the succeeding \lstinline{p} terms must begin at the same indentation. We do not specify separate compilation here, as this is an orthogonal issue.
 
 \subsection{Forward Referenced Blocks}
-Wyvern makes extensive use of forward referenced blocks to make its syntax clean. In particular, layout-delimited TSLs, \li{new} expressions for introducing objects, and \keyw{case} expressions for eliminating case types all make use of forward referenced blocks. Fig. \ref{fig:fwd-ref} shows all of these in use (assuming suitable definitions of casetypes \li{Nat} and \li{HTML}). 
+Wyvern makes extensive use of forward referenced blocks to make its syntax clean. In particular, layout-delimited TSLs, \li{new} expressions for introducing objects, and \li{case} expressions for eliminating case types and tuples all make use of forward referenced blocks. Fig. \ref{fig:fwd-ref} shows these in use (assuming suitable definitions of \li{Nat} and \li{HTML}). 
 
-Each line in the concrete syntax can contain either zero or one forward references. We distinguish these in the grammar by defining separate non-terminals $\overline{\texttt{e}}$ and $\widetilde{\texttt{e}}$. Note particularly the rules for \li{let} (which permit an expression to span multiple lines and so can be used to support multiple forward references in a single expression).
+Each line in the concrete syntax can contain either zero or one forward references. We distinguish these in the grammar by defining separate non-terminals $\overline{\texttt{e}}$ and $\widetilde{\texttt{e}}\texttt{[fwd]}$, where the parameter $\texttt{fwd}$ is the particular forward reference form that occurs. Note particularly the rule for \li{let} (which permits an expression to span multiple lines and so can be used to support multiple forward references in a single expression).
 
 \subsection{Abstract Syntax}
 The concrete syntax of a Wyvern program, \li{p}, is parsed to a program in the abstract syntax, $\rho$, shown in Fig. \ref{fig:core2-syntax}. Forward references are internalized. Note that all literal forms are unified into the abstract literal form $\keyw{lit}[\mathit{body}]$, including the layout-delimited form and number literals. The body remains completely unparsed at this stage. The abstract syntax for the example in Fig. \ref{fig:fwd-ref} is shown to its right and demonstrates the key rewriting done at this stage. Simple product types can be rewritten as object types in this phase. We assume that this occurs so that we can avoid specifying them separately in the remainder of the paper, though we continue to use tuple notation for concision.
@@ -185,7 +185,7 @@ i    & \bnfdef & x \\
 \end{array}
 $\\[2ex]
 %\vspace{-12px}
-\caption{Abstract Syntax of TSL Wyvern programs ($\rho$), type declarations ($\theta$), types ($\tau$), external terms ($e$), translational terms ($\ih$) and internal terms ($i$) and auxiliary forms. Metavariable $T$ ranges over type names, $\ell$ over object member (field and method) labels, $C$ over case labels, $x$ over variables and $\mathit{body}$ over literal bodies. Tuple types are a mode of use of object types, so they are not included in the abstract syntax. For concision, we continue to write unit as $()$ and pairs as $(i_1, i_2)$ as needed.
+\caption{Abstract Syntax of TSL Wyvern programs ($\rho$), type declarations ($\theta$), types ($\tau$), external terms ($e$), translational terms ($\ih$) and internal terms ($i$) and auxiliary forms. Metavariable $T$ ranges over type names, $\ell$ over object member (field and method) labels, $C$ over case labels, $x$ over variables and $\mathit{body}$ over literal bodies. Tuple types are a mode of use of object types, so they are not included in the abstract syntax. For concision, we continue to write unit as $()$ and pairs as $(i_1, i_2)$ in abstract syntax as needed.
 }
 \label{fig:core2-syntax}
 \end{figure}
@@ -194,10 +194,12 @@ $\\[2ex]
 
 \section{Bidirectional Typechecking and Elaboration}
 \label{s:statics}
-We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2-syntax}. Conventional type systems are specified using a typing judgement written like $\Gamma \vdash_{\Theta} e : \tau$, where the typing context, $\Gamma$, maps bound variables to types, and the named type context, $\Theta$, maps type names to their declarations. Such typing judgements do not fully specify wheter, when writing a typechecker, the type should be considered an input or an output. In some situations, a type propagates in from the surrounding syntactic context (e.g. when the term appears as a function argument, or an explicit ascription has been provided), so that we simply need to \emph{analyze} $e$ against it. In others, we need to \emph{synthesize} a type for $e$ (e.g. when the term appears at the  top-level). Here, this distinction is crucial: a literal can only appear in an analytic context. 
-
+We will now specify a type system for the abstract syntax in Fig. \ref{fig:core2-syntax}. Conventional type systems are specified using a typing judgement written like $\Gamma \vdash_{\Theta} e : \tau$, where the typing context, $\Gamma$, maps bound variables to types, and the named type context, $\Theta$, maps type names to their declarations. Such typing judgements do not fully specify whether, when writing a typechecker, the type should be considered an input or an output. In some situations, a type propagates in from the surrounding syntactic context (e.g. when the term appears as a function argument, or an explicit ascription has been provided), so that we simply need to \emph{analyze} $e$ against it. In others, we need to \emph{synthesize} a type for $e$ (e.g. when the term appears at the  top-level). Here, this distinction is crucial: a literal can only appear in an analytic context. 
 \emph{Bidirectional type systems} \cite{Pierce:2000:LTI:345099.345100} make this distinction explicit by specifying the type system instead using two simultaneously defined typechecking judgements corresponding to these two situations. %In the latter situation, type annotations are unnecessary. 
-For TSL Wyvern, we need to also simultaneously perform an elaboration of the external language, which contains literals, to an \emph{internal language}, $i$, the syntax for which is shown on the right side of Fig. \ref{fig:core2-syntax}. The internal language does not have literals, nor a form for accessing the metadata of a named type explicitly (the elaboration process inserts the statically known metadata value, tracked by the named type context, directly). The judgement $\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$ means that under typing context $\Gamma$ and named type context $\Theta$, external term $e$ elaborates to internal term $i$ and synthesizes type $\tau$. The judgement $\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau$ is analagous but for situations where we are analyzing $e$ against type $\tau$. This manner of specifying a type-directed mapping from external terms to a smaller collection internal terms, which are the only terms that are given a dynamic semantics, is stylistically related to the Harper-Stone elaboration semantics for Standard ML \cite{Harper00atype-theoretic} so  our semantics for TSL Wyvern is a form of \emph{bidirectionally typed elaboration semantics}.% Note that both external and internal terms are classified by the same types (we will state this more precisely when we return to the metatheory in Sec. \ref{s:metatheory}).
+
+To support TSLs, we need to also, simultaneously with this process, perform an elaboration from external terms, which contain literals, to  \emph{internal terms}, $i$, the syntax for which is shown on the right side of Fig. \ref{fig:core2-syntax}. Internal terms contain neither literals nor the form for accessing the metadata of a named type explicitly (the elaboration process inserts the statically known metadata value, tracked by the named type context, directly). This manner of specifying a type-directed mapping from external terms to a smaller collection of internal terms, which are the only terms that are given a dynamic semantics, is related to the Harper-Stone elaboration semantics for Standard ML \cite{Harper00atype-theoretic}. Note that both terms share a type system.
+
+Our static semantics are thus formulated by combining these two ideas, forming a \emph{bidirectionally typed elaboration semantics}. The judgement $\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$ means that under typing context $\Gamma$ and named type context $\Theta$, external term $e$ elaborates to internal term $i$ and synthesizes type $\tau$. The judgement $\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau$ is analagous but for situations where we are analyzing $e$ against type $\tau$. % Note that both external and internal terms are classified by the same types (we will state this more precisely when we return to the metatheory in Sec. \ref{s:metatheory}).
 
 \begin{figure}[t]
 $\fbox{$\rho \sim \Theta \leadsto i : \tau$}$
@@ -274,7 +276,7 @@ $\begin{array}{c}\infer[\textit{Ty-named}]
 \label{f-statics-programs}
 \end{figure}
 \subsection{Programs and Type Declarations}
-Before considering these judgements in detail, let us briefly discuss the steps leading up to typechecking and elaboration of the top-level term, specified by the compilation judgement, $\rho \sim \Theta \leadsto i : \tau$, defined in Fig. \ref{f-statics-programs}. We first load the prelude, $\Theta_0$ (see Fig. \ref{f-prelude}),  then validate the provided user-defined type declarations, $\theta$, to produce a corresponding named typed context, $\Theta$. During this process, we synthesize a type for the associated metadata terms (under the empty typing context) and store their elaborations in the type context $\Theta$ (we do not evaluate the elaboration to a value immediately here, though in a language with effects, the choice of when to evaluate the term is important). Note that type names must be unique (we plan to use a URI-based mechanism in practice). Finally, the top-level external term must synthesize a type $\tau$ and produces an elaboration $i$ under an empty typing context and a named type context combining the prelude with the named type context induced by the user-defined types, written $\Theta_0 \Theta$.
+Before considering these judgements in detail, let us briefly discuss the steps leading up to typechecking and elaboration of the top-level term, specified by the compilation judgement, $\rho \sim \Theta \leadsto i : \tau$, defined in Fig. \ref{f-statics-programs}. We first load the prelude, $\Theta_0$ (see Fig. \ref{f-prelude}),  then validate the provided user-defined type declarations, $\theta$, to produce a corresponding named typed context, $\Theta$. During this process, we synthesize a type for the associated metadata terms (under the empty typing context) and store their elaborations in the type context $\Theta$ (we do not evaluate the elaboration to a value immediately here, though in a language with effects, the choice of when to evaluate the term is important). Note that type names must be unique (we plan to use a URI-based mechanism in practice). Finally, the top-level external term must synthesize a type $\tau$ and produce an elaboration $i$ under an empty typing context and a named type context combining the prelude with the named type context induced by the user-defined types, written $\Theta_0 \Theta$.
 
 \begin{figure}
 $\fbox{$\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$}$~
@@ -382,60 +384,11 @@ $\fbox{$\Gamma \vdash_\Theta r \leadsto \dot{r} \Leftarrow \chi \Rightarrow \tau
 \label{fig:statics1}
 \end{figure}
 \subsection{External Terms}
-\begin{figure}[t]
-\centering
-\[
-\footnotesize
-\begin{array}{c}
-\infer[\textit{T-lit}]
-	  {\Gamma \vdash_\Theta \keyw{lit}[\mathit{body}] \leadsto i \Leftarrow \keyw{named}[T]}
-	  {\begin{array}{c}
-	   \Theta_0 \subset \Theta ~~~~
-	   T[\delta, i_m : HasTSL] \in \Theta ~~~~
-	   \mathtt{parsestream}(\mathit{body})=i_{ps} \\
-	   \keyw{iap}(\keyw{iprj}[parse](\keyw{iprj}[parser](i_m)); i_{ps}) \Downarrow \keyw{iinj}[OK]((i_{ast}, i'_{ps}))\\
-	   i_{ast} \uparrow \ih~~~~
-	   \Gamma; \emptyset \vdash_\Theta \ih \leadsto i \Leftarrow \keyw{named}[T]
-	   \end{array}}
-%	  {\renewcommand{\arraystretch}{1}
-%	    \begin{array}{r}
-%	    \vdash \Delta_0, \Delta ~~~ \Delta_0, \Delta ;\emptyset; \emptyset \vdash t.\keyw{metadata}.parser\Leftarrow Parser \leadsto i_p ~~~ \texttt{TS(}\lfloor body \rfloor \texttt{)}\ \texttt{is}\ i_{ts}\\
-%            i_p.parse(i_{ts}) \Downarrow_{\Delta_0, \Delta} (i', \hat e_{ts}') ~~~  e \triangleleft  i'~~~ \Delta_0, \Delta;\Gamma', \Gamma; \emptyset\vdash e\Leftarrow t \leadsto i ~~~ \hat e_{ts}'\ \texttt{empty}
-%            \end{array}
-%       }
-%\infer[\textit{T-Tvar}]{
-%	\vdash_\Theta t
-%}{
-%	t : \{\_, \delta \} \in \Delta
-%}
-%~~~~~~~
-%\infer[\textit{T-Arr}]{
-%	\vdash_\Theta \tau_1 \rightarrow \tau_2
-%}{
-%	\vdash_\Theta \tau_1 & \vdash_\Theta \tau_2
-%}
-%~~~~~~~
-%\infer[?]{
-%	\vdash \emptyset
-%}{ }
-%~~~~
-%\infer[?]{
-%	\vdash \Delta, t : \{ \omega, \delta \}
-%}{
-%	\vdash \Delta & \vdash_\Theta \omega~\texttt{ok} & \Delta, t : \{\omega, -\} \vdash \delta
-%}
-\end{array}
-\]
-\caption{Statics for external terms, $e$, continued. This is the key rule (see text).}
-\label{fig:statics-lit}
-%\vspace{-10px}
-\end{figure}
-
-The bidirectional typechecking and elaboration rules for external terms are shown beginning in Fig. \ref{fig:statics1}. Nearly all the rules are standard for simply typed lambda calculus with labeled sums and labeled products, and the elaborations are direct. We refer the reader to standard texts on type systems (e.g. \cite{pfpl}) to understand the basic constructs, and to course material\footnote{\small \url{http://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf}} on bidirectional typechecking for background. In our presentation, all introductory forms are analytic and all elimination forms are synthetic. 
+The bidirectional typechecking and elaboration rules for external terms are specified beginning in Fig. \ref{fig:statics1}. Most of the rules are standard for a simply typed lambda calculus with labeled sums and labeled products, and the elaborations are direct to a corresponding internal form. We refer the reader to standard texts on type systems (e.g. \cite{pfpl}) to understand the basic constructs, and to course material\footnote{\scriptsize \url{http://www.cs.cmu.edu/~fp/courses/15312-f04/handouts/15-bidirectional.pdf}} on bidirectional typechecking for background. In our presentation, as in many simple formulations, all introductory forms are analytic and all elimination forms are synthetic, though this can be relaxed in practice to support some additional idioms. 
 
 The introductory form for object types, $\keyw{enew}\,\{m\}$, prevents the manual introduction of parse streams (only the semantics can introduce parse streams, to permit us to enforce hygiene, as we will discuss below). The auxiliary judgement $\Gamma \vdash_\Theta^T m \leadsto \dot{m} \Leftarrow \omega$ analyzes the member definitions $m$ against the member declarations $\omega$ while rewriting them to the internal member definitions, $\dot{m}$. Method definitions involve a self-reference, so the judgement keeps track of the type  name, $T$. We implicitly assume that member definitions and declarations are congruent up to reordering.
 
-The introduction form for case types is written $\keyw{einj}[C](e)$, where $C$ is the case name and $e$ is the associated data. The type of the data associated with each case is stored in the case type's declaration, $\chi$. Because the introductory form is analytic, multiple case types can use the same case names (unlike in, for example, ML). The elimination form, $\keyw{ecase}(e)\,\{r\}$, performs simple exhaustive case analysis (we leave support for nested pattern matching as future work) using the auxiliary judgement $\Gamma \vdash_\Theta r \leadsto \dot{r} \Leftarrow \chi \Rightarrow \tau$, which checks that each case in $\chi$ appears in a rules in the rule sequence $r$, rewriting it to the internal rule sequence $\dot{r}$. Every rule must synthesize the same type, $\tau$.
+The introduction form for case types is written $\keyw{einj}[C](e)$, where $C$ is the case name and $e$ is the associated data. The type of the data associated with each case is stored in the case type's declaration, $\chi$. Because the introductory form is analytic, multiple case types can use the same case names (unlike in, for example, ML). The elimination form, $\keyw{ecase}(e)\,\{r\}$, performs simple exhaustive case analysis (we leave support for nested pattern matching as future work) using the auxiliary judgement $\Gamma \vdash_\Theta r \leadsto \dot{r} \Leftarrow \chi \Rightarrow \tau$, which checks that each case in $\chi$ appears in a rule in the rule sequence $r$, elaborating it to the internal rule sequence $\dot{r}$. Every rule must synthesize the same type, $\tau$.
 
 The rule \textit{T-metadata} shows how the appropriate metadata is extracted from the named type context and inserted directly in the elaboration. We will return to the rule \textit{T-toast} when discussing hygiene.
 %\begin{figure}[t]
@@ -488,23 +441,70 @@ The rule \textit{T-metadata} shows how the appropriate metadata is extracted fro
 
 \subsection{Literals}
 \input{statics}
-In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator based an Adams grammars. As we noted, a parser generator can itself be seen as a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The declaration for the prelude type \li{Parser}, shown in Fig. \ref{f-prelude}, shows that it is an object type with a \li{parse} function taking in a \li{ParseStream} and producing a \li{Result}, which is a case type that indicates either that parsing succeeded, in which case an elaboration of type \li{Exp} is paired with the remaining parse stream (to allow one parser to call another), or that parsing failed, in which case an error message and location is provided. This function is called by the typechecker when analyzing the literal form, as shown in the key rule of our system, \textit{T-lit}, shown in Fig. \ref{fig:statics-lit}. Note that we do not explicitly handle failure in the specification, but in practice we would use the data provided for the failure case to report to the user. 
+In the example in Fig. \ref{f-htmltype}, we showed a TSL being defined using a parser generator based an Adams grammars. As we noted, a parser generator can itself be seen as a TSL for a parser, and a parser is the fundamental construct that becomes associated with a type to form a TSL. The declaration for the prelude type \li{Parser}, shown in Fig. \ref{f-prelude}, shows that it is an object type with a \li{parse} function taking in a \li{ParseStream} and producing a \li{Result}, which is a case type that indicates either that parsing succeeded, in which case an elaboration of type \li{Exp} is paired with the remaining parse stream (to allow one parser to call another), or that parsing failed, in which case an error message and location is provided. This function is called by the typechecker when analyzing the literal form, as specified by the key rule of our system, \textit{T-lit}, shown in Fig. \ref{fig:statics-lit}. Note that we do not explicitly handle failure in the specification, but in practice we would use the data provided in the failure case to report the error to the user. 
 
-\noindent
 The rule \textit{T-lit} operates as follows:
+\begin{figure}[t]
+\centering
+\[
+\footnotesize
+\begin{array}{c}
+\infer[\textit{T-lit}]
+	  {\Gamma \vdash_\Theta \keyw{lit}[\mathit{body}] \leadsto i \Leftarrow \keyw{named}[T]}
+	  {\begin{array}{c}
+	   \Theta_0 \subset \Theta ~~~~
+	   T[\delta, i_m : \mathit{HasTSL}] \in \Theta ~~~~
+	   \mathtt{parsestream}(\mathit{body})=i_{ps} \\
+	   \keyw{iap}(\keyw{iprj}[\mathit{parse}](\keyw{iprj}[\mathit{parser}](i_m)); i_{ps}) \Downarrow \keyw{iinj}[OK]((i_{ast}, i'_{ps}))\\
+	   i_{ast} \uparrow \ih~~~~
+	   \Gamma; \emptyset \vdash_\Theta \ih \leadsto i \Leftarrow \keyw{named}[T]
+	   \end{array}}
+%	  {\renewcommand{\arraystretch}{1}
+%	    \begin{array}{r}
+%	    \vdash \Delta_0, \Delta ~~~ \Delta_0, \Delta ;\emptyset; \emptyset \vdash t.\keyw{metadata}.parser\Leftarrow Parser \leadsto i_p ~~~ \texttt{TS(}\lfloor body \rfloor \texttt{)}\ \texttt{is}\ i_{ts}\\
+%            i_p.parse(i_{ts}) \Downarrow_{\Delta_0, \Delta} (i', \hat e_{ts}') ~~~  e \triangleleft  i'~~~ \Delta_0, \Delta;\Gamma', \Gamma; \emptyset\vdash e\Leftarrow t \leadsto i ~~~ \hat e_{ts}'\ \texttt{empty}
+%            \end{array}
+%       }
+%\infer[\textit{T-Tvar}]{
+%	\vdash_\Theta t
+%}{
+%	t : \{\_, \delta \} \in \Delta
+%}
+%~~~~~~~
+%\infer[\textit{T-Arr}]{
+%	\vdash_\Theta \tau_1 \rightarrow \tau_2
+%}{
+%	\vdash_\Theta \tau_1 & \vdash_\Theta \tau_2
+%}
+%~~~~~~~
+%\infer[?]{
+%	\vdash \emptyset
+%}{ }
+%~~~~
+%\infer[?]{
+%	\vdash \Delta, t : \{ \omega, \delta \}
+%}{
+%	\vdash \Delta & \vdash_\Theta \omega~\texttt{ok} & \Delta, t : \{\omega, -\} \vdash \delta
+%}
+\end{array}
+\]
+\caption{Statics for external terms, $e$, continued. This is the key rule (described below).}
+\label{fig:statics-lit}
+%\vspace{-10px}
+\end{figure}
 \begin{enumerate}
 \setlength{\itemsep}{1pt}
 \item This rule requires that the prelude is available. For technical reasons, we include a check that the prelude was actually included in the named type context.
-\item The metadata of the type the literal is being checked against, which must be of type $HasTSL$, is extracted from the named type context. Note that in a language with subtyping or richer forms of type equality, which would be necessary for situations where the metadata might serve other roles, the check that $i_m$ defines a TSL would require an additional premise. 
-\item A parse stream, an internal term of type \li{ParseStream}, $i_{ps}$, is generated from the body of the literal. This type is an object that that allows the reading of tokens, as well as additional methods, discussed further below.
-\item The \li|parse| method is called with this parse stream. If it evaluates to a reified elaboration, $i_{ast}$ (of type \li{Exp}) and a remaining parse stream, $i_{ps}$, then parsing was successful. Note that we use shorthand for pairs in the rule for concision, and the relation $i \Downarrow i'$ defines evaluation to a value (see the caption of Fig. \ref{fig:dynsemantics}).
+\item The metadata of the type the literal is being checked against, which must be of type \textit{HasTSL}, is extracted from the named type context. Note that in a language with subtyping or richer forms of type equality, which would be necessary for situations where the metadata might serve other roles, the check that $i_m$ defines a TSL would perform this check explicitly (as an additional premise). 
+\item A parse stream, $i_{ps}$, which is an internal term of type $\keyw{named}[ParseStream]$, is generated from the body of the literal. This is an object that allows the TSL to read the body and supports some additional conveniences, discussed further below.
+\item The \li|parse| method is called with this parse stream. If it produces the appropriate case containing a  \emph{reified elaboration}, $i_{ast}$ (of type \li{Exp}) and the remaining parse stream, $i'_{ps}$, then parsing was successful. Note that we use shorthand for pairs in the rule for concision, and the relation $i \Downarrow i'$ defines evaluation to a value (the maximal transitive closure, if it exists, of the small-step evaluation relation in Fig. \ref{fig:dynsemantics}).
 \item The reified elaboration is \emph{dereified} into a corresponding \emph{translational term}, $\ih$, as specified in Fig. \ref{fig:dereification}. The syntax for translational terms mirrors that of external terms, but does not include literal forms. It adds the form $\keyw{spliced}[e]$, representing an external term  spliced into a literal body. 
 
-The key rule is \textit{U-Spl} -- the only way to generate a translational term of this form is by asking for (a portion of) a parse stream to be parsed as a Wyvern expression or identifier. The reified form, unlike the translational form it corresponds to, does not contain the expression itself, but rather just a portion of the parse stream that should be recognized. Because parse streams (and thus portions thereof) can originate only metatheoretically, we know that $e$ must be an external term written concretely by the TSL client in the body of the literal being analyzed. This is key to guaranteeing hygiene in the final step.
+~~~~~~The key rule is \textit{U-Spl}. The only way to generate a translational term of this form is by asking for (a portion of) a parse stream to be parsed as a Wyvern expression. The reified form, unlike the translational form it corresponds to, does not contain the expression itself, but rather just the portion of the parse stream that should be treated as spliced. Because parse streams (and thus portions thereof) can originate only metatheoretically (i.e. from the compiler), we know that $e$ must be an external term written concretely by the TSL client in the body of the literal being analyzed. This is key to guaranteeing hygiene in the final step, below.
 
-The prelude methods \li{parse_exp} and \li{parse_id} return a value having this reified form corresponding to the first external term found in the parse stream (but, as just described, not necessarily the term itself) paired with the remainder of the parse stream. These methods themselves are not treated specially by the compiler but, for convenience, are associated with  \li{ParseStream}.
-\item The final step is to typecheck and elaborate this translational term. This involves the bidirectional typing judgements shown in Fig. \ref{fig:staticsHat}. This judgement has a form similar to that for external terms, but with the addition of an ``outer typing context'', written $\Gamma_{\text{out}}$ in the rules. This holds the context that the literal appeared in, so that the ``main'' typing context can be emptied to ensure that elaborations are closed except for portions derived from the parse stream. 
-Each rule in Fig. \ref{fig:statics1} should be thought of as having a corresponding rule in Fig. \ref{fig:staticsHat}. Two examples are shown for concision. The outer context is threaded two opaquely in all cases except the rule for spliced external terms. We discuss these rules further below.
+~~~~~~The convenience methods \li{parse_exp} and \li{parse_id} return a value having this reified form corresponding to the first external term found in the parse stream (but, as just described, not necessarily the term itself) paired with the remainder of the parse stream. These methods themselves are not treated specially by the compiler but, for convenience, are associated with  \li{ParseStream}.
+\item The final step is to typecheck and elaborate this translational term. This involves the bidirectional typing judgements shown in Fig. \ref{fig:staticsHat}. This judgement has a form similar to that for external terms, but with the addition of an ``outer typing context'', written $\Gamma_{\text{out}}$ in the rules. This holds the context that the literal appeared in, so that the ``main'' typing context can be emptied to ensure that elaborations is hygienic, as we will describe next. 
+Each rule in Fig. \ref{fig:statics1} should be thought of as having a corresponding rule in Fig. \ref{fig:staticsHat}. Two examples are shown for concision. % We discuss how this supports hygiene further below.
 \end{enumerate}
 
 \begin{figure}[t]
@@ -540,15 +540,16 @@ $\fbox{$i \uparrow \tau$}$
 \[
 \begin{array}{c}
 \infer[\textit{U-N}]
-	{ \keyw{iinj}[Named](i_{name}) \uparrow \keyw{named}[T]}
-	{ i_{name} \uparrow T} \\[2ex]
+	{ \keyw{iinj}[Named](i_{id}) \uparrow \keyw{named}[T]}
+	{ i_{id} \uparrow T} \\[2ex]
 
 \infer[\textit{U-A}]
 	{ \keyw{iinj}[Arrow]((i_1, i_2)) \uparrow \keyw{arrow}[\tau_1, \tau_2]}
 	{ i_1 \uparrow \tau_1 & i_2 \uparrow \tau_2}
 \end{array}
 \]
-\caption{Dereification rules, used by rule \textit{T-lit} (above) to determine the translational term encoded by the internal term of type $\keyw{named}[Exp]$.}
+\caption{Dereification rules, used by rule \textit{T-lit} (above) to determine the translational term encoded by the internal term of type $\keyw{named}[Exp]$. We assume a bijection between internal terms of type $\keyw{named}[ID]$ (written $i_{id}$) and variables, type names and case and member  labels.
+}
 \label{fig:dereification}
 \end{minipage}%
 ~\vline\,
@@ -581,8 +582,8 @@ $\fbox{$\tau \downarrow i$}$
 \[
 \begin{array}{c}
 \infer[\textit{R-N}]
-	{ \keyw{named}[T] \downarrow \keyw{iinj}[Named](i_{name}) }
-	{ T \downarrow i_{name}} \\[2ex]
+	{ \keyw{named}[T] \downarrow \keyw{iinj}[Named](i_{id}) }
+	{ T \downarrow i_{id}} \\[2ex]
 
 \infer[\textit{R-A}]
 	{ \keyw{arrow}[\tau_1,\tau_2] \downarrow \keyw{iinj}[Arrow]((i_1, i_2))  }
@@ -618,7 +619,7 @@ $\fbox{$\Gamma; \Gamma \vdash_\Theta \ih \leadsto i \Leftarrow \tau$}$
 	{\Gout \vdash_\Theta e \leadsto i \Rightarrow \tau}
 \end{array}
 \]
-\caption{Statics for translational terms, $\ih$. Each rule in Fig. \ref{fig:statics1} corresponds to an analagous rule here by threading the outer context through opaquely (e.g. the rules for variables and functions, shown here). The outer context is only used by the rules for $\keyw{spliced}[e]$, representing external terms that were spliced into TSL bodies. Only these terms can access outer variables, achieving hygiene (see text). Note that elaboration is implicitly capture-avoiding here (we assume unique names for internal variables can be generated whenever necessary, see Sec. \ref{s:implementation}).}
+\caption{Statics for translational terms, $\ih$. Each rule in Fig. \ref{fig:statics1} corresponds to an analagous rule here by threading the outer context through opaquely (e.g. the rules for variables and functions, shown here). The outer context is only used by the rules for $\keyw{spliced}[e]$, representing external terms that were spliced into TSL bodies. Note that elaboration is implicitly capture-avoiding here (see Sec. \ref{s:implementation}).}
 \label{fig:staticsHat}
 \end{figure}
 \begin{figure}[t]
@@ -638,16 +639,18 @@ $
 \subsection{Hygiene}
 
 
-A concern with any term rewriting system is \emph{hygiene} -- how should variables in the generated AST be bound? In particular, if the rewriting system generates an \emph{open term}, then it is making assumptions about the names of variables in scope at the site where the TSL is being used, which is incorrect. Those variables should only be identifiable up to alpha renaming. Only the \emph{user} of a TSL knows which variables are in scope. The strictest rule would simply reject all open terms, but this would prevent even spliced terms written by the TSL client, who presumably is aware of variable bindings at the use site, from referring to local variables. Moreover, the variables in these terms should be bound to what the client expects. The elaboration should not be able to surreptitiously or accidentally shadow variables in spliced terms that {may} be otherwise bound at the use site (e.g. variables named \li{tmp}).
+A concern with any term rewriting system is \emph{hygiene} -- how should variables in the elaboration be bound? In particular, if the rewriting system generates an \emph{open term}, then it is making assumptions about the names of variables in scope at the site where the TSL is being used, which is incorrect. Those variables should only be identifiable up to alpha renaming. Only the \emph{user} of a TSL knows which variables are in scope. The strictest rule would simply reject all open terms, but this would then, given our setting, prevent even spliced terms from referring to local variables. These are written by the TSL client, who is aware of variable bindings at the use site, so this should be permitted. 
 
-The solution to both of these issues, which we have outlined above, is quite simple: we construct the system so that we know which sub-terms originate from the TSL client, marking them as $\keyw{spliced}[e]$. These terms can refer only to variables in the client's context, $\Gout$, as seen in the premises of the two rules for this form (one for analysis, one for synthesis). The remainder of the term is generated by the TSL provider, so it can refer only to variables introduced earlier in the elaboration, tracked by the context $\Gamma$. The two are kept separate. If the TSL wishes to introduce variables in spliced terms, it must do so by via a function application (as in the TSL for \li{Parser} discussed earlier), ensuring that the client has full control over variable binding.
+Furthermore, the variables in spliced terms should be bound as the client expects. The elaboration should not be able to surreptitiously or accidentally shadow variables in spliced terms that {may} be otherwise bound at the use site (e.g. by introducing a variable \li{tmp} outside a spliced term that ``leaks'' into the spliced term).
+
+The solution to both of these issues, given what we have outlined above, is now quite simple: we have constructed the system so that we know which sub-terms originate from the TSL client, marking them as $\keyw{spliced}[e]$. These terms are permitted to refer only to variables in the client's context, $\Gout$, as seen in the premises of the two rules pertaining to this form (one for analysis, one for synthesis). The portions of the elaboration that aren't marked in this way were generated by the TSL provider, so they can refer only to variables introduced earlier in the elaboration, tracked by the context $\Gamma$, initially empty. The two are kept separate. If the TSL wishes to introduce values into spliced terms, it must do so by via a function application (as in the TSL for \li{Parser} discussed earlier), ensuring that the client has full control over variable binding.
 
 \subsection{From Values to ASTs}
-In some rewriting systems, free variables become bound to their values at the generation site, rather than the use site. In the formulation just discussed, this does not directly occur -- all free variables lead to errors when returned by a TSL definition. To permit lifting values bound at the generation site to ASTs for use at the use site, we include the primitive operator \li{toast(e)}. This simply takes the value of \li{e} and reifies it, producing a term of type \li{Exp}, as specified in Figs. \ref{fig:dynsemantics} and Fig. \ref{fig:reification}. This can be used to ``bake in'' a value known at compile time into the generated code safely. The rules for reification, used here, and dereification, used in the literal rule described above, are notionally dual.
+By this formulation, elaborations containing free variables are always erroneous. In some rewriting systems, a free variable is not an error, but are instead replaced with the AST corresponding to the value of the variable at the generation site. We permit this explicitly by including the form \li{toast(e)}. This simply takes the value of \li{e} and reifies it, producing a term of type \li{Exp}, as specified in Figs. \ref{fig:dynsemantics} and Fig. \ref{fig:reification}. The rules for reification, used here, and dereification, used in the literal rule above, are  dual.
 
-The TSL associated with \li{Exp}, implementing quasiquotes, can perform a free variable analysis and insert these terms automatically (by itself treating the free variables as spliced terms), so they are only explicitly needed when generating an AST manually.
+The TSL associated with \li{Exp}, implementing quasiquotes, can perform free variable analysis and insert this form automatically, so they need not be inserted manually in most cases. That is, \li{Var('SIDxEID') : Exp} elaborates to $x$ which is ill-typed in an empty context, \li{'SQTxEQT' : Exp} produces the translational term $\keyw{htoast}(\keyw{spliced}[x])$, which will elaborate to $\keyw{itoast}(x)$ in the context where the quotation appears (i.e. in the TSL definition), thus behaving as described without requiring that quotations are entirely implemented by the language. This can be seen as a form of serialization and could be implemented as a library using reflection or compile-time metaprogramming techniques (e.g. \cite{Miller:2013:IPG:2509136.2509547}).
 
-\subsection{Safety}
+\subsection{Metatheory}
 \begin{figure}[t]
 $\fbox{$\Gamma \vdash_\Theta i \Rightarrow \tau$}$~
 $\fbox{$\Gamma \vdash_\Theta i \Leftarrow \tau$}$~~~~~~$\cdots$
@@ -659,15 +662,15 @@ $
 	\Gamma \vdash_\Theta^T \dot{m} \Leftarrow \omega}
 \end{array}
 $\\[1ex]
-\caption{Statics for internal terms, $i$. Each rule in Fig. \ref{fig:statics1} corresponds to an analogous rule here by removing the elaboration portion. Only the rule for object introduction differs, in that we no longer restrict the introduction of parse streams (internal terms are never written directly by users of the language). }
+\caption{Statics for internal terms, $i$. Each rule in Fig. \ref{fig:statics1} except \textit{T-metadata} corresponds to an analogous rule here by removing the elaboration portion. Only the rule for object introduction differs, in that we no longer restrict the introduction of parse streams (internal terms are never written directly by users of the language). }
 \label{it-statics}
 \vspace{-5px}
 \end{figure}
 
 
-The semantics we have defined constitute a type safe language. There are two key theorems from which type safety follows directly: type safety of the internal language, and type preservation of the elaboration process. 
+The semantics we have defined constitute a type safe language. We will outline the key theorems and lemmas here, referring the reader to an accompanying technical report for fuller details \cite{TR}. The two key theorems are: internal type safety, and type preservation of the elaboration process.
 
-To prove internal type safety, we define a bidirectional typing judgement for the internal language, shown and described in Fig. \ref{it-statics}. We also define a well-formedness judgement for named type contexts (shown in the accompanying technical report \cite{TR}). 
+To prove internal type safety, we must define a bidirectional typing judgement for the internal language, shown and described in Fig. \ref{it-statics} (by the external type preservation theorem, we should never need to explicitly implement this, however). We must also define a well-formedness judgement for named type contexts (not shown). 
 
 \begin{theorem}[Internal Type Safety]
 If $\vdash \Theta$ and $\emptyset \vdash_\Theta i \Leftarrow \tau$ or $\emptyset \vdash_\Theta i \Rightarrow \tau$, then either $i~\mathtt{val}$ or $i \mapsto i'$ such that $\emptyset \vdash_\Theta i' \Leftarrow \tau$.
@@ -679,16 +682,16 @@ The dynamics, which we omit for concision, are standard, so the proof is by a st
 If $\Theta_0 \subset \Theta$ and $\emptyset \vdash_{\Theta} i \Leftarrow \tau$ then $i \downarrow i'$ and $\emptyset \vdash_{\Theta} i' \Leftarrow \keyw{named}[Exp]$.
 \end{lemma}
 \begin{proof}
-The proof is by a straightforward induction over the reification rules. Auxiliary lemmas about reification of identifiers and types are similarly straightforward.\qed
+The proof is by a straightforward induction. Analagous lemmas about reification of identifiers and types are similarly straightforward.\qed
 \end{proof}
 
-If the elaboration of a closed, well-typed external term generates an internal term of the same type, then internal type safety implies that evaluation will not go wrong, achieving type safety. We generalize this argument about type preservation to arbitrary typing contexts by defining an auxiliary well-formedness judgement for contexts (shown in the technical report). The relevant theorem is below:
+If the elaboration of a closed, well-typed external term generates an internal term of the same type, then internal type safety implies that evaluation will not go wrong, achieving type safety. We generalize this argument to open terms by defining a well-formedness judgement for contexts (not shown). The relevant theorem is below:
 
 \begin{theorem}[External Type Preservation]
 If $\vdash \Theta$ and $\vdash_\Theta \Gamma$ and $\Gamma \vdash_\Theta e \leadsto i \Leftarrow \tau$ or $\Gamma \vdash_\Theta e \leadsto i \Rightarrow \tau$ then $\Gamma \vdash_\Theta i \Leftarrow \tau$.
 \end{theorem}
 \begin{proof}
-We proceed by inducting over the the typing derivations. Nearly all the elaborations are direct, so the proof is by straightforward applications of induction hypotheses. The only cases of note are:
+We proceed by inducting over the the typing derivation. Nearly all the elaborations are direct, so the proof is by straightforward applications of induction hypotheses and lemmas about well-formed contexts. The only cases of note are:
 \begin{itemize}
 \item $e = \keyw{enew}\,\{m\}$. Here the corresponding rule for the elaboration is identical but more permissive, so the induction hypothesis applies.
 \item $e = \keyw{emetadata}[T]$. Here, the elaboration generates the metadata value directly. Well-formedness of $\Theta$ implies that the metadata term is of the type assigned.
@@ -697,15 +700,24 @@ We proceed by inducting over the the typing derivations. Nearly all the elaborat
 \end{proof}
 
 \begin{lemma}[Translational Type Preservation]
-If $\vdash \Theta$ and $\vdash_\Theta \Gout$ and $\vdash_\Theta \Gamma$ and $\text{dom}(\Gout) \intersect \text{dom}(\Gamma) = \emptyset$ (which we can assume implicitly by alpha renaming at binding sites) and $\Gout; \Gamma \vdash_\Theta \ih \leadsto i \Leftarrow \tau$ or $\Gout; \Gamma \vdash_\Theta \ih \leadsto i \Rightarrow \tau$ then $\Gout \Gamma \vdash_\Theta i \Leftarrow \tau$.
+If $\vdash \Theta$ and $\vdash_\Theta \Gout$ and $\vdash_\Theta \Gamma$ and $\text{dom}(\Gout) \intersect \text{dom}(\Gamma) = \emptyset$ (which we can assume implicitly due to alpha renaming) and $\Gout; \Gamma \vdash_\Theta \ih \leadsto i \Leftarrow \tau$ or $\Gout; \Gamma \vdash_\Theta \ih \leadsto i \Rightarrow \tau$ then $\Gout \Gamma \vdash_\Theta i \Leftarrow \tau$.
 \end{lemma}
 \begin{proof}
-The proof follows the same argument as above. The outer context is threaded through opaquely by the inductive hypothesis. The only rules of note are for the spliced external terms, which require applying the external type preservation theorem recursively. This is well-founded by a metric measuring the size of the external term written in concrete syntax, since we know it was derived from a portion of the literal body.\qed
+The proof by induction over the typing derivation follows the same outline as above for all the shared cases. The outer context is threaded through opaquely when applying the inductive hypothesis. The only rules of note are the two for the spliced external terms, which require applying the external type preservation theorem recursively. This is well-founded by a metric measuring the size of the spliced external term, written in concrete syntax, since we know it was derived from a portion of the literal body.\qed
 \end{proof}
 \noindent
-Putting these definitions and theorems together, we can prove the correctness of compilation theorem below. This plus internal type safety constitutes type safety for the language as a whole.
+Moving up to the level of programs, we can prove the correctness of compilation theorem below. Together, this implies that derivation of the compilation judgement produces an internal term that does not go wrong.
 \begin{theorem}[Compilation]
 If $\rho \sim \Theta \leadsto i : \tau$ then $\vdash \Theta$ and $\emptyset \vdash_\Theta i \Leftarrow \tau$.
 \end{theorem}
+\begin{proof}
+We simply need a lemma about checking type declarations and the result follows straightforwardly.
+\end{proof}
+\begin{lemma}[Type Declaration]
+If $\vdash_{\Theta_0} \theta \sim \Theta$ then $\vdash \Theta_0 \Theta$.
+\end{lemma}
+\begin{proof}
+The proof is a simple induction using the definition of $\vdash \Theta$ (not shown).
+\end{proof}
 \subsection{Decidability}
-Because we are executing user-defined parsers during typechecking, we do not have a straightforward statement of decidability (i.e. termination) of typechecking. The parser might not terminate. Non-decidability is strictly due to user-defined parsing code. Typechecking of programs that do not contain literals is guaranteed to terminate, as is typechecking of $\hat{e}$ and $i$ (which we do not actually need to do in practice by Theorem 1). Termination of parsers and parser generators has previously been studied (e.g. \cite{DBLP:conf/sle/KrishnanW12}) and the techniques can be applied to user-defined parsing code to increase confidence in termination. Few compilers, even those with high demands for correctness (e.g. CompCert \cite{Leroy-Compcert-CACM}), have made it a priority to fully verify and prove termination of the parser. This is because it is perceived that most bugs in compilers arise due to incorrect optimization passes, not initial parsing and elaboration logic.
+Because we are executing user-defined parsers during typechecking, we do not have a straightforward statement of decidability (i.e. termination) of typechecking: the parser might not terminate, because TSL Wyvern is not a total language (due to self-reference in methods). Indecidability of typechecking is strictly for this reason. Typechecking of terms not containing literals is guaranteed to terminate. Termination of parsers and parser generators has previously been studied (e.g. \cite{DBLP:conf/sle/KrishnanW12}) and the techniques can be applied to user-defined parsing code to increase confidence in termination. Few compilers, even those with high demands for correctness (e.g. CompCert \cite{Leroy-Compcert-CACM}), have made it a priority to fully verify and prove termination of the parser, because it is perceived that most bugs in compilers arise due to incorrect optimization passes, not initial parsing.
