@@ -1,4 +1,7 @@
 \documentclass[runningheads]{llncs}
+
+\usepackage{times}
+
 \usepackage{amsmath}
 \usepackage{latexsym}
 \usepackage{verbatim}
@@ -34,8 +37,9 @@
 
 \lstset{tabsize=2, 
 basicstyle=\ttfamily\fontsize{8pt}{1em}\selectfont, 
-commentstyle=\itshape\rmfamily, 
-numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt,escapechar=@, morekeywords=[1]{let,fn,val,def,casetype,objtype,metadata,of,*,datatype},deletekeywords={for,double},classoffset=0,belowskip=\smallskipamount,
+commentstyle=\itshape\ttfamily, 
+stringstyle=\ttfamily,
+numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast},deletekeywords={for,double,in,type},classoffset=0,belowskip=\smallskipamount,
 moredelim=**[is][\color{cyan}]{SSTR}{ESTR},
 moredelim=**[is][\color{OliveGreen}]{SHTML}{EHTML},
 moredelim=**[is][\color{purple}]{SCSS}{ECSS},
@@ -46,9 +50,11 @@ moredelim=**[is][\color{gray}]{SNAT}{ENDNAT},
 moredelim=**[is][\color{blue}]{SURL}{EURL},
 moredelim=**[is][\color{SeaGreen}]{SQT}{EQT},
 moredelim=**[is][\color{Periwinkle}]{SGRM}{EGRM},
-moredelim=**[is][\color{YellowGreen}]{SID}{EID}
+moredelim=**[is][\color{Sepia}]{SID}{EID},
+moredelim=**[is][\color{Sepia}]{SUS}{EUS}
 }
 \lstloadlanguages{Java,VBScript,XML,HTML}
+
 
 \let\li\lstinline
 
@@ -73,17 +79,19 @@ Alex Potanin,$^{1}$ and Jonathan Aldrich}
 \texttt{\scriptsize \{comar, darya, lnistor, bwchung, aldrich\}@cs.cmu.edu}
 and
 \texttt{\scriptsize alex@ecs.vuw.ac.nz}$^{1}$}
-
+\setlength{\abovecaptionskip}{0pt}
+\setlength{\belowcaptionskip}{0pt}
 \authorrunning{Omar, Kurilova, Nistor, Chung, Potanin, Aldrich} % To fix excessive length.
 
 \maketitle
 
+\begin{sloppypar}
 \begin{abstract}
 %The abstract should summarize the contents of the paper and should
 %contain at least 70 and at most 150 words. It should be written using the
 %\emph{abstract} environment.
-Programming languages often include specialized notation for common datatypes (e.g. lists) and some also build in support for specific specialized datatypes (e.g. regular expressions), but user-defined types must use general-purpose notations. Frustration with this causes developers to use strings, rather than structured representations, with alarming frequency, leading to correctness, performance, security and usability  issues.
-Allowing library providers to modularly extend a language with new notations could help address these issues. Unfortunately, prior mechanisms either limit expressiveness or are not safely composable: individually unambiguous extensions can still lead to ambiguities when used together. We introduce \emph{type-specific languages} (TSLs):  logic associated with a type that determines how the bodies of \emph{generic literals}, able to contain arbitrary syntax, are parsed and elaborated, hygienically. The TSL for a type is invoked only when a literal appears where a term of that type is expected, guaranteeing non-interference. We give evidence supporting the applicability of  this approach and formally specify it with a bidirectionally typed elaboration semantics for the Wyvern language.
+Programming languages often include specialized syntax for common datatypes (e.g. lists) and some also build in support for specific specialized datatypes (e.g. regular expressions), but user-defined types must use general-purpose syntax. Frustration with this causes developers to use strings, rather than structured data, with alarming frequency, leading to correctness, performance, security, and usability issues.
+Allowing library providers to modularly extend a language with new syntax could help address these issues. Unfortunately, prior mechanisms either limit expressiveness or are not safely composable: individually unambiguous extensions can still cause ambiguities when used together. We introduce \emph{type-specific languages} (TSLs):  logic associated with a type that determines how the bodies of \emph{generic literals}, able to contain arbitrary syntax, are parsed and elaborated, hygienically. The TSL for a type is invoked only when a literal appears where a term of that type is expected, guaranteeing non-interference. We give evidence supporting the applicability of  this approach and formally specify it with a bidirectionally typed elaboration semantics for the Wyvern programming language.
 
 %
 %Domain-specific languages can improve ease-of-use, expressiveness and verifiability, but defining and using different DSLs within a single application remains difficult.
@@ -98,7 +106,7 @@ Allowing library providers to modularly extend a language with new notations cou
 %We argue that this approach occupies a sweet spot, providing   
 %high expressiveness and ease-of-use while maintaining safe composability. We introduce the design, provide examples and describe an ongoing implementation of this strategy in the Wyvern programming language. We also discuss how a more conventional keyword-directed strategy for parsing of DSLs can arise as a special case of this type-directed strategy.
 %
-\keywords{extensible languages; parsing; bidirectional typechecking}
+\keywords{extensible languages; parsing; bidirectional typechecking; hygiene}
 %\newcommand{\vkeyw}[1]{\texttt{\textbf{da
 \end{abstract}
 \input{intro}
@@ -106,15 +114,88 @@ Allowing library providers to modularly extend a language with new notations cou
 \input{approach}
 \input{study}
 \input{implementation}
-\input{discussion}
 \input{related}
+\input{discussion}
 \input{conclusion}
 
 \bibliographystyle{abbrv}
 \bibliography{biblio,extra,research} %papers-cyrus is now more up to date research.bib
 
+\end{sloppypar}
+\end{document}
+
+% NO SPACE! :( Need to make sure not referred to!!!
+
 \appendix
 \section{Appendix}
+\begin{figure}
+$\fbox{$\vdash_\Theta \theta \sim \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{rec-decls}]
+  {\vdash_{\Theta_0} \theta \sim \Theta}
+  { \vdash_{\Theta_0} \theta \sim_{\text{names}} \Theta_{\text{names}}
+  & \vdash_{\Theta_0 \Theta_{\text{names}}} \theta \sim_{\text{decls}} \Theta_{\text{decls}}
+  & \vdash_{\Theta_0 \Theta_{\text{decls}}} \theta \sim_{\text{metadata}} \Theta
+  } 
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{names}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-names}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{names}} \emptyset}
+  { }\\[1ex] 
+  
+\infer[\textit{OT-names}]
+  {\vdash_{\Theta} \keyw{objtype}[T,\omega,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
+  { \vdash_{\Theta} \omega
+  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-names}]
+  {\vdash_{\Theta} \keyw{casetype}[T,\chi,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
+  { \vdash_{\Theta} \omega
+  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{decls}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-decls}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{decls}} \emptyset}
+  { }\\[1ex] 
+  
+\infer[\textit{OT-decl}]
+  {\vdash_{\Theta} \keyw{objtype}[T,\omega,e_m];\theta' \sim_{\text{decls}} T[\keyw{ot}[\omega], ?]; \Theta'}
+  { \vdash_\Theta \omega
+  & \vdash _\Theta \theta' \sim_{\text{decls}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-decl}]
+  {\vdash_{\Theta} \keyw{casetype}[T,\chi,e_m];\theta' \sim_{\text{decls}} T[\keyw{ct}[\chi], ?]; \Theta'}
+  { \vdash_\Theta \chi
+  & \vdash _\Theta \theta' \sim_{\text{decls}} \Theta'}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{metadata}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-metadata}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{metadata}} \emptyset}
+  { }\\[1ex]
+\infer[\textit{OT-metadata}]
+  {\vdash_{\Theta_0, T[\keyw{ot}[\omega],?], \Theta} \keyw{objtype}[T, \omega, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
+  { \vdash_{\Theta_0, T[\keyw{ot}[\omega], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  & \vdash_{\Theta_0, T[\keyw{ot}[\omega], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-metadata}]
+  {\vdash_{\Theta_0, T[\keyw{ct}[\chi],?], \Theta} \keyw{casetype}[T, \chi, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
+  { \vdash_{\Theta_0, T[\keyw{ct}[\chi], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  & \vdash_{\Theta_0, T[\keyw{ct}[\chi], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}
+\end{array}
+\]
+\caption{The type declaration judgement in the paper only supports recursive types. Here, we include support for mutually recursive types by splitting the three key premises of the paper rule into three distinct judgements, which each process the entire list of type declarations all the way through before going on to the next one.}
+\end{figure}
+
 \begin{figure}[h]
 \centering
 \[
@@ -164,6 +245,3 @@ Allowing library providers to modularly extend a language with new notations cou
 \caption{Context and type well-formedness rules}
 \vspace{-12px}
 \end{figure}
-
-
-\end{document}

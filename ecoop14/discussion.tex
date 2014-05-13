@@ -1,34 +1,35 @@
 % !TEX root = ecoop14.tex
 
 \section{Discussion}\label{s:discussion}
+We have presented a minimal but complete language design that we believe is particularly elegant, practical and theoretically well-motivated. The key to this is our organization of language extensions around types, rather than around grammar fragments.
 
-\paragraph{Safe TSL Composition}
+There are several directions that remain to be explored:
+\begin{itemize}
+\item TSL Wyvern does not support polymorphic types, like \li{'a list} in our first example. Were we to add support for them, we would expect that the type constructor (\li{list}) would determine the syntax, not the particular type. Thus, we may fundamentally be proposing \emph{type constructor specific languages}.
+\item Similarly, TSL Wyvern does not support abstract types. It may be useful to include the ability to associate metadata with an abstract type, much in the same way that we associate metadata with a named type here.
+\item TSLs as described here allow one to give an alternative syntax for introductory term forms, but elimination forms cannot be defined directly. There are two directions we may wish to go to support this:
+\begin{enumerate}
+\item Pattern matching is a powerful feature supported by an increasing number of languages. Pattern syntax is similar to term syntax. It may be possible for a TSL definition to include parse functions for ``literal-like'' forms appearing in patterns, elaborating them to pattern terms rather than expression terms.
+\item Keywords are more useful when defining custom elimination forms (e.g. \verb|if| based on \verb|case|). It may be possible to support ``typed syntax macros'' using the same hygiene mechanisms we described here.
+\end{enumerate}
+\item We do not provide TSLs with the ability to diverge based on the type of a spliced expression. This might be useful if, for example, our HTML TSL wanted to treat spliced strings differently from other spliced HTML terms. For polymorphic types, we might also wish to diverge based on the type index.
+\item We may wish to design less restrictive shadowing constraints, so that TSLs can introduce variables directly into the scope of a spliced expression if they explicitly wish to (bypassing the need for the client to provide a function for the TSL to call). The community may wish to discuss whether this is worth the cost in terms of difficulty of determining where a variable has been bound.
+\item We need to provide further empirical validation. This may benefit from the integration of TSLs into existing languages other than Wyvern.
+\item We need to consider broader IDE support -- custom syntax benefits from custom editor support, and it may be possible to design IDEs that dispatch to type metadata in much the way the typechecker does in this paper. Our informal considerations of existing IDE extension mechanisms suggests that this may be non-trivial.
+\end{itemize}
 
-Our primary contribution is a strategy, where nesting of TSLs occurs by briefly entering the host language, that ensures that ambiguities cannot occur. The host language ensures that TSLs are delimited unambiguously, and the TSL ensures that the host language is delimited unambiguously. The body of the TSL is interpreted by a fixed grammar -- the one associated with its expected type. This avoids the kinds of conflicts a simple merger of the grammars would cause.
-%Because the language where a language switch 
-Apart from the large number of TSLs that can be composed together in a short
-piece of code while producing meaningful results, we aim to provide a safe
-composability guarantee that other language extension solutions do not~\cite{Erdweg:2013:FEL:2517208.2517210,krahn2008monticore}.
-
-\paragraph{Keyword-Directed Invocation}
-
-In most domain-specific language frameworks, a switch to a different language is indicated by a keyword or function call naming the language to be used. Wyvern eliminates this overhead in many cases by determining the TSL based on the expected type of an expression. This lightweight mechanism is particularly useful for small languages.
-%, like the one associated with \lstinline{URL}.
-Keyword-directed invocation is simply a special case of our type-directed approach. In particular, a keyword macro can be defined as a function with a single argument of a type specific to that keyword. The type contains the implementation of the domain-specific syntax associated with that keyword. In the most general sense, it may simply allow the entire Wyvern
-%\keyw{EXP}
-grammar, manipulating it in later phases of compilation. 
-
-As an example, consider control flow operators like \verb|if|. This can be defined as a polymorphic method of the \verb|bool| type with signature $(\texttt{unit} \rightarrow \alpha, \texttt{unit} \rightarrow \alpha) \rightarrow \alpha$. That is, it takes the two branches as functions and chooses which to invoke based on the value of the boolean, using perhaps a more primitive control flow operator, like case analysis, or even a Church encoding of booleans as functions. In Wyvern, the branches could be packaged together into a type, \verb|IfBranches|, with an associated grammar that accepts the two branches as unwrapped expressions. Thus, \verb|if| could be defined entirely in a library and used as follows: 
-
-\begin{lstlisting}
-if(guard, ~)
-  then
-    <any Wyvern>
-  else
-    <any Wyvern>
-\end{lstlisting}
-
-For methods like \verb|if| where constructing the argument explicitly will almost never be done, it may be useful to mark the method in a way that allows Wyvern to assume it is being called with a TSL argument immediately following its use. This would eliminate the need for the \verb|(~)| portion, supporting even more conventional notation.
+%
+%As an example, consider control flow operators like \verb|if|. This can be defined as a polymorphic method of the \verb|bool| type with signature $(\texttt{unit} \rightarrow \alpha, \texttt{unit} \rightarrow \alpha) \rightarrow \alpha$. That is, it takes the two branches as functions and chooses which to invoke based on the value of the boolean, using perhaps a more primitive control flow operator, like case analysis, or even a Church encoding of booleans as functions. In Wyvern, the branches could be packaged together into a type, \verb|IfBranches|, with an associated grammar that accepts the two branches as unwrapped expressions. Thus, \verb|if| could be defined entirely in a library and used as follows: 
+%
+%\begin{lstlisting}
+%if(guard, ~)
+%  then
+%    <any Wyvern>
+%  else
+%    <any Wyvern>
+%\end{lstlisting}
+%
+%For methods like \verb|if| where constructing the argument explicitly will almost never be done, it may be useful to mark the method in a way that allows Wyvern to assume it is being called with a TSL argument immediately following its use. This would eliminate the need for the \verb|(~)| portion, supporting even more conventional notation.
 % We have not considered this possibility in detail.
 
 %\paragraph{Explicit Delimiters}
@@ -41,46 +42,11 @@ For methods like \verb|if| where constructing the argument explicitly will almos
 %\end{verbatim}
 %
 %Alternatively, types could specify the set of permitted delimiters so that conventions can be enforced by the compiler, improving identifiability. We have not yet explored either of these possibilities in detail, nor explored options that allow \emph{arbitrary} type-specified delimiters (a naive strategy for which would require that the first phase of parsing also be type-directed, which we wish to avoid).
-
-\paragraph{Interaction with Subtyping}
-
-The mechanism described here does not consider the case where multiple subtypes of a base type define a grammar. This can be resolved in several ways. We could require that only the \emph{declared} type's grammar is used (if a subtype's grammar is desired, an explicit type annotation on the tilde can be used). Alternatively, we could attempt to parse against all relevant subtypes, only requiring explicit disambiguation when ambiguities arise. Wyvern does not currently support subtyping, so we leave this as future work.
-
-%%\paragraph{Custom Contexts}
-%% One can observe a number of interesting issues that can be seen from
-%% our Wyvern examples. For example, our \lstinline{let} statement
-%% requires a corresponding \lstinline{in} part to be indented
-%% differently from the other sub-blocks. This means that the entire
-%% expression cannot be parsed by simply processing the appropriately
-%% indented line sequence and then returing the control back to the
-%% Wyvern parser, but rather there needs to be a way to detect that the
-%% parser is now back to the level of the original \lstinline{let}
-%% statement and the environment can be reset to what it was before the
-%% statement.
-
-%Presently, grammars cannot define their own contexts that are passed through nested grammars, but this would likely be a useful %addition in many cases. As an example, consider a \lstinline{let} expression defined by a functional programming based DSL in 
-%Wyvern:
 %
-%\begin{lstlisting}
-%let 
-%    x = 5
-%    z = 4
-%  in
-%    x + z
-%\end{lstlisting}
+%\paragraph{Interaction with Subtyping}
 %
-%\noindent 
-%This expression requires maintaining a context of bound variables. This context must be maintained such that any expression within the \verb|in| block that is written in this DSL has access to the appropriate context, even if it appears as a subexpression within a different DSL. Multiple DSLs may define different contexts, and these must be threaded throughout nested DSLs in a modular manner.
+%The mechanism described here does not consider the case where multiple subtypes of a base type define a grammar. This can be resolved in several ways. Our plan in full Wyvern, which includes subtyping, is to use the \emph{declared} type's grammar (if a subtype's grammar is desired, an explicit type annotation on the tilde can be used). Alternatively, we could attempt to parse against all relevant subtypes, only requiring explicit disambiguation when ambiguities arise.
 
-\paragraph{Custom Lexers} 
-
-Our existing lexing strategy may be too restrictive, requiring all DSLs to be hierarchical in nature. One potential expansion would be to enable DSLs to define their own lexers, still perhaps delimited by indentation or parentheses. Such an extension would sacrifice some readability.
-%%However, we have been unable to find convincing use cases for this facet of extensibility. 
-
-We do not allow a replacement parser for infix
-operators as we considered it to unnecessarily complicate the current
-prefixed parsing approach. In the future, we plan to further support
-redefining operators.
 
 %% NB! Confusing given our nesting delimiters, so dropped.
 %Finally, following Python and some other whitespace delimited

@@ -1,0 +1,170 @@
+JavaScript (and related distributed system) model
+=================================================
+
+Problems
+	Compilation information is outside the language
+		- the platform we are compiling to
+		- the libraries we are importing, including versions and where we get them from
+	and this makes it more difficult:
+		to manage the information over time, including multiple alternative deployments
+		to keep compilation information internally consistent,
+			and consistent with the project code and needs
+		to allow projects to compile seamlessly on different machines, platforms, tools
+		to debug compilation problems (e.g. bad classpath, missing libraries, platform not supported)
+
+Principles:
+	everything is an object
+		thus, an HTML dsl just generates an object of type HTML
+			the HTML object knows how to serialize itself properly
+			if there is embedded code (directly or imported), it is serialized as JavaScript
+		an HTTP server is an object with which we can register a callback
+			that callback returns HTML
+			
+	architecture
+		kind of trivial in this case
+		main specification is platform on server, platform on client, and protocol used
+			also, where is "main"?
+			is there more than one "main"?
+				probably not usually - but could imagine it
+		Ah - but if we have callbacks, do we make these explicit in the interface
+			and can that interface support arbitrary message content or is it restricted
+			e.g. no first-class functions, e.g. only immutable (or copied) state
+		how does the client refer to the server?
+		can the server refer to the client?  if so, how?  maybe if we consider websockets?
+		
+	modules
+		want to allow a HTML submodule - i.e. not really part of a Wyvern file
+		need some way to refer to a module and request the version compiled for a platform, e.g. JavaScript
+			of course a given module may not be available on all platforms (though most would be)
+			this has to work for transitive imports
+			note that on different nodes you have different copies of a module's static state
+	
+	need asynchronous method call support
+	
+How top-level architecture works
+	the network is a resource, and must be imported in a special way
+		[or with a special type/effect/permission]
+		in a hierarchical architecture, it must be passed as an import at each level of hierarchy
+		[a pain but probably worth it in this case]
+	in the web framework, the network resource is passed only to connections
+		the programmer cannot override this
+			the framework accepts only modules not yet linked to resources
+			and is not willing to link the network resource
+	connections specify the protocol [library] to be used, and the interface on top of it
+	A HTTP/HTTPS connection is parameterized by the interfaces layered on top of it
+		but each instance of a connection pattern may have its own interface
+		we can constrain interfaces by rules enforced by connection code (or a policy given to it)
+		ideally a complete configuration would allow enumerating all interfaces too
+			[think of this as an attack surface]
+	
+Research questions [answer sketch]
+	How can the compiler/interpreter figure out what needs to be compiled to JavaScript, and when?
+		> Wyvern code embedded in HTML gets converted to JavaScript by the HTML parser
+		[also answers: How is the client HTML/JavaScript embedded in the server?]
+	What is the right model for supporting asynchronous client-server communication?
+		> "async" defs and the "after...do" construct
+	How should we restrict passing lambdas with captured variables (esp. state) across the machine boundary?
+		> a close construct and the Closed[...] type
+	How does the client refer to the server?
+		> imports and close construct with specific exceptions and a "remote" wrapper
+			*** could the remote part be done wrong?  can we defend against this?
+			*** restrictions on what is closed?  e.g. remote objects, or purely functional values?
+				the protocol type should be able to check this
+
+	== [figure out now]
+	
+	How do we embed one protocol inside another? [e.g. app-specific messages over HTTPS]
+	How do we specify a top-level architecture that shows protocols,
+		and prohibit sub-components from network communication not using that architecture?
+	How do we specify the protocol to be used (e.g. HTTP vs. HTTPS)?
+		*** somehow associate with the related interface
+	Assume the client-server interface will be explicit.  How do we specify it?
+		*** as an interface.  Somehow check everything is async and no lambdas unless closed
+		same mechanism as previous question
+		[discuss with Cyrus, others.  Annotate with metadata that triggers analysis, type matching?
+		wrap in another type, and allow that type to mimic this one?]
+		
+	== [punt for now]
+	
+	How do we specify "main" on the server side?
+		Is there an equivalent on the client side for web apps (both standalone and server-driven)?
+	How can we support HTML submodules in different files?
+	How can we support modules that can only work on some platforms?
+		How is this specified, and how do we check clients are using it properly?
+	How does the server refer to the client (e.g. for WebSockets)?
+	
+Sample application
+	Web server accepts HTTP requests
+	Replies with an HTML file
+		There is text showing a number, and a square
+	When the square is clicked, an increment goes to the server and the current count comes back
+	
+Constraints to enforce
+	All network communication happens through the framework
+	The framework ensures there are no direct object references
+	Architects can easily see all web apps installed in the server and inspect their security properties:
+		A particular web application uses HTTPS
+		The web application is invulnerable to XSS because all HTML construction is structured
+	Others to consider
+		configuration (of the web app, of authentication and encryption libraries, etc.)
+		authentication
+		CSRF
+		
+	[compare Franzie's example]
+
+Mechanisms
+	capabilities
+	architectural layering - building one architecture on another, one protocol on another [how?]
+	Declarative DSLs
+	Abstract data types
+	Hidden constructors - e.g. you can only construct an object of the right type to pass to the framework using a DSL
+	
+======================== Code Sketch ==========================
+
+--------------- ClickServer.wyv ----------------
+
+package wyvern.cs.cmu.edu/code/ClickServer
+
+import wyvern.html.HTML
+from wyvern.html.widgets import box, button
+
+type IProtocol
+	async click():Int
+
+type IClickServer extends IProtocol
+	def count():Int
+	def serve():HTML
+
+var currentCount:Int = 0
+	
+def click():Int
+	currentCount = currentCount + 1
+	currentCount
+	
+def count():Int = currentCount
+
+def serve():Closed[HTML] = ~
+	// import some libraries that were really always for JavaScript
+	import box, button
+	
+	// bind some values before packaging as HTML
+	close // close takes things above out of scope, except the set of names below
+		val c = count()
+		val server:IProtocol = remote(this)
+		
+	// this part is interpreted as HTML.  The preamble turns into JavaScript
+	preamble
+		val countBox = Box(c)
+	
+	>html
+	  >body
+		< countBox
+		< Button
+			after x = server.click() do countBox.update(x)
+
+implements IClickServer
+
+	
+	
+Later:
+	error handling (can use simple exceptions for now)
