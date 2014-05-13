@@ -112,7 +112,7 @@ SHTML      >html
 SCSS            body { background-image: url(%ECSSbgImageSCSS%) }
             #search { background-color: %ECSSdarken(`SCOLOR#aabbccECOLOR`, SPCT10pctEPCT)SCSS% }
 ECSSSHTML        >body
-          >h1 Results for < EHTMLHTML.Text(searchQuery)SHTML
+          >h1 Results for <{EHTMLHTML.Text(searchQuery)SHTML}:
           >div[id="search"]
             Search again: < EHTMLSearchBox($\texttt{"}$SSTRGo!ESTR$\texttt{"}$)SHTML
           <EHTML (* fmt_results : DB * SQLQuery * Nat * Nat -> HTML *)
@@ -149,16 +149,32 @@ SURL12xyzEURL (* no delimiters necessary for number literals; suffix optional *)
 %\vspace{-10px}
 \label{f-delims}
 \end{figure}
-Our first TSL appears on the right-hand side of the variable binding on line 1. The variable \li{imageBase} is annotated with its type, \li{URL}. This is a named {object type}\footnote{We do not currently support polymorphic types in Wyvern, so in our discussion types and type constructors are indistinguishable, and we will simply use ``types'' for concision.} declaring several fields representing the components of a URL: its protocol, domain name, port, path and so on (not shown). We could have created a value of type \li{URL} using general-purpose notation:
+Our first TSL appears on the right-hand side of the variable binding on line 1. The variable \li{imageBase} is annotated with its type, \li{URL}. This is a named {object type} declaring several fields representing the components of a URL: its protocol, domain name, port, path and so on (not shown). We could have created a value of type \li{URL} using general-purpose notation (using the keyword \li{new}, an expression form that \emph{forward references} an indented block of field and method definitions beginning on the line after it appears):
+\begin{figure}[h]
+\vspace{-22px}
+\begin{subfigure}[t]{.50\textwidth}
 \begin{lstlisting}
-let imageBase = new : URL
-  val protocol = $\text{"}$SUShttpEUS$\texttt{"}$
-  val subdomain = $\texttt{"}$SUSimagesEUS$\texttt{"}$
+objtype URL
+  val protocol : String
+  val subdomain : String
   (* ... *)
 \end{lstlisting}
+\end{subfigure}
+\begin{subfigure}[t]{.50\textwidth}
+\begin{lstlisting}
+let imageBase = new : URL
+  val protocol = $\text{"}$SSTRhttpESTR$\texttt{"}$
+  val subdomain = $\texttt{"}$SSTRimagesESTR$\texttt{"}$
+  (* ... *)
+\end{lstlisting}
+\end{subfigure}
+\vspace{-24px}
+\end{figure}
 %  val domain : URLString = $\texttt{"}$SSTRexampleESTR$\texttt{"}$
-This is tedious. Because the \li{URL} type has a TSL associated with it, we can instead introduce precisely this value using conventional notation for URLs by placing it in the \emph{body} of a \emph{generic literal}, \li{<SURLimages.example.comEURL>}. Any other delimited form in Fig. \ref{f-delims} could equivalently be used if the constraints shown are obeyed. The type annotation on \li{imageBase} implies that this literal's \emph{expected type} is \li{URL}, so the {body} of the literal (the characters between the angle brackets, in blue) will be governed by the \li{URL} TSL during the typechecking phase. This TSL will parse the body ({at compile-time}) to produce a Wyvern abstract syntax tree (AST) that explicitly instantiates a new object of type \li{URL} using general-purpose notation as if the above had been written directly. We will return to how this works shortly. 
 
+This is tedious. By associating a TSL with the \li{URL} type (we will show how later), we can instead introduce precisely this value using conventional notation for URLs by placing it in the \emph{body} of a \emph{generic literal}, \li{<SURLimages.example.comEURL>}. Any other delimited form in Fig. \ref{f-delims} can equivalently be used when the constraints shown can be obeyed. The type annotation on \li{imageBase} (or equivalently, directly after the literal) implies that this literal's \emph{expected type} is \li{URL}, so the {body} of the literal (the characters between the angle brackets, in blue) will be governed by the \li{URL} TSL during the typechecking phase. This TSL will parse the body ({at compile-time}) to produce a Wyvern abstract syntax tree (AST) that explicitly instantiates a new object of type \li{URL} using general-purpose notation as if the above had been written directly.
+
+\subsection{Splicing}
 In addition to supporting conventional notation for URLs, this TSL supports \emph{splicing}
 another Wyvern expression of type \li{URL} to form a larger URL. The spliced term is delimited by percent signs,
 as seen on line 2 of Fig. \ref{f-example}. The TSL parses code between percent signs  as a Wyvern expression, using its abstract syntax tree (AST) to construct an AST for the expression as a whole. A string-based representation of the URL is never used at run-time. Note that the delimiters used to go from Wyvern to a TSL are controlled by Wyvern  while the TSL controls how to return to Wyvern. 
@@ -172,7 +188,7 @@ On line 5 of Fig. \ref{f-example}, we see a call to a function \li{serve} (not s
 Portions of the implementation of the TSL for \li{HTML} are shown on lines 8-15 of Fig. \ref{f-htmltype}. A TSL is associated with a named type, forming an \emph{active type}, using a more general mechanism for associating a pure, static value with a named type, called its \emph{metadata}. Metadata is introduced as shown on line 8 of Fig. \ref{f-htmltype}. Type metadata, in this context, is comparable to class annotations in Java or attributes in C\#/F\# and internalizes the practice of writing metadata using comments, so that it can be checked by the language and accessed programmatically more easily. This can be used for a variety of purposes -- to associate documentation with a type, to mark types as being deprecated, and so on.
 
 \begin{figure}[t]
-\begin{lstlisting}[escapechar=$]
+\begin{lstlisting}
 casetype HTML 
   Empty
   Seq of HTML * HTML 
@@ -183,25 +199,25 @@ casetype HTML
   metadata = new : HasTSL
     val parser = ~
 SGRM      start <- '>body'= attributes start>
-        EGRMfn attrs, child => `SQTHTML.BodyElement((%EQTattrsSQT%, %EQTchildSQT%))EQT`
+        EGRMfn (attrs, child) => `SQTBodyElement((%EQTattrsSQT%, %EQTchildSQT%))EQT`
 SGRM      start <- '>style'= attributes EXP>
-        EGRMfn attrs, e => `SQTHTML.StyleElement((%EQTattrsSQT%, %EQTeSQT%))EQT`
+        EGRMfn (attrs, e) => `SQTStyleElement((%EQTattrsSQT%, %EQTeSQT%))EQT`
 SGRM      start <- '<'= EXP>EGRM 
-        fn e => `SQT%EQTeSQT% : HTMLEQT`
+        fn (e) => `SQT%EQTeSQT% : HTMLEQT`
 \end{lstlisting}
 \caption{A Wyvern case type with an associated TSL.}
 \label{f-htmltype}
 \end{figure}
 \begin{figure}[t]
-\begin{subfigure}[t]{.58\textwidth}
+\begin{subfigure}[t]{.54\textwidth}
 \begin{lstlisting}
 objtype HasTSL
   val parser : Parser
 objtype Parser                          
-  def parse(ps : ParseStream) : ParseResult
+  def parse(ps : ParseStream) : Result
   metadata : HasTSL = new
-    val parser = (* parser generator *)
-casetype ParseResult
+    val parser = (*parser generator*)
+casetype Result
   OK of Exp * ParseStream
   Error of String * Location  
 \end{lstlisting}
@@ -212,16 +228,16 @@ casetype Exp
   Var of ID
   Lam of ID * Type * Exp
   Ap of Exp * Exp
-  Tuple of Exp * Exp
+  New of Members
   ... 
   Spliced of ParseStream
   metadata : HasTSL = new
-    val parser = (* quasiquotes *)
+    val parser = (*quasiquotes*)
 \end{lstlisting}
 \end{subfigure}
-\caption{Some of the types included in the Wyvern prelude. They are mutually defined.}
+\caption{Some of the types included in the Wyvern prelude.}
 %\vspace{-10px}
-\label{f-builtins}
+\label{f-prelude}
 %\label{fig:typeParser}
 \end{figure}
 
