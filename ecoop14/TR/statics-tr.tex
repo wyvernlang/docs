@@ -1,0 +1,129 @@
+% !TEX root = ecoop14-tr.tex
+\section{Static Semantics}
+\subsection{Mutually Recursive Type Declarations}
+\newpage
+\begin{figure}[h]
+$\fbox{$\vdash_\Theta \theta \sim \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{rec-decls}]
+  {\vdash_{\Theta_0} \theta \sim \Theta}
+  { \vdash_{\Theta_0} \theta \sim_{\text{names}} \Theta_{\text{names}}
+  & \vdash_{\Theta_0 \Theta_{\text{names}}} \theta \sim_{\text{defs}} \Theta_{\text{defs}}
+  & \vdash_{\Theta_0 \Theta_{\text{defs}}} \theta \sim_{\text{metadata}} \Theta
+  } 
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{names}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-names}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{names}} \emptyset}
+  { }\\[1ex] 
+  
+\infer[\textit{OT-names}]
+  {\vdash_{\Theta} \keyw{objtype}[T,\omega,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
+  { \vdash_{\Theta} \omega
+  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-names}]
+  {\vdash_{\Theta} \keyw{casetype}[T,\chi,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
+  { \vdash_{\Theta} \omega
+  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{defs}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-def}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{defs}} \emptyset}
+  { }\\[1ex] 
+  
+\infer[\textit{OT-def}]
+  {\vdash_{\Theta} \keyw{objtype}[T,\omega,e_m];\theta' \sim_{\text{defs}} T[\keyw{ot}[\omega], ?]; \Theta'}
+  { \vdash_\Theta \omega
+  & \vdash _\Theta \theta' \sim_{\text{defs}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-def}]
+  {\vdash_{\Theta} \keyw{casetype}[T,\chi,e_m];\theta' \sim_{\text{defs}} T[\keyw{ct}[\chi], ?]; \Theta'}
+  { \vdash_\Theta \chi
+  & \vdash _\Theta \theta' \sim_{\text{defs}} \Theta'}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \theta \sim_{\text{metadata}} \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{empty-metadata}]
+  {\vdash_{\Theta} \emptyset \sim_{\text{metadata}} \emptyset}
+  { }\\[1ex]
+\infer[\textit{OT-metadata}]
+  {\vdash_{\Theta_0, T[\keyw{ot}[\omega],?], \Theta} \keyw{objtype}[T, \omega, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
+  { \vdash_{\Theta_0, T[\keyw{ot}[\omega], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  & \vdash_{\Theta_0, T[\keyw{ot}[\omega], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}\\[1ex]
+
+\infer[\textit{CT-metadata}]
+  {\vdash_{\Theta_0, T[\keyw{ct}[\chi],?], \Theta} \keyw{casetype}[T, \chi, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
+  { \vdash_{\Theta_0, T[\keyw{ct}[\chi], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  & \vdash_{\Theta_0, T[\keyw{ct}[\chi], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}
+\end{array}
+\]
+\caption{The type declaration judgement in the paper only supports recursive types. Here, we include support for mutually recursive types by splitting the three key premises of the paper rule into three distinct judgements, which each process the entire list of type declarations all the way through before going on to the next one.}
+\end{figure}
+
+\begin{figure}[h]
+$\fbox{$\vdash \Theta$}$
+\[
+\begin{array}{c}
+\infer[\textit{Th-empty}]
+{\vdash \emptyset}
+{ }
+~~~~~~~~
+\infer[\textit{Th-extend}]
+{\vdash \Theta, T[\delta, \mu]}
+{T \notin \text{dom}(\Theta) & \vdash \Theta & \vdash_{\Theta, T[\delta, \mu]} \delta &
+\vdash_{\Theta, T[\delta, \mu]} \mu}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \delta$}$
+\[
+\begin{array}{c}
+\infer[\textit{def-unknown}]
+{\vdash_\Theta\,?}
+{ }
+~~~~~~~~
+\infer[\textit{def-ot}]
+{\vdash_\Theta \keyw{ot}[\omega]}
+{\vdash_\Theta \omega}
+~~~~~~~~
+\infer[\textit{def-ct}]
+{\vdash_\Theta \keyw{ct}[\chi]}
+{\vdash_\Theta \chi}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \mu$}$
+\[
+\begin{array}{c}
+\infer[\textit{metadata-unknown}]
+{\vdash_\Theta\,?}
+{ }
+~~~~~~~~
+\infer[\textit{metadata}]
+{\vdash_\Theta i : \tau}
+{\emptyset \vdash_\Theta i \Leftarrow \tau}
+\end{array}
+\]
+$\fbox{$\vdash_\Theta \Gamma$}$
+\[
+\begin{array}{c}
+\infer[\textit{G-empty}]
+{\vdash_\Theta \emptyset}
+{ }
+~~~~~~~~
+\infer[\textit{G-extend}]
+{\vdash_\Theta \Gamma, x : \tau}
+{\vdash_\Theta \tau}g
+\end{array}
+\]
+\caption{Context well-formedness rules}
+\end{figure}
+\newpage
