@@ -57,27 +57,31 @@ Running this command, we found that there were 30,161 constructors, i.e., 24\% o
 \vspace{10px}
 
 
-This constructor was found in the JROpen project, on line 51 in a file called \mbox{\lstinline{IPAddressConversion.java}}. The constructor is called \lstinline{IPAddressConversion} and the name of the \lstinline{String} argument is \lstinline{IPaddr}. From these pieces of information, we inferred that the \lstinline{String} argument represented an IP address, which is usually of the form:
+This constructor was found in the JROpen project, on line 51 in a file called \mbox{\lstinline{IPAddressConversion.java}}. The constructor is called \lstinline{IPAddressConversion} and the name of the \lstinline{String} argument is \lstinline{IPaddr}. From these pieces of information, we inferred that the \lstinline{String} argument representing an IPv4 address, which is usually of the following form where D is a number between 0 and 255:
 
-\begin{lstlisting}
+\begin{lstlisting}[numbers=none]
 D.D.D.D
 \end{lstlisting}
 
-\noindent where D is a number between 0 and 255. This format could be represented by a Wyvern TSL\footnote{We assume an IP address of IPv4, but an IP address of IPv6 can be represented by a TSL in a similar fashion.}:
+This format could be represented by a Wyvern TSL where we support variable splicing using the format \lstinline{%x}:
 
 \begin{lstlisting}
-casetype IPAddress
+objtype IPAddress
   ...
   metadata = new : HasTSL
     val parser = ~
-      start <- e1::EXP '.' e2::EXP '.' e3::EXP '.' e4::EXP
-        '%e1% : Number0to255'
-        '%e2% : Number0to255'
-        '%e3% : Number0to255'
-        '%e4% : Number0to255'
+      SGRMstart <- D '.' D '.' D '.' D
+        EGRMfn (e1, e2, e3, e4) => ~
+          SQTnew
+            val d1 = %EQTe1SQT%
+            val d2 = %EQTe2SQT%
+            val d3 = %EQTe3SQT%
+            val d4 = %EQTe4SQT%
+      EQTSGRMD <- numlit
+        EGRMfn (e1) => e1
+      SGRMD <- '%' ID
+        EGRMfn (e1) => e1
 \end{lstlisting}
-
-\noindent where \lstinline{Number0to255} is another Wyvern TSL denoting numbers from 0 to 255.
 
 Hence, the constructor could use a TSL instead of the \lstinline{String} argument and thus benefit from a guarantee that at the runtime the passed-in argument adheres to the necessary format.
 
