@@ -1,0 +1,195 @@
+\documentclass[runningheads]{llncs}
+
+\usepackage{times}
+
+\usepackage{amsmath}
+\usepackage{latexsym}
+\usepackage{verbatim}
+\usepackage[T1]{fontenc}
+%\usepackage[defaultmono]{droidmono}
+\usepackage{proof,amssymb,enumerate}
+\usepackage{math-cmds}
+\usepackage{listings}
+%\setcounter{tocdepth}{3}
+%\renewcommand*\ttdefault{txtt}
+\usepackage[scaled]{beramono}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{mathtools}
+\newcommand{\keywords}[1]{\par\addvspace\baselineskip
+\noindent\keywordname\enspace\ignorespaces#1}
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{compatibility=false}
+
+\usepackage{fancyvrb}
+\renewcommand{\theFancyVerbLine}{%
+\color{gray}\ttfamily{\scriptsize
+\arabic{FancyVerbLine}}}
+
+\def\implies{\Rightarrow}
+\newcommand{\todo}[1]{\textbf{[TODO: #1]}}
+\newcommand{\keyw}[1]{\textbf{#1}}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{dfn}{Definition}
+
+\lstset{tabsize=2, 
+basicstyle=\ttfamily\fontsize{8pt}{1em}\selectfont, 
+commentstyle=\itshape\ttfamily, 
+stringstyle=\ttfamily,
+numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast,from,import,architecture,connect,component},deletekeywords={for,double,in,type},classoffset=0,belowskip=\smallskipamount,
+moredelim=**[is][\color{cyan}]{SSTR}{ESTR},
+moredelim=**[is][\color{OliveGreen}]{SHTML}{EHTML},
+moredelim=**[is][\color{purple}]{SCSS}{ECSS},
+moredelim=**[is][\color{brown}]{SSQL}{ESQL},
+moredelim=**[is][\color{orange}]{SCOLOR}{ECOLOR},
+moredelim=**[is][\color{magenta}]{SPCT}{EPCT}, 
+moredelim=**[is][\color{gray}]{SNAT}{ENDNAT}, 
+moredelim=**[is][\color{blue}]{SURL}{EURL},
+moredelim=**[is][\color{SeaGreen}]{SQT}{EQT},
+moredelim=**[is][\color{Periwinkle}]{SGRM}{EGRM},
+moredelim=**[is][\color{Sepia}]{SID}{EID},
+moredelim=**[is][\color{Sepia}]{SUS}{EUS}
+}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+
+\let\li\lstinline
+
+%% Save the class definition of \subparagraph
+\let\llncssubparagraph\subparagraph
+%% Provide a definition to \subparagraph to keep titlesec happy
+\let\subparagraph\paragraph
+%% Load titlesec
+\usepackage[compact]{titlesec}
+%% Revert \subparagraph to the llncs definition
+\let\subparagraph\llncssubparagraph
+
+
+\begin{document}
+
+\title{Language-Based Architectural Control}
+%\author{~}
+%\institute{~}
+\author{Jonathan Aldrich \and others$^{1}$}
+\institute{Carnegie Mellon University and Victoria University of Wellington$^{1}$\\
+\texttt{\scriptsize \{aldrich\}@cs.cmu.edu}
+and
+\texttt{\scriptsize others@ecs.vuw.ac.nz}$^{1}$}
+\setlength{\abovecaptionskip}{0pt}
+\setlength{\belowcaptionskip}{0pt}
+\authorrunning{Aldrich, ...} % To fix excessive length.
+
+\maketitle
+
+\begin{sloppypar}
+\begin{abstract}
+%The abstract should summarize the contents of the paper and should
+%contain at least 70 and at most 150 words. It should be written using the
+%\emph{abstract} environment.
+Software architects design systems to achieve certain quality attributes, such as security, reliability, and performance. Key to achieving these quality attributes are design constraints on communication, resource use, and configuration of components within the system. Unfortunately, in practice it is easy to omit or mis-specify important constraints, and it is difficult to ensure that specified constraints are also enforced. 
+
+~~~~~~\emph{Architectural control} is the ability of software architects to ensure that they have identified, specified, and enforced design constraints that are sufficient for the system's implementation to meet its goals. We argue that programming languages, type systems, and frameworks can help achieve architectural control in practice. The approach we envision leverages frameworks that fix or expose the important architectural constraints of a domain; language support that allows the framework to centralize the specification of those constraints so they are under the architect's intellectual control, and type systems that enforce the constraints specified by the architect. We sketch an approach to architectural control in the context of distributed systems, leveraging capabilities, alias and effect controls, and domain specific languages.
+
+\keywords{software architecture;
+architectural control;
+distributed systems;
+capabilities;
+layered architectures;
+alias control;
+domain specific languages}
+
+\end{abstract}
+
+
+
+\section{Architecture-Exposing Languages and Frameworks}
+
+\subsection{Extending Languages with Architecture}
+
+Goals: ensure that SSL is used in a simple client-server application.  be able to audit the messages exchanged.
+
+Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
+
+What the architecture should show
+ X an example of each kind of thing that communicates, and a link to the code
+ X connections between the things, and the protocol used
+ X a way to easily see the interfaces
+   - use named ports for this
+ - [separate] a way to implement the network protocol in a custom way
+   - likely using static metaprogramming
+   - cite Smaragdakis paper or others?
+ - [separate] a programmatic way to access the connection from the client and server
+   - ports that specify interfaces and connection initialization information
+   - very similar to distributed ArchJava, cite it and compare
+
+\clearpage
+   
+\begin{figure}[t]
+\begin{lstlisting}
+def package feedback
+
+import FeedbackClient, FeedbackServer
+import org.wyvern.distributed.SSLConnector
+
+language org.wyvern.distributed.ADL
+
+architecture feedback
+    component client = FeedbackClient()
+    component server = FeedbackServer()
+    connect client.pServer, server.pClient with SSLSOAPConnector()
+\end{lstlisting}
+\caption{Client-Server Architecture}
+\label{f-architecture}
+%\vspace{-10px}
+\end{figure}
+
+Would not build this into the language (as ArchJava did, cite it), but rather use it as a library-defined extension language [cite ECOOP 2014 paper].
+
+\begin{figure}[t]
+\begin{lstlisting}
+package feedback
+
+import FeedbackInterface
+import org.wyvern.distributed.IPClient
+import org.wyvern.distributed.IPAddress
+
+class FeedbackClient
+    val pServer : FeedbackInterface
+    def run(String address, String feedback)
+        pServer = IPClient<FeedbackInterface>(IPAddress(address))
+        pServer.provideFeedback(feedback)
+\end{lstlisting}
+\caption{Client code}
+\label{f-client}
+%\vspace{-10px}
+\end{figure}
+
+\begin{figure}[t]
+\begin{lstlisting}
+package feedback
+
+import FeedbackInterface
+import org.wyvern.distributed.IPServer
+import org.wyvern.distributed.IPAddress
+
+class FeedbackServer
+    val cServer : FeedbackInterface = IPClient<FeedbackInterface>()
+    def run(String address, String feedback)
+        pServer.connect(IPAddress(address))
+        pServer.provideFeedback(feedback)
+\end{lstlisting}
+\caption{Server code}
+\label{f-server}
+%\vspace{-10px}
+\end{figure}
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{research}
+
+\end{sloppypar}
+\end{document}
