@@ -1,8 +1,35 @@
 % !TEX root = ecoop14-tr.tex
 \section{Static Semantics}
 \subsection{Mutually Recursive Type Declarations}
-\newpage
-\begin{figure}[h]
+
+The type declaration judgement in the paper only supports recursive types. Here, we include support for mutually recursive types by splitting the three key premises of the paper rule into three distinct judgements, which each process the entire list of type declarations all the way through before going on to the next one. The three additional judgements in Fig. \ref{fig:mutual-recursion} operate as follows:
+\begin{enumerate}
+\item The judgement $\vdash_{\Theta_0} \theta \sim_{\text{names}} \Theta_{\text{names}}$ creates a named type context $\Theta_{\text{names}}$ containing only type names from $\theta$, checking only that they are unique. Each binding in $\Theta_{\text{names}}$ is of the form $T[?, ?]$.
+\item The judgement $\vdash_{\Theta_{0}\,\Theta_{\text{names}}} \theta \sim_{\text{defs}} \Theta_{\text{defs}}$ creates a named type context $\Theta_{\text{defs}}$ containing only type names and their definitions, checking only that any named types mentioned in the type definitions are available. Each binding in $\Theta_{\text{names}}$ is of the form $T[\delta, ?]$.
+\item The judgement $\vdash_{\Theta_{0}\,\Theta_{\text{defs}}} \theta \sim_{\text{metadata}} \Theta$ finally checks that the metadata is well-typed. Metadata can explicitly refer to metadata of a type listed earlier in the list of type declarations, $\theta$, but any other reference is a type error.
+\end{enumerate}
+
+\subsection{Context Formation}
+In our metatheory, we need judgements expressing well-formed contexts, shown in Fig. \ref{fig:context-formation}. Lemma 3 in the paper applies to our definition for mutually recursive type declarations as well:
+\begin{lemma}[Type Declaration (Mutually Recursive)]
+If $\vdash \Theta_0$ and $\vdash_{\Theta_0} \theta \sim \Theta$ then $\vdash \Theta_{0}\Theta$.
+\end{lemma}
+\begin{proof}
+We prove the following more explicit lemma after inverting the type declaration derivation.
+\end{proof}
+\begin{lemma}[Type Declaration (Explicit)]
+If $\vdash \Theta_0$ and $\vdash_{\Theta_0} \theta \sim_{\text{names}} \Theta_{\text{names}}$ then $\vdash\Theta_0\Theta_{\text{names}}$ and if $\vdash_{\Theta_0\Theta_{\text{names}}} \theta \sim_{\text{defs}} \Theta_{\text{defs}}$ then $\vdash \Theta_0\Theta_{\text{defs}} $ and if $\vdash_{\Theta_0\Theta_{\text{defs}}} \theta \sim_{\text{metadata}} \Theta$ then $\vdash \Theta_0\Theta$.
+\end{lemma}
+\begin{proof}
+The proof is by induction on the structure of $\theta$. We give the case $\theta = \keyw{objtype}[T, \omega, e_m]; \theta'$ (the case $\theta=\emptyset$ is trivial and the case $\theta=\keyw{casetype}[T, \chi, e_m]$ follows a directly corresponding argument). We have:
+\begin{itemize}
+\item By rule \textit{OT-names} (which is the only rule that syntactically applies) that $\Theta_{\text{names}}=T[?,?];\Theta'_{\text{names}}$ and $T \notin \text{dom}(\Theta_0)$ and $T \notin \text{dom}(\Theta'_{\text{names}})$ and by the IH, $\vdash \Theta_0 \Theta'_{\text{names}}$. Therefore, $\vdash \Theta_0 \Theta'_{\text{names}}, T[?,?]$ by rules \textit{Th-extend}, \textit{def-unknown} and \textit{metadata-unknown}. Thus, $\vdash \Theta_0 \Theta_{\text{names}}$ by suitable application of an exchange lemma, which we assume by metatheoretically defining $\Theta$  as a finite map over type names.
+\item By rule \textit{OT-defs} (which is the only rule that syntactically applies) we have that $\Theta_{\text{defs}}=T[\keyw{ot}[\omega],?];\Theta'_{\text{defs}}$ and $\vdash_{\Theta_0\Theta_{\text{names}}} \omega$ and by the IH, $\vdash \Theta_0 \Theta'_{\text{defs}}$. Therefore, $\vdash \Theta_0 \Theta'_{\text{defs}}, T[\keyw{ot}[\omega], ?]$ by rules \textit{Th-extend}, \textit{def-ot} and \textit{metadata-unknown}. By exchange, we have that $\vdash \Theta_0 \Theta_{\text{defs}}$. 
+\item By rule \textit{OT-metadata} (which is the only rule that syntactically applies), we have that $\Theta = T[\keyw{ot}[\omega], i_m : \tau_m]; \Theta'$ and $\emptyset \vdash_{\Theta_0 \Theta_{\text{defs}}} e_m \leadsto i_m \Leftarrow \tau_m$ and by the external type preservation lemma, $\emptyset \vdash_{\Theta_0 \Theta_{\text{defs}}} i_m \Leftarrow \tau_m$. By rules \textit{Th-extend}, \textit{def-ot} and \textit{metadata}  we have that $\vdash \Theta_0, T[\keyw{ot}[\omega], i_m : \tau_m]$. By the IH, we then have that $\vdash \Theta_0 \Theta$.
+\end{itemize}
+
+\end{proof}
+\begin{figure}[t]
 $\fbox{$\vdash_\Theta \theta \sim \Theta$}$
 \[
 \begin{array}{c}
@@ -23,13 +50,13 @@ $\fbox{$\vdash_\Theta \theta \sim_{\text{names}} \Theta$}$
   
 \infer[\textit{OT-names}]
   {\vdash_{\Theta} \keyw{objtype}[T,\omega,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
-  { \vdash_{\Theta} \omega
-  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}\\[1ex]
+  {\vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'
+  & T \notin \text{dom}(\Theta) & T \notin \text{dom}(\Theta')}\\[1ex]
 
 \infer[\textit{CT-names}]
   {\vdash_{\Theta} \keyw{casetype}[T,\chi,e_m];\theta' \sim_{\text{names}} T[?,?];\Theta'}
-  { \vdash_{\Theta} \omega
-  & \vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'}
+  {\vdash_{\Theta} \theta' \sim_{\text{names}} \Theta'
+  & T \notin \text{dom}(\Theta) & T \notin \text{dom}(\Theta')}
 \end{array}
 \]
 $\fbox{$\vdash_\Theta \theta \sim_{\text{defs}} \Theta$}$
@@ -58,16 +85,17 @@ $\fbox{$\vdash_\Theta \theta \sim_{\text{metadata}} \Theta$}$
   { }\\[1ex]
 \infer[\textit{OT-metadata}]
   {\vdash_{\Theta_0, T[\keyw{ot}[\omega],?], \Theta} \keyw{objtype}[T, \omega, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
-  { \vdash_{\Theta_0, T[\keyw{ot}[\omega], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  { \emptyset \vdash_{\Theta_0, T[\keyw{ot}[\omega], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
   & \vdash_{\Theta_0, T[\keyw{ot}[\omega], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}\\[1ex]
 
 \infer[\textit{CT-metadata}]
-  {\vdash_{\Theta_0, T[\keyw{ct}[\chi],?], \Theta} \keyw{casetype}[T, \chi, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ot}[\omega],i_m:\tau_m]; \Theta'}
-  { \vdash_{\Theta_0, T[\keyw{ct}[\chi], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
+  {\vdash_{\Theta_0, T[\keyw{ct}[\chi],?], \Theta} \keyw{casetype}[T, \chi, e_m]; \theta' \sim_{\text{metadata}} T[\keyw{ct}[\omega],i_m:\tau_m]; \Theta'}
+  { \emptyset \vdash_{\Theta_0, T[\keyw{ct}[\chi], ?], \Theta} e_m \leadsto i_m \Rightarrow \tau_m
   & \vdash_{\Theta_0, T[\keyw{ct}[\chi], i_m : \tau_m], \Theta} \theta' \sim_{\text{metadata}} \Theta'}
 \end{array}
 \]
-\caption{The type declaration judgement in the paper only supports recursive types. Here, we include support for mutually recursive types by splitting the three key premises of the paper rule into three distinct judgements, which each process the entire list of type declarations all the way through before going on to the next one.}
+\caption{Mutually Recursive Type Declaration Checking}
+\label{fig:mutual-recursion}
 \end{figure}
 
 \begin{figure}[h]
@@ -80,8 +108,8 @@ $\fbox{$\vdash \Theta$}$
 ~~~~~~~~
 \infer[\textit{Th-extend}]
 {\vdash \Theta, T[\delta, \mu]}
-{T \notin \text{dom}(\Theta) & \vdash \Theta & \vdash_{\Theta, T[\delta, \mu]} \delta &
-\vdash_{\Theta, T[\delta, \mu]} \mu}
+{\vdash \Theta & T \notin \text{dom}(\Theta) & \vdash_{\Theta, T[?, ?]} \delta &
+\vdash_{\Theta, T[\delta, ?]} \mu}
 \end{array}
 \]
 $\fbox{$\vdash_\Theta \delta$}$
@@ -121,9 +149,10 @@ $\fbox{$\vdash_\Theta \Gamma$}$
 ~~~~~~~~
 \infer[\textit{G-extend}]
 {\vdash_\Theta \Gamma, x : \tau}
-{\vdash_\Theta \tau}g
+{\vdash_\Theta \tau}
 \end{array}
 \]
-\caption{Context well-formedness rules}
+\caption{Context Formation}
+\label{fig:context-formation}
 \end{figure}
 \newpage
