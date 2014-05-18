@@ -1,0 +1,249 @@
+% !TEX root = ecoop14.tex
+\section{Grammar}
+\label{s:grammar}
+
+\subsection{Formal Grammar -- verbose, using recursive definitions, incomplete DSL grammar}
+
+\begin{lstlisting}[mathescape]
+p $\rightarrow$ $\varepsilon$
+p $\rightarrow$ decl
+
+decl $\rightarrow$ 'var' ID ':' type '=' body
+decl $\rightarrow$ 'var' ID ':' type '=' body decl
+decl $\rightarrow$ 'def' ID '(' typedargslist ')' '=' body
+decl $\rightarrow$ 'def' ID '(' typedargslist ')' '=' body decl
+decl $\rightarrow$ 'type' ID '=' typebody
+decl $\rightarrow$ 'type' ID '=' typebody decl
+
+body $\rightarrow$ stmt
+body $\rightarrow$ NEWLINE INDENT stmt DEDENT
+
+typebody $\rightarrow$ type
+typebody $\rightarrow$ NEWLINE INDENT declintype DEDENT
+
+declintype $\rightarrow$ 'def' ID '(' typedargslist ')' '=' body
+declintype $\rightarrow$ 'def' ID '(' typedargslist ')' '=' body declintype
+declintype $\rightarrow$ propdecl
+declintype $\rightarrow$ propdecl declintype
+declintype $\rightarrow$ 'type' ID '=' typebody
+declintype $\rightarrow$ 'type' ID '=' typebody declintype
+declintype $\rightarrow$ 'metaobject' '=' body
+declintype $\rightarrow$ 'metaobject' '=' body declintype
+declintype $\rightarrow$ 'metaobject' ':' type '=' body
+declintype $\rightarrow$ 'metaobject' ':' type '=' body declintype
+
+stmt $\rightarrow$ exp NEWLINE
+stmt $\rightarrow$ exp NEWLINE stmt
+stmt $\rightarrow$ expwdsl dsltilde
+stmt $\rightarrow$ expwdsl dsltilde stmt
+stmt $\rightarrow$ ID '=' exp NEWLINE
+stmt $\rightarrow$ ID '=' exp NEWLINE stmt
+stmt $\rightarrow$ ID '=' expwdsl dsltilde
+stmt $\rightarrow$ ID '=' expwdsl dsltilde stmt
+stmt $\rightarrow$ exp '.' ID '=' exp NEWLINE
+stmt $\rightarrow$ exp '.' ID '=' exp NEWLINE stmt
+stmt $\rightarrow$ exp '.' ID '=' expwdsl dsltilde
+stmt $\rightarrow$ exp '.' ID '=' expwdsl dsltilde stmt
+stmt $\rightarrow$ expwdsl '.' ID '=' exp dsltilde
+stmt $\rightarrow$ expwdsl '.' ID '=' exp dsltilde stmt
+stmt $\rightarrow$ 'def' ID '(' typedargslist ')' '=' body
+stmt $\rightarrow$ 'def' ID '(' typedargslist ')' '=' body stmt
+stmt $\rightarrow$ 'var' ID : type '=' body
+stmt $\rightarrow$ 'var' ID : type '=' body stmt
+
+exp $\rightarrow$ ID
+exp $\rightarrow$ 'fn' ID ':' type '=>' exp
+exp $\rightarrow$ exp '(' arglist ')'
+exp $\rightarrow$ exp '.' ID
+exp $\rightarrow$ exp ':' type
+exp $\rightarrow$ '(' type ')' exp
+exp $\rightarrow$ 'new' newspec
+exp $\rightarrow$ type 'metaobject'
+exp $\rightarrow$ dslinline
+
+expwdsl $\rightarrow$ '~'
+expwdsl $\rightarrow$ expwdsl '.' ID
+expwdsl $\rightarrow$ expwdsl '(' arglist ')'
+expwdsl $\rightarrow$ exp '(' arglistwdsl ')'
+expwdsl $\rightarrow$ expwdsl ':' type
+expwdsl $\rightarrow$ '(' type ')' expwdsl
+expwdsl $\rightarrow$ 'fn' ID ':' type '=>' expwdsl
+        
+type $\rightarrow$ ID
+type $\rightarrow$ type '->' type
+type $\rightarrow$ type '.' type
+
+arglist $\rightarrow$ $\varepsilon$
+arglist $\rightarrow$ exp
+arglist $\rightarrow$ exp ',' arglist
+
+arglistwdsl $\rightarrow$ $\varepsilon$
+arglistwdsl $\rightarrow$ expwdsl
+arglistwdsl $\rightarrow$ expwdsl ',' arglist
+arglistwdsl $\rightarrow$ arglist ',' expwdsl
+arglistwdsl $\rightarrow$ arglist ',' expwdsl ',' arglist
+
+typedargslist $\rightarrow$ $\varepsilon$
+typedargslist $\rightarrow$ ID ':' type
+typedargslist $\rightarrow$ ID ':' type ',' typedargslist
+
+newspec $\rightarrow$ $\varepsilon$
+newspec $\rightarrow$ NEWLINE INDENT decl DEDENT
+
+dsltilde $\rightarrow$ NEWLINE INDENT dsltildebody DEDENT
+
+dsltildebody ::= dslexp_balanced[INDENT,DEDENT]
+
+dslinline ::= '`' dslexp_single[`] '`'
+          |   ''' dslexp_single['] '''
+          |   '"' dslexp_single["] '"'
+          |   '/' dslexp_single[/] '/'
+          |   '\\' dslexp_single[\\] '\\'
+          |   '{' dslexp_balanced[{,}] '}'
+          |   '[' dslexp_balanced[[,]] ']'
+          |   '<' dslexp_balanced[<,>] '>'
+          |   '&' dslexp_balanced[&,;] ';'
+          |   ('+' | '-')? \\d+ | ('+' | '-')? \\d* '.' \\d+ |
+          |   '#' [^\\w]+
+
+dslexp_single[c] ::= [^c|c c]*
+dslexp_balanced[s,e] ::= [^e]* | dslexp_balanced[s,e]
+
+propdecl $\rightarrow$ ...
+\end{lstlisting}
+
+
+\subsection{Grammar in Adams' Formalism}
+
+\begin{lstlisting}[mathescape]
+|'var'| $\rightarrow$ 'var'$^=$
+|'def'| $\rightarrow$ 'def'$^=$
+|'type'| $\rightarrow$ 'type'$^=$
+|':'| $\rightarrow$ ':'$^=$
+|'('| $\rightarrow$ '('$^=$
+|')'| $\rightarrow$ ')'$^=$
+|'='| $\rightarrow$ '='$^=$
+|'.'| $\rightarrow$ '.'$^=$
+|'->'| $\rightarrow$ '->'$^=$
+|','| $\rightarrow$ ','$^=$
+|'metaobject'| $\rightarrow$ 'metaobject'$^=$
+|'fn'| $\rightarrow$ 'fn'$^=$
+|'=>'| $\rightarrow$ '=>'$^=$
+|'new'| $\rightarrow$ 'new'$^=$
+|'~'| $\rightarrow$ '~'$^=$
+|'&'| $\rightarrow$ '&'$^=$
+|'#'| $\rightarrow$ '#'$^=$
+|'<'| $\rightarrow$ '<'$^=$
+|'>'| $\rightarrow$ '>'$^=$
+|';'| $\rightarrow$ ';'$^=$
+
+|p| $\rightarrow$ $\varepsilon$
+|p| $\rightarrow$ |decl|$^=$
+
+|decl| $\rightarrow$ |'var'|$^=$ ID$^\geq$ ':'$^\geq$ type$^\geq$ '='$^\geq$ body$^>$
+|decl| $\rightarrow$ |'var'|$^=$ ID$^\geq$ ':'$^\geq$ type$^\geq$ '='$^\geq$ body$^>$ decl$^=$
+|decl| $\rightarrow$ |'def'|$^=$ ID$^\geq$ '('$^\geq$ typedargslist$^\geq$ ')'$^\geq$ '='$^\geq$ body$^>$
+|decl| $\rightarrow$ |'def'|$^=$ ID$^\geq$ '('$^\geq$ typedargslist$^\geq$ ')'$^\geq$ '='$^\geq$ body$^>$ decl$^=$
+|decl| $\rightarrow$ |'type'|$^=$ ID$^\geq$ '='$^\geq$ typebody$^>$
+|decl| $\rightarrow$ |'type'|$^=$ ID$^\geq$ '='$^\geq$ typebody$^>$ decl$^=$
+
+|body| $\rightarrow$ |stmt|$^=$
+|body| $\rightarrow$ NEWLINE$^\geq$ stmt$^=$
+
+|typebody| $\rightarrow$ |type|$^=$
+|typebody| $\rightarrow$ NEWLINE$^\geq$ declintype$^=$
+
+|declintype| $\rightarrow$ |'def'|$^=$ ID$^\geq$ '('$^\geq$ typedargslist$^\geq$ ')'$^\geq$ '='$^\geq$ body$^>$
+|declintype| $\rightarrow$ |'def'|$^=$ ID$^\geq$ '('$^\geq$ typedargslist$^\geq$ ')'$^\geq$ '='$^\geq$ body$^>$ declintype$^=$
+|declintype| $\rightarrow$ propdecl$^=$ // FIX!
+|declintype| $\rightarrow$ propdecl$^=$ declintype$^=$
+|declintype| $\rightarrow$ |'type'|$^=$ ID$^\geq$ '='$^\geq$ typebody$^>$
+|declintype| $\rightarrow$ |'type'|$^=$ ID$^\geq$ '='$^\geq$ typebody$^>$ declintype$^=$
+|declintype| $\rightarrow$ |'metaobject'|$^=$ '='$^\geq$ body$^>$
+|declintype| $\rightarrow$ |'metaobject'|$^=$ '='$^\geq$ body$^>$ declintype$^=$
+|declintype| $\rightarrow$ |'metaobject'|$^=$ ':'$^\geq$ type$^\geq$ '='$^\geq$ body$^>$
+|declintype| $\rightarrow$ |'metaobject'|$^=$ ':'$^\geq$ type$^\geq$ '='$^\geq$ body$^>$ declintype$^=$
+
+|stmt| $\rightarrow$ |exp|$^=$ NEWLINE$^\geq$
+|stmt| $\rightarrow$ |exp|$^=$ NEWLINE$^\geq$ stmt$^=$
+|stmt| $\rightarrow$ |expwdsl|$^=$ dsltilde$^>$
+|stmt| $\rightarrow$ |expwdsl|$^=$ dsltilde$^>$ stmt$^=$
+|stmt| $\rightarrow$ |ID|$^=$ '='$^\geq$ exp$^\geq$ NEWLINE$^\geq$
+|stmt| $\rightarrow$ |ID|$^=$ '='$^\geq$ exp$^\geq$ NEWLINE$^\geq$ stmt$^=$
+|stmt| $\rightarrow$ |ID|$^=$ '='$^\geq$ expwdsl$^\geq$ dsltilde$^>$
+|stmt| $\rightarrow$ |ID|$^=$ '='$^\geq$ expwdsl$^\geq$ dsltilde$^>$ stmt$^=$
+|stmt| $\rightarrow$ |exp|$^=$ '.'$^\geq$ ID$^\geq$ '='$^\geq$ exp$^\geq$ NEWLINE$^\geq$
+|stmt| $\rightarrow$ |exp|$^=$ '.'$^\geq$ ID$^\geq$ '='$^\geq$ exp$^\geq$ NEWLINE$^\geq$ stmt$^=$
+|stmt| $\rightarrow$ |exp|$^=$ '.'$^\geq$ ID$^\geq$ '='$^\geq$ expwdsl$^\geq$ dsltilde$^>$
+|stmt| $\rightarrow$ |exp|$^=$ '.'$^\geq$ ID$^\geq$ '='$^\geq$ expwdsl$^\geq$ dsltilde$^>$ stmt$^=$
+|stmt| $\rightarrow$ |expwdsl|$^=$ '.'$^\geq$ ID$^\geq$ '='$^\geq$ exp$^\geq$ dsltilde$^>$
+|stmt| $\rightarrow$ |expwdsl|$^=$ '.'$^\geq$ ID$^\geq$ '='$^\geq$ exp$^\geq$ dsltilde$^>$ stmt$^=$
+|stmt| $\rightarrow$ |'def'|$^=$ ID$^\geq$ '('$^\geq$ typedargslist$^\geq$ ')'$^\geq$ '='$^\geq$ body$^>$
+|stmt| $\rightarrow$ |'def'|$^=$ ID$^\geq$ '('$^\geq$ typedargslist$^\geq$ ')'$^\geq$ '='$^\geq$ body$^>$ stmt$^=$
+|stmt| $\rightarrow$ |'var'|$^=$ ID$^\geq$ :$^\geq$ type$^\geq$ '='$^\geq$ body$^>$
+|stmt| $\rightarrow$ |'var'|$^=$ ID$^\geq$ :$^\geq$ type$^\geq$ '='$^\geq$ body$^>$ stmt$^=$
+
+|exp| $\rightarrow$ |ID|$^=$
+|exp| $\rightarrow$ |'fn'|$^=$ ID$^\geq$ ':'$^\geq$ type$^\geq$ '=>'$^\geq$ exp$^\geq$
+|exp| $\rightarrow$ |exp|$^=$ '('$^\geq$ arglist$^\geq$ ')'$^\geq$
+|exp| $\rightarrow$ |exp|$^=$ '.'$^\geq$ ID$^\geq$
+|exp| $\rightarrow$ |exp|$^=$ ':'$^\geq$ type$^\geq$
+|exp| $\rightarrow$ |'('|$^=$ type$^\geq$ ')'$^\geq$ exp$^\geq$
+|exp| $\rightarrow$ |'new'|$^=$ newspec$^>$
+|exp| $\rightarrow$ |type|$^=$ 'metaobject'$^\geq$
+|exp| $\rightarrow$ dslinline$^=$
+
+|expwdsl| $\rightarrow$ |'~'|$^=$
+|expwdsl| $\rightarrow$ |expwdsl|$^=$ '.'$^\geq$ ID$^\geq$
+|expwdsl| $\rightarrow$ |expwdsl|$^=$ '('$^\geq$ arglist$^\geq$ ')'$^\geq$
+|expwdsl| $\rightarrow$ |exp|$^=$ '('$^\geq$ arglistwdsl$^\geq$ ')'$^\geq$
+|expwdsl| $\rightarrow$ |expwdsl|$^=$ ':'$^\geq$ type$^\geq$
+|expwdsl| $\rightarrow$ |'('|$^=$ type$^\geq$ ')'$^\geq$ expwdsl$^\geq$
+|expwdsl| $\rightarrow$ |'fn'|$^=$ ID$^\geq$ ':'$^\geq$ type$^\geq$ '=>'$^\geq$ expwdsl$^\geq$
+        
+|type| $\rightarrow$ |ID|$^=$
+|type| $\rightarrow$ |type|$^=$ '->'$^\geq$ type$^\geq$
+|type| $\rightarrow$ |type|$^=$ '.'$^\geq$ type$^\geq$
+
+|arglist| $\rightarrow$ $\varepsilon$
+|arglist| $\rightarrow$ |exp|$^=$
+|arglist| $\rightarrow$ |exp|$^=$ ','$^\geq$ arglist$^\geq$
+
+|arglistwdsl| $\rightarrow$ $\varepsilon$
+|arglistwdsl| $\rightarrow$ |expwdsl|$^=$
+|arglistwdsl| $\rightarrow$ |expwdsl|$^=$ ','$^\geq$ arglist$^\geq$
+|arglistwdsl| $\rightarrow$ |arglist|$^=$ ','$^\geq$ expwdsl$^\geq$
+|arglistwdsl| $\rightarrow$ |arglist|$^=$ ','$^\geq$ expwdsl$^\geq$ ','$^\geq$ arglist$^\geq$
+
+|typedargslist| $\rightarrow$ $\varepsilon$
+|typedargslist| $\rightarrow$ |ID|$^=$ ':'$^\geq$ type$^\geq$
+|typedargslist| $\rightarrow$ |ID|$^=$ ':'$^\geq$ type$^\geq$ ','$^\geq$ typedargslist$^\geq$
+
+|newspec| $\rightarrow$ $\varepsilon$
+|newspec| $\rightarrow$ NEWLINE$^\geq$ decl$^=$
+
+|dsltilde| $\rightarrow$ NEWLINE$^\geq$ dsltildebody$^=$
+
+|dsltildebody| $\rightarrow$ |DSL|$^=$
+
+|dslinline| $\rightarrow$ |'`'|$^=$ dsl$^\geq$ '`'$^\geq$
+|dslinline| $\rightarrow$ |'''|$^=$ dsl$^\geq$ '''$^\geq$
+|dslinline| $\rightarrow$ |'"'|$^=$ dsl$^\geq$ '"'$^\geq$
+|dslinline| $\rightarrow$ |'/'|$^=$ dsl$^\geq$ '/'$^\geq$
+|dslinline| $\rightarrow$ |'\'|$^=$ dsl$^\geq$ '\'$^\geq$
+|dslinline| $\rightarrow$ |'{'|$^=$ dsl$^\geq$ '}'$^\geq$
+|dslinline| $\rightarrow$ |'['|$^=$ dsl$^\geq$ ']'$^\geq$
+|dslinline| $\rightarrow$ |'<'|$^=$ dsl$^\geq$ '>'$^\geq$
+|dslinline| $\rightarrow$ |'&'|$^=$ dsl$^\geq$ ';'$^\geq$
+|dslinline| $\rightarrow$ |'#'|$^=$ dsl$^\geq$ ' '$^\geq$
+|dslinline| $\rightarrow$ |'+'|$^=$ dsl$^\geq$ ' '$^\geq$
+|dslinline| $\rightarrow$ |'-'|$^=$ dsl$^\geq$ ' '$^\geq$
+|dslinline| $\rightarrow$ |'+'|$^=$ dsl$^\geq$ '.'$^\geq$ dsl$^\geq$
+|dslinline| $\rightarrow$ |'-'|$^=$ dsl$^\geq$ '.'$^\geq$ dsl$^\geq$
+|dslinline| $\rightarrow$ dsl$^\geq$ '.'$^\geq$ dsl$^\geq$
+
+|dsl| $\rightarrow$ $\varepsilon$
+|dsl| $\rightarrow$ |DSL|$^=$
+
+|propdecl| $\rightarrow$ ...
+\end{lstlisting}
