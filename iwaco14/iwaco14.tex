@@ -29,8 +29,10 @@
 \arabic{FancyVerbLine}}}
 
 \def\implies{\Rightarrow}
-\newcommand{\todo}[1]{\textbf{[TODO: #1]}}
+\newcommand{\TODO}[1]{\textbf{[TODO: #1]}}
 \newcommand{\keyw}[1]{\textbf{#1}}
+\newcommand{\minisec}[1]{\vspace{2ex}\noindent\textbf{#1}}
+
 
 \newtheorem{thm}{Theorem}
 \newtheorem{dfn}{Definition}
@@ -103,9 +105,43 @@ domain specific languages}
 
 \end{abstract}
 
+\section{Architectural Control}
+
+The central task of a software architect is designing an architecture that enables the designed system's central goals to be achieved~\cite{bass-software-architecture-in-practice}.  Typically many designs can support the intended functionality of a system; what distinguishes a good architecture from a bad one is how well the design achieves \emph{quality attributes} such as security, reliability, and performance.
+
+Quality attribute goals can often be satisfied by imposing architectural constraints on the system.  For example, the principle of least privilege is a well-known architectural constraint that, by constraining the privileges of each component to the minimum necessariy to support the component's functionality, enhances the security of a system.  Likewise, constraints concerning redundance and independence of failure-prone components can aid in achieving reliability concerns.  Broadly speaking, a constraint is architectural in natureif it is essential to achieving critical system-wide quality attributes.
+
+Unfortunately, delivering systems with the desired qualities can be challenging in practice.  The possible barriers are many, but in this work we focus on two significant barriers: missed or incorrect constraints, and inadequate constraint enforcement.  If an architect is skilled at design but is not an expert in a software system's target domain, the architect may miss constraints that are important to achieving goals in that domain.  For example, many architects who were not familiar with the intricacies of Secure Sockets Layer (SSL) configured their SSL libraries to unnecessarily use a heartbeat protocol,\footnote{SSL's heartbeat feature is only needed for long-lasting, possibly idle connections} and/or neglected to properly enable SSL certificate checking.  The result was exposure to the Heartbleed bug in the first case~\cite{Heartbleed}, and to a man-in-the-middle attack in the second~\cite{most-dangerous-code-in-the-world}.
+
+Even if the relevant constraints are identified and specified correctly by the architect, ensuring that they are followed can be quite difficult.  A standard defense against SQL injection attacks, for example, is ensuring that prepared statements are used to construct SQL queries.  Ensuring that this constraint if followed, however, requires scanning all SQL queries in the entire program; any query that is missed could potentially violate the policy.  Similar issues apply to common defenses against other attacks, such as cross-site scripting (XSS).
+
+
+\minisec{Defining Architectural Control.}  The problems above suggest that in practice, architects do not have sufficient control of the architecture of their software systems.  \emph{\textbf{Architectural control}} is the ability of software architects to ensure that they have identified, specified, and enforced design constraints that are sufficient for the system's implementation to meet its goals.  Although tools can aid in achieving architectural control---and in fact, this paper proposes ways of building better tools for doing so---our definition of the term is focused on the practice of software engineering, which can be hanced by tools but not replaced by them.
+
+Today, architects use primarily informal processes to achieve architectural control.  To learn about the constraints relevant in a domain, they learn from domain experts and consult documentation of frameworks that capture domain knowledge.  To enforce the constraints they specify, they rely on informal communication with the engineers building the system, as well as quality-control practices such as testing, inspection, and static analysis.  Unfortunately, testing is good at evaluating functionality but is poorly suited to enforcing many quality attributes; inspection can work well but is limited by the fallibility of the humans carrying it out; and static analysis tools are often too low-level to directly enforce the desired qualities.  As a result, the degree of architectural control achieved in practice often falls short of what is needed to produce highly reliable and secure systems.
+
+
+\minisec{Achieving Architectural Control.} How can architects do better at controling the architecture of their systems?  We believe there are three key elements to achieving architectural control in practice:
+
+\begin{itemize}
+
+\item \textbf{Accessible Guidance.}  Because it is difficult for architects to be expert in every domain and with all component software used, it is essential that architects be able to leverage effective and accessible guidance concerning (A) what are the important potential constraints to consider with respect to a domain or a component, and (B) what is the basis for choosing among and configuring those constraints.  For example, a library or component should make its configuration parameters explicit, provide documentation on how to choose them, and either force the architect to make particular choices or choose safe and secure defaults.  Software frameworks are often used to capture domain knowledge in a reusable library, and as such should include not just functionality but also explicit guidance concerning the architectural constraints that are relevant in the target domain.
+
+\item \textbf{Centralized Specification.}  The reality of team-based development in the large is that it is not possible for a single person to review and understand all the project artifacts.  For an architect to achieve architectural control, therefore, requires that the specification of architectural constraints be centralized.  An architecture specification document could fulfill the role in processes that produce such a document, but in agile organizations where a lot of the architecture is distributed and embedded as documentation in the code, this becomes challenging.  Centralized specification is also challenging with respect to constraint enforcement mechanisms such as types; in a type system, the specification is spread throughout the program, easing enforcement but also making it difficult for the architect to understand whether the types correctly specify the desired architectural constraints.  An ideal scenario of centralized specification would place all architectural constraints in a small set of files that is under source control and where all revisions are personally reviewed and approved by the architect.
+
+\item \textbf{Semi-automated Enforcement.}  Finally, once the proper architectural constraints have been identified and specified in a central way, the architect must be confident that they will be followed in the implementation of the software system.  Process-based mechanisms are important, but are also as fallible as the humans carrying out that process.  Where feasible, therefore, the ideal is to provide semi-automated tools that can enforce the system's architectural constraints whenever the system's code is modified or executed.  In practice, full automation may not be feasible, e.g. type-like specifications may be required for tools based on type systems.  Furthermore, in practice tools may not be able to enforce exactly the constraint that the architect cares about, but the closer they can come, the more assistance the tools can provide to a process-based enforcement approach.
+
+\end{itemize}
+
+Finally, while architectural control is clearly desirable, in practice any mechanisms used to achieve it must be cost-effective.  We would like to realize the benefits of architectural control while minimizing sacrificed productivity.  In the ideal case, we would like to explore whether we can build tools that move the productivity-control curve outward, providing better architectural control while at the same time actually enhancing the productivity of a development team.
+
+
+\TODO{Overview and outline of the rest of the paper}
 
 
 \section{Architecture-Exposing Languages and Frameworks}
+
+\TODO{Write me!  See separate outline document}
 
 \subsection{Extending Languages with Architecture}
 
@@ -113,19 +149,6 @@ Goals: ensure that SSL is used in a simple client-server application.  be able t
 
 Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
 
-What the architecture should show
- X an example of each kind of thing that communicates, and a link to the code
- X connections between the things, and the protocol used
- X a way to easily see the interfaces
-   - use named ports for this
- - [separate] a way to implement the network protocol in a custom way
-   - likely using static metaprogramming
-   - cite Smaragdakis paper or others?
- - [separate] a programmatic way to access the connection from the client and server
-   - ports that specify interfaces and connection initialization information
-   - very similar to distributed ArchJava, cite it and compare
-
-\clearpage
    
 \begin{figure}[t]
 \begin{lstlisting}
