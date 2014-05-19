@@ -181,14 +181,7 @@ We propose \emph{architecture-exposing programming languages and frameworks} as 
 To make these ideas concrete, we sketch the design of a distributed system application and framework in a future version of Wyvern, a programming language we are currently designing.  We show how four technical characteristics---extensible languages, capability-based module systems, architectural layering in frameworks, and typed interfaces---may serve to provide a practical initial step towards providing architectural control in this domain.  Our concrete goal will be to show how the specific problem from the previous section---understanding the messages and protocols used in a distributed system---can be rendered not just possible but easy.
 
 
-\TODO{Write the rest of me!  See separate outline document}
-
-
-\subsection{Extending Languages with Architecture}
-
-Goals: ensure that SSL is used in a simple client-server application.  be able to audit the messages exchanged.
-
-Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
+\subsection{Making Architecture Explicit in an Extensible Language}
 
    
 \begin{figure}[t]
@@ -198,13 +191,12 @@ def package feedback
 import FeedbackClient, FeedbackServer
 import resource org.wyvern.network
 import resource org.wyvern.distributed.SSLSOAPConnector(network)
-
-language org.wyvern.distributed.ADL
+import extension org.wyvern.distributed.architecture
 
 architecture feedback
-    component client = FeedbackClient()
-    component server = FeedbackServer()
-    connect client.pServer, server.pClient
+    component client : FeedbackClient
+    component server : FeedbackServer
+    connect client.out, server.in
         with SSLSOAPConnector
             certificateAuthority = <verisigninc.com>
 \end{lstlisting}
@@ -213,7 +205,21 @@ architecture feedback
 %\vspace{-10px}
 \end{figure}
 
-Would not build this into the language (as ArchJava did, cite it), but rather use it as a library-defined extension language [cite ECOOP 2014 paper].
+Figure~\ref{f-architecture} shows one way of making the architecture of a simple client-server system explicit, so that it is easy for the architect to observe the messages exchanged and protocols used over the network.  The approach is inspired by ArchJava's custom connector support~\cite{ArchJava-connectors}, although we envision supporting architecture syntax via Wyvern's library-based language extension mechanism~\cite{TSLs-ECOOP14} rather than making it a core part of the language.
+
+The code shows a client-server application for gathering feedback.  The architecture is simple: there are clients, servers, and a connection between their \texttt{out} and \texttt{in} ports that sends SOAP messages over SSL.  Here SSLSOAPConnector is a connection library that (unlike the standard Java library) checks server certificates unless otherwise specified, with a default set of widely-accepted certificate authorities that has been overridden here to specify only the VeriSign CA.
+
+
+\TODO{Write the rest of me!  See separate outline document}
+
+
+
+Goals: ensure that SSL is used in a simple client-server application.  be able to audit the messages exchanged.
+
+Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
+
+
+
 
 \begin{figure}[t]
 \begin{lstlisting}
@@ -224,9 +230,9 @@ import org.wyvern.distributed.IPClient
 import org.wyvern.distributed.IPAddress
 
 class FeedbackClient
-    val pServer = IPClient<FeedbackInterface>()
-    def run(String address, String feedback)
-        val server = pServer.connect(IPAddress(address))
+    val out = IPClient<FeedbackInterface>()
+    def run(IPAddress address, String feedback)
+        val server = out.connect(address)
         server.provideFeedback(feedback)
 \end{lstlisting}
 \caption{Client code}
@@ -244,9 +250,8 @@ import org.wyvern.distributed.IPAddress
 #import resource org.wyvern.logging.stdlog
 
 class FeedbackServer
-    val pClient = IPServer<FeedbackInterface>()
-    def run()
-        pClient.listen(this.callback)
+    val in = IPServer<FeedbackInterface>()
+    def run() = in.listen(this.callback)
     def callback() : FeedbackInterface
         new FeedbackInterface
             def provideFeedback(feedback:String)
