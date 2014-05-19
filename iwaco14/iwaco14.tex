@@ -39,7 +39,7 @@
 basicstyle=\ttfamily\fontsize{8pt}{1em}\selectfont, 
 commentstyle=\itshape\ttfamily, 
 stringstyle=\ttfamily,
-numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast,from,import,architecture,connect,component},deletekeywords={for,double,in,type},classoffset=0,belowskip=\smallskipamount,
+numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast,from,import,architecture,connect,component,package,resource,class,this,language},deletekeywords={for,double,in,type},classoffset=0,belowskip=\smallskipamount,
 moredelim=**[is][\color{cyan}]{SSTR}{ESTR},
 moredelim=**[is][\color{OliveGreen}]{SHTML}{EHTML},
 moredelim=**[is][\color{purple}]{SCSS}{ECSS},
@@ -132,14 +132,15 @@ What the architecture should show
 def package feedback
 
 import FeedbackClient, FeedbackServer
-import org.wyvern.distributed.SSLConnector
+import resource org.wyvern.network
+import resource org.wyvern.distributed.SSLSOAPConnector(network)
 
 language org.wyvern.distributed.ADL
 
 architecture feedback
     component client = FeedbackClient()
     component server = FeedbackServer()
-    connect client.pServer, server.pClient with SSLSOAPConnector()
+    connect client.pServer, server.pClient with SSLSOAPConnector
 \end{lstlisting}
 \caption{Client-Server Architecture}
 \label{f-architecture}
@@ -157,10 +158,10 @@ import org.wyvern.distributed.IPClient
 import org.wyvern.distributed.IPAddress
 
 class FeedbackClient
-    val pServer : FeedbackInterface
+    val pServer = IPClient<FeedbackInterface>()
     def run(String address, String feedback)
-        pServer = IPClient<FeedbackInterface>(IPAddress(address))
-        pServer.provideFeedback(feedback)
+        val server = pServer.connect(IPAddress(address))
+        server.provideFeedback(feedback)
 \end{lstlisting}
 \caption{Client code}
 \label{f-client}
@@ -174,12 +175,17 @@ package feedback
 import FeedbackInterface
 import org.wyvern.distributed.IPServer
 import org.wyvern.distributed.IPAddress
+#import resource org.wyvern.logging.stdlog
 
 class FeedbackServer
-    val cServer : FeedbackInterface = IPClient<FeedbackInterface>()
-    def run(String address, String feedback)
-        pServer.connect(IPAddress(address))
-        pServer.provideFeedback(feedback)
+    val pClient = IPServer<FeedbackInterface>()
+    def run()
+        pClient.listen(this.callback)
+    def callback() : FeedbackInterface
+        new FeedbackInterface
+            def provideFeedback(feedback:String)
+                stdlog(feedback)
+
 \end{lstlisting}
 \caption{Server code}
 \label{f-server}
