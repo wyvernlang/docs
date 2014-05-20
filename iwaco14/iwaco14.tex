@@ -41,7 +41,7 @@
 basicstyle=\ttfamily\fontsize{8pt}{1em}\selectfont, 
 commentstyle=\itshape\ttfamily, 
 stringstyle=\ttfamily,
-numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast,from,import,architecture,connect,component,package,resource,class,this,language},deletekeywords={for,double,in,type},classoffset=0,belowskip=\smallskipamount,
+numbers=left, numberstyle=\scriptsize\color{gray}\ttfamily, language=ML,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,xleftmargin=15pt, morekeywords=[1]{tyfam,opfam,let,fn,val,def,casetype,objtype,metadata,of,*,datatype,new,toast,from,import,architecture,connect,component,package,resource,class,this,language,define,extension,user,careof},deletekeywords={for,double,in,type},classoffset=0,belowskip=\smallskipamount,
 moredelim=**[is][\color{cyan}]{SSTR}{ESTR},
 moredelim=**[is][\color{OliveGreen}]{SHTML}{EHTML},
 moredelim=**[is][\color{purple}]{SCSS}{ECSS},
@@ -75,14 +75,14 @@ moredelim=**[is][\color{Sepia}]{SUS}{EUS}
 \title{Language-Based Architectural Control}
 %\author{~}
 %\institute{~}
-\author{Jonathan Aldrich \and others$^{1}$}
+\author{Jonathan Aldrich \and Cyrus Omar \and Alex Potanin$^{1}$}
 \institute{Carnegie Mellon University and Victoria University of Wellington$^{1}$\\
-\texttt{\scriptsize \{aldrich\}@cs.cmu.edu}
+\texttt{\scriptsize \{aldrich,comar\}@cs.cmu.edu}
 and
-\texttt{\scriptsize others@ecs.vuw.ac.nz}$^{1}$}
+\texttt{\scriptsize alex@ecs.vuw.ac.nz}$^{1}$}
 \setlength{\abovecaptionskip}{0pt}
 \setlength{\belowcaptionskip}{0pt}
-\authorrunning{Aldrich, ...} % To fix excessive length.
+\authorrunning{Aldrich, Omar, and Potanin} % To fix excessive length.
 
 \maketitle
 
@@ -113,12 +113,16 @@ Quality attribute goals can often be satisfied by imposing architectural constra
 
 Unfortunately, delivering systems with desired qualities can be challenging in practice.  Two significant sources of the challenge include missed or incorrect constraints, and inadequate constraint enforcement.  If an architect is not an expert in a software system's target domain, the architect may miss constraints that are important to achieving goals in that domain.  For example, many architects who were not familiar with the intricacies of Secure Sockets Layer (SSL) configured their SSL libraries to unnecessarily use a heartbeat protocol,\footnote{SSL's heartbeat feature is only needed for long-lasting, possibly idle connections} and/or neglected to properly enable SSL certificate checking.  The result was exposure to the Heartbleed bug in the first case~\cite{Heartbleed}, and to a man-in-the-middle attack in the second~\cite{most-dangerous-code-in-the-world}.
 
-Even if the relevant constraints are identified and specified correctly by the architect, ensuring that they are followed can be quite difficult.  A standard defense against SQL injection attacks, for example, is ensuring that prepared statements are used to construct SQL queries.  Ensuring that this constraint if followed, however, requires scanning all SQL queries in the entire program; any query that is missed could potentially violate the policy.  Similar issues apply to common defenses against other attacks, such as cross-site scripting (XSS).
+Even if the relevant constraints are identified and specified correctly by the architect, ensuring that they are followed can be quite difficult.  A standard defense against SQL injection attacks, for example, is ensuring that prepared statements are used to construct SQL queries.  Ensuring that this constraint if followed, however, requires scanning all SQL queries in the entire program; any query that does not use this method could potentially violate the policy.  Similar issues apply to common defenses against other attacks, such as cross-site scripting (XSS).
+
+In this paper, we propose \emph{architectural control} as a concept that reflects the architect's ability to successfully manage the architectural design constraints of their systems (Section 2).  After a review of prior work with connections to architectural control (Section 3), we sketch language and framework support that could enhance architectural control in the context of distributed systems (Section 4).
+
+The paper's main contribution is the concept of architectural control.  In keeping with the goals of a workshop, the authors seek community feedback on the solution ideas sketched in Seciton 4, which we hope to flesh out and implement in future work.
 
 
 \section{Architectural Control}
 
-The problems above suggest that in practice, architects do not have sufficient control of the architecture of their software systems.  \emph{\textbf{Architectural control}} is the ability of software architects to ensure that they have identified, specified, and enforced design constraints that are sufficient for the system's implementation to meet its goals.  Although tools can aid in achieving architectural control---and in fact, this paper proposes ways of building better tools for doing so---our definition of the term is focused on the practice of software engineering, which can be enhanced by tools but not replaced by them.
+The problems above suggest that in practice, architects do not have sufficient control of the architecture of their software systems.  \emph{\textbf{Architectural control}} is the ability of software architects to ensure that they have identified, specified, communicated and enforced design constraints that are sufficient for the system's implementation to meet its goals.  Although tools can aid in achieving architectural control---and in fact, this paper proposes ways of building better tools for doing so---our definition of the term is focused more broadly on the sociotechnical processes of software engineering.
 
 Today, architects use primarily informal processes to achieve architectural control.  To learn about the constraints relevant in a domain, they learn from domain experts and consult documentation of frameworks that capture domain knowledge.  To enforce the constraints they specify, they rely on informal communication with the engineers building the system, as well as quality-control practices such as testing, inspection, and static analysis.  Unfortunately, testing is good at evaluating functionality but is poorly suited to enforcing many quality attributes; inspection can work well but is limited by the fallibility of the humans carrying it out; and static analysis tools are often too low-level to directly enforce the desired qualities.  As a result, the degree of architectural control achieved in practice often falls short of what is needed to produce highly reliable and secure systems.
 
@@ -131,11 +135,11 @@ Today, architects use primarily informal processes to achieve architectural cont
 
 \item If libraries are loaded at run time, by default they have the same access to the network as does the program that loaded them; thus we must know which libraries are to be loaded and scan them too.  Restricting dynamically loaded libraries is possible using Java classloaders and security managers, but the technique used is complex and makes program construction awkward (the loaded code must execute in a new thread, for example).  Furthermore, it is easy for developers to implement this technique incorrectly, sacrificing architectural control in the process.
 
-\item Once the architect identifies a component that directly accesses the network, she may want to know how that component shares this ability with other parts of the system---and this involves understanding the component's interface.  The combination of aliasing, subtyping, and downcasts supported by Java makes this difficult, however.  If the component returns a value of type \texttt{Object} to clients, does this give clients the ability to send messages over the network?  The \texttt{Object} interface itself provides no networking methods, but the value may be downcast to an arbitrary type that may, in general, support network access.
+\item Once the architect identifies a component that directly accesses the network, she may want to know how that component shares this ability with other parts of the system, which involves understanding the component's interface and implementation.  The combination of aliasing, subtyping, and downcasts supported by Java makes this difficult, however.  If the component returns a value of type \texttt{Object} to clients, does this give clients the ability to send messages over the network?  The \texttt{Object} interface itself provides no networking methods, but the value may be downcast to an arbitrary type that may, in general, support network access.
 
 \item In practice, systems are built in a layered manner, with high-level communication libraries built on lower ones.  All paths through the network stack must be examined for the architect to get a full picture of the messages sent over the network and the protocols used.  The aliasing and casting problem in the previous bullet makes this more difficult.
 
-\item A security analyst might want to ensure that SSL is being used---and might conclude, upon seeing that Socket objects are obtained from code such as \texttt{SSLSocketFactory.getDefault().createSocket(host,port)}, that all is secure.  Unfortunately, the Java SSL libraries, like many others~\cite{most-dangerous-code-in-the-world}, are \emph{insecure} by default; they do not validate the server's certificate, opening the door to a man-in-the-middle attack.  This insecurity, and the need to configure SSL Socket Factories to secure them, is not mentioned in the API documentation;\footnote{http://docs.oracle.com/javase/7/docs/api/javax/net/ssl/SSLSocketFactory.html} it can only be found deep in the JSSE reference guide.\footnote{http://docs.oracle.com/javase/7/docs/technotes/guides/security/jsse/JSSERefGuide.html}
+\item A non-expert security analyst might want to ensure that SSL is being used---and might conclude, upon seeing that Socket objects are obtained from code such as \texttt{SSLSocketFactory.getDefault().createSocket(host,port)}, that all is secure.  Unfortunately, the Java SSL libraries, like many others~\cite{most-dangerous-code-in-the-world}, are \emph{insecure} by default; they do not validate the server's certificate, opening the door to a man-in-the-middle attack.  This insecurity, and the need to configure SSL Socket Factories to secure them, is not mentioned in the API documentation;\footnote{http://docs.oracle.com/javase/7/docs/api/javax/net/ssl/SSLSocketFactory.html} it can only be found deep in the JSSE reference guide.\footnote{http://docs.oracle.com/javase/7/docs/technotes/guides/security/jsse/JSSERefGuide.html}
 
 \end{itemize}
 
@@ -147,38 +151,44 @@ Today, architects use primarily informal processes to achieve architectural cont
 \item \textbf{Accessible Guidance.}  Because it is difficult for architects to be expert in every domain and with all component software used, it is essential that architects be able to leverage effective and accessible guidance concerning (A) what are the important potential constraints to consider with respect to a domain or a component, and (B) what is the basis for choosing among and configuring those constraints.  For example, an SSL library or component should make its configuration parameters obvious (e.g. used by the main classes in the library), provide documentation on how to choose them, ensure that the default configuration is secure, and support reusable configurations (e.g. so an organization can easily standardize a configuration appropriate to its domain).
 % Software frameworks are often used to capture domain knowledge in a reusable library, and as such should include not just functionality but also explicit guidance concerning the architectural constraints that are relevant in the target domain.
 
-\item \textbf{Centralized Specification.}  The reality of team-based development in the large is that it is not possible for a single person to review and understand all the project artifacts.  For an architect to achieve architectural control, therefore, requires that the specification of architectural constraints be centralized---and, to fit modern agile processes, we would like to see this specification manifest in code.  An ideal scenario of centralized specification would place all architectural constraints in a small set of files that is under source control, and where all revisions are personally reviewed and approved by the architect.  In our distributed system example, we envision that the architect could look at the system's entry point, together with the interfaces of the components mentioned there, and immediately determine (A) all of the components that can directly access the network, (B) which components might dynamically load code, and whether they give that loaded code network access; (C) component interfaces that are complete in the sense of showing all methods that can be invoked by clients; and (D) where to look for architecturally-relevant configuration information or higher-level layers of the architecture.
+\item \textbf{Centrally Delegated Specification.}  The reality of team-based development in the large is that it is not possible for a single person to review and understand all the project artifacts.  For an architect to achieve architectural control, therefore, requires that the specification of architectural constraints be centralized---and, to fit modern agile processes, we would like to see this specification manifest in code.  An ideal scenario of centralized specification would place all top-level architectural constraints in a small set of files that is under source control, and where all revisions are personally reviewed and approved by the architect.  In our distributed system example, we envision that the architect could look at the system's entry point, together with the interfaces of the components mentioned there, and immediately determine (A) all of the components that can directly access the network, (B) which components might dynamically load code, and whether they give that loaded code network access; (C) component interfaces that are complete in the sense of showing all methods that can be invoked by clients; (D) where to look for architecturally-relevant configuration information or higher-level layers of the architecture; and (E) who is responsible for further delegating control or enforcing more specific design constraints within particular components. These individuals would, in turn, hierarchically use the same mechanisms.
 
 %An architecture specification could fulfill this role in document-centric processes, but in agile organizations where a lot of the architecture is distributed and embedded as documentation in the code, this becomes challenging.  Centralized specification is also challenging with respect to constraint enforcement mechanisms such as types; in a type system, the specification is spread throughout the program, easing enforcement but also making it difficult for the architect to understand whether the types correctly specify the desired architectural constraints. 
 
-\item \textbf{Semi-automated Enforcement.}  Finally, once the proper architectural constraints have been identified and specified in a central way, the architect must be confident that they will be followed in the implementation of the software system.  Process-based mechanisms are important, but are also as fallible as the humans carrying out that process.  Fully automated tool-based mechanisms may not be feasible for enforcing many architectural constraints.  However, we outline a vision below in which the type system and run-time semantics of an \emph{architecture-exposing programming language} will semi-automatically enforce a variety of important architectural constraints, given input from developers in the form of partial, type-like specifications.
+\item \textbf{Semi-automated Enforcement.}  Finally, once the proper architectural constraints have been identified and specified in a central way, the architect must be confident that they will be followed in the implementation of the software system.  Process-based mechanisms are important, but are also as fallible as the humans carrying out that process.  Fully automated tool-based mechanisms may not be feasible for enforcing many architectural constraints.  However, we outline a vision below in which the type system, the run-time semantics and the editor services of an \emph{architecture-exposing programming language} will semi-automatically enforce a variety of important architectural constraints, given input from developers in the form of partial, type-like specifications.
 
 %Where feasible, therefore, the ideal is to provide semi-automated tools that can enforce the system's architectural constraints whenever the system's code is modified or executed.  In practice, full automation may not be feasible, e.g. type-like specifications may be required for tools based on type systems.  Furthermore, in practice tools may not be able to enforce exactly the constraint that the architect cares about, but the closer they can come, the more assistance the tools can provide to a process-based enforcement approach.
 
 \end{itemize}
 
-Finally, while architectural control is clearly desirable, in practice any mechanisms used to achieve it must be cost-effective.  We would like to realize the benefits of architectural control while minimizing sacrificed productivity.  In the ideal case, we would like to explore whether we can build tools that move the productivity-control curve outward, providing better architectural control while at the same time actually enhancing the productivity of a development team.
-
-
-\TODO{Overview and outline of the rest of the paper}
+Finally, while architectural control is clearly desirable, in practice any mechanisms used to achieve it must be cost-effective.  We would like to realize the benefits of architectural control while minimizing sacrificed productivity.  In the ideal case, we would like to explore whether we can build tools that move the productivity-control curve outward, providing better architectural control while at the same time actually enhancing the productivity of a development team. Ultimately, this will require empirical studies.
 
 
 \section{Prior Work}
 
-\TODO{a lot of missing text here.  What follows are notes and fragments.}
+Software architecture captures the high-level design of a software system, describing the systems structure and important constraints that must be followed by its implementation~\cite{GS,PW}.  The problem of architectural conformance has a long history~\cite{arch-conformance}.  We build most directly on the approach used by ArchJava, which integrated an architecture description language into Java and used a custom type system, including ownership types~\cite{ownership}, to ensure that the architecture accurately describes the implementation of the system~\cite{ArchJava-theory}.  We previously investigated adding custom connectors to ArchJava, supporting an architectural description of a distributed system within code~\cite{ArchJava-connectors}.  However, our prior work on ArchJava did not have any way to ensure that an application communicated over the network only using the connections shown in the architecture.
 
 Haskell's monads provide a potential technical foundation for architectural control~\cite{Haskell-monads}.  In practice, however, monads impose an overly strict discipline, requiring every operation that might transitively perform IO to use the IO monad; for many architectural control purposes, simply describing which components perform IO might be sufficient.  The syntactic overhead of IO monads also leads to an escape hatch, \texttt{unsafePerformIO}, which when used subverts architectural control.  Finally, in Haskell's design all IO operations are in one monad, whereas we believe many architects will find it useful to distinguish different forms of IO.
+ 
+While we are not aware of prior use of the phrase architectural control
+in scientific literature, IBM Rational uses ``architectural control rules''
+to constrain dependencies in Java applications.\footnote{\url{http://publib.boulder.ibm.com/infocenter/rsdvhelp/v6r0m1/index.jsp?topic=\%2Fcom.ibm.r2a.structanal.doc\%2Ftopics\%2Fcarchcontrols.html}}
+Our use of the term architectural control is broader, including control of dependencies but also enforcement of a range of other architectural constraints.
 
-Dynamic capability systems.  Mark Miller's E and Bracha's Newspeak module system
+The phrase ``architectural controls'' was used in the urban planning
+literature at least as early as 1949 to refer to ``control over the
+design and appearance of buildings,'' with the goal of making a
+community more beautiful or livable [1].
 
-Ownership - useful but insufficient due to downcasts.
+[1] Architectural Controls.  American Society of Planning Officials Information Report No. 6, September 1949.  Available at \url{http://www.planning.org/pas/at60/report6.htm}
 
+The next section will describe additional prior work that is closely related to the discussion.
 
 \section{Architecture-Exposing Languages and Frameworks}
 
 We propose \emph{architecture-exposing programming languages and frameworks} as a solution to providing better support for architectural control.  An \emph\textbf{architecture-exposing language} is a programming language that provides primitives to facilitate exposing architecture and enforcing constraints in a centralized way.  In addition to languages, we leverage software frameworks, because frameworks are already used to capture domain-specific architectures and to impose architectural constraints on applications that extend them~\cite{JaspanThesis}.  An \emph\textbf{architecture-exposing framework} is one that is specifically designed to encapsulate and enforce architectural constraints, while making important architectural choices more visible to architects that design their applications on top of the framework.
 
-To make these ideas concrete, we sketch the design of a distributed system application and framework in a future version of Wyvern, a programming language we are currently designing.  We show how four technical characteristics---extensible languages, capability-based module systems, architectural layering in frameworks, and typed interfaces---may serve to provide a practical initial step towards providing architectural control in this domain.  Our concrete goal will be to show how the specific problem from the previous section---understanding the messages and protocols used in a distributed system---can be rendered not just possible but easy.
+To make these ideas concrete, we sketch the design of a distributed system application and framework in a future version of Wyvern, a programming language we are currently designing.  We show how five technical characteristics---extensible languages, capability-based module systems, architectural layering in frameworks, typed interfaces and explicit social delegation---may serve to provide a practical initial step towards providing architectural control in this domain.  Our concrete goal will be to show how a specific problem based on the one from the previous section---understanding the messages and protocols used in a distributed system---can be rendered not just possible but easy.
 
 
 \subsection{Making Architecture Explicit in an Extensible Language}
@@ -186,47 +196,34 @@ To make these ideas concrete, we sketch the design of a distributed system appli
    
 \begin{figure}[t]
 \begin{lstlisting}
-def package feedback
+define package feedback
 
-import resource wyvern.network, wyvern.filesystem
+import resource wyvern.logging.stdlog
+import resource wyvern.network
 import user harry.q.bovik@cs.cmu.edu as Harry
-import resource wyvern.distributed.SSLSOAPConnector(wyvern.network careof Harry)
-import FeedbackSender, FeedbackReceiver(wyvern.filesystem careof Harry)
+
+import feedback.FeedbackClient
+import feedback.FeedbackServer(stdlog)
+import feedback.SSLSOAPConnector(network careof Harry)
 import extension wyvern.distributed.architecture
 
 architecture feedback
-    component client : FeedbackClient
-    component server : FeedbackServer
-    connect client.out, server.in
+    component sender : FeedbackSender
+    component receiver : FeedbackReceiver
+    connect sender.out, receiver.in
         with SSLSOAPConnector
             certificateAuthority = <verisigninc.com>
 \end{lstlisting}
-\caption{Client-Server Architecture}
+\caption{Sender-Receiver Architecture}
 \label{f-architecture}
 %\vspace{-10px}
 \end{figure}
 
 Figure~\ref{f-architecture} shows one way of making the architecture of a simple client-server system explicit, so that it is easy for the architect to observe the messages exchanged and protocols used over the network.  The approach is inspired by ArchJava's custom connector support~\cite{ArchJava-connectors}, although we envision supporting architecture syntax via Wyvern's library-based language extension mechanism~\cite{TSLs-ECOOP14} rather than making it a core part of the language.
 
-The code shows a client-server application for gathering feedback.  The architecture is simple: there are clients, servers, and a connection between the client's \texttt{out} and server's \texttt{in} ports that sends SOAP messages over SSL.  Here SSLSOAPConnector is a connection library that (unlike the standard Java library) checks server certificates unless otherwise specified, with a default set of widely-accepted certificate authorities that has been overridden here to specify only the VeriSign CA.
+The code shows a sender-receiver application for gathering feedback.  The architecture is simple: there is a sender, a receiver and a connection between the sender's \texttt{out} and receiver's \texttt{in} channels that sends SOAP messages over a SSL-encrypted network connection. 
 
-Looking at the client code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{IPClient} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  When the client program is invoked---we envision that our Wyvern VM would support a command line syntax of the form \texttt{wyvern feedback client server.feedback.com 'my feedback here'}---the \texttt{run} method is called with the command line arguments.  The client program executes by connecting to the server---yielding an object of type \texttt{FeedbackInterface}---and then the \texttt{provideFeedback} method is invoked on this object.
-
-Similarly, when the server code in Figure~\ref{f-server} runs, it initializes its \texttt{in} port to listen for incoming connections, passing a callback to be invovked when a connection is received.  The callback function returns an object of type \texttt{FeedbackInterface}, and the implementation responds to client messages by printing feedback to a log.
-
-The implementation details of the approach is beyond the scope of this paper, but would follow ideas from~\cite{ArchJava-connectors,TSLs-ECOOP14}.
-
-\minisec{Discussion.}  
-
-\TODO{Write the rest of me!  See separate outline document}
-
-
-
-Goals: ensure that SSL is used in a simple client-server application.  be able to audit the messages exchanged.
-
-Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
-
-
+Here, SSLSOAPConnector, which is intended to be a thin wrapper around an underlying SSL library, is given the network resource explicitly. Because the architect wishes to be careful about security, but is not an expert herself, this permission is given care of a security team member, Harry. Only Harry should further pass that permission into, for example, the SSL library, because we trust Harry to have read the full documentation (or to rely on an implementation which uses more sensible defaults). Any other developer would receive, at minimum, a warning if they attempted to do so (requiring that the editor or compiler know the identity of the programmer). The main architect also specifies an override -- the default list of widely-accepted certificate authorities that has been overridden here to specify only the VeriSign CA, which the organization always uses.
 
 
 \begin{figure}[t]
@@ -234,42 +231,87 @@ Related goals (think of some and discuss them.  Maybe use of an authentication a
 package feedback
 
 import FeedbackInterface
-import org.wyvern.distributed.IPClient
-import org.wyvern.distributed.IPAddress
+import wyvern.distributed.OutChannel
 
-class FeedbackClient
-    val out = IPClient<FeedbackInterface>()
-    def run(IPAddress address, String feedback)
-        val server = out.connect(address)
-        server.provideFeedback(feedback)
+class FeedbackSender
+    val out : OutChannel<FeedbackInterface>
+    def send(feedback : String)
+        out.interface.provideFeedback(feedback)
 \end{lstlisting}
-\caption{Client code}
+\caption{Sender code}
 \label{f-client}
 %\vspace{-10px}
 \end{figure}
 
+
+Looking at the sender code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{OutChannel} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  We envision that a user at a command line running this program as sender might invoke this method by writing:\\
+~~~\texttt{wyvern feedback send 'my feedback here'}\\
+The connector connects to the receiver and issues a remote object reference providing the  \texttt{FeedbackInterface} interface to the sender.
+
+
 \begin{figure}[t]
 \begin{lstlisting}
 package feedback
 
 import FeedbackInterface
-import org.wyvern.distributed.IPServer
-import org.wyvern.distributed.IPAddress
-#import resource org.wyvern.logging.stdlog
+import wyvern.distributed.InChannel
+import resource wyvern.logging.stdlog
 
-class FeedbackServer
-    val in = IPServer<FeedbackInterface>()
-    def run() = in.listen(this.callback)
+class FeedbackReceiver
+    val in : InChannel<FeedbackInterface>
+    def run() = this.in.listen(this.callback)
     def callback() : FeedbackInterface
-        new FeedbackInterface
+        new
             def provideFeedback(feedback:String)
-                stdlog(feedback)
+                stdlog.log(feedback)
 
 \end{lstlisting}
-\caption{Server code}
+\caption{Receiver code}
 \label{f-server}
 %\vspace{-10px}
 \end{figure}
+
+
+Similarly, when the receiver code in Figure~\ref{f-server} runs, it initializes its \texttt{in} port to listen for incoming connections, passing a callback to be invovked when a connection is received.  The callback function returns an object of type \texttt{FeedbackInterface}, and the implementation responds to client messages by printing feedback to a log (which itself requires a resource).
+
+The implementation details of the approach are beyond the scope of this paper, but are based on ideas from~\cite{ArchJava-connectors,TSLs-ECOOP14}.  While using metaprogramming and/or reflection techniques to implement the domain-specific language for architecture may be a challenging task, they are not necessarily more challenging than the reflective techniques used in existing framework implementations such as Ruby on Rails.  Complex implementations are often acceptable in frameworks if they provide corresponding simplicity or other advantages to framework users.
+
+
+\subsection{Using Capabilities to Control Resources}
+
+The integration of architectural specifications into the code supports centralized reasoning about architecture.  However, a critical question remains: how do we know that the architecture given is a correct and complete description of what the implementation does?  How, for example, can we be sure that the client or server is not using a networking library to communicate with another entity that is not shown in the architectural description in Figure~\ref{f-architecture}?
+
+We propose to use capabilities~\cite{capabilities-from-os} to control the way that various parts of the program use architecturally significant resources such as the network.  In our design, libraries such as \texttt{wyvern.network} are identified as \emph{resource libraries}, and must be imported with an \texttt{import resource} construct rather than a normal \texttt{import} construct.  Each package in our design is defined (\texttt{define package}) in a single top-level file (Figure~\ref{f-architecture}), and that file must explicitly import all of the resources used in the entire package.  A resource may only be used by other parts of the system---including imported libraries---if a capability to the resource is explicitly passed on when the top-level file imports the relevant code.  For example, on line 5 of Figure~\ref{f-architecture}, the \texttt{feedback} program passes the \texttt{wyvern.network} resource to the \texttt{SSLSOAPConnector} library, so that library can be used for network communication.
+
+Now we can clearly see that the \texttt{FeedbackSender} and \texttt{FeedbackReceiver} cannot possibly communicate over the network, except via the \texttt{SSLSOAPConnector} as specified in the architecture---the \texttt{SSLSOAPConnector} is the only component in the entire program that has access to the network resource, and were only passed along further in the specific ways, not formally specified, that Harry has approved of (assuming that warnings were not suppressed, or some strict identity management mechanism was used to control changes to the source code at all times).
+
+The concept of a resource generalizes naturally to other forms of I/O, recalling Haskell's monads, but without the overhead of distinguishing effectful code from functional code at the expression level.  Following Miller~\cite{MarkMiller-E}, our intended design will require that ordinary modules have no global state; modules that need global state must be marked as resources.  Furthermore, developers who feel that the functionality provided by a module should be governed architecturally can enforce this by marking the module as a resource.  In our design resource-ness is sticky; for example, although the \texttt{FeedbackReceiver} cannot access the network, it does import a resource in order to write to a log, and therefore might become a resource itself.
+
+We are not the first to propose a module system in which a module's parameters are explicitly bound; notable prior examples include Units~\cite{units} and Newspeak~\cite{newspeak}.  Our design differs from these in that we do not require all module imports to be explicitly linked; instead, we require this only of resource modules, with the result that resources are controlled but ``harmless'' modules can be imported anywhere with a minimum of fuss.
+
+\subsection{Architectural Layering}
+
+The distributed system above is perhaps overly simplistic in that one connector encapsulates the entire protocol stack, including SOAP, SSL, and layers such as TCP and IP that work below SSL.  In a more realistic setting, there may be architecturally relevant details at each layer of abstraction.  For example, in a web application architecture, the configuration of the HTTP or HTTPS low-level communication protocol is important, but the particular messages sent to the server (e.g. using the \texttt{XMLHttpRequest} object) are important to the higher-level architecture.  A web application framework might have separate architectural diagrams showing the details at each level.  We expect that designing such a framework in a way that provides architectural control at multiple levels of abstraction will be an interesting problem.
+
+
+\subsection{Type System Support}
+
+Types provide important architectural control benefits in the design sketched above: an architect who wants to see what messages are sent or received by a component can simply look at the type of the ports (\texttt{FeedbackInterface} in the example).  This would not be true in systems such as E or Newspeak that, while based on capabilities, are dynamically or optionally typed~\cite{MarkMiller-E, newspeak}.
+
+While we have not designed the details of a type system that supports architectural control, there are an interesting set of open problems.  One such problem is managing the downcast issue described earlier in the paper.  Another problem is investigating how constructs such as ownership and permissions can be leveraged to provide other forms of architectural control, perhaps with respect to controlling concurrency, for example.
+
+
+\subsection{Discussion}  
+
+We can now see how our proposed design does better than Java's in providing architectural control.  Using resource capabilities, we can easily identify what parts of the code access the network.  Our example does not include dynamically loaded libraries, but they fit naturally within the scheme presented here: when a library is loaded, it must be passed capabilities to any resources it needs, and therefore those capabilities must already be present in the module doing the loading.  Finally, the extensible nature of the language makes it easier to make configurations, e.g. of the SSL library in the example, a first-class abstraction, helping ensure that architects pay attention to configuration-related constraints that are important but easy to overlook.
+
+
+%Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
+
+
+
+
+
 
 
 
