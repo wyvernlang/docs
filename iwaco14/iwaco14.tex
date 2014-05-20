@@ -186,9 +186,11 @@ To make these ideas concrete, we sketch the design of a distributed system appli
    
 \begin{figure}[t]
 \begin{lstlisting}
-def package feedback
+define package feedback
 
-import FeedbackClient, FeedbackServer
+import resource wyvern.logging.stdlog
+import feedback.FeedbackClient
+import resource feedback.FeedbackServer(stdlog)
 import resource wyvern.network
 import resource wyvern.distributed.SSLSOAPConnector(network)
 import extension wyvern.distributed.architecture
@@ -208,24 +210,6 @@ architecture feedback
 Figure~\ref{f-architecture} shows one way of making the architecture of a simple client-server system explicit, so that it is easy for the architect to observe the messages exchanged and protocols used over the network.  The approach is inspired by ArchJava's custom connector support~\cite{ArchJava-connectors}, although we envision supporting architecture syntax via Wyvern's library-based language extension mechanism~\cite{TSLs-ECOOP14} rather than making it a core part of the language.
 
 The code shows a client-server application for gathering feedback.  The architecture is simple: there are clients, servers, and a connection between the client's \texttt{out} and server's \texttt{in} ports that sends SOAP messages over SSL.  Here SSLSOAPConnector is a connection library that (unlike the standard Java library) checks server certificates unless otherwise specified, with a default set of widely-accepted certificate authorities that has been overridden here to specify only the VeriSign CA.
-
-Looking at the client code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{IPClient} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  When the client program is invoked---we envision that our Wyvern VM would support a command line syntax of the form \texttt{wyvern feedback client server.feedback.com 'my feedback here'}---the \texttt{run} method is called with the command line arguments.  The client program executes by connecting to the server---yielding an object of type \texttt{FeedbackInterface}---and then the \texttt{provideFeedback} method is invoked on this object.
-
-Similarly, when the server code in Figure~\ref{f-server} runs, it initializes its \texttt{in} port to listen for incoming connections, passing a callback to be invovked when a connection is received.  The callback function returns an object of type \texttt{FeedbackInterface}, and the implementation responds to client messages by printing feedback to a log.
-
-The implementation details of the approach are beyond the scope of this paper, but would follow ideas from~\cite{ArchJava-connectors,TSLs-ECOOP14}.  While using metaprogramming and/or reflection techniques to implement the domain-specific language for architecture may be a challenging task, they are not necessarily more challenging than the reflective techniques used in existing framework implementations such as Ruby on Rails.  Complex implementations are often acceptable in frameworks if they provide corresponding simplicity or other advantages to framework users.
-
-\minisec{Discussion.}  
-
-\TODO{Write the rest of me!  See separate outline document}
-
-
-
-Goals: ensure that SSL is used in a simple client-server application.  be able to audit the messages exchanged.
-
-Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
-
-
 
 
 \begin{figure}[t]
@@ -247,6 +231,10 @@ class FeedbackClient
 %\vspace{-10px}
 \end{figure}
 
+
+Looking at the client code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{IPClient} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  When the client program is invoked---we envision that our Wyvern VM would support a command line syntax of the form \texttt{wyvern feedback client server.feedback.com 'my feedback here'}---the \texttt{run} method is called with the command line arguments.  The client program executes by connecting to the server---yielding an object of type \texttt{FeedbackInterface}---and then the \texttt{provideFeedback} method is invoked on this object.
+
+
 \begin{figure}[t]
 \begin{lstlisting}
 package feedback
@@ -254,7 +242,7 @@ package feedback
 import FeedbackInterface
 import wyvern.distributed.IPServer
 import wyvern.distributed.IPAddress
-#import resource wyvern.logging.stdlog
+import resource wyvern.logging.stdlog
 
 class FeedbackServer
     val in = IPServer<FeedbackInterface>()
@@ -269,6 +257,41 @@ class FeedbackServer
 \label{f-server}
 %\vspace{-10px}
 \end{figure}
+
+
+Similarly, when the server code in Figure~\ref{f-server} runs, it initializes its \texttt{in} port to listen for incoming connections, passing a callback to be invovked when a connection is received.  The callback function returns an object of type \texttt{FeedbackInterface}, and the implementation responds to client messages by printing feedback to a log.
+
+The implementation details of the approach are beyond the scope of this paper, but would follow ideas from~\cite{ArchJava-connectors,TSLs-ECOOP14}.  While using metaprogramming and/or reflection techniques to implement the domain-specific language for architecture may be a challenging task, they are not necessarily more challenging than the reflective techniques used in existing framework implementations such as Ruby on Rails.  Complex implementations are often acceptable in frameworks if they provide corresponding simplicity or other advantages to framework users.
+
+
+\subsection{Using Capabilities to Control Resources}
+
+The integration of architectural specifications into the code supports centralized reasoning about architecture.  However, a critical question remains: how do we know that the architecture given is a correct and complete description of what the implementation does?  How, for example, can we be sure that the client or server is not using a networking library to communicate with another entity that is not shown in the architectural description in Figure~\ref{f-architecture}?
+
+We propose to use capabilities~\cite{capabilities-from-os} to control the way that various parts of the program use architecturally significant resources such as the network.  In our design, libraries such as \texttt{wyvern.network} are identified as \emph{resource libraries}, and must be imported with an \texttt{import resource} construct rather than a normal \texttt{import} construct.  Each package in our design is defined (\texttt{define package}) in a single top-level file (Figure~\ref{f-architecture}), and that file must explicitly import all of the resources used in the entire package.  A resource may only be used by other parts of the system---including imported libraries---if a capability to the resource is explicitly passed on when the top-level file imports the relevant code.  For example, on line 5 of Figure~\ref{f-architecture}, the \texttt{feedback} program passes the \texttt{wyvern.network} resource to the \texttt{SSLSOAPConnector} library, so that library can be used for network communication.
+
+Now we can clearly see that the \texttt{FeedbackClient} and \texttt{FeedbackServer} cannot possibly communicate over the network, except via the \texttt{SSLSOAPConnector} as specified in the architecture---the \texttt{SSLSOAPConnector} is the only component in the entire program that has access to the network resource.
+
+The concept of a resource generalizes naturally to other forms of I/O, recalling Haskell's monads, but without the overhead of distinguishing effectful code from functional code at the expression level.  Following Miller~\cite{MarkMiller-E}, our intended design will require that ordinary modules have no global state; modules that need global state must be marked as resources.  Furthermore, developers who feel that the functionality provided by a module should be governed architecturally can enforce this by marking the module as a resource.  In our design resource-ness is sticky; for example, although the \texttt{FeedbackServer} cannot access the network, it does import a resource in order to write to a log, and therefore it becomes a resource itself.
+
+We are not the first to propose a module system in which a module's parameters are explicitly bound; notable prior examples include Units~\cite{units} and Newspeak~\cite{newspeak}.  Our design differs from these in that we do not require all module imports to be explicitly linked; instead, we require this only of resource modules, with the result that resources are controlled but ``harmless'' modules can be imported anywhere with a minimum of fuss.
+
+
+
+\subsection{Discussion}  
+
+\TODO{Write the rest of me!  See separate outline document}
+
+
+
+Goals: ensure that SSL is used in a simple client-server application.  be able to audit the messages exchanged.
+
+Related goals (think of some and discuss them.  Maybe use of an authentication architecture?  Maybe a temporal constraint that authentication succeeds before some resource is accessed.)
+
+
+
+
+
 
 
 
