@@ -115,6 +115,10 @@ Unfortunately, delivering systems with desired qualities can be challenging in p
 
 Even if the relevant constraints are identified and specified correctly by the architect, ensuring that they are followed can be quite difficult.  A standard defense against SQL injection attacks, for example, is ensuring that prepared statements are used to construct SQL queries.  Ensuring that this constraint if followed, however, requires scanning all SQL queries in the entire program; any query that is missed could potentially violate the policy.  Similar issues apply to common defenses against other attacks, such as cross-site scripting (XSS).
 
+In this paper, we propose \emph{architectural control} as a concept that reflects the architect's ability to successfully manage the architectural design constraints of their systems (Section 2).  After a review of prior work with connections to architectural control (Section 3), we sketch language and framework support that could enhance architectural control in the context of distributed systems (Section 4).
+
+The paper's main contribution is the concept of architectural control.  In keeping with the goals of a workshop, the authors seek community feedback on the solution ideas sketched in Seciton 4, which we hope to flesh out and implement in future work.
+
 
 \section{Architectural Control}
 
@@ -160,19 +164,25 @@ Today, architects use primarily informal processes to achieve architectural cont
 Finally, while architectural control is clearly desirable, in practice any mechanisms used to achieve it must be cost-effective.  We would like to realize the benefits of architectural control while minimizing sacrificed productivity.  In the ideal case, we would like to explore whether we can build tools that move the productivity-control curve outward, providing better architectural control while at the same time actually enhancing the productivity of a development team.
 
 
-\TODO{Overview and outline of the rest of the paper}
-
-
 \section{Prior Work}
 
-\TODO{a lot of missing text here.  What follows are notes and fragments.}
+Software architecture captures the high-level design of a software system, describing the systems structure and important constraints that must be followed by its implementation~\cite{GS,PW}.  The problem of architectural conformance has a long history~\cite{arch-conformance}.  We build most directly on the approach used by ArchJava, which integrated an architecture description language into Java and used a custom type system, including ownership types~\cite{ownership}, to ensure that the architecture accurately describes the implementation of the system~\cite{ArchJava-theory}.  We previously investigated adding custom connectors to ArchJava, supporting an architectural description of a distributed system within code~\cite{ArchJava-connectors}.  However, our prior work on ArchJava did not have any way to ensure that an application communicated over the network only using the connections shown in the architecture.
 
 Haskell's monads provide a potential technical foundation for architectural control~\cite{Haskell-monads}.  In practice, however, monads impose an overly strict discipline, requiring every operation that might transitively perform IO to use the IO monad; for many architectural control purposes, simply describing which components perform IO might be sufficient.  The syntactic overhead of IO monads also leads to an escape hatch, \texttt{unsafePerformIO}, which when used subverts architectural control.  Finally, in Haskell's design all IO operations are in one monad, whereas we believe many architects will find it useful to distinguish different forms of IO.
+ 
+While we are not aware of prior use of the phrase architectural control
+in scientific literature, IBM Rational uses ``architectural control rules''
+to constrain dependencies in Java applications.\footnote{\url{http://publib.boulder.ibm.com/infocenter/rsdvhelp/v6r0m1/index.jsp?topic=\%2Fcom.ibm.r2a.structanal.doc\%2Ftopics\%2Fcarchcontrols.html}}
+Our use of the term architectural control is broader, including control of dependencies but also enforcement of a range of other architectural constraints.
 
-Dynamic capability systems.  Mark Miller's E and Bracha's Newspeak module system
+The phrase ``architectural controls'' was used in the urban planning
+literature at least as early as 1949 to refer to ``control over the
+design and appearance of buildings,'' with the goal of making a
+community more beautiful or livable [1].
 
-Ownership - useful but insufficient due to downcasts.
+[1] Architectural Controls.  American Society of Planning Officials Information Report No. 6, September 1949.  Available at \url{http://www.planning.org/pas/at60/report6.htm}
 
+The next section will describe additional prior work that is closely related to the discussion.
 
 \section{Architecture-Exposing Languages and Frameworks}
 
@@ -232,7 +242,9 @@ class FeedbackClient
 \end{figure}
 
 
-Looking at the client code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{IPClient} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  When the client program is invoked---we envision that our Wyvern VM would support a command line syntax of the form \texttt{wyvern feedback client server.feedback.com 'my feedback here'}---the \texttt{run} method is called with the command line arguments.  The client program executes by connecting to the server---yielding an object of type \texttt{FeedbackInterface}---and then the \texttt{provideFeedback} method is invoked on this object.
+Looking at the client code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{IPClient} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  We envision that our Wyvern VM would support a command line syntax of the form:\\
+~~~\texttt{wyvern feedback client server.feedback.com 'my feedback here'}\\
+When the client program is invoked, the \texttt{run} method is called with the command line arguments.  The client program executes by connecting to the server, yielding an object of type \texttt{FeedbackInterface}, and then the \texttt{provideFeedback} method is invoked on this object.
 
 
 \begin{figure}[t]
