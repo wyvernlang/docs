@@ -117,7 +117,7 @@ Even if the relevant constraints are identified and specified correctly by the a
 
 In this paper, we propose \emph{architectural control} as a concept that reflects the architect's ability to successfully manage the architectural design constraints of their systems (Section 2).  After a review of prior work with connections to architectural control (Section 3), we sketch language and framework support that could enhance architectural control in the context of distributed systems (Section 4).
 
-The paper's main contribution is the concept of architectural control.  In keeping with the goals of a workshop, the authors seek community feedback on the solution ideas sketched in Seciton 4, which we hope to flesh out and implement in future work.
+The paper's main contribution is the concept of architectural control.  In keeping with the goals of a workshop, the authors seek community feedback on the solution ideas sketched in Section 4, which we hope to flesh out and implement in future work.
 
 
 \section{Architectural Control}
@@ -207,20 +207,20 @@ import feedback.SSLSOAPConnector(network careof Harry)
 import extension wyvern.distributed.architecture
 
 architecture feedback
-    component sender : FeedbackSender
-    component receiver : FeedbackReceiver
-    connect sender.out, receiver.in
+    component client : FeedbackClient
+    component server : FeedbackServer
+    connect client.out, server.in
         with SSLSOAPConnector
             certificateAuthority = <verisigninc.com>
 \end{lstlisting}
-\caption{Sender-Receiver Architecture}
+\caption{Client-Server Architecture}
 \label{f-architecture}
 %\vspace{-10px}
 \end{figure}
 
 Figure~\ref{f-architecture} shows one way of making the architecture of a simple client-server system explicit, so that it is easy for the architect to observe the messages exchanged and protocols used over the network.  The approach is inspired by ArchJava's custom connector support~\cite{ASCN03}, although we envision supporting architecture syntax via Wyvern's library-based language extension mechanism~\cite{TSLs-ECOOP14} rather than making it a core part of the language.
 
-The code shows a sender-receiver application for gathering feedback.  The architecture is simple: there is a sender, a receiver and a connection between the sender's \texttt{out} and receiver's \texttt{in} channels that sends SOAP messages over a SSL-encrypted network connection. 
+The code shows a client-server application for gathering feedback.  The architecture is simple: there is a client, a server and a connection between the client's \texttt{out} and server's \texttt{in} ports that sends SOAP messages over a SSL-encrypted network connection. 
 
 Here, SSLSOAPConnector, which is intended to be a thin wrapper around an underlying SSL library, is given the network resource explicitly. Because the architect wishes to be careful about security, but is not an expert herself, this permission is given care of a security team member, Harry. Only Harry should further pass that permission into, for example, the SSL library, because we trust Harry to have read the full documentation (or to rely on an implementation which uses more sensible defaults). Any other developer would receive, at minimum, a warning if they attempted to do so (requiring that the editor or compiler know the identity of the programmer). The main architect also specifies an override -- the default list of widely-accepted certificate authorities that has been overridden here to specify only the VeriSign CA, which the organization always uses.
 
@@ -232,20 +232,21 @@ package feedback
 import FeedbackInterface
 import wyvern.distributed.OutChannel
 
-class FeedbackSender
-    val out : OutChannel<FeedbackInterface>
-    def send(feedback : String)
-        out.interface.provideFeedback(feedback)
+class FeedbackClient
+    val out = OutChannel<FeedbackInterface>()
+    def run(addr : String, feedback : String)
+        val server = out.connect(IPAddress(addr))
+		server.provideFeedback(feedback)
 \end{lstlisting}
-\caption{Sender code}
+\caption{Client code}
 \label{f-client}
 %\vspace{-10px}
 \end{figure}
 
 
-Looking at the sender code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{OutChannel} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  We envision that a user at a command line running this program as sender might invoke this method by writing:\\
-~~~\texttt{wyvern feedback send 'my feedback here'}\\
-The connector connects to the receiver and issues a remote object reference providing the  \texttt{FeedbackInterface} interface to the sender.
+Looking at the client code in Figure~\ref{f-client}, we can see that the client declares the \texttt{out} port as an \texttt{OutChannel} object that is parameterized by the high-level interface used for communication with the server.  The \texttt{FeedbackInterface} is not shown, but it consists of a single \texttt{provideFeedback} method that accepts a string.  We envision that a user at a command line running this program as client might invoke this method by writing:\\
+~~~\texttt{wyvern feedback client feedback.xyz.com 'my feedback here'}\\
+The connector connects to the server and issues a remote object reference providing the  \texttt{FeedbackInterface} interface to the client.
 
 
 \begin{figure}[t]
@@ -256,8 +257,8 @@ import FeedbackInterface
 import wyvern.distributed.InChannel
 import resource wyvern.logging.stdlog
 
-class FeedbackReceiver
-    val in : InChannel<FeedbackInterface>
+class FeedbackServer
+    val in = InChannel<FeedbackInterface>()
     def run() = this.in.listen(this.callback)
     def callback() : FeedbackInterface
         new
@@ -265,13 +266,13 @@ class FeedbackReceiver
                 stdlog.log(feedback)
 
 \end{lstlisting}
-\caption{Receiver code}
+\caption{Server code}
 \label{f-server}
 %\vspace{-10px}
 \end{figure}
 
 
-Similarly, when the receiver code in Figure~\ref{f-server} runs, it initializes its \texttt{in} port to listen for incoming connections, passing a callback to be invovked when a connection is received.  The callback function returns an object of type \texttt{FeedbackInterface}, and the implementation responds to client messages by printing feedback to a log (which itself requires a resource).
+Similarly, when the server code in Figure~\ref{f-server} runs, it initializes its \texttt{in} port to listen for incoming connections, passing a callback to be invovked when a connection is received.  The callback function returns an object of type \texttt{FeedbackInterface}, and the implementation responds to client messages by printing feedback to a log (which itself requires a resource).
 
 
 The implementation details of the approach are beyond the scope of this paper, but are based on ideas from~\cite{ASCN03,TSLs-ECOOP14}.  While using metaprogramming and/or reflection techniques to implement the domain-specific language for architecture may be a challenging task, they are not necessarily more challenging than the reflective techniques used in existing framework implementations such as Ruby on Rails.  Complex implementations are often acceptable in frameworks if they provide corresponding simplicity or other advantages to framework users.
@@ -283,9 +284,9 @@ The integration of architectural specifications into the code supports centraliz
 
 We propose to use capabilities~\cite{Wulf:1974:HKM:355616.364017} to control the way that various parts of the program use architecturally significant resources such as the network.  In our design, libraries such as \texttt{wyvern.network} are identified as \emph{resource libraries}, and must be imported with an \texttt{import resource} construct rather than a normal \texttt{import} construct.  Each package in our design is defined (\texttt{define package}) in a single top-level file (Figure~\ref{f-architecture}), and that file must explicitly import all of the resources used in the entire package.  A resource may only be used by other parts of the system---including imported libraries---if a capability to the resource is explicitly passed on when the top-level file imports the relevant code.  For example, on line 5 of Figure~\ref{f-architecture}, the \texttt{feedback} program passes the \texttt{wyvern.network} resource to the \texttt{SSLSOAPConnector} library, so that library can be used for network communication.
 
-Now we can clearly see that the \texttt{FeedbackSender} and \texttt{FeedbackReceiver} cannot possibly communicate over the network, except via the \texttt{SSLSOAPConnector} as specified in the architecture---the \texttt{SSLSOAPConnector} is the only component in the entire program that has access to the network resource, and were only passed along further in the specific ways, not formally specified, that Harry has approved of (assuming that warnings were not suppressed, or some strict identity management mechanism was used to control changes to the source code at all times).
+Now we can clearly see that the \texttt{FeedbackClient} and \texttt{FeedbackServer} cannot possibly communicate over the network, except via the \texttt{SSLSOAPConnector} as specified in the architecture---the \texttt{SSLSOAPConnector} is the only component in the entire program that has access to the network resource, and were only passed along further in the specific ways, not formally specified, that Harry has approved of (assuming that warnings were not suppressed, or some strict identity management mechanism was used to control changes to the source code at all times).
 
-The concept of a resource generalizes naturally to other forms of I/O, recalling Haskell's monads, but without the overhead of distinguishing effectful code from functional code at the expression level.  Following Miller~\cite{MarkMiller-E}, our intended design will require that ordinary modules have no global state; modules that need global state must be marked as resources.  Furthermore, developers who feel that the functionality provided by a module should be governed architecturally can enforce this by marking the module as a resource.  In our design resource-ness is sticky; for example, although the \texttt{FeedbackReceiver} cannot access the network, it does import a resource in order to write to a log, and therefore might become a resource itself.
+The concept of a resource generalizes naturally to other forms of I/O, recalling Haskell's monads, but without the overhead of distinguishing effectful code from functional code at the expression level.  Following Miller~\cite{MarkMiller-E}, our intended design will require that ordinary modules have no global state; modules that need global state must be marked as resources.  Furthermore, developers who feel that the functionality provided by a module should be governed architecturally can enforce this by marking the module as a resource.  In our design resource-ness is sticky; for example, although the \texttt{FeedbackServer} cannot access the network, it does import a resource in order to write to a log, and therefore might become a resource itself.
 
 We are not the first to propose a module system in which a module's parameters are explicitly bound; notable prior examples include Units~\cite{FF98} and Newspeak~\cite{BrachaNewspeakModules}.  Our design differs from these in that we do not require all module imports to be explicitly linked; instead, we require this only of resource modules, with the result that resources are controlled but ``harmless'' modules can be imported anywhere with a minimum of fuss.
 
