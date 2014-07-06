@@ -108,7 +108,7 @@ domain specific languages}
 \section{Motivation: Architecture and System Qualities}
 The central task of a software architect is designing an architecture that enables the designed system's central goals to be achieved~\cite{BCK03}.  Typically many designs can support the intended functionality of a system; what distinguishes a good architecture from a bad one is how well the design achieves \emph{quality attributes} such as security, reliability, and performance.
 
-Quality attribute goals can often be satisfied by imposing architectural constraints on the system.  For example, the principle of least privilege is a well-known architectural constraint; it limits the privileges of each component to the minimum necessary to support the component's functionality, thus enhancing the security of a system.  Likewise, constraints concerning the redundance and independence of failure-prone components can aid in achieving reliability concerns.  Broadly speaking, a constraint is architectural in nature if it is essential to achieving critical system-wide quality attributes.
+Quality attribute goals can often be satisfied by imposing architectural constraints on the system.  For example, the principle of least privilege is a well-known architectural constraint; it limits the privileges of each component to the minimum necessary to support the component's functionality, thus enhancing the security of a system.  Likewise, constraints concerning the replication and independence of failure-prone components can aid in achieving reliability concerns.  Broadly speaking, a constraint is architectural in nature if it is essential to achieving critical system-wide quality attributes.
 
 Unfortunately, delivering systems with desired qualities can be challenging in practice.  Two significant sources of the challenge include missed or incorrect constraints, and inadequate constraint enforcement.  If an architect is not an expert in a software system's target domain, the architect may miss constraints that are important to achieving goals in that domain.  For example, many architects who were not familiar with the intricacies of Secure Sockets Layer (SSL) configured their SSL libraries to unnecessarily use a heartbeat protocol,\footnote{SSL's heartbeat feature is only needed for long-lasting, possibly idle connections} and/or neglected to properly enable SSL certificate checking.  The result was exposure to the Heartbleed\footnote{\url{http://heartbleed.com/}} bug in the first case, and to a man-in-the-middle attack in the second~\cite{GIJABS12}.
 
@@ -191,12 +191,13 @@ The next section will describe additional prior work that is closely related to 
 
 We propose \emph{architecture-exposing programming languages and frameworks} as a solution to providing better support for architectural control.  An \textit{\textbf{architecture-exposing language}} is a programming language that provides primitives to facilitate exposing architecture and enforcing constraints in a centralized way.  In addition to languages, we leverage software frameworks, because frameworks are already used to capture domain-specific architectures and to impose architectural constraints on applications that extend them~\cite{JaspanThesis}.  A framework is \emph{\textbf{architecture-exposing}} if it is specifically designed to encapsulate and enforce architectural constraints, while making important architectural choices more visible to architects that design their applications on top of the framework.
 
-To make these ideas concrete, we sketch the design of a distributed system application and framework in a future version of Wyvern, a programming language we are currently designing.  We show how five technical characteristics---extensible languages, capability-based module systems, explicit social delegation, architectural layering in frameworks, and typed interfaces---may serve to provide a practical initial step towards providing architectural control in this domain.  Our concrete goal will be to show how a specific problem based on the one from the previous section---understanding the messages and protocols used in a distributed system---can be rendered not just possible but easy.
+To make these ideas concrete, we sketch the design of a distributed system application and framework in a future version of Wyvern, a programming language we are currently designing~\cite{NKB+13}.  We show how five technical characteristics---extensible languages, capability-based module systems, explicit social delegation, architectural layering in frameworks, and typed interfaces---may serve to provide a practical initial step towards providing architectural control in this domain.  Our concrete goal will be to show how a specific problem based on the one from the previous section---understanding the messages and protocols used in a distributed system---can be rendered not just possible but easy.
 
 
 \subsection{Making Architecture Explicit in an Extensible Language}
-
    
+Figure~\ref{f-architecture} shows one way of making the architecture of a simple client-server system explicit, so that it is easy for the architect to observe the messages exchanged and protocols used over the network.  The approach is inspired by ArchJava's custom connector support~\cite{ASCN03}, although we envision supporting architecture syntax via Wyvern's library-based language extension mechanism~\cite{TSLs-ECOOP14} rather than making it a core part of the language.
+
 \begin{figure}[t]
 \begin{lstlisting}
 define package feedback
@@ -223,8 +224,6 @@ architecture feedback
 \label{f-architecture}
 %\vspace{-10px}
 \end{figure}
-
-Figure~\ref{f-architecture} shows one way of making the architecture of a simple client-server system explicit, so that it is easy for the architect to observe the messages exchanged and protocols used over the network.  The approach is inspired by ArchJava's custom connector support~\cite{ASCN03}, although we envision supporting architecture syntax via Wyvern's library-based language extension mechanism~\cite{TSLs-ECOOP14} rather than making it a core part of the language.
 
 The code shows a client-server application for gathering feedback.  The architecture is simple: there is a client, a server, and a connection between the client's \texttt{out} and server's \texttt{in} ports that sends SOAP messages over a SSL-encrypted network connection.  Here SSLSOAPConnector is a connection library that (unlike the standard Java library) checks server certificates unless otherwise specified, with a default set of widely-accepted certificate authorities that has been overridden here to specify only the VeriSign CA.
 
@@ -282,7 +281,7 @@ class FeedbackServer
 Similarly, when the server code in Figure~\ref{f-server} runs, it initializes its \texttt{in} port to listen for incoming connections, passing a callback to be invoked when a connection is received.  The callback function returns an object of type \texttt{FeedbackInterface}, and the implementation responds to client messages by printing feedback to a log.
 
 
-The implementation details of the approach are beyond the scope of this paper, but are based on our prior work on architectural connecotr implementation~\cite{ASCN03} and extensible languages~\cite{TSLs-ECOOP14}.  While using metaprogramming and/or reflection techniques to implement the domain-specific language for architecture may be a challenging task, they are not necessarily more challenging than the reflective techniques used in existing framework implementations such as Ruby on Rails.  Complex implementations are often acceptable in frameworks if they provide corresponding simplicity or other advantages to framework users.
+The implementation details of the approach are beyond the scope of this paper, but are based on our prior work on architectural connector implementation~\cite{ASCN03} and extensible languages~\cite{TSLs-ECOOP14}.  While using metaprogramming and/or reflection techniques to implement the domain-specific language for architecture may be a challenging task, they are not necessarily more challenging than the reflective techniques used in existing framework implementations such as Ruby on Rails.  Complex implementations are often acceptable in frameworks if they provide corresponding simplicity or other advantages to framework users.
 
 
 \subsection{Using Capabilities to Control Resources}
