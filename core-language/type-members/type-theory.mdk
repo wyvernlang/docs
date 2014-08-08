@@ -1,0 +1,125 @@
+Title: A Type Theory for Wyvern
+
+Package: math-cmds
+Package: proof
+
+~ MathDefs
+\newcommand{\trec}[2]{\mathbf{rec}~#1 . #2}
+\newcommand{\trans}[1]{\ll #1 \gg}
+\newcommand{\keyw}[1]{\textbf{#1}}
+~
+
+The Syntax of Types
+===================
+
+Here we show the syntax of types in Wyvern:
+
+~ Equation
+\begin{array}{rcl}
+\tau & \bnfdef & \tau \rightarrow \tau \bnfalt \forall t.\tau\\
+	 & \bnfalt & \trec{t}{\tau} \bnfalt t \\
+	 & \bnfalt & \{ \overline\delta \} \bnfalt p.t \\[2ex]
+%	 & \bnfalt & \tau[t=\tau] \\
+	 
+\delta & \bnfdef & \keyw{val}~f:\tau \\
+	   & \bnfalt & \keyw{type}~t = \tau \\
+	   & \bnfalt & \keyw{type}~t \\[2ex]
+	 
+p & \bnfdef & x \bnfalt p.f \\[2ex]
+
+\end{array}
+~
+
+Type application $\tau[t=\tau']$ is not relevant to the theory of subtyping because it can be reduced away syntactically to $[\tau'/t]\tau$ before the subtyping test.
+
+**TODO:** add intersection (see example below).  This may subsume $\tau[t=\tau']$ anyway.
+
+This type theory does not provide bounded quantification.  The rationale is that most of the value in polymorphism comes when the target type is treated completely polymorphically, and that integrating polymorphism and subtyping comes at a relatively high cost.  Wyvern remains quite expressive.  For example, here is an example showing support for sorted lists that accept `Comparable` elements, where in other languages `Comparable` would be a type class or a F-bounded type:
+
+	type ComparableClass
+		type InstanceType
+		def compare(e1:InstanceType,e2:InstanceType):boolean
+		
+	type Comparable
+		type Self
+		def comparableClass():ComparableClass[Self]
+
+	class SortedList
+		class def make[E](c:ComparableClass[E]):SortedList[E]
+			makeWithCompare[E](c.compare)
+			
+		class def makeSingleton[E](e:E & Comparable[E]):SortedList[E]
+			val l = makeWithCompare[E](e.comparableClass().compare)
+			l.add(e)
+			l
+			
+		class def makeWithCompare[E](compare:(E,E) -> boolean):SortedList[E] = ...
+		
+		// all the other list stuff goes here ...
+
+Compare this to a system with F-bounded polymorphism.  In the code above we have to put compare() in the class, but this is arguably sensible anyway since compare is a binary method (otherwise we would not be using a type class like structure).  There is a little boilerplate linking the class and instance, which perhaps could in typical cases be provided with syntactic sugar.  Finally, we have to write `E & Comparable[E]` in one place, but this is arguably easier to understand than the F-bounded solution `E extends Comparable[E]`.
+		
+And here are the subtyping rules:
+
+~ Equation
+\begin{array}{c}
+
+\boxed{\Gamma \vdash \tau_1 <: \tau_2} \\[2ex]
+
+\infer[\textsc{SubReflex}]
+	{\Gamma \vdash \tau = \tau }
+	{} \\[2ex]
+
+\infer[\textsc{SubArrow}]
+	{\Gamma \vdash \tau_1 \rightarrow \tau_2 <: \tau_1' \rightarrow \tau_2'}
+	{\Gamma \vdash \tau_2 <: \tau_2' & \Gamma \vdash \tau_1' <: \tau_1} \\[2ex]
+	 
+\infer[\textsc{SubForall}]
+	{\Gamma \vdash \forall t.\tau_1 <: \forall t.\tau_2 }
+	{\Gamma, t~\keyw{type} \vdash \tau_1 \simeq \tau_2} \\[2ex]
+	
+\infer[\textsc{SubRec}]
+	{\Gamma \vdash \trec{t}{\tau} <: \trec{t'}{\tau'}}
+	{\Gamma, t <: t' \vdash \tau <: \tau'} \\[2ex]
+	 
+\infer[\textsc{SubCtx}]
+	{\Gamma, \tau_1 <: \tau_2 \vdash \tau_1 <: \tau_2}
+	{} \\[2ex]
+	 
+\infer[\textsc{SubWidth}]
+	{\Gamma \vdash \{ \overline\delta,\overline\delta_2 \} <: \{ \overline\delta' \} }
+	{\Gamma \vdash \{ \overline\delta \} <: \{ \overline\delta' \} } \\[2ex]
+	 
+\infer[\textsc{SubDepth}]
+	{\Gamma \vdash \{ \overline\delta \} <: \{ \overline\delta' \}}
+	{\Gamma \vdash \overline\delta <: \overline\delta'} \\[2ex]
+	 
+\infer[\textsc{SubUnalias}]
+	{\Gamma \vdash \tau_1 <: \tau_2 }
+	{\Gamma \vdash \tau_1 \simeq \tau_1' & \Gamma \vdash \tau_2 \simeq \tau_2' & \Gamma \vdash \tau_1' <: \tau_2'} \\[2ex]
+	
+\\[5ex]
+\boxed{\Gamma \vdash \delta_1 <: \delta_2} \\[2ex]
+
+\infer[\textsc{SubMemberReflex}]
+	{\Gamma \vdash \delta = \delta }
+	{} \\[2ex]
+
+\infer[\textsc{SubField}]
+	{\Gamma \vdash \keyw{val}~f:\tau <: \keyw{val}~f:\tau' }
+	{\Gamma \vdash \tau <: \tau'} \\[2ex]
+	 
+\infer[\textsc{SubAlias}]
+	{\Gamma \vdash \keyw{type}~t = \tau <: \keyw{type}~t }
+	{} \\[2ex]
+	
+\\[5ex]
+\boxed{\Gamma \vdash \tau_1 \simeq \tau_2} \\[2ex]
+
+\infer[\textsc{TypeExpand}]
+	{\Gamma \vdash p.t \simeq \tau }
+	{\Gamma \vdash p : \tau_p & \tau_p[t]=\tau_t & \Gamma \vdash \tau_t \simeq \tau} \\[2ex]
+	
+\end{array}
+
+~
