@@ -49,7 +49,7 @@ deletekeywords={}, % If you want to delete any keywords from the current languag
 firstnumber=1, % Line numbers begin at line 1
 frame=lines, % Frame around the code box, value can be: none, leftline, topline, bottomline, lines, single, shadowbox
 frameround=tttt, % Rounds the corners of the frame for the top left, top right, bottom left and bottom right positions
-keywords=[1]{new, objtype, type, casetype, val, def, metadata, keyword, of},
+keywords=[1]{new, objtype, type, casetype, val, def, metadata, keyword, of, fn},
 keywordstyle={[1]\ttfamily\color{blue!90!black}},
 keywordstyle={[3]\ttfamily\color{red!80!orange}},
 morekeywords={}, % Add any functions no included by default here separated by commas
@@ -77,81 +77,84 @@ We begin with an extensible keywords example of building XML from user defined s
 \begin{parcolumns}{2}
 \colchunk[1]{
 \begin{lstlisting}[style=wyvern]
-type XML = objtype
-	metadata = new : HasTSL
-		val parser ~
-			...
+type XML = casetype 
+  ...
+  metadata = new : HasTSL
+    val parser ~
+      ... (parser for standard XML syntax)
 val x : XML = ~
-	<book id=1>
-		<title> XXX </title>
-		<Author> XXX </Author>
-	</book>
+  <book id=1>
+    <title>XXX</title>
+    <author>XXX</author>
+  </book>
 \end{lstlisting}
 }
 \colchunk[2]{
 \begin{lstlisting}[style=wyvern]
-type XML = objtype
-	... (* XML definition as before *)
-keyword toXML : XML = new : ExprKw
-	val parser = ~
-		...
-val x : XML = toXML ~
-	book : id = 1
-		title : XXX
-		author : XXX
+keyword simpleXML : XML = new
+  val parser = ~
+    ... (parser for simple XML syntax)
+val x : XML = simpleXML ~
+  >book[id=1]
+    >title XXX
+    >author XXX
 \end{lstlisting}
 }
 \end{parcolumns}
-\caption{Building XML object using TSL and expression keyword}
+\caption{Building a value of type XML using a TSL providing the standard syntax (left) or using a ``black-box'' expression keyword providing a simpler layout-sensitive syntax (right).}
 \label{xml}
 \end{figure*}
 
 \begin{figure*}[htb!]
 \begin{parcolumns}{2}
 \colchunk[1]{
-\begin{lstlisting}[style=wyvern, caption=Keyword 'if' defined in type Bool]
+\begin{lstlisting}[style=wyvern, caption=``White-box'' keyword \texttt{if} defined as a member of  type \texttt{Bool}]
 type Bool = casetype
-	case True
-	case Talse
-	keyword if:ExprKw = new ~
-		... (* Keyword parser *)
-
+  True
+  False
+  keyword if = new
+    val parser = fn self => ~
+      EXP BOUNDARY 'else' BOUNDARY EXP
+        fn e1, e2 => ~
+          case %self%
+            True => %e1%
+            False => %e2%
 x:Bool = ...
-x.if {[exp] else [exp]}
+x.if {branch_1} else {branch_2}
 \end{lstlisting}
 \begin{lstlisting}[style=wyvern, caption=DB example with type keyword and TSL]
 type DB = DBSchema ~
-	Table Employee 
-		ID  int,
-		Name char(50)
+  Table Employee 
+    ID  int,
+    Name char(50)
 
 val d : DB = ~ 
-	content to <mysql://localhost:3306/>
-	as "username":"password"
+  content to <mysql://localhost:3306/>
+  as "username":"password"
 \end{lstlisting}
 }
 \colchunk[2]{
 \begin{lstlisting}[style=wyvern, caption=The DB example after elaboration to inner wyvern code]
 type DB = objtype 
-  	val connection : URL
-  	val username : String
-  	val password : String
-  	val connect() : bool
-  	val stmts (s:SQL) : List
-  	val Employee : objtype
-		def getID (x:Int) : List
-		def getName (x:String) : List
-	metadata = new : HasTSL
-		parser = ~ 
-			...
+    val connection : URL
+    val username : String
+    val password : String
+    val connect() : bool
+    val stmts (s:SQL) : List
+    val Employee : objtype
+    def getID (x:Int) : List
+    def getName (x:String) : List
+  metadata = new : HasTSL
+    parser = ~ 
+      ...
 val d : DB = new
- 	val connection = "<mysql://localhost:3306/>" 
-  	val username = "username" 
-  	... (* other fields definition *)
-  	val Employee = new
-  		...
-		def getID (x:Int) : List = stmts({~})
-	    	SELECT * FROM Employee WHERE id=%x%
+  val connection = "<mysql://localhost:3306/>" 
+    val username = "username" 
+    ... (* other fields definition *)
+    val Employee = new
+      ...
+    def getID (x:Int) : List = stmts({~})
+        SELECT * FROM Employee WHERE id=%x%
 \end{lstlisting}
 }
 \end{parcolumns}
