@@ -1,0 +1,141 @@
+\documentclass[letterpaper, notitlepage]{article}
+\usepackage{bussproofs}
+\usepackage{amssymb}
+\usepackage{latexsym}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage[usenames,dvipsnames]{color} % Required for specifying custom colors and referring to colors by name
+\usepackage{listings}
+\usepackage[top=1in, bottom=1in, left=1.25in, right=1.25in]{geometry}
+\usepackage{xcolor}
+\usepackage{bera}% optional; just for the example
+
+\definecolor{DarkGreen}{rgb}{0.0,0.4,0.0} % Comment color
+\definecolor{highlight}{RGB}{255,251,204} % Code highlight color
+% This is the "centered" symbol
+\def\fCenter{{\mbox{\Large$\rightarrow$}}}
+
+% Optional to turn on the short abbreviations
+\EnableBpAbbreviations
+
+% This is the "centered" symbol
+\def\fCenter{{\mbox{\Large$\rightarrow$}}}
+
+\newcommand{\blue}[1] {\textcolor{blue}{#1}}
+\newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
+\newcommand{\doublebox}[2]{\begin{flushleft}\fbox{{#1}}\ \fbox{{#2}}\end{flushleft}}
+\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta_{\kappa}}}
+\newcommand{\todo}[1]{{\bf \{TODO: {#1}\}}}
+\newcommand{\code}[1]{\texttt{\footnotesize #1}}
+
+% Optional to turn on the short abbreviations
+\EnableBpAbbreviations
+
+% \alwaysRootAtTop  % makes proofs upside down
+% \alwaysRootAtBottom % -- this is the default setting
+
+\lstdefinestyle{wyvern}{ % Define a style for your code snippet, multiple definitions can be made if, for example, you wish to insert multiple code snippets using different programming languages into one document
+%backgroundcolor=\color{highlight}, % Set the background color for the snippet - useful for highlighting
+basicstyle=\footnotesize\ttfamily, % The default font size and style of the code
+breakatwhitespace=false, % If true, only allows line breaks at white space
+breaklines=true, % Automatic line breaking (prevents code from protruding outside the box)
+captionpos=b, % Sets the caption position: b for bottom; t for top
+commentstyle=\usefont{T1}{pcr}{m}{sl}\color{DarkGreen}, % Style of comments within the code - dark green courier font
+deletekeywords={}, % If you want to delete any keywords from the current language separate them by commas
+%escapeinside={\%}, % This allows you to escape to LaTeX using the character in the bracket
+firstnumber=1, % Line numbers begin at line 1
+frame=lines, % Frame around the code box, value can be: none, leftline, topline, bottomline, lines, single, shadowbox
+frameround=tttt, % Rounds the corners of the frame for the top left, top right, bottom left and bottom right positions
+keywords=[1]{new, objtype, type, casetype, val, def, metadata, keyword, of},
+keywordstyle={[1]\ttfamily\color{blue!90!black}},
+keywordstyle={[3]\ttfamily\color{red!80!orange}},
+morekeywords={}, % Add any functions no included by default here separated by commas
+numbers=left, % Location of line numbers, can take the values of: none, left, right
+numbersep=10pt, % Distance of line numbers from the code box
+numberstyle=\tiny\color{Gray}, % Style used for line numbers
+rulecolor=\color{black}, % Frame border color
+showstringspaces=false, % Don't put marks in string spaces
+showtabs=false, % Display tabs in the code as lines
+stepnumber=5, % The step distance between line numbers, i.e. how often will lines be numbered
+tabsize=4, % Number of spaces per tab in the code
+}
+
+
+\begin{document}
+\section{Introduction}
+Domain specific languages are designed specially to solve problems in a particular domain. An user benefits from the clear notation and powerful expressiveness using DSLs to solve certain problems. However, in a complicated project, problems from different domains come up together thus no DSL alone is sufficient. Thus general purpose languages like Java are always used instead of DSLs. Common ways to deal with problems in certain domains in general purpose languages are building libraries in the language and exporting API calls to user, or using strings to represent DSLs and using strings as arguments to be passed to DSL engines. But both ways have their flaws, as exporting complicated library calls always leads to redundant code while using strings to represent DSLs may damage the safety of the language.
+\par
+Based on our previous Type-Specific Languages works, we extend the language with the ability to access of DSLs using user-defined type-associated keywords. With extensible keywords, users are allowed to switch between host languages and DSLs in expression level, or create a type using DSLs. In the following section, we will give an example using keywords mechanism to extend host language with user defined DSL libraries.
+
+\section{Extensible Keywords in Wyvern}
+We begin with an extensible keywords example of a fragment of code accessing graph database and perform a graph query.
+
+\begin{lstlisting}[style=wyvern]
+keyword fromXML : TypeKw = new
+	parser : TypeParser = ~
+		...... (* TypeKw parser definition *)
+
+type Graph = objtype
+	vertices : Set
+	edges : Set
+	keyword traverse : ExprKw = new
+		parser : ExprParser = ~
+			...... (* ExprKw parser definition *)
+
+val graph : Graph = import("graph.in")
+
+type Employee = fromXML ~
+	<xs:element name="employee">
+	  	<xs:complexType>
+	    	<xs:sequence>
+	      		<xs:element name="name" type="xs:string"/>
+	      		<xs:element name="id" type="xs:string"/>
+	    	</xs:sequence>
+	 	 </xs:complexType>
+	</xs:element>
+
+val employee_1 : Employee = new ~
+  	<employee>
+	  	<name>John</name>
+	  	<id> 001 </id>
+	</employee>
+
+val employee : List [Employee] = graph.traverse ~
+	g.v(it.id.equals(employee_1.getId())).out.filter{it.name.startsWith('j')}
+
+val List [String] = employee.map(this.getName())
+\end{lstlisting} 
+
+In this example, the user defined a type keyword fromXML and then provide a parser to parse the data structure presented in XML schema. User benefits from using ORM using type keyword fromXML to parse an XML-Schema which will then generate an object type equipped with corresponding fields. Along with field declarations, the type keyword fromXML also provides a TSL metadata which allows user to define the declared type in DSL literals as present in our TSL paper. In this example, the fromXML keyword will generate an object from the XML Schema equivalent the following declaration:
+\begin{lstlisting}[style=wyvern]
+type Employee = objtype
+	val name : String
+	val id   : String
+	def getName : Unit -> String
+	def getId : Unit -> String
+\end{lstlisting}
+And with the TSL mechanism, the fields and method declarations will be initialized using the TSL parser generated by fromXML parser, so \texttt{employee\_1.getId()} can be used to access the method after the value \texttt{employee\_1} is defined using XML literals.
+\par
+Another part of keywords usage is an expression keyword defined within the type Graph. In our design, we associate expression keywords with type names which enables avoiding conflicts when multiple extensions are imported. In this case, a keyword \texttt{traverse} is associated with the type \texttt{Graph}, which allows the user to switch to graph query code (in this case, Gremlin) from wyvern code. Every time the compiler encounters the keyword \texttt{traverse} invoked by a variable of type \texttt{Graph}, the parsed defined in \texttt{traverse} definition will be called to parse the DSL literals and transformed them into wyvern code. Thus during runtime, literals are eliminated and only inner wyvern code will be executed. In the keyword invocation initialized by \texttt{graph.traverse} in the example, the Gremlin DSL will be transformed into library calls as the following:
+\begin{lstlisting}[style=wyvern]
+val employee : List [Employee] = new GremlinPipeline(~)
+	g.getVertex(employee_1.getId()).out().filter(~)
+		new PipeFunction [Vertex,Boolean] 
+   			def compute (v:Vertex) =
+    			return v.getProperty("name").startsWith("j");
+\end{lstlisting}
+In this way, we are able to extend the host language with DSLs from which users can benefit from the concise representation and expressiveness of multiple DSLs while using the host language to achieve general purpose goals.
+
+\section{Mechanisms to support keyword extension}
+To achieve the goal of integrating extensible keywords in the host language, we need mechanisms to support indent delimits parsing, code transformation and hygiene.
+\par
+Firstly, we associate metadata and expression keywords with type name rather than the type structure. This allows us to separate the static phase of transformation from the structure content which represent the runtime usage. Separating names from structures provide the language with the ability to redefine the extensible metadata with the same structure, and thus increase the expressiveness.
+\par
+Code transformation and hygiene are used in compilation phase to turn the external expressions with DSL literals into inner wyvern expressions. Literals will be transformed firstly by the parser to spliced wyvern expressions, and then reconstruct into wyvern code. Type checking are performed in this phase to guarantee the safe property of inner wyvern code.
+\par
+For type keyword, \texttt{TypeParser} is applied to literals to generate type expressions, then type expressions are transformed into wyvern types and go into the type environment. Detailed formalization is not presented here for the consideration of concise of the proposal.
+\end{document}
+
+
+
