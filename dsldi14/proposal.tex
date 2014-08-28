@@ -59,36 +59,50 @@ numberstyle=\tiny\color{Gray}, % Style used for line numbers
 rulecolor=\color{black}, % Frame border color
 showstringspaces=false, % Don't put marks in string spaces
 showtabs=false, % Display tabs in the code as lines
-stepnumber=5, % The step distance between line numbers, i.e. how often will lines be numbered
+stepnumber=1, % The step distance between line numbers, i.e. how often will lines be numbered
 tabsize=4, % Number of spaces per tab in the code
 }
 
 
+
 \begin{document}
+\title{Composable Syntax Macros}
+\author{Stanley Wang, Cyrus Omar and Jonathan Aldrich\\
+Carnegie Mellon University\\
+\{stwong,comar,aldrich\}@cs.cmu.edu}
+\date{}
+\maketitle
+
 \section{Introduction}
-Domain specific languages are designed specially to solve problems in a particular domain. An user benefits from the clear notation and powerful expressiveness using DSLs to solve certain problems. However, in a complicated project, problems from different domains come up together thus no DSL alone is sufficient. Thus general purpose languages like Java are always used instead of DSLs. Common ways to deal with problems in certain domains in general purpose languages are building libraries in the language and exporting API calls to user, or using strings to represent DSLs and using strings as arguments to be passed to DSL engines. But both ways have their flaws, as exporting complicated library calls always leads to redundant code while using strings to represent DSLs may damage the safety of the language.
-\par
-Based on our previous Type-Specific Languages works, we extend the language with the ability to access of DSLs using user-defined type-associated keywords. With extensible keywords, users are allowed to switch between host languages and DSLs in expression level, or create a type using DSLs. In the following section, we will give an example using keywords mechanism to extend host language with user defined DSL libraries.
+One way domain-specific languages can benefit users by providing them with a clear and familiar syntax while retaining the semantics of a powerful underlying general-purpose language. However, in a complicated project, problems from different domains come up together, so no DSL alone is sufficient. Common approaches for embedding DSLs into general-purpose languages include attempting to repurpose existing syntax to make an API easy to use, or encoding DSLs as string arguments to DSL engines. But both ways have their flaws. Exporting complicated library calls always leads to complex code and a sometimes less than ideal interface, while using strings to represent DSL code is less safe and can still be awkward, due to conflicts between string syntax and the domain-specific syntax. Approaches that permit library providers to directly extend the base syntax of a language can lead to ambiguities.
 
-\section{Extensible Keywords in Wyvern}
-We begin with an extensible keywords example of building XML from user defined syntax. In our TSL works, we are able to construct an object using dsl literals. On the left side of Figure.\ref{xml}, we directly insert the XML literals into the host language, and the parser defined in metadata of the type XML will be used to parse the literals inside and then initialize the object. But in some cases, the user may use other format literals to generate the XML object for simplicity. Thus expression keywords are used in this case to extend TSL expressiveness. On the right side of Figure.\ref{xml}, we use the keyword toXML to construct an object. The keyword toXML, defined as a global keyword, acts like an expression as it takes in DSL literals and then return an object of XML type. In this way, literals in the right side of figure 1 will be parsed by the parser declared in the keyword declaration. 
+In our previous work on \emph{type-specific languages (TSLs)} \cite{TSLs}, we introduced techniques for associating arbitrary syntax extensions with types. By pushing the parsing of delimited blocks of specialized syntax into the typechecker, we guaranteed that these extensions could be composed arbitrarily. For example, Figure 1 (left) shows an example of a TSL associated with the \verb|XML| type (TSLs can be seen as metadata associated with a type; see \cite{TSLs}).
 
-\begin{figure*}[htb]
+However, this work was limited in two important ways: 1) only a single choice of syntax was available for any particular type; and 2) this couldn't be used to implement operations \emph{on} existing values of a type, only operations that introduced values of a type. Here, we extend our previous work with \emph{syntax macros} - explicit user-defined keywords that determine when to switch between the host languages and a DSL. By using the same strategies for delimiting specialized syntax, and the same mechanisms for ensuring hygiene, we will maintain the guarantee that syntax extensions can be composed while substantially increasing the expressiveness of our language (Wyvern). By borrowing a technique from Scala's macro system (which doesn't permit new syntax), we will retain the ability to reason about the type of a term without performing expansion in many cases.
+
+\section{Syntax Macros in Wyvern}
+In this section, we show several examples built in Wyvern to illustrate the usage of both \emph{black-box keywords} and \emph{white-box keywords} (this terminology is taken from Scala's macro system \cite{ScalaMacros2013}). A black-box keyword is declared with a return type, so the return type is determined without referring to the expression it elaborates to. A white-box keyword does not have this restriction. The return type of the white-box keyword will be determined by the internal expression after literal transformation.
+
+We begin in Figure 1 (right) with an example of a black-box keyword that constructs a value of type \verb|XML| using a syntax other than the one associated directly with a type, here simplifying XML by using whitespace to close tags rather than explicit closing tags. The tilde (\verb|~|) serves a role analagous to its role for TSLs: it indicates that the body of the syntax macro is the layout-delimited block beginning on the next line. The keyword \texttt{simpleXML} is declared on lines 1-3 with the return type (\texttt{XML}) and a definition of the parser itself (omitted).
+
+
+
+\begin{figure*}[htb!]
+\vspace{-15px}
 \begin{parcolumns}{2}
 \colchunk[1]{
 \begin{lstlisting}[style=wyvern]
 type XML = casetype 
   ...
   metadata = new : HasTSL
-    val parser ~
+    val parser = ~
       ... (parser for standard XML syntax)
 val x : XML = ~
   <book id=1>
     <title>XXX</title>
     <author>XXX</author>
   </book>
-\end{lstlisting}
-}
+\end{lstlisting}}
 \colchunk[2]{
 \begin{lstlisting}[style=wyvern]
 keyword simpleXML : XML = new
@@ -99,16 +113,16 @@ val x : XML = simpleXML ~
     >title XXX
     >author XXX
 \end{lstlisting}
-}
-\end{parcolumns}
+}\end{parcolumns}
+\vspace{-15px}
 \caption{Building a value of type XML using a TSL providing the standard syntax (left) or using a ``black-box'' expression keyword providing a simpler layout-sensitive syntax (right).}
 \label{xml}
+\vspace{-15px}
 \end{figure*}
 
 \begin{figure*}[htb!]
-\begin{parcolumns}{2}
-\colchunk[1]{
-\begin{lstlisting}[style=wyvern, caption=``White-box'' keyword \texttt{if} defined as a member of  type \texttt{Bool}]
+\begin{center}
+\begin{lstlisting}[style=wyvern]
 type Bool = casetype
   True
   False
@@ -122,52 +136,18 @@ type Bool = casetype
 x:Bool = ...
 x.if {branch_1} else {branch_2}
 \end{lstlisting}
-\begin{lstlisting}[style=wyvern, caption=DB example with type keyword and TSL]
-type DB = DBSchema ~
-  Table Employee 
-    ID  int,
-    Name char(50)
-
-val d : DB = ~ 
-  content to <mysql://localhost:3306/>
-  as "username":"password"
-\end{lstlisting}
-}
-\colchunk[2]{
-\begin{lstlisting}[style=wyvern, caption=The DB example after elaboration to inner wyvern code]
-type DB = objtype 
-    val connection : URL
-    val username : String
-    val password : String
-    val connect() : bool
-    val stmts (s:SQL) : List
-    val Employee : objtype
-      def getID (x:Int) : List
-      def getName (x:String) : List
-  metadata = new : HasTSL
-    parser = ~ 
-      ...
-val d : DB = new
-  val connection = "<mysql://localhost:3306/>" 
-    val username = "username" 
-    ... (* other fields definition *)
-    val Employee = new
-      ...
-    def getID (x:Int) : List = stmts({~})
-        SELECT * FROM Employee WHERE id=%x%
-\end{lstlisting}
-}
-\end{parcolumns}
+\end{center}
+\vspace{-15px}
+\caption{``White-box'' keyword \texttt{if} defined as a member of  type \texttt{Bool}}
+\vspace{-10px}
+\label{if}
 \end{figure*}
 \par
-Another example is the usage of keyword \texttt{if} in Listing 1. Bool here is defined as a casetype, and when we use the type in a branch condition, we need to do case analysis first. But with the definition of \texttt{if} as a keyword inside type \texttt{Bool}, we can use an abbreviate form to write the branch condition. The parser will access the variable and transform it into a branch condition with case analysis. Thus expression keywords enable more flexible representation of expressions.
-\par
-In a more complicated example, we present the usage of Type Keywords along with TSL. In this example, we first declare a type DB using Type Keyword, we declare the structure we want to use to map to the database. And fields and methods in the type will be generated automatically by parser. The type will be transformed to the more complicated representation after parsing presented in Listing 3. Besides generating the type structure, a TSL metadata will also be generated by the parser to construct the type. The value \texttt{d} in the example will be constructed with DSL literals, which will be elaborated to the right side construction code. And this bridge the usage of keyword type construction with the object initialization using TSL.
 
-\section{Mechanisms to support keyword extension}
-To achieve the goal of integrating extensible keywords in the host language, we need mechanisms to support indent delimits parsing, code transformation and hygiene. Detailed formal rules for these mechanisms are not presented here for brevity consideration.
-\par
-Parsing and transformation are of the same method we use in TSL paper. Expression keywords here are associated with the type name to make the extension composable while type keywords are defined in global environment with package name to avoid conflicts in different imports.
+Another example presented in Figure \ref{if} shows a white-box keyword, \texttt{if}. The type \verb|Bool| is defined as a casetype with two cases, namely \verb|True| and \verb|False|. The general way to use a value of type \verb|Bool| is by case analysis, explicitly naming these two constructors. We define the more conventional conditional operation \texttt{if} in terms of case analysis, here as a ``method macro'' associated with \texttt{Bool}, seen being used on line 12. Here, we are using an extension to the concrete syntax presented in \cite{TSLs} that supports ``multi-part'' bodies. Any delimited forms, e.g. \verb|{branch_1}|, appearing next to each other, or with keywords like \verb|else| between them, will be merged into a single body with a special \verb|BOUNDARY| token inserted between them. The grammar, on line 6, can recognize these boundaries to separate out the parts of the keyword. This allows for a  Smalltalk-style syntax for invoking  macros like these. The same syntax can be used to construct multi-part TSL literals. Details of these and other examples, as well as a type-theoretic formalization of this mechanism based on that presented in \cite{TSLs}, will be presented in our talk.
+
+\bibliographystyle{abbrv}
+\bibliography{../ecoop14/research} 
 \end{document}
 
 
