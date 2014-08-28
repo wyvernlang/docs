@@ -59,9 +59,14 @@
 \EnableBpAbbreviations
 \input{macros.tex}
 
+\newcommand\BeraMonottfamily{%
+  \def\fvm@Scale{0.85}% scales the font down
+  \fontfamily{fvm}\selectfont% selects the Bera Mono font
+}
+
 \lstdefinestyle{wyvern}{
 %backgroundcolor=\color{highlight}, % Set the background color for the snippet - useful for highlighting
-basicstyle=\footnotesize\ttfamily, % The default font size and style of the code
+basicstyle=\scriptsize\BeraMonottfamily, % The default font size and style of the code
 breakatwhitespace=false, % If true, only allows line breaks at white space
 breaklines=true, % Automatic line breaking (prevents code from protruding outside the box)
 captionpos=b, % Sets the caption position: b for bottom; t for top
@@ -72,8 +77,8 @@ firstnumber=1, % Line numbers begin at line 1
 frame=lines, % Frame around the code box, value can be: none, leftline, topline, bottomline, lines, single, shadowbox
 frameround=tttt, % Rounds the corners of the frame for the top left, top right, bottom left and bottom right positions
 keywords=[1]{new, objtype, type, casetype, val, def, metadata, keyword, of, fn},
-keywordstyle={[1]\ttfamily\color{blue!90!black}},
-keywordstyle={[3]\ttfamily\color{red!80!orange}},
+keywordstyle={[1]\color{blue!90!black}},
+keywordstyle={[3]\color{red!80!orange}},
 morekeywords={}, % Add any functions no included by default here separated by commas
 numbers=left, % Location of line numbers, can take the values of: none, left, right
 numbersep=8pt, % Distance of line numbers from the code box
@@ -198,7 +203,7 @@ smaller sections.
 As we present our work as an extension of the type-specific language built on Wyvern, some background for Wyvern language and type-specific language mechanism is necessary to present the extensible keywords mechanism.
 \subsection{Wyvern Language}
 Wyvern is an emerging programming language built with functions to support pure object orient model and value-based language model, in which everything significant is a first-class value rather than an object or a function. 
-\begin{figure}[htb!]
+\begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
 casetype SimpleExp
   Num of Int
@@ -228,13 +233,14 @@ Type-Specific Language(TSL) is designed to support constructing a datatype using
 TSL allows users to define metadata with a parser to parse the code fragment using external syntax. As the external expressions with DSL literals are always associated with a type, the right parser defined in that type declaration will be used to parse the literals and then perform transformation on the literal to generate inner Wyvern code.
 \par
 The following example illustrates how to use TSL to construct a value of type HTML using HTML syntax.
-\begin{figure}[htb!]
+\begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
 type HTML = casetype 
    Empty of Unit
-   Text of String
    Seq of HTML * HTML 
+   Text of String
    BodyElement of Attributes * HTML
+   Paragraph of Attribures * HTML
    StyleElement  of Attributes * CSS
    ... (* Other HTML cases *)
    metadata = new : HasParser
@@ -242,13 +248,10 @@ type HTML = casetype
         ... (* HTML parser definition *)
 
 val x : HTML = new ~
-    <html>
-      <body>
+      <body id="doc1">
         <h1>My First Heading</h1>
         <p>My first paragraph.</p>
       </body>
-    </html>
-
 \end{lstlisting}
 \vspace{-8px}
 \caption{A Wyvern case type with an associated TSL.}
@@ -257,11 +260,40 @@ val x : HTML = new ~
 \end{figure}
 In Fig.\ref{f-htmltype}, we present the declaration of type HTML as a casetype with different HTML cases (StyleElement, Text etc). Along with the definition of different cases, a metadata of type \texttt{HasParser} is defined with a parser to transform inserted DSL literals with HTML syntax. In line 12 of Fig.\ref{f-htmltype}, we initialize the value \texttt{x} using HTML syntax rather than constructing the fields as we did in the last section. The literals present inside the declaration body of type HTML body delimits by a tilde, thus the parser in the metadata of HTML will be invoked to initialize the value \texttt{x}.
 \par
-Using TSL method, DSL literals(HTML) can be safely injected into Wyvern, and due to its type specific property, composing different DSL syntax in Wyvern can be easily achieved. 
+Using TSL method, DSL literals(HTML) can be safely injected into Wyvern, and due to its type specific property, composing different DSL syntax in Wyvern can be easily achieved. In the next section, we present our work on extensible keyword macros as an extension of TSL mechanism base on Wyvern language.
 
 
 \section{Extensible keywords in Wyvern}
-In this section, we present several examples of both expression keywords and type keywords in Wyvern language. 
+Although TSL provides the mechanism to construct data using DSL syntax, TSL alone is not enough to handle other syntax extensions if a user want to have multiple syntax to represent one datatype or construct a type using external representations. Several examples are presented in this section how the extensible keywords are used to solve these problems.
+\subsection{Expression Keyword}
+An expression keyword is a keyword associated with a parser to transform DSL literals into a Wyvern expression. Depending on whether a keyword provides the return type in its declaration, expression keywords are separated into two kinds, namely "black-box" keyword and "white-box" keyword. And expression keywords can be further classified to global-expression-keyword and type-specific-expression-keyword according to whether it is declared in a named type.
+\paragraph{"Black-box" simpleHTML keyword}
+We start with an example showing the usage of an expression keyword used to construct an HTML object with an alternative simple HTML syntax rather than the original HTML syntax displayed in Fig.\ref{f-htmltype}.
+\begin{figure*}[t]
+\begin{lstlisting}[style=wyvern]
+keyword simpleHTML : HTML = new ~
+  val parser = ~
+    start <- '>body' = attributes start>
+      fn (attrs, child) => Inj('BodyElement', Pair(attrs, child))
+    start <- '>p' = attributes start>
+      fn (attrs, child) => Inj("Paragraph", Pair(attrs, child))
+    start <- TEXT
+      fn (text) => Inj("Text", text)
+    start <- '<'= EXP>
+      fn (e) => '%e% : HTML'
+
+val y : HTML = simpleHTML ~
+  >body[id=doc1]
+    >h1 My First Heading
+    >p My first paragraph
+\end{lstlisting}
+\vspace{-8px}
+\caption{A simpleHTML keyword example}
+\vspace{-10px}
+\label{f-simplehtml}
+\end{figure*}
+In Fig.\ref{f-simplehtml}, an "black-box" keyword \texttt{simpleHTML} is declared, which provides a parser to parse DSL literals written in an alternative simple HTML syntax. The keyword \texttt{simpleHTML} is declared with a return type, namely \texttt{HTML}, which means the the DSL literals used in the body of the keyword invocation will be parsed to generate an expression of type \texttt{HTML}. As the keyword is declared as a global keywords, 
+
 \section{Formalization}
 \subsection{Abstract Syntax}
 \input{kw-syntax.tex}
