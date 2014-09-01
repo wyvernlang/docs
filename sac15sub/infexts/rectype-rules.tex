@@ -1,0 +1,403 @@
+\documentclass {article}
+
+\usepackage{mathpartir}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fullpage}
+
+\newcommand{\glb}[1]{\text{glb}(#1)}
+\newcommand{\lub}[1]{\text{lub}(#1)}
+\newcommand{\subtype}[2]{#1 <: #2}
+\newcommand{\rebound}[2]{\text{rebound}(#1,#2)}
+\newcommand{\irebound}[2]{\text{irebound}(#1,#2)}
+\newcommand{\alphahat}{\hat{\alpha}}
+\newcommand{\exvars}[1]{\text{exvars}(#1)}
+\newcommand{\marker}{\blacktriangleright}
+\newcommand{\typemem}[1]{\text{type } #1}
+\newcommand{\bound}[3]{#1 <: #2 <: #3}
+
+\newcommand{\instr}{\overset{<}{=:}}
+\newcommand{\instl}{\overset{<}{:=}}
+
+\newcommand{\sigbndl}{\overset{\sigma}{:<\hspace{-5px}<}}
+\newcommand{\sigbndr}{\overset{\sigma}{<\hspace{-5px}<:}}
+
+\newcommand{\siginstr}{\overset{<\sigma}{=:}}
+\newcommand{\siginstl}{\overset{<\sigma}{:=}}
+
+\begin{document}
+
+Sigma:
+\begin{align*}
+\sigma_\top ::=& \tau\\
+|& \top\\
+|& \alphahat \vee \sigma_\top\\
+\sigma_\bot ::=& \tau\\
+|& \bot\\
+|& \alphahat \wedge \sigma_\bot\\
+\end{align*}
+\begin{mathpar}
+\inferrule*[right=MinSub]{ }{\Gamma \vdash \bot <: \tau \dashv \Gamma}
+
+\inferrule*[right=MaxSub]{ }{\Gamma \vdash \tau <: \top \dashv \Gamma}
+\end{mathpar}
+
+Bound operators:
+\begin{mathpar}
+\inferrule*[right=LUBUnit]{ }{\Gamma \vdash 1 \vee 1 = 1 \dashv \Gamma}
+
+\inferrule*[right=LUBVar]{ }{\Gamma \vdash \alpha \vee \alpha = \alpha \dashv \Gamma}
+
+\inferrule*[right=LUBArrow]{\Gamma \vdash A \wedge C = E \dashv \Theta \\
+ \Theta \vdash B \vee D = F \dashv \Delta }{
+\Gamma \vdash 
+A\rightarrow B \vee C \rightarrow D = E \rightarrow F \dashv \Delta}
+
+\inferrule*[right=LUBForall]{ \Gamma \vdash \tau \vee \tau' = \tau'' \dashv \Delta }{\Gamma\vdash\forall\alpha.\tau \vee \forall\alpha.\tau' = \forall\alpha.\tau''\dashv\Delta}
+
+\inferrule*[right=LUBSubtypeL]{ 
+\Gamma \vdash \tau' :> \tau\dashv \Delta 
+}{
+\Gamma\vdash\tau\vee\tau' = \tau\dashv\Delta}
+
+\inferrule*[right=LUBSubtypeR]{ 
+\Gamma \vdash \tau :> \tau'\dashv \Delta 
+}{
+\Gamma\vdash\tau\vee\tau' = \tau'\dashv\Delta}
+
+\inferrule*[right=LUBBot]{ 
+}{
+\Gamma\vdash\tau\vee\tau' = \bot\dashv\Gamma}
+\\
+\inferrule*[right=GLBUnit]{ }{\Gamma\vdash 1 \wedge 1 = 1 \dashv \Delta}
+
+\inferrule*[right=GLBVar]{ }{\Gamma \vdash \alpha \wedge \alpha = \alpha \dashv \Delta}
+
+\inferrule*[right=GLBArrow]{\Gamma \vdash  A \vee C = E  \dashv \Theta\\ \Theta \vdash B \wedge D = F  \dashv \Delta}{\Gamma \vdash A\rightarrow B \vee C \rightarrow D = E \rightarrow F \dashv \Delta}
+
+\inferrule*[right=GLBForall]{\Gamma\vdash \tau \wedge \tau' = \tau'' \dashv\Delta}{\Gamma\vdash\forall\alpha.\tau \wedge \forall\alpha.\tau' = \forall\alpha.\tau''\dashv\Delta}
+
+\inferrule*[right=GLBSubtypeL]{ 
+\Gamma \vdash \tau' <: \tau\dashv \Delta 
+}{
+\Gamma\vdash\tau\wedge\tau' = \tau\dashv\Delta}
+
+\inferrule*[right=GLBSubtypeR]{ 
+\Gamma \vdash \tau' :> \tau\dashv \Delta 
+}{
+\Gamma\vdash\tau\wedge\tau' = \tau'\dashv\Delta}
+
+\inferrule*[right=GLBTop]{ 
+}{
+\Gamma\vdash\tau\wedge\tau' = \top\dashv\Gamma}
+\end{mathpar}
+
+Bounds:
+\begin{mathpar}
+\inferrule*[right=LubExtL]{ \lub{\sigma_\top} = \tau' \\ \Gamma \vdash \tau' <: \tau \dashv \Delta }{\Gamma[\bound{\_}{\alphahat}{\tau}] \vdash \lub{\alphahat \vee \sigma_\top} = \tau' }
+
+\inferrule*[right=LubExtR]{ \lub{\sigma_\top} = \tau' \\ \Gamma \vdash \tau <: \tau' \dashv \Delta }{\Gamma[\bound{\_}{\alphahat}{\tau}] \vdash \lub{\alphahat \vee \sigma_\top} = \tau }
+\\
+\inferrule*[right=LubTop]{ }{\Gamma\vdash \lub{\top} = \top }
+
+\inferrule*[right=LubTau]{ }{\Gamma\vdash \lub{\tau} = \tau }
+\\
+\inferrule*[right=GlbExtR]{ \glb{\sigma_\bot} = \tau' \\ \Gamma \vdash \tau' <: \tau \dashv \Delta }{\Gamma[\bound{\_}{\alphahat}{\tau}] \vdash \glb{\alphahat \wedge \sigma_\bot} = \tau }
+
+\inferrule*[right=GlbExtL]{ \glb{\sigma_\bot} = \tau' \\ \Gamma \vdash \tau <: \tau' \dashv \Delta }{\Gamma[\bound{\_}{\alphahat}{\tau}] \vdash \glb{\alphahat \wedge \sigma_\bot} = \tau' }
+\\
+\inferrule*[right=GlbBot]{ }{\Gamma\vdash \glb{\bot} = \bot }
+
+\inferrule*[right=GlbTau]{ }{\Gamma\vdash \glb{\tau} = \tau }
+\end{mathpar}
+
+Environment application:
+\begin{mathpar}
+\inferrule*[right=BoundSimp1]{ }{\Gamma[\bound{\tau}{\alphahat}{\tau'}]\alphahat = \tau}
+
+\inferrule*[right=LBoundExt]{ 
+	\Gamma \vdash \glb{\hat{\beta} \wedge \sigma_\bot} = \tau
+}{\Gamma[\bound{\hat{\beta} \wedge \sigma_\bot}{\alphahat}{\sigma_\top}]\alphahat = \tau}
+
+\inferrule*[right=BoundSimp2]{ }{\Gamma[\bound{\tau}{\alphahat}{\top}]\alphahat = \tau}
+
+
+\inferrule*[right=RBoundSimp]{ }{\Gamma[\bound{\bot}{\alphahat}{\tau}]\alphahat = \tau}
+
+
+\inferrule*[right=RBoundExt]{ 
+	\Gamma \vdash \lub{\hat{\beta} \vee \sigma_\top} = \tau
+}{\Gamma[\bound{\bot}{\alphahat}{\hat{\beta} \vee \sigma_\top}]\alphahat = \tau}
+\end{mathpar}
+
+Sigma Bounding
+\begin{mathpar}
+\inferrule*[right=BndLExt]{
+	\Gamma \vdash \tau\\
+		\Gamma
+	\vdash
+		\alphahat \instl \tau
+	\dashv
+		\Theta\\
+		\Theta
+	\vdash
+		\sigma_\bot \sigbndl \tau
+	\dashv
+		\Delta
+}
+{
+		\Gamma 
+	\vdash
+		\alphahat \wedge \sigma_\bot \sigbndl \tau
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndLBot]{
+	\Gamma \vdash \tau
+}
+{
+		\Gamma 
+	\vdash
+		\bot \sigbndl \tau
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndLType]{
+	\Gamma \vdash \tau' <: \tau\dashv \Delta 
+}
+{
+		\Gamma 
+	\vdash
+		\tau' \sigbndl \tau
+	\dashv
+		\Delta
+}
+\\
+\inferrule*[right=BndRExt]{
+	\Gamma \vdash \tau\\
+		\Gamma
+	\vdash
+		\tau \instr \alphahat
+	\dashv
+		\Theta\\
+		\Theta
+	\vdash
+		\tau \sigbndr \sigma_\top
+	\dashv
+		\Delta
+}
+{
+		\Gamma 
+	\vdash
+		 \tau\sigbndr\alphahat \wedge \sigma_\bot 
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndRTop]{
+	\Gamma \vdash \tau
+}
+{
+		\Gamma 
+	\vdash
+		\tau \sigbndr \top
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndRType]{
+	\Gamma \vdash \tau\\
+		\Gamma
+	\vdash
+		\tau <: \tau'
+	\dashv
+		\Delta
+}
+{
+		\Gamma 
+	\vdash
+		\tau \sigbndr \tau'
+	\dashv
+		\Delta
+}
+\end{mathpar}
+
+Sigma Instantiation
+\begin{mathpar}
+\inferrule*[right=SigInstLReach]{
+	\Gamma \vdash \alphahat \instl \hat{\beta} \dashv \Theta\\
+	\Theta \vdash \alphahat \siginstl \sigma_\top \dashv \Delta
+}
+{
+		\Gamma
+	\vdash
+		\alphahat \siginstl \hat{\beta} \vee \sigma_\top
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=SigInstLType]{ \Gamma \vdash \alphahat \instl \tau \dashv \Delta }
+{
+	\Gamma \vdash \alphahat \siginstl \tau \dashv \Delta
+}
+
+\inferrule*[right=SigInstLTop]{ }
+{
+	\Gamma \vdash \alphahat \siginstl \top \dashv \Gamma
+}
+\\
+\inferrule*[right=SigInstRReach]{
+	\Gamma \vdash \hat{\beta} \instr \alphahat \dashv \Theta\\
+	\Theta \vdash \sigma_\bot \siginstr \alphahat \dashv \Delta
+}
+{
+		\Gamma
+	\vdash
+		\hat{\beta} \wedge \sigma_\bot \siginstr \alphahat
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=SigInstRType]{ \Gamma \vdash \tau \instr \alphahat \dashv \Delta }
+{
+	\Gamma \vdash \tau \siginstr \alphahat \dashv \Delta
+}
+
+\inferrule*[right=SigInstRTop]{ }
+{
+	\Gamma \vdash \bot \siginstr \alphahat \dashv \Gamma
+}
+\end{mathpar}
+  
+Note: we write $\Gamma[\alphahat]$ as shorthand for $\Gamma[\bot <: \alphahat <: \top]$.
+
+Instantiation
+\begin{mathpar}
+\inferrule*[right=InstL]{ 
+	\Gamma \vdash \tau \\
+	\Gamma \vdash \sigma_\bot \sigbndl \tau \dashv \Delta
+}
+{ 
+		\Gamma, 
+		\sigma_\bot <: \alphahat <: \sigma_\top, 
+		\Gamma' 
+	\vdash 
+		\alphahat \instl \tau 
+	\dashv 
+		\Delta, 
+		\sigma_\bot <: \alphahat <: \sigma_\top \vee \tau, 
+		\Gamma'
+}
+
+\inferrule*[right=InstLReach]{
+	\Gamma \vdash \alphahat \siginstl \sigma_\top \dashv \Delta
+}
+{
+	\Gamma[\alphahat],
+		\sigma_{\bot} <: \hat{\beta} <: \sigma_{\top},
+	\Gamma'
+	\vdash 
+		\alphahat \instl \hat{\beta} 
+	\dashv 
+	\Delta,
+		\alphahat \wedge \sigma_\bot <: \hat{\beta} <: \sigma_\top,\Gamma'
+}
+
+\inferrule*[right=InstLArrow]{
+	\tau = \hat{\alpha}_1 \rightarrow \hat{\alpha}_2\\
+		\Gamma[\hat{\alpha}_2, \hat{\alpha}_1,\sigma_\bot \wedge \tau <: \alphahat <:\sigma_\top \vee \tau]
+	\vdash
+		A_1 \instl \alphahat_1
+	\dashv
+		\Theta
+		\\
+		\Theta
+	\vdash
+		\alphahat_2 \instr A_2
+	\dashv
+		\Delta
+}
+{	
+	\Gamma[\sigma_\bot<:\alphahat<:\sigma_\top] \vdash \alphahat \instl A_1 \rightarrow A_2 \dashv \Delta
+}
+
+\inferrule*[right=InstR]{ \Gamma \vdash \tau \\ 
+\Gamma \vdash \tau \sigbndr \sigma_\top \dashv \Delta}
+{ 
+\Gamma, \sigma_\bot <: \alphahat <: \sigma_\top, \Gamma' \vdash \tau \instr \alphahat \dashv \Delta, \sigma_\bot\wedge\tau <: \alphahat <: \sigma_\top, \Gamma'
+}
+
+\inferrule*[right=InstRReach]{
+	\Gamma \vdash \sigma_\bot \siginstr \alphahat \dashv \Delta
+}
+{
+	\Gamma[\alphahat],
+		\sigma_{\bot} <: \hat{\beta} <: \sigma_{\top},
+	\Gamma'
+	\vdash 
+		\hat{\beta} \instr \alphahat
+	\dashv 
+	\Delta,
+		\sigma_\bot <: \hat{\beta} <: \alphahat \vee \sigma_\top,\Gamma'
+}
+
+\inferrule*[right=InstRArrow]{
+	\tau = \hat{\alpha}_1 \rightarrow \hat{\alpha}_2\\
+		\Gamma[\hat{\alpha}_2, \hat{\alpha}_1,\sigma_\bot \wedge \tau <: \alphahat <:\sigma_\top \vee \tau]
+	\vdash
+		A_1 \instr \alphahat_1
+	\dashv
+		\Theta
+		\\
+		\Theta
+	\vdash
+		\alphahat_2 \instl A_2
+	\dashv
+		\Delta
+}
+{	
+	\Gamma[\sigma_\bot<:\alphahat<:\sigma_\top] \vdash A_1 \rightarrow A_2 \instr \alphahat \dashv \Delta
+}
+\end{mathpar}
+
+Subtyping
+\begin{mathpar}
+\inferrule{ \Gamma \vdash \alphahat \instl \tau \dashv \Delta }{ \Gamma \vdash \alphahat <: \tau \dashv \Delta }
+
+\inferrule{ \Gamma \vdash \tau \instr \alphahat \dashv \Delta }{ \Gamma \vdash \tau <: \alphahat \dashv \Delta }
+
+\inferrule{ \Gamma \vdash \hat{\beta
+} \instr \alphahat \dashv \Delta }{ \Gamma \vdash \hat{\beta} <: \alphahat \dashv \Delta }
+\end{mathpar}
+
+
+Context constraint simplification: $\Gamma \mapsto \Delta$, or $\Gamma$ rewrites to the assignment context $\Delta$
+\begin{mathpar}
+\inferrule{ \Gamma \mapsto \Delta \\ \Gamma \vdash \tau <: \tau'' <: \tau' }{ \Gamma, \tau <: \alphahat <: \tau' \mapsto \Delta, \alphahat = \tau''  }
+\end{mathpar}
+
+Context constraint extension: $\Gamma \rightharpoonup \Delta$
+\begin{mathpar}
+\inferrule{ \Gamma \rightharpoonup \Delta\\ \Gamma \vdash \tau'' <: \tau' \\\Gamma\vdash \tau <: \tau''' }{ \Gamma, \tau <: \alphahat <: \tau' \rightharpoonup \Delta, \tau''' <: \alphahat <: \tau''  }
+\end{mathpar}
+
+Completeness:
+
+
+WTS: \\
+Given that $\Gamma \mapsto \Omega$, $A=[\Gamma]A$, $A\not\in \text{FV}(A)$\\
+if $[\Omega]\Gamma\vdash [\Omega]\alphahat \leq [\Omega]A$, then there are some $\Delta,\Omega'$ such that $\Delta \mapsto \Omega'$, $\Omega \longrightarrow \Omega'$ and $\Gamma \vdash \alphahat \instl A \dashv \Delta$.\\
+if $[\Omega]\Gamma\vdash [\Omega]A \leq [\Omega]\alphahat$, then there are some $\Delta,\Omega'$ such that $\Delta \mapsto \Omega'$, $\Omega \longrightarrow \Omega'$ and $\Gamma \vdash A \instr \alphahat \dashv \Delta$.
+
+
+Case analyze the shape of A:\\
+\begin{tabular}{llr}
+Case $A=\hat{\beta}$: & & \\
+&1) Given $A\not\in \text{FV}(A)$, $\alphahat\neq\hat{\beta}$&Given.\\
+&2) $[\Omega]\Gamma \vdash [\Omega]\alphahat \leq [\Omega]\hat{\beta}$ & By case assumption on implication.\\
+&3) $[\Omega]\alphahat = \tau_1$ and $[\Omega]\hat{\beta} = \tau_1$ & As $\Omega$ predicative on 2\\
+&4) $[\Omega]\Gamma \vdash \tau_1 \leq \tau_2$ & By 3 on 2\\
+\end{tabular}
+\end{document}

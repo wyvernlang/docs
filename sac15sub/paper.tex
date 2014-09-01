@@ -1,0 +1,463 @@
+
+\documentclass{sig-alternate}
+\usepackage{mathpartir}
+\usepackage{cite}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\newcommand{\typeexample}[3]{$#1$\\$#2$\\$#3$}
+\newcommand{\st}{\ensuremath{\hspace{-1px}<:\hspace{-1px}}}
+\newcommand{\alphahat}{\hat{\alpha}}
+\newcommand{\betahat}{\hat{\beta}}
+
+\newcommand{\botbound}{\sigma_\bot}
+\newcommand{\topbound}{\sigma_\top}
+
+\newcommand{\marker}[1]{\scriptscriptstyle {\blacktriangleright #1}}
+
+\newcommand{\lub}{\ensuremath{\vee}}
+\newcommand{\glb}{\ensuremath{\wedge}}
+
+
+\newcommand{\instr}{\overset{<}{=:}}
+\newcommand{\instl}{\overset{<}{:=}}
+
+\newcommand{\bndr}{\instr}
+\newcommand{\bndl}{\instl}
+
+\newcommand{\sigbndl}{\overset{\sigma}{:<\hspace{-5px}<}}
+\newcommand{\sigbndr}{\overset{\sigma}{<\hspace{-5px}\st}}
+
+\newcommand{\siginstr}{\overset{<\sigma}{=:}}
+\newcommand{\siginstl}{\overset{<\sigma}{:=}}
+
+\newcommand{\ctxtsep}{;}
+\newcommand{\ctxbsep}{;}
+
+\newcommand{\tst}{{\scriptstyle{<:}}}
+\newcommand{\bound}[3]{#1 \tst #2 \tst #3}
+
+\begin{document}
+
+\title{Simple Bidirectional Typechecking for Higher-Order Polymorphism with Subtyping}
+\numberofauthors{3}
+\author{
+	\alignauthor
+	Benjamin Chung\\
+	\affaddr{Carnegie Mellon University}\\
+	\email{bwchung@cs.cmu.edu}
+	\alignauthor
+	Cyrus Omar\\
+	\affaddr{Carnegie Mellon University}\\
+	\email{comar@cs.cmu.edu}
+	\alignauthor
+	Jonathan Aldrich\\
+	\affaddr{Carnegie Mellon University}\\
+	\email{jonathan.aldrich@cs.cmu.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+Bidirectional typechecking is a popular mechanism used in modern typecheckers. The approach defines terms as either analyzing against an input type or synthesizing an output type, providing a level of inherent type inference that does not impose the traditional constraints of Hindley-Milner type inference. However, prior approaches to handling higher-rank polymorphism in bidirectional type systems have been complex~\cite{Pierce:2000:LTI:345099.345100} or incomplete in the presence of subtyping~\cite{Dunfield:2013:CEB:2544174.2500582}. We propose a system extending on the prior work of Dunfield et al to allow for subtyping, creating a simple way to apply bidirectional subtyping in higher rank polymorphic typesystems.
+\end{abstract}
+
+\section{Introduction}
+Bidirectional typechecking is a common method for implementing typecheckers. The approach provides a number of substantial benefits, allowing simple type inference without the need for complex constraint resolution, and is used in a number of popular languages. Furthermore, a wide array of type system features has been implemented within the bidirectional framework, ranging from dependent types~\cite{Coquand96analgorithm} to object-oriented systems~\cite{odersky2001colored}. It provides good scalability to complex type systems while still being simple to implement, understand, and formalize.
+
+Polymorphism is an important modern type system feature, and is common to many popular programming languages, including Java and C\#. However, past work on implementing it within bidirectional type systems has been complex, with the most notable work, Pierce and Turner's 2000 contribution~\cite{Pierce:2000:LTI:345099.345100} requiring constraint resolution. New approaches have been proposed since that time, by Odersky et al~\cite{odersky2001colored} and Dunfield et al~\cite{Dunfield:2013:CEB:2544174.2500582}, but these approaches, while simpler, consider languages without subtyping, reducing their applicability to many programming languages.
+
+We propose a new technique based on Dunfield et al~\cite{Dunfield:2013:CEB:2544174.2500582}, providing a simple approach for bidirectional typechecking among languages with higher-order polymorphism. We build off of the basic type system described by Dunfield, adding a constraint resolution system similar to the one used by Pierce, but while retaining the simple proof-theoretic construction of Dunfield. 
+\begin{figure}
+\centering
+\label{fig:intro-examples}
+\typeexample{\text{Car} \st \text{Vehicle}, \text{Truck} \st \text{Vehicle}}
+{c : \text{Car}, t : \text{Truck}, f : \forall \alpha.\alpha \rightarrow \alpha \rightarrow \alpha}
+{f(c)(t)}
+\caption{Terms where consideration of subtyping is required}
+\end{figure}
+
+
+\section{Prior Work}
+
+The seminal work in this area is that by Pierce and Turner~\cite{Pierce:2000:LTI:345099.345100}. Their approach is built around subtyping for higher-order functions, and introduced the idea of using type argument synthesis. In their system, they develop a set of constraints for each type parameter, then manipulate these sets to find a consistent argument type. This approach handles subtyping, as their sets of constraints will contain the subtyping relation, but the system is complex in the extreme, and is difficult to understand and implement.
+
+Odersky's 2001 paper~\cite{odersky2001colored} simplifies the issue, but raises problems of its own. His approach does use a bidirectional type system, extending the idea behind bidirectionality to the types themselves. The system colors types to indicate if they are synthetic or analytic, and then uses this information to inform type argument instantiation. However, this system does not handle subtyping well, making it unsuitable for our purposes.
+
+Dunfield, in his original 2009 paper on this problem~\cite{Dunfield09:polymorphism}, introduces the use of existential variables for type arguments, in the context of bidirectional subtyping. This work has a number of drawbacks, however, as it is incomplete and does not handle subtyping.
+
+We use Dunfield's later 2013 paper~\cite{Dunfield:2013:CEB:2544174.2500582} as a basis for our work. This is a development of the 2009 effort, fixing the completness issues as well as simplifying the system substantially through the introduction of new judgments. The system uses existentials to replace type parameters in parameterized types, then resolves them using relations discovered during subtyping. In this system, the type of existential variables is inferred through context, then later references to those variables are replaced with the new type.
+
+This approach is quite simple and elegant in construction, but has a major drawback for our application, namely that the system fails for type systems with subtyping. As seen in figure~\ref{fig:intro-examples}, this ``greedy'' approach to instantiating variables fails in cases where the first constraint is tighter than (or disjoint from) the second, making it hard to apply in many modern languages. 
+\section{Construction}
+
+\begin{figure}
+\[
+\begin{array}{lccl}
+\text{Terms} & e &::=& x | () | \lambda x.e | e e | (e : A)
+\end{array}
+\]
+\caption{Syntax of expressions}
+\label{fig:term}
+\end{figure}
+
+\begin{figure}
+\[
+\begin{array}{lccl}
+\text{Types} & A,B,C &::=& 1 | \alpha | \hat{\alpha} | \forall \alpha.A | A \rightarrow B\\
+\text{Monotypes} & \tau &::=& 1 | \alpha | \hat{\alpha} | \tau \rightarrow \tau'\\
+\text{Contexts} & \Gamma, \Delta, \Theta &::=& . | \Gamma, \alpha | \Gamma, x:A \\ &&& | \Gamma, \bound{\botbound}{\hat{\alpha}}{\topbound} | \Gamma, \marker{\hat{\alpha}}\\
+\text{Bounds} & \topbound, \botbound &::=& \tau | \top | \bot | \hat{\alpha}, \topbound
+\end{array}
+\]
+\caption{Syntax of types and contexts}
+\label{fig:cons}
+\end{figure}
+
+
+\begin{figure}
+\begin{align*}
+\Gamma \vdash S \lub T &= \left\{
+\begin{array}{lcl}
+1 \dashv \Gamma & : & S=1 \text{ and } T=1\\
+\alpha \dashv \Gamma & : & S=\alpha \text{ and } T=\alpha\\
+E\rightarrow F \dashv \Delta & : & S=A\rightarrow B  \text{ and } T=C \rightarrow D \\ && \text{ and } \Gamma \vdash A \lub C = E \dashv \Theta \\ && \text{ and } \Theta \vdash B \glb D = F \dashv \Delta\\
+\forall \alpha.E \dashv \Delta & : & S=\forall\alpha.C \text{ and } T=\forall\beta.D \\ && \text{ and } \Gamma \dashv C \lub D = E \vdash \Delta\\
+S \dashv \Delta & : & \Gamma \vdash S \st T \dashv \Delta\\
+T \dashv \Delta & : & \Gamma \vdash T \st S \dashv \Delta\\
+\end{array}
+\right.\\
+\Gamma \vdash  S \glb T &= \left\{
+\begin{array}{lcl}
+1 \dashv \Gamma & : & S=1 \text{ and } T=1\\
+\alpha \dashv \Gamma & : & S=\alpha \text{ and } T=\alpha\\
+E\rightarrow F \dashv \Delta & : & S=A\rightarrow B  \text{ and } T=C \rightarrow D \\ && \text{ and } \Gamma \vdash A \glb C = E \dashv \Theta \\ && \text{ and } \Theta \vdash B \lub D = F \dashv \Delta\\
+\forall \alpha.E \dashv \Delta & : & S=\forall\alpha.C \text{ and } T=\forall\beta.D \\ && \text{ and } \Gamma \dashv C \glb D = E \vdash \Delta\\
+T \dashv \Delta & : & \Gamma \vdash S \st T \dashv \Delta\\
+S \dashv \Delta & : & \Gamma \vdash T \st S \dashv \Delta\\
+\end{array}
+\right.
+\end{align*}
+\caption{Least upper bound and greatest lower bound definition}
+\label{fig:bounds}
+\end{figure} 
+
+The structure of our language, environment, and types is identical to that of Dunfield et al, 2013~\cite{Dunfield:2013:CEB:2544174.2500582}, with one notable exception. Our system replaces the original $\Gamma, \hat{\alpha}$ and $\Gamma, \hat{\alpha}=\tau$ environment members with a new member, $\Gamma, \bound{\botbound }{\hat{\alpha}}{\topbound}$, or that $\alphahat$ is bounded below by $\botbound$ and above by $\topbound$. This new form allows us to store the bounds on the instantiation of an existential variable within a single context, negating the need for an additional constraint context.
+
+\subsection{Bounds}
+The bounding mechanism, as exposed in the context as $\bound{\botbound}{\hat{\alpha}}{\topbound}$, is the critical component of our system. A bound consists of two separate components: the concrete bound type $\tau$, and zero or more existential variables $\hat{\beta}, \ldots$. Each bound $\botbound,\topbound$ consists of a concrete bound plus zero or more existential bounds, allowing us to represent the set of constraints on the current existential variable and the variables that relate to it.
+
+
+\subsubsection{Concrete Bounds}
+In the constraint $\botbound$, we will trivially always have one of the constraints $\top$, $\bot$, or $\tau$ for some monotype $\tau$. We refer to this simple type as the concrete bound on the variable, as it directly controls what the variable can be instantiated to.
+
+As an example, suppose we have a variable $\hat{\alpha}$ in the context of $\Gamma, \bound{\tau}{\hat{\alpha}}{\tau'}$. We provide a guarantee that against $\Gamma$, $\tau \st \hat{\alpha}$, and $\hat{\alpha} \st \tau'$, a guarantee that is maintained through our algorithm. More importantly, any instantiation of $\alphahat$ to a type $\tau''$ such that $\Gamma \vdash \tau \st \tau'' \st \tau'$ will be valid up to this point.
+
+However, if we only maintained these constraints, we cannot provide transitivity of existential variables. As an example, consider the constraints $\hat{\alpha} \st \hat{\beta}, \hat{\beta} \st \tau$. If we only maintained concrete bounds, the relation $\hat{\alpha} \st \tau$ cannot be maintained, as the relationship between the two variables is not remembered by the system To solve this problem, we have to add the existential variables that the current existential variable constrains to the bound.
+
+In concrete bounds, we also introduce the ``pseudotypes'' $\top$ and $\bot$. These types, respectively, are the universal supertype (that is, $\forall\tau,\Gamma, \Gamma \vdash \tau \st \top$) and the universal subtype (that is, $\forall\tau,\Gamma, \Gamma \vdash \bot \st \tau$). These allow us to represent unconstrained variables.
+
+\subsubsection{Existential Bounds}
+If we consider a variable bounded in the same way as discussed previously, $\hat{\alpha} \st \hat{\beta}, \hat{\beta} \st \tau$, and examine the first constraint, $\hat{\alpha} \st \hat{\beta}$, we would represent this constraint in the context by adding $\hat{\alpha}$ to the list of subtypes of $\hat{\beta}$, as in $\bound{\bot\ctxbsep \hat{\alpha}}{\hat{\beta}}{\top}$. Then, when we apply the constraint $\hat{\beta} \st \tau$, we also apply the constraint $\hat{\alpha}\st \tau$, which can be found through the new bound member. This allows us to maintain transitivity, as this relation is applied recursively.
+
+Note that the ``bound'' does not truly control the variable, as if $\Gamma, \bound{\tau}{\hat{\alpha}}{ \hat{\beta}}$, the relation $\hat{\alpha} \st \hat{\beta}$ holds, but is not maintained in the concrete bounds for $\hat{\alpha}$. Rather, we maintain this relationship by changing the bounds on $\hat{\beta}$. We do this to maintain the invariant that no ``forwards'' references are maintained in the context. For instance, if the context was structured as $\Gamma,\hat{\alpha},\hat{\beta}$, then we could interpret $\hat{\alpha}\st\hat{\beta}$ as as imposing a supertype constraint on $\hat{\alpha}$, creating the context $\Gamma,\hat{\alpha}\st\hat{\beta},\hat{\beta}$. However, once inference is complete, these existential variables are removed from the scope, last to first, potentially creating the context $\Gamma,\hat{\alpha}\st\hat{\beta}$, a patently nonsensical bound, as $\Gamma \vdash \betahat$ does not hold. As such, to avoid this, we always place the bound on the variable that is ``lowest'' in the context.
+ 
+\subsection{Bound Operators}
+In order to maintain bounds without intersection and union types, we take the approach of introducing greatest lower bound and least upper bound operators from Pierce and Turner~\cite{Pierce:2000:LTI:345099.345100}. We use Pierce and Turner's construction and notation, with $S \st S \lub T, T \st S \lub T$, as well as $S \glb T \st S, S \glb T \st T$. However, we use a different formulation of these operators than Pierce and Turner do, as our bounding operators both only tighten the bounds, and also must ``save'' the (recursively) tightened environment produced by the subtyping checks that happen internally. We depict the rules governing the operators in figure~\ref{fig:bounds}.
+
+It should be noted that at several points we write an expression of the form $\botbound\glb \tau = \tau'$. This is a shorthand for saying that if $\botbound=\ldots, \hat{\alpha}, \tau''$, then $ \tau \glb \tau'' = \tau'$.
+
+
+\section{Algorithmic system}
+\begin{figure}
+\begin{mathpar}
+\inferrule*[right=BndLExt]{
+	\Gamma \vdash \tau\\
+		\Gamma
+	\vdash
+		\hat{\alpha} \bndl \tau
+	\dashv
+		\Theta\\
+		\Theta
+	\vdash
+		\sigma_\bot \sigbndl \tau
+	\dashv
+		\Delta
+}
+{
+		\Gamma 
+	\vdash
+		\hat{\alpha}, \sigma_\bot \sigbndl \tau
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndLBot]{
+	\Gamma \vdash \tau
+}
+{
+		\Gamma 
+	\vdash
+		\bot \sigbndl \tau
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndLType]{
+	\Gamma \vdash \tau' \st \tau\dashv \Delta 
+}
+{
+		\Gamma 
+	\vdash
+		\tau' \sigbndl \tau
+	\dashv
+		\Delta
+}
+\\
+\inferrule*[right=BndRExt]{
+	\Gamma \vdash \tau\\
+		\Gamma
+	\vdash
+		\tau \bndr \hat{\alpha}
+	\dashv
+		\Theta\\
+		\Theta
+	\vdash
+		\tau \sigbndr \sigma_\top
+	\dashv
+		\Delta
+}
+{
+		\Gamma 
+	\vdash
+		 \tau\sigbndr\hat{\alpha} \ctxbsep \sigma_\bot 
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndRTop]{
+	\Gamma \vdash \tau
+}
+{
+		\Gamma 
+	\vdash
+		\tau \sigbndr \top
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=BndRType]{
+	\Gamma \vdash \tau\\
+		\Gamma
+	\vdash
+		\tau \st \tau'
+	\dashv
+		\Delta
+}
+{
+		\Gamma 
+	\vdash
+		\tau \sigbndr \tau'
+	\dashv
+		\Delta
+}
+\end{mathpar}
+\caption{Sigma Bounding}
+\label{fig:sigbound}
+\end{figure}
+
+Our algorithmic system is again an extension on Dunfield's work, replacing variable assignment with variable bounding. To do so, we introduce three new judgments: $\bndr,\bndl$, replacing Dunfield's $\instr,\instl$, $\sigbndl,\sigbndr$, bounding a type constraint $\sigma$ with a type $\tau$, and $\siginstr,\siginstl$, instantiating an existential variable to be a sub/supertype of a bound. We also introduce trivial new forms of subtyping into Dunfield's calculus, and remove environment application from typing rules.
+
+We borrow much of our notation from Dunfield et al~\cite{Dunfield:2013:CEB:2544174.2500582}, as well as the overall structure of the contexts. We use the same ordered context construct as Dunfield does, as we rely on the same set of properties for soundness. We also use the same basic judgment form, $\Gamma \vdash \ldots \dashv \Delta$, meaning that the operation in the $\ldots$ transforms the input context $\Gamma$ into a new context $\Delta$.
+
+\subsection{Utilities}
+
+We first begin by discussing two of the tools we use within the algorithmic system to describe the actions on bounds. These systems, sigma bounding and sigma instantiation, are used to maintain the aforementioned invariants placed upon bounds. The first, sigma bounding, acts to ensure that a bound is less than a given type, and the second, sigma instantiation, is used to constrain a new existential variable based on a given bound.
+
+
+\subsubsection{Sigma Bounding}
+Sigma bounding, notated as $\sigbndl,\sigbndr$, compares a bound $\sigma$ to a type $\tau$. The judgment $\botbound \sigbndl \tau$ is used to ensure that every entry in the bound is a subtype of $\tau$, and the judgment $\tau \sigbndr \topbound$ is used to ensure that every entry in $\topbound$ is a supertype of $\tau$. We use this judgment to ensure the invariants about bounds mentioned previously. The mechanism for sigma bounding is described in figure~\ref{fig:sigbound}.
+
+BndLExt handles cases where an existential bound should be a subtype of a type $\tau$. If an existential bound $\hat{\alpha}$ is found, it instantiates it to be a subtype of $\tau$ (as this must be a constraint on $\hat{\alpha}$), and then recurses.
+
+BndRExt is similar, except in that the existential bound $\hat{\alpha}$ must be a supertype of $\tau$. It similarly instantiates $\hat{\alpha}$ such that it is a supertype of $\tau$, then recurses.
+
+BndLType and BndRType deal with the type case of a concrete bound. They trivially check that the subtype relation holds, then return the output context from that check.
+
+BndLBot and BndRType are trivial, as the constraint they check is always true over the domain of the operator. As such, we only need to ensure that the type is valid against the input context.
+
+\begin{figure}
+\begin{mathpar}
+\inferrule*[right=SigInstLReach]{
+	\Gamma \vdash \hat{\alpha} \bndl \hat{\beta} \dashv \Theta\\
+	\Theta \vdash \hat{\alpha} \siginstl \sigma_\top \dashv \Delta
+}
+{
+		\Gamma
+	\vdash
+		\hat{\alpha} \siginstl \hat{\beta} \ctxtsep \sigma_\top
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=SigInstLType]{ \Gamma \vdash \hat{\alpha} \bndl \tau \dashv \Delta }
+{
+	\Gamma \vdash \hat{\alpha} \siginstl \tau \dashv \Delta
+}
+
+\inferrule*[right=SigInstLTop]{ }
+{
+	\Gamma \vdash \hat{\alpha} \siginstl \top \dashv \Gamma
+}
+\\
+\inferrule*[right=SigInstRReach]{
+	\Gamma \vdash \hat{\beta} \bndr \hat{\alpha} \dashv \Theta\\
+	\Theta \vdash \sigma_\bot \siginstr \hat{\alpha} \dashv \Delta
+}
+{
+		\Gamma
+	\vdash
+		\hat{\beta} \ctxbsep \sigma_\bot \siginstr \hat{\alpha}
+	\dashv
+		\Delta
+}
+
+\inferrule*[right=SigInstRType]{ \Gamma \vdash \tau \bndr \hat{\alpha} \dashv \Delta }
+{
+	\Gamma \vdash \tau \siginstr \hat{\alpha} \dashv \Delta
+}
+
+\inferrule*[right=SigInstRBot]{ }
+{
+	\Gamma \vdash \bot \siginstr \hat{\alpha} \dashv \Gamma
+}
+
+\end{mathpar}
+\caption{Sigma Instantiation}
+\label{fig:siginst}
+\end{figure}
+
+\subsubsection{Sigma Instantiation}
+
+Sigma instantiation, as denoted by the judgments $\siginstl, \siginstr$, is used to instantiate an existential variable $\hat{\alpha}$ to be a super/subtype of the bound. The rules governing sigma instantiation are shown in figure~\ref{fig:siginst}.
+
+SigInstLReach is used to implement the case of where an existential is set to be a subtype of another existential. It instantiates the input existential variable $\hat{\alpha}$ to be a subtype of the existential variable $\hat{\beta}$ in the bound. The rule then recurses on the remaining bound.
+
+SigInstRReach is the same case, except in that it instantiates the variable $\hat{\alpha}$ to be a subtype of the existential variable $\hat{\beta}$, then recurses.
+
+SigInstLType and SigInstRType both instantiate the input existential variable $\hat{\alpha}$ to be a sub/supertype of the concrete bound member $\tau$. As there are no remaining bound elements, the system then simply produces the modified context.
+
+SigInstLTop and SigInstRTop implement the ``null'' case, where the existential $\hat{\alpha}$ is instantiated from the unconstraining concrete bound. In the only applicable cases, the only applicable relation imposes no constraints on the existential, so no action is needed.
+
+\subsection{Instantiation}
+\begin{figure*}
+\centering
+\begin{mathpar}
+\inferrule*[right=InstL]{ 
+	\Gamma \vdash \tau \\
+	\Gamma \vdash \sigma_\bot \sigbndl \tau \dashv \Delta
+}
+{ 
+		\Gamma, 
+		\bound{\botbound}{\alphahat}{\topbound}, 
+		\Gamma' 
+	\vdash 
+		\alphahat \instl \tau 
+	\dashv 
+		\Delta, 
+		\bound{\botbound}{\alphahat}{\topbound \ctxtsep \tau}, 
+		\Gamma'
+}
+
+\inferrule*[right=InstLReach]{
+	\Gamma \vdash \alphahat \siginstl \sigma_\top \dashv \Delta
+}
+{
+	\Gamma[\alphahat],
+		\bound{\botbound}{\hat{\beta}}{\topbound},
+	\Gamma'
+	\vdash 
+		\alphahat \instl \hat{\beta} 
+	\dashv 
+	\Delta,
+		\alphahat \ctxbsep \bound{\botbound}{\hat{\beta}}{\topbound},\Gamma'
+}
+
+\inferrule*[right=InstLArrow]{
+	\tau = \hat{\alpha}_1 \rightarrow \hat{\alpha}_2\\
+		\Gamma[\hat{\alpha}_2, \hat{\alpha}_1,\bound{\botbound \ctxbsep \tau}{\alphahat}{\sigma_\top \ctxtsep \tau}]
+	\vdash
+		A_1 \instl \alphahat_1
+	\dashv
+		\Theta
+		\\
+		\Theta
+	\vdash
+		\alphahat_2 \instr A_2
+	\dashv
+		\Delta
+}
+{	
+	\Gamma[\bound{\botbound}{\alphahat}{\topbound}] \vdash \alphahat \instl A_1 \rightarrow A_2 \dashv \Delta
+}
+
+\inferrule*[right=InstR]{ \Gamma \vdash \tau \\ 
+\Gamma \vdash \tau \sigbndr \sigma_\top \dashv \Delta}
+{ 
+\Gamma, \bound{\sigma_\bot}{\alphahat}{\sigma_\top}, \Gamma' \vdash \tau \instr \alphahat \dashv \Delta, \bound{\sigma_\bot\ctxbsep\tau}{\alphahat}{\sigma_\top}, \Gamma'
+}
+
+\inferrule*[right=InstRReach]{
+	\Gamma \vdash \sigma_\bot \siginstr \alphahat \dashv \Delta
+}
+{
+	\Gamma[\alphahat],
+		\bound{\botbound}{\hat{\beta}}{\topbound},
+	\Gamma'
+	\vdash 
+		\hat{\beta} \instr \alphahat
+	\dashv 
+	\Delta,
+		\bound{\botbound}{\hat{\beta}}{\alphahat \ctxtsep \topbound},\Gamma'
+}
+
+\inferrule*[right=InstRArrow]{
+	\tau = \hat{\alpha}_1 \rightarrow \hat{\alpha}_2\\
+		\Gamma[\hat{\alpha}_2, \hat{\alpha}_1,\sigma_\bot \ctxbsep \bound{\tau}{\alphahat}{\sigma_\top \ctxtsep \tau}]
+	\vdash
+		A_1 \instr \alphahat_1
+	\dashv
+		\Theta
+		\\
+		\Theta
+	\vdash
+		\alphahat_2 \instl A_2
+	\dashv
+		\Delta
+}
+{	
+	\Gamma[\bound{\sigma_\bot}{\alphahat}{\sigma_\top}] \vdash A_1 \rightarrow A_2 \instr \alphahat \dashv \Delta
+}
+\end{mathpar}
+\caption{Instantiation}
+\label{fig:instrule}
+\end{figure*}
+
+The instantiation rules are the core of our system. Each one takes an existential $\alphahat$ and modifies its bound in some way, ensuring that both the constraint implicit in the instantiation is maintained and that the bounds are still valid.
+
+We only present 4 out of the 6 rules in the system, as the last two rules, InstLAIIR and InstRAIIL, are identical to those in Dunfield et al and are not reproduced here.
+
+It must first be noted that these rules are based on two theorems: 
+\begin{itemize}
+\item If $\Gamma \vdash \bound{\botbound }{ \alphahat }{ \topbound}$, and if $\Gamma \vdash \botbound \sigbndl \tau$, then $\Gamma \vdash \bound{\botbound }{ \alphahat }{ \topbound \ctxtsep \tau}$.
+\item If $\Gamma \vdash \bound{\botbound }{ \alphahat }{ \topbound}$, and if $\Gamma \vdash \tau \sigbndr \topbound$, then $\Gamma \vdash \bound{\botbound \ctxbsep \tau }{ \alphahat }{ \topbound}$.
+\end{itemize}
+Both theorems are roughly the proposition that if a bound is valid initially and if a type satisfies one side of the bound, then it can be safely added to the other side without breaking the bound. We use this property to ensure soundness of constraints.
+
+InstL is the most basic instantiation rule, simply instantiating the existential $\alphahat$ to be a subtype of a given type $\tau$. We apply the aforementioned theorem, using sigma bounding to ensure that $\tau$ is a supertype of the lower bound, then tightening the upper bound with $\tau$ and updating the context to ensure that the supertype relation holds.
+
+InstR is similar, instantiating $\alphahat$ to be a \emph{supertype} of $\tau$. It uses the other side of the theorem, ensuring that $\tau$ is a subtype of the preexisting upper bound on $\alphahat$, then adding $\tau$ to the lower bound of $\alphahat$.
+
+\bibliographystyle{plain}
+\bibliography{refs}
+\end{document}
