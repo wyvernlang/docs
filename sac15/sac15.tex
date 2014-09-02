@@ -94,10 +94,12 @@ tabsize=4, % Number of spaces per tab in the code
 
 \newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
 \newcommand{\myvdash}{\vdash_{\Theta}^{\Delta_{\kappa}}}
-\newcommand{\verbatimfont}[1]{\def\verbatim@font{#1}}%
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
 
 \begin{document}
-\verbatimfont{\itshape\ttfamily}
 
 %
 % --- Author Metadata here ---
@@ -133,7 +135,7 @@ Format}
 % without further effort on your part as the last section in
 % the body of your article BEFORE References or any Appendices.
 
-\numberofauthors{8} %  in this sample file, there are a *total*
+\numberofauthors{3} %  in this sample file, there are a *total*
 % of EIGHT authors. SIX appear on the 'first-page' (for formatting
 % reasons) and the remaining two appear in the \additionalauthors section.
 %
@@ -443,7 +445,9 @@ The type checking process also involves the elaboration of an external expressio
 \subsection{Declaration Environments}
 The type declaration environments (figure \ref{typechecking-environment}) involves the declaration of type keywords and named types. The declarations appeared in the Wyvern program will be parsed and checked before going to the environment, and the type checking rules for environment is presented in figure \ref{typechecking-elaboration} \todo{modify the number}. 
 
-In the type environment, external terms are replaced by the inner Wyvern expression they elaborates to, and a type declared with type keyword goes into the environment with its structure presented as a normal type with optional metadata and expression keywords. The environment can be referred to figure \ref{typechecking-environment}.
+Type keyword environment ($\Delta_\kappa$) is used to store all type keywords declaration, and it will be used to look up a type keyword during type checking process.
+
+In the type environment, external terms are replaced by the inner Wyvern expression they elaborates to, and a type declared with type keyword goes into the environment with its structure presented as a normal type with optional metadata and expression keywords. The environment formalization an be referred to figure \ref{typechecking-environment}.
 
 \begin{figure}[ht]
 \begin{align*}
@@ -455,17 +459,65 @@ In the type environment, external terms are replaced by the inner Wyvern express
   \dot\kappa        &::=~ \emptyset ~~ | ~~ \dot\kappa;k[\mathbf{bk}(\tau),i] ~~ | ~~ \dot\kappa;k[\mathbf{wk},i]
 \end{align*}
 \vspace{-8px}
-\caption{Definition of environment, including a set for type keywords ($\Delta_{\kappa}$) and a named type environment ($\Theta$). The type keyword environment is a set containing keywords ($k$) and their parser (an inner Wyvern expression $i$), while the named type environment consists of type declarations with its type structure($\delta$), metadata expression ($i:\tau$) and keywords set($\zeta$, expression keywords after elaboration). The question mark here indicates that in some case the type checking process can continue without the knowledge of the certain field.}
+\caption{Definition of environment, including a set for type keywords ($\Delta_{\kappa}$) and a named type environment ($\Theta$). The type keyword environment is a set containing keywords ($k$) and their parser (an inner Wyvern expression $i$), while the named type environment consists of type declarations with its type structure($\delta$), metadata expression ($i:\tau$) and keywords set($\zeta$, expression keywords after elaboration). The question mark here indicates that these fields can be of a value `unknown' during type checking process.}
 \vspace{-10px}
 \label{typechecking-environment}
 \end{figure}
 
+To support mutually recursive type declaration, we split the checking rules for type declarations into three steps: 1) Add the type name into the type environment. 2) Add the type structure into the environment. 3) Check the type extensions (i.e. TSL or expression keywords) and add them into the environment. A type can refer to another one in the field or type extensions. But the extension in a type cannot refer to that from a type defined after it, as using extension syntax recursively can make the program too complicated.
 
+For a normal named type declaration, we have rules type-name, type-defs, type-exts to add the type into the environment. The rule type-name will check that the name has not yet appeared in the previous environment to avoid conflicts while the rule type-defs checks the formation of the type structure, i.e. whether fields in a objtype or cases in a casetype is well formed. And the last rule type-exts will add the metadata and the expression keywords declaration into the environment, where the external representation of the metadata ($e_m$) will be transformed into a inner Wyvern expression of type $\tau_m$ ($i_m:\tau_m$) and the keywords declaration ($\kappa$) will be transformed to $\dot\kappa$. 
 
+In the transformation of $\kappa\rightsquigarrow\dot\kappa$, two rules exists to deal with both black-box keywords and white-box keywords. Both of the two rules will check there is no name conflicts in a type keyword. And the parser expression ($e_k$) should elaborates to an Wyvern expression ($i_m$) and checks against $TypeKw$, which is a standard type saved in the prelude environment for the keyword parser type. The difference between black-box and white-box keywords lies in the fact that a return type is presented in the declaration of a black-box keyword while a white-box one doesn't.
+
+The type environment $\Theta$ is finished once $\Theta_{names}, \Theta_{defs}$ and $\Theta_{exts}$ are processed.
+\subsection{External Type Literals}
+In the type environment, there is no difference between the two types of type declaration mentioned in the syntax as all types defined using type keywords elaborates to a type with concrete structure during type checking process.
+
+The type checking rules for type keywords usage is labeled as type-name-2, type-defs-2 and type-exts-2. The rule type-name-2 simply adds the type name into the environment for other types to refer to.
+
+The rule type-name-2 present the type elaboration process, and the external syntax used in type keyword will be transformed to a normalized type structure. The process consists of the following steps:
+\begin{enumerate}\setlength{\itemsep}{0pt}
+\item Check if the environment prelude is in the type environment. The prelude environment consists of necessary types and parser definition. 
+\item Look up the keyword in $\Delta_\kappa$. This requires a valid parser defined in the type keyword environment for parsing the literals later.
+\item Invoke the parser to parse the DSL literal body ($i_{ps}$, as an expression the parser parsed to). In the rule kw-env, the parser is already checked against type $TypeKw$, so the parser is of type $PasrseStream->DeclResult$. So a return type ($i_{type}$) and an type metadata ($i_{exp}$) will be provided by the parser.
+\item The type expression ($i_{type}$) will be transformed to a Wyvern type structure (i.e. objtype or casetype) using type dereification rules (marked as `$\uparrow$'). And the type will be checked to guarantee the formation of its structure.
+\item The metadata expression will be reconstructed, it will be reificate to a spliced expression and then transform to an inner Wyvern expression of type $\tau_m$. 
+\end{enumerate} 
+After these steps, the type structure as well as the TSL metadata associated with the type is generated, and no more external type syntax exists.
+
+The rule type-exts-2 stands for the rule to resolve the metadata conflict between the metadata generated by type keyword ($i_m$) and that defined in the named type declaration ($i_w$). In the rule type-exts for normal named type declaration, the metadata will be directly added into the environment, but in this case, we require $i_w$ to be a metadata resolver: it should be a function of type $\tau_m\rightarrow\tau'_m$, as it will take in $i_m$ and return a modified metadata $i'_m$ ($\mathbf{iap}(i_w, i_m)\Downarrow i'_m$ presents the process). The expression keywords part is the same as that in a normal named type declaration.
 \input{kw-elaboration.tex}
-\input{kw-contextformation.tex}
-\input{kw-dereification.tex}
+
+\subsection{Expression Keywords Literals}
+Besides type keywords and TSLs, another usage of the DSL literals is in expression keywords. The different rules to process keywords invocation includes three situations: Using DSL literals in a black-box keyword, using DSL literals in a white-box keyword with type analysis and using DSL literals in a white-box keyword with type synthesis. Their difference only lies in the inference of the return type so we only explain the rule using the rule T-wk-syn. Processing literals in an expression keyword invocation includes the following steps:
+\begin{enumerate}\setlength{\itemsep}{0pt}
+\item Check that the prelude environment $\Theta_0$ is in the current environment. 
+\item The target term ($e_0$) elaborates into an inner Wyvern term ($i_0:T$), and then check that the type $T$ is declared in the type environment with an keyword environment $\dot\kappa$ inside it.
+\item Look up the expression keyword inside the keyword declarations, as checked in the rule expkw-bk and expkw-wk, the parser should be of type $ExprKw$ (The parser type for expression keyword presented in Wyvern prelude).
+\item Transform the target expression into an reified elaboration form ($i_0\downarrow i'_0$), this will transform the target expression into an \verb|Exp| expression, which will be used in the parsing process of literal elaboration.
+\item The parser takes in two expressions: the reified target expression and the parsestream of the literals, then generate an expression of type $Result$, which will be used to build the return expression.
+\item The expression is dereified into an translational term of $\hat{e}$, which is used to mirror an external term but transform the representation of DSL literals into $\mathbf{spliced}[e]$, as a middle representation before elaborates to an external term.
+\item The last step is type checking. It checks the term $i$ which will synthesize to type $\tau$ (For black-box keyword or white-box under analysis, it will be replaced by a type analysis against $\tau$). The expression the keyword invocation elaborates to should be the expression $i$ of type $\tau$, which is an inner Wyvern term used to compile and execute at run time. 
+\end{enumerate}
 \input{kw-statics.tex}
+
+\subsection{Hygiene}
+\todo{Do we need to do it here?}
+
+\subsection{Metatheory}
+Extension of the TSL Wyvern semantics with keywords mechanism still constitutes a type safe language. We will outline the key theorems and lemmas here presenting the properties a type safe language has: 1) internal type safety 2) type preservation. 
+
+To formalize the type safety property, we defined the judgments for context formation, type formation and bidirectional typing judgment. \todo{Refer to TSL as well as TR}
+
+\todo{Writedown lemmas and theorems}
+\begin{theorem}[Internal Type Safety]
+
+\end{theorem}
+
+
+%\input{kw-contextformation.tex}
+\input{kw-dereification.tex}
 
 % end the environment with {table*}, NOTE not {table}!
 
