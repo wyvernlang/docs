@@ -217,25 +217,26 @@ The following example (Figure \ref{f-htmltype}) illustrates how to use TSL to co
 \begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
 type HTML = casetype 
-   Empty of Unit
-   Seq of HTML * HTML 
-   Text of String
-   BodyElement of Attributes * HTML
-   Paragraph of Attribures * HTML
-   StyleElement  of Attributes * CSS
-   ... (* Other HTML cases *)
-   metadata = new : HasParser
-      val parser = ~
-        ... (* HTML parser definition *)
+  Empty of Unit
+  Seq of HTML * HTML 
+  Text of String
+  BodyElement of Attributes * HTML
+  PElement of Attributes * HTML
+  StyleElement  of Attributes * CSS
+  ... (* Other HTML cases *)
+  metadata = new : HasTSL
+    val parser = ~
+      ... (* HTML parser definition *)
 
-val x : HTML = new ~
-      <body id="doc1">
-        <h1>My First Heading</h1>
-        <p>My first paragraph.</p>
-      </body>
+val heading_text : String = "A Heading"
+val x : HTML = ~
+  <body id="doc1">
+    <h1><{heading_text}></h1>
+    <p>My first paragraph.</p>
+  </body>
 \end{lstlisting}
 \vspace{-8px}
-\caption{A Wyvern case type with an associated TSL.}
+\caption{A Wyvern case type with an associated TSL. TODO: color TSLs and show splicing. Set vspace using tex setting.}
 \vspace{-10px}
 \label{f-htmltype}
 \end{figure}
@@ -262,20 +263,19 @@ An expression keyword is a keyword associated with a parser to transform DSL lit
 We start with an example showing the usage of an expression keyword to construct an \verb|HTML| object with an alternative \verb|simpleHTML| syntax rather than the original HTML syntax displayed in figure \ref{f-htmltype}. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The parser of the grammar is defined in line 2-10 in figure \ref{f-simplehtml}.
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
-keyword simpleHTML : HTML = new ~
+keyword simpleHTML : HTML = ~
   val parser = ~
-    start <- '>body' = attributes start>
-      fn (attrs, child) => Inj('BodyElement', Pair(attrs, child))
-    start <- '>p' = attributes start>
-      fn (attrs, child) => Inj("Paragraph", Pair(attrs, child))
-    start <- TEXT
-      fn (text) => Inj("Text", text)
+    start <- '>body'= attributes> start>
+      fn attrs, child => "BodyElement(($attrs, $child))"
+    start <- '>p'= attributes> start>
+      fn attrs, child => "PElement(($attrs, $child))"
+    start <- text
+      fn text => "Text($text)"
     start <- '<'= EXP>
-      fn (e) => '%e% : HTML'
-
+      fn e => '%e%'
 val y : HTML = simpleHTML ~
-  >body[id=doc1]
-    >h1 My First Heading
+  >body[id="doc1"]
+    >h1 < heading_text
     >p My first paragraph
 \end{lstlisting}
 \vspace{-8px}
@@ -293,16 +293,15 @@ Another example about a white-box keyword \verb|if|. The keyword \verb|if| is de
 type Bool = casetype 
   True
   False
-  keyword if = new ~
+  keyword if = ~
     val parser = fn self => ~
       EXP BOUNDARY `else' BOUNDARY EXP
         fn e1, e2 => ~
           case %self%
             True => %e1%
             False => %e2%
-
-x:Bool = ...
-x.if {branch_1} else {branch_2}
+def f(x : Bool)
+  x.if {branch_1} else {branch_2}
 \end{lstlisting}
 \vspace{-8px}
 \caption{The black-box keyword `if' example}
@@ -335,14 +334,15 @@ keyword DBSchema = new
         val username = un
         val password = pw
 
-type Employee = DBSchema ~
+type EmployeesDB = DBSchema ~
   ID   int,
   Name varchar
 
-val d = Employee ~
-  connect to <mysql://localhost:3306> as Employee
-  username : "user1"
-  password : "001"
+val db : EmployeeDB = ~
+  connect to <mysql://localhost:3306>
+  username: "user1"
+  password: "001"
+  table: Employees
 \end{lstlisting}
 \vspace{-8px}
 \caption{The declaration and usage of type keyword ``DBTable''}
