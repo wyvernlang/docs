@@ -77,7 +77,7 @@ deletekeywords={}, % If you want to delete any keywords from the current languag
 firstnumber=1, % Line numbers begin at line 1
 frame=lines, % Frame around the code box, value can be: none, leftline, topline, bottomline, lines, single, shadowbox
 frameround=tttt, % Rounds the corners of the frame for the top left, top right, bottom left and bottom right positions
-keywords=[1]{new, objtype, type, casetype, val, def, metadata, keyword, of, fn},
+keywords=[1]{new, objtype, type, casetype, val, def, metadata, keyword, of, fn, with},
 keywordstyle={[1]\color{blue!90!black}},
 keywordstyle={[3]\color{red!80!orange}},
 morekeywords={}, % Add any functions no included by default here separated by commas
@@ -94,6 +94,7 @@ tabsize=4, % Number of spaces per tab in the code
 
 \newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
 \newcommand{\myvdash}{\vdash_{\Theta}^{\Delta_{\kappa}}}
+\newcommand{\textcd}[1]{\text{\scriptsize\BeraMonottfamily{#1}}}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
@@ -214,6 +215,46 @@ Type-Specific Language(TSL) is designed to support constructing a datatype using
 TSL allows users to define metadata with a parser to parse DSL literals in the host language with external syntax. As the external expressions with DSL literals are always associated with a type, the right parser defined in that type declaration will be used to parse the literals and then perform a transformation on the literals to generate inner Wyvern code. By pushing the parsing of delimited blocks of specialized syntax into the type checker, we guaranteed that these extensions could be composed arbitrarily without conflicts.
 \par
 The following example (Figure \ref{f-htmltype}) illustrates how to use TSL to construct a value of type HTML using HTML syntax.
+
+\begin{figure}[ht!]
+\begin{lstlisting}[style=wyvern]
+type DeclKw = objtype
+  val parser : DeclParser
+
+type DeclParser = objtype
+  def parse(ps : ParseStream) : Result[(Exp, Type)]
+  metadata : HasTSL = new 
+    val parser = (* parser generator *)
+
+type Type = casetype
+  Name of ID
+  Objtype of MemberList
+  Casetype of CaseList
+  Arrow of Type * Type
+
+type MemberList = casetype
+  Nil  of Unit
+  Cons of Label * Type * MemberList
+
+type CaseList = casetype
+  Nil  of Unit
+  Cons of Label * Type * CaseList
+
+type ExprKw = objtype
+  val parser : ExprParser
+
+type ExprParser = objtype
+  def parse(ps : ParseStream, expr : Expr) : Result[Exp]
+  metadata : HasTSL = new 
+    val parser = (* parser generator *)
+
+type Result[T] = casetype
+  OK of T * ParseStream
+  Error of String * Location
+\end{lstlisting}
+
+\end{figure}
+
 \begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
 type HTML = casetype 
@@ -236,7 +277,7 @@ val x : HTML = ~
   </body>
 \end{lstlisting}
 \vspace{-8px}
-\caption{A Wyvern case type with an associated TSL. TODO: color TSLs and show splicing. Set vspace using tex setting.}
+\caption{A Wyvern case type with an associated TSL. \todo{color TSLs and show splicing. Set vspace using tex setting.}}
 \vspace{-10px}
 \label{f-htmltype}
 \end{figure}
@@ -315,25 +356,47 @@ The keyword is associated with the type \verb|Bool| so it can be invoked on any 
 
 \subsection{Type Keyword}
 Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Declaring a type and defining a value requires much repetitive works to define fields and methods based on the data schema, and constructing a type and generating a metadata using data schema for a type can be easier. The following example shows how we construct a type using database schema.
-\begin{figure}[ht]
+\begin{figure*}[ht]
 \begin{lstlisting}[style=wyvern]
 keyword DBSchema = new
   val parser = ~
     start <- pairs
-      fn (pairs) => List(Pair("connection", "URL"), List(Pair("username", "String"), List(Pair("password", "String"), pairs)))
-    pairs <- pair BOUNDARY pairs>
-      fn (pair, start) => List(pair, List(Pair("getBy"+pair.id, "Unit->"+pair.type), pairs))
+      fn (pairs) => (typeDecl:TypeDecl, tslParser:HasTSL)
+        let typeDecl = ~
+          List(Pair("connection", "URL"), ~)
+            List(Pair("username", "String"), ~)
+              List(Pair("password", "String"), ~)
+                ...
+                  List(Pair("stmts", Arrow("SQL", "List")), pairs)
+        let tslParser = ~
+          start <- ">connect to" BOUNDARY URL BOUNDARY>
+                    "username" COLUMN username>
+                    "password" COLUMN password>
+                    "table"    COLUMN table>
+            fn url, un, pw, table, pairs => new ~
+              val connection = {$url}
+              val username = {$un}
+              val password = {$pw}
+              {
+                foreach($pair : $pairs) {
+                  "getBy"+$pair.id "(" $x ":" $pair.type.dom ")" : $pair.type.ran = 
+                    "SELECT * FROM" $table "WHERE" $pair.id "=" $x
+                }
+              }
+    pairs <- pair delim pairs>
+      fn pair, start => List({$pair}, List(Pair("getBy"+$pair.id, "Unit->"+$pair.type), $pairs))
     pair <- TEXT COLUMN TEXT
-      fn (id, type) => Pair(%id%, %type%)
-  val tslparser = ~
-    start <- ">connect to" BOUNDARY URL BOUNDARY "as" ID> 
-              "username" COLUMN username> 
-              "password" COLUMN password
-      fn (url, table, un, pw) => new DBSchema~
-        val connection = url
-        val username = un
-        val password = pw
+      fn id, type => Pair({$id}, {$type})
+  with metadata:HasTSL
+\end{lstlisting}
+\vspace{-8px}
+\caption{The declaration the type keyword ``DBTable''}
+\vspace{-10px}
+\label{typekw-example-1}
+\end{figure*}
 
+\begin{figure}
+\begin{lstlisting}[style=wyvern]
 type EmployeesDB = DBSchema ~
   ID   int,
   Name varchar
@@ -345,9 +408,8 @@ val db : EmployeeDB = ~
   table: Employees
 \end{lstlisting}
 \vspace{-8px}
-\caption{The declaration and usage of type keyword ``DBTable''}
+\caption{The usage of the type keyword ``DBTable''}
 \vspace{-10px}
-\label{typekw-example-1}
 \end{figure}
 
 \begin{figure}[ht]
@@ -391,33 +453,47 @@ With the parser declared, the type \verb|Employee| is created using an database 
 \section{Syntax}
 In our formalization, for simplicity consideration, we present Wyvern language as a pure functional programming language without side effect.
 
-
 The syntax for composable syntax macros is presented as an extension of TSL syntax. A Wyvern program is consisted of three parts: type keywords declarations, named type declarations and an expression represents the program body. 
 
-\begin{figure}[ht]
-\begin{align*}
-      \rho              ~::=&~ \kappa_{\delta};\theta;e\\
-      \kappa_{\delta}   ~::=&~ \emptyset ~ | ~ \kappa_{\delta};k[e]\\
-      \theta                  ~::=&~ \emptyset ~ | ~ \theta; T[\tau, e, \kappa] ~ | ~ \theta; T[k, body, e, \kappa]\\
-      \tau              ~::=&~ \mathbf{named}[T]\\
-                              |~    & ~ \mathbf{objtype}[\omega]\\
-                              |~    & ~ \mathbf{casetype}[\chi]\\
-                              |~  & ~ \mathbf{arrow}[\tau, \tau]\\
-      \kappa                  ~::=& \emptyset\\       
-                              |~  & ~ \kappa;k[\mathbf{bk}(\tau),e]\\
-                              |~  & ~ \kappa;k[\mathbf{wk},e]\\
-      \omega                  ~::=&~ \emptyset ~|~ l[\tau];\omega\\
-      \chi              ~::=& ~\emptyset ~ | ~C[\tau];\omega\\
-      e                       ~::=&~ ...\\
-                              | ~ &~ \mathbf{ekey}[k,body](e)\\
-                              | ~ &~ \mathbf{exprkwdef}[T,k](e)\\
-                              | ~ &~ \mathbf{declkwdef}[k](e)\\
-\end{align*}
+\begin{figure*}
+\begin{center}
+\begin{tabular}{ l r l l l l l}
+  Program             & $\rho$            & ::= &  $\kappa_{\delta};\theta;e$\\
+  Type Keyword        & $\kappa_\delta$   & ::= &  $\emptyset$                      & \textcd{typekws}   & $\rightarrow$ & $\epsilon$\\
+                      &                   &     &  $\kappa_{\delta};k[e,\tau]$      & \textcd{typekws}   & $\rightarrow$ & \textcd{typekws> `\textbf{type}' ID>}\\
+                      &                   &     &                                   &                    &               &  \textcd{~~`=' e> `\textbf{with metadata}'> `:' type>}\\
+  Type Declaration    & $\theta$          & ::= &  $\emptyset$                      & \textcd{typedecls} & $\rightarrow$ & \textcd{$\epsilon$}\\
+                      &                   &     &  $\theta; T[\tau, e, \kappa]$     & \textcd{typedecls} & $\rightarrow$ & \textcd{typedecls> `\textbf{type}' ID>}\\
+                      &                   &     &                                   &                    &               & \textcd{~`=' type> metadatadecl> keywords>}\\
+                      &                   &     &  $\theta; T[k, body, e, \kappa]$  & \textcd{typedecls} & $\rightarrow$ & \textcd{typedecls> `\textbf{type}' ID> `=' ID>} \\
+                      &                   &     &                                   &                    &  & \textcd{~~inlinelit> metadatadecl> keywords> }\\
+  Type                & $\tau$            & ::= &  $\mathbf{named}[T]$              & \textcd{type}      & $\rightarrow$ & \textcd{ID=} \\
+                      &                   &     &  $\mathbf{objtype}[\chi]$         & \textcd{type}      & $\rightarrow$ & \textcd{objdecls>} \\
+                      &                   &     &  $\mathbf{casetype}[\chi]$        & \textcd{type}      & $\rightarrow$ & \textcd{casedecls>}\\
+                      &                   &     &  $\mathbf{arrow}[\tau, \tau]$     & \textcd{type}      & $\rightarrow$ & \textcd{type> `->' type>}\\
+  Expression Keyword  & $\kappa$          & ::= &  $\emptyset$\\
+                      &                   &     &  $\kappa;k[\mathbf{bk}(\tau),e]$\\
+                      &                   &     &  $\kappa;k[\mathbf{wk},e]$\\
+  Object Fields       & $\omega$          & ::= &  $\emptyset$\\
+                      &                   & ::= &  $l[\tau];\omega$\\
+  Casetype Cases      & $\chi$            & ::= &  $\emptyset$\\
+                      &                   &     &  $C[\tau];\omega$\\
+  External Term       & $e$               & ::= &  ... \\
+                      &                   &     &  $\mathbf{lit}[body]$\\
+                      &                   &     &  $\mathbf{ekey}[k,body](e)$\\
+                      &                   &     &  $\mathbf{exprkwdef}[T,k](e)$\\
+                      &                   &     &  $\mathbf{declkwdef}[k](e)$\\
+                      &                   &     &  $\mathbf{emetadata}[T]$\\
+  Translational Terms & $\hat{e}$         & ::= &  ... \\
+                      &                   &     &  $\mathbf{spliced}[e]$\\
+  Internal Terms      & $i$               & ::= &  ... \\
+\end{tabular}
+\end{center}
 \vspace{-8px}
-\caption{Abstract Syntax}
+\caption{Abstract Syntax and Concrete Syntax}
 \vspace{-10px}
 \label{formal-syntax}
-\end{figure}
+\end{figure*}
 
 \paragraph{Type-keyword}
 Type-keyword declarations ($\kappa_{\delta}$) are global declarations to store keywords and their associated parsers($e$ in the syntax, as an expression of type $TypeKw$). \todo{Do we need to consider explaining them as keywords in a module?} 
@@ -451,7 +527,7 @@ In the type environment, external terms are replaced by the inner Wyvern express
 
 \begin{figure}[ht]
 \begin{align*}
-  \Delta_{\kappa} &::=~ \emptyset ~~ | ~~ \Delta_{\kappa};k[i]\\
+  \Delta_{\kappa} &::=~ \emptyset ~~ | ~~ \Delta_{\kappa};k[i,\tau]\\
   \Theta &::=~ \emptyset ~~ | ~~ \Theta,T[\delta,\mu,\zeta] \\
   \delta &::=~ ? ~~ | ~~ \tau\\
   \mu    &::=~ ? ~~ | ~~ i:\tau\\
