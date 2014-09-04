@@ -102,7 +102,7 @@ tabsize=4, % Number of spaces per tab in the code
 
 \newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
 \newcommand{\myvdash}{\vdash_{\Theta}^{\Delta}}
-\newcommand{\textcd}[1]{\text{\scriptsize\BeraMonottfamily{#1}}}
+\newcommand{\textcd}[1]{\textbf{\scriptsize\BeraMonottfamily{#1}}}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
@@ -117,8 +117,7 @@ tabsize=4, % Number of spaces per tab in the code
 \crdata{978-1-4503-3196-8/15/04}  % Allows default copyright data (X-XXXXX-XX-X/XX/XX) to be over-ridden.
 % --- End of Author Metadata ---
 
-\title{Alternate {\ttlit ACM} SIG Proceedings Paper in LaTeX
-Format}
+\title{Safely Composable Typed Syntax Macros}
 %
 % You need the command \numberofauthors to handle the 'placement
 % and alignment' of the authors beneath the title.
@@ -144,7 +143,7 @@ Format}
 % without further effort on your part as the last section in
 % the body of your article BEFORE References or any Appendices.
 
-\numberofauthors{3} %  in this sample file, there are a *total*
+\numberofauthors{1} %  in this sample file, there are a *total*
 % of EIGHT authors. SIX appear on the 'first-page' (for formatting
 % reasons) and the remaining two appear in the \additionalauthors section.
 %
@@ -161,25 +160,8 @@ Format}
 %
 % 1st. author
 \alignauthor
-Ben Trovato\titlenote{Dr.~Trovato insisted his name be first.}\\
-       \affaddr{Institute for Clarity in Documentation}\\
-       \affaddr{1932 Wallamaloo Lane}\\
-       \affaddr{Wallamaloo, New Zealand}\\
-       \email{trovato@corporation.com}
+Chenglong Wang ~~~~~~~~ Cyrus Omar ~~~~~~~~ Jonathan Aldrich \\ Carnegie Mellon University \\ \email{\{stwong, comar, aldrich\}@cs.cmu.edu}
 % 2nd. author
-\alignauthor G.K.M. Tobin\titlenote{The secretary disavows
-any knowledge of this author's actions.}\\
-       \affaddr{Institute for Clarity in Documentation}\\
-       \affaddr{P.O. Box 1212}\\
-       \affaddr{Dublin, Ohio 43017-6221}\\
-       \email{webmaster@marysville-ohio.com}
-% 3rd. author
-\alignauthor Lars Th{\o}rv{\"a}ld\titlenote{This author is the
-one who did all the really hard work.}\\
-       \affaddr{The Th{\o}rv{\"a}ld Group}\\
-       \affaddr{1 Th{\o}rv{\"a}ld Circle}\\
-       \affaddr{Hekla, Iceland}\\
-       \email{larst@affiliation.org}
 }
 %\and  % use '\and' if you need 'another row' of author names
 
@@ -198,21 +180,22 @@ This is abstract.
 \end{abstract}
 
 % A category with the (minimum) three required fields
-\category{H.4}{Information Systems Applications}{Miscellaneous}
+%\category{H.4}{Information Systems Applications}{Miscellaneous}
 %A category including the fourth, optional field follows...
-\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
-
-\terms{Delphi theory}
-
-\keywords{ACM proceedings, \LaTeX, text tagging}
+%\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
+%\terms{Delphi theory}
+%\keywords{ACM proceedings, \LaTeX, text tagging}
 
 \section{Introduction}
+(why is syntax important)
 
-\section{Motivation}
-Typically, the body of a paper is organized
-into a hierarchical structure, with numbered or unnumbered
-headings for sections, subsections, sub-subsections, and even
-smaller sections.
+(syntax extensions -- problems with composition, hygiene)
+
+(in previous work, we introduced TSLs -- discuss example)
+
+(limitations: 1) cannot choose different for same type, 2) cannot extend language with new operations, 3) cannot generate types using specialized syntax) (compare to Scala and other typed macro systems -- can only repurpose existing syntax, not add new syntax)
+
+(contributions: we extend the TSL work with expression (Sec 2) and type-level (Sec 3) syntax macros, build on same underlying semantics (Sec 4) to ensure composition and hygiene)
 
 \section{Background}
 As we present our work as an extension of the type-specific language built on Wyvern, some background for type-specific language mechanism and Wyvern language is necessary to present the extensible keywords mechanism. 
@@ -230,39 +213,41 @@ type TypeKw = objtype
   val parser : TypeParser
 
 type TypeParser = objtype
-  def parse(ps : ParseStream) : Result[(Type, Exp, Kw)]
+  def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
   metadata : HasTSL = new 
     val parser = (* parser generator *)
 
 type Type = casetype
-  Name of ID
-  Objtype of MemberList
-  Casetype of CaseList
+  Named of ID
+  Objtype of List(MemberDecl)
+  Casetype of List(CaseDecl)
   Arrow of Type * Type
-
-type MemberList = casetype
-  Nil  of Unit
-  Cons of Label * Type * MemberList
-
-type CaseList = casetype
-  Nil  of Unit
-  Cons of Label * Type * CaseList
+  metadata : HasTSL = new
+    val parser = (* type quasiquotes *)
 
 type ExpKw = objtype
   val parser : ExpParser
 
 type ExpParser = objtype
-  def parse(ps : ParseStream, expr : Expr) : Result[Exp]
+  def parse(ps : ParseStream, exp : Exp) : Result(Exp)
   metadata : HasTSL = new 
     val parser = (* parser generator *)
+
+type Exp = casetype
+  Var of ID
+  Lam of ID * Exp
+  Ap of Exp * Exp
+  (* ... *)
+  metadata : HasTSL = new
+    val parser = (* exp quasiquotes *)
+
+type KwMember = casetype
+  Whitebox of Label * ExpKw
+  Blackbox of Label * ExpKw * Type
 
 type Result[T] = casetype
   OK of T * ParseStream
   Error of String * Location
-
-type KwList = casetype
-  Nil of Unit
-  Cons of Label * Exp * KwList
 \end{lstlisting}
 \vspace{-8px}
 \caption{Wyvern prelude for keywords extension}
@@ -281,7 +266,7 @@ type HTML = casetype
   ... (* Other HTML cases *)
   metadata = new : HasTSL
     val parser = ~
-      ... (* HTML parser definition *)
+      @\dslblue{...}@ (* HTML parser definition *)
 
 val heading_text : String = "A Heading"
 val x : HTML = ~
@@ -318,16 +303,16 @@ An expression keyword is a keyword associated with a parser to transform DSL lit
 We start with an example showing the usage of an expression keyword to construct an \verb|HTML| object with an alternative \verb|simpleHTML| syntax rather than the original HTML syntax displayed in figure \ref{f-htmltype}. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The parser of the grammar is defined in line 2-10 in figure \ref{f-simplehtml}.
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
-keyword simpleHTML : HTML = ~
+expkw simpleHTML : HTML = ~
   val parser = ~
     @\dslblue{start <- '>body'= attributes> start>}@
-      fn attrs, child => "@\dslred{BodyElement((}@$attrs@\dslred{,}@ $child@\dslred{))}@"
+      fn attrs, child => "@\dslred{BodyElement((\$}@attrs@\dslred{, \$}@child@\dslred{))}@"
     @\dslblue{start <- '>p'= attributes> start>}@
-      fn attrs, child => "@\dslred{PElement((}@$attrs@\dslred{,}@ $child@\dslred{))}@"
+      fn attrs, child => "@\dslred{PElement((\$}@attrs@\dslred{, \$}@ child@\dslred{))}@"
     @\dslblue{start <- text}@
-      fn text => "@\dslred{Text(\$text)}@"
+      fn text => "@\dslred{Text(\$}@text@\dslred{)}@"
     @\dslblue{start <- '<'= EXP>}@
-      fn e => '$e'
+      fn e => '@\dslred{\$}@e'
 val y : HTML = simpleHTML ~
   @\dslgreen{>body[id="doc1"]}@
     @\dslgreen{>h1 <\{}@heading_text@\dslgreen{\}}@
@@ -348,13 +333,13 @@ Another example about a white-box keyword \verb|if|. The keyword \verb|if| is de
 type Bool = casetype 
   True
   False
-  keyword if = ~
+  expkw if = ~
     val parser = fn self => ~
       @\dslblue{EXP BOUNDARY `else' BOUNDARY EXP}@
         fn e1, e2 => ~
-          @\dslred{case}@ $self
-            @\dslred{True =>}@ $e1
-            @\dslred{False =>}@ $e2
+          @\dslred{case \$}@self
+            @\dslred{True => \$}@e1
+            @\dslred{False => \$}@e2
 def f(x : Bool)
   x.if {branch_1} @\dslgreen{else}@ {branch_2}
 \end{lstlisting}
@@ -375,40 +360,40 @@ Besides using expression keywords and TSLs to extend the host language with new 
 typekw DBSchema with metadata : HasTSL = new
   val parser = ~
     @\dslblue{start <- pairs}@
-      fn (pairs) =>
+      fn pairs =>
         let ty : Type = ~
-          @\dslred{objtype}@
-            @\dslred{type Entry = objtype}@
-              {map(pairs, Nil, 
+          @\dslpurple{objtype}@
+            @\dslpurple{type Entry = objtype}@
+              @\dslpurple{\{}@map(pairs, Nil, 
                 fn ((p, lbl, ty), l) => Cons(~, l))
-                  @\dslorange{val}@ $lbl @\dslorange{:}@ $ty
-              }
-            @\dslred{val connection : URL}@
-            @\dslred{val username : String}@
-            @\dslred{val password : String}@
-            @\dslred{...}@
-            {map(pairs, Nil, 
+                  @\dslorange{val \$}@lbl @\dslorange{:  \$}@ty
+              @\dslpurple{\}}@
+            @\dslpurple{val connection : URL}@
+            @\dslpurple{val username : String}@
+            @\dslpurple{val password : String}@
+            @\dslpurple{...}@
+            @\dslpurple{\{}@map(pairs, Nil, 
               (fn ((p, lbl, ty), l) => Cons(~, l)))
-                @\dslorange{def getBy}@$lbl @\dslorange{(}@$ty@\dslorange{)}@
-            }
+                @\dslorange{def getBy\$}@lbl @\dslorange{(\$}@ty@\dslorange{)}@
+            @\dslpurple{\}}@
         let md : HasTSL = new 
           val parser = ~
-            @\dslblue{start <- (}@">connect to "@\dslblue{= EXP>}@
-                      "username:"@\dslblue{= EXP>}@
-                      "password:"@\dslblue{= EXP>}@
-                      "table:" @\dslblue{EXP>)}@
+            @\dslblue{start <- ("connect to "= EXP>}@
+                      @\dslblue{"username:"= EXP>}@
+                      @\dslblue{"password:"= EXP>}@
+                      @\dslblue{"table:" EXP>)}@
               fn url, un, pw, table => ~
-                @\dslpurple{new}@ 
-                  @\dslpurple{val connection =}@ $url
-                  @\dslpurple{val username =}@ $un
-                  @\dslpurple{val password =}@ $pw
-                  @\dslpurple{...}@
-                  {map(pairs, Nil, 
+                @\dslred{new}@ 
+                  @\dslred{val connection = \$}@url
+                  @\dslred{val username = \$}@un
+                  @\dslred{val password = \$}@pw
+                  @\dslred{...}@
+                  @\dslred{\{}@map(pairs, Nil, 
                     (fn ((p, lbl, ty), l) => Cons(~, l)))
                       @\dslorange{def getBy}@$lbl @\dslorange{(x)}@ 
                         @\dslorange{...}@(* implementation *)
-                  }
-        (ty, md)
+                  @\dslred{\}}@
+        (ty, md, Nil)
     @\dslblue{pairs <- ()}@
       fn () => Nil 
     @\dslblue{pairs <- pair= pairs=}@
@@ -489,6 +474,7 @@ The syntax for composable syntax macros is presented as an extension of TSL synt
 \begin{figure*}
 \begin{center}
 \begin{tabular}{ r r l l r c l}
+  & \multicolumn{3}{l}{\textbf{Abstract Forms}} & \multicolumn{3}{l}{\textbf{Concrete Forms}}\\
   Programs            & $\rho$            & ::= &  $\eta;\theta;e$                  & $\rho$    & $\rightarrow$ & $\eta\searrow\theta\searrow e$\\
   Type Keywords       & $\eta$            & ::= &  $\emptyset$                      & $\eta$    & $\rightarrow$ & $\epsilon$\\
                       &                   &     &  $\eta;k[e,\tau]$                 &           & $\rightarrow$ & $\eta\searrow$ \textcd{typekw} $k$ \textcd{with metadata:}$\tau$ \textcd{=} $e$  \\
@@ -503,7 +489,7 @@ The syntax for composable syntax macros is presented as an extension of TSL synt
                       &                   &     &  $\mathbf{casetype}[\chi]$        &           & $\rightarrow$ & \textcd{casetype} $\chi$\\
                       &                   &     &  $\mathbf{arrow}[\tau, \tau]$     &           & $\rightarrow$ & $\tau\rightarrow\tau$\\
   Object Fields       & $\omega$          & ::= &  $\emptyset$                      & $\omega$  & $\rightarrow$ & $\epsilon$\\
-                      &                   & ::= &  $l[\tau];\omega$                 &           & $\rightarrow$ & $l$ : $\tau$ $\searrow\omega$\\
+                      &                   & &  $l[\tau];\omega$                 &           & $\rightarrow$ & $l$ : $\tau$ $\searrow\omega$\\
   Casetype Cases      & $\chi$            & ::= &  $\emptyset$                      & $\chi$    & $\rightarrow$ & $\epsilon$ \\                 
                       &                   &     &  $C[\tau];\chi$                   &           & $\rightarrow$ & $C$ : $\tau$ $\searrow\chi$\\
   External Term       & $e$               & ::= &  ...                              & $e$       & $\rightarrow$ & $...$\\
@@ -518,7 +504,7 @@ The syntax for composable syntax macros is presented as an extension of TSL synt
 \end{tabular}
 \end{center}
 \vspace{-8px}
-\caption{Abstract and Concrete Forms \todo{concrete forms, move exp and ty kws together, rename expr to exp, rename kappadelta to eta, add explicit and tykey to eta, remove kwdefs and metadata}}
+\caption{Abstract and Concrete Forms \todo{remove duplicate metavariable columns, separate out delimited into new concrete metavariable, add sequential delimited forms}}
 \vspace{-10px}
 \label{formal-syntax}
 \end{figure*}
@@ -566,7 +552,7 @@ Named Type Context & $\Theta$        & ::= & $\emptyset$\\
 Keyword Members & $\dot\kappa$    & ::= & $\emptyset$\\
             &                 &   |  & $\dot\kappa;k[\mathbf{bk}(\tau),i]$\\
             &                 &   |  & $\dot\kappa;k[\mathbf{wk},i]$\\
-Variable Context & $\Gamma$ &   ::=  & $\emptyset$\\
+Typing Context & $\Gamma$ &   ::=  & $\emptyset$\\
                  &          &     |  & $\Gamma,x:\tau$
 \end{tabular}
 \end{center}
