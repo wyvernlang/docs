@@ -71,7 +71,8 @@ basicstyle=\scriptsize\BeraMonottfamily, % The default font size and style of th
 breakatwhitespace=false, % If true, only allows line breaks at white space
 breaklines=true, % Automatic line breaking (prevents code from protruding outside the box)
 captionpos=b, % Sets the caption position: b for bottom; t for top
-commentstyle=\usefont{T1}{pcr}{m}{sl}\color{DarkGreen}, % Style of comments within the code - dark green courier font
+morecomment=[s]{(*}{*)},
+commentstyle=\fontshape{it}\color{Gray}\selectfont, % Style of comments within the code - dark green courier font
 deletekeywords={}, % If you want to delete any keywords from the current language separate them by commas
 %escapeinside={\%}, % This allows you to escape to LaTeX using the character in the bracket
 firstnumber=1, % Line numbers begin at line 1
@@ -95,10 +96,13 @@ tabsize=4, % Number of spaces per tab in the code
 \newcommand{\dslgreen}[1]{\textcolor[HTML]{339933}{#1}}
 \newcommand{\dslblue}[1]{\textcolor[HTML]{336699}{#1}}
 \newcommand{\dslyellow}[1]{\textcolor[HTML]{FFCC33}{#1}}
+\newcommand{\dslred}[1]{\textcolor[HTML]{FF0033}{#1}}
+\newcommand{\dslorange}[1]{\textcolor[HTML]{FF6600}{#1}}
+\newcommand{\dslpurple}[1]{\textcolor[HTML]{660066}{#1}}
 
 \newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
-\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta_{\kappa}}}
-\newcommand{\textcd}[1]{\text{\scriptsize\BeraMonottfamily{#1}}}
+\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta}}
+\newcommand{\textcd}[1]{\textbf{\scriptsize\BeraMonottfamily{#1}}}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
@@ -113,8 +117,7 @@ tabsize=4, % Number of spaces per tab in the code
 \crdata{978-1-4503-3196-8/15/04}  % Allows default copyright data (X-XXXXX-XX-X/XX/XX) to be over-ridden.
 % --- End of Author Metadata ---
 
-\title{Alternate {\ttlit ACM} SIG Proceedings Paper in LaTeX
-Format}
+\title{Safely Composable Typed Syntax Macros}
 %
 % You need the command \numberofauthors to handle the 'placement
 % and alignment' of the authors beneath the title.
@@ -140,7 +143,7 @@ Format}
 % without further effort on your part as the last section in
 % the body of your article BEFORE References or any Appendices.
 
-\numberofauthors{3} %  in this sample file, there are a *total*
+\numberofauthors{1} %  in this sample file, there are a *total*
 % of EIGHT authors. SIX appear on the 'first-page' (for formatting
 % reasons) and the remaining two appear in the \additionalauthors section.
 %
@@ -157,25 +160,8 @@ Format}
 %
 % 1st. author
 \alignauthor
-Ben Trovato\titlenote{Dr.~Trovato insisted his name be first.}\\
-       \affaddr{Institute for Clarity in Documentation}\\
-       \affaddr{1932 Wallamaloo Lane}\\
-       \affaddr{Wallamaloo, New Zealand}\\
-       \email{trovato@corporation.com}
+Chenglong Wang ~~~~~~~~ Cyrus Omar ~~~~~~~~ Jonathan Aldrich \\ Carnegie Mellon University \\ \email{\{stwong, comar, aldrich\}@cs.cmu.edu}
 % 2nd. author
-\alignauthor G.K.M. Tobin\titlenote{The secretary disavows
-any knowledge of this author's actions.}\\
-       \affaddr{Institute for Clarity in Documentation}\\
-       \affaddr{P.O. Box 1212}\\
-       \affaddr{Dublin, Ohio 43017-6221}\\
-       \email{webmaster@marysville-ohio.com}
-% 3rd. author
-\alignauthor Lars Th{\o}rv{\"a}ld\titlenote{This author is the
-one who did all the really hard work.}\\
-       \affaddr{The Th{\o}rv{\"a}ld Group}\\
-       \affaddr{1 Th{\o}rv{\"a}ld Circle}\\
-       \affaddr{Hekla, Iceland}\\
-       \email{larst@affiliation.org}
 }
 %\and  % use '\and' if you need 'another row' of author names
 
@@ -194,21 +180,22 @@ This is abstract.
 \end{abstract}
 
 % A category with the (minimum) three required fields
-\category{H.4}{Information Systems Applications}{Miscellaneous}
+%\category{H.4}{Information Systems Applications}{Miscellaneous}
 %A category including the fourth, optional field follows...
-\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
-
-\terms{Delphi theory}
-
-\keywords{ACM proceedings, \LaTeX, text tagging}
+%\category{D.2.8}{Software Engineering}{Metrics}[complexity measures, performance measures]
+%\terms{Delphi theory}
+%\keywords{ACM proceedings, \LaTeX, text tagging}
 
 \section{Introduction}
+(why is syntax important)
 
-\section{Motivation}
-Typically, the body of a paper is organized
-into a hierarchical structure, with numbered or unnumbered
-headings for sections, subsections, sub-subsections, and even
-smaller sections.
+(syntax extensions -- problems with composition, hygiene)
+
+(in previous work, we introduced TSLs -- discuss example)
+
+(limitations: 1) cannot choose different for same type, 2) cannot extend language with new operations, 3) cannot generate types using specialized syntax) (compare to Scala and other typed macro systems -- can only repurpose existing syntax, not add new syntax)
+
+(contributions: we extend the TSL work with expression (Sec 2) and type-level (Sec 3) syntax macros, build on same underlying semantics (Sec 4) to ensure composition and hygiene)
 
 \section{Background}
 As we present our work as an extension of the type-specific language built on Wyvern, some background for type-specific language mechanism and Wyvern language is necessary to present the extensible keywords mechanism. 
@@ -222,35 +209,41 @@ The following example (Figure \ref{f-htmltype}) illustrates how to use TSL to co
 
 \begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
-type DeclKw = objtype
-  val parser : DeclParser
+type TypeKw = objtype
+  val parser : TypeParser
 
-type DeclParser = objtype
-  def parse(ps : ParseStream) : Result[(Exp, Type)]
+type TypeParser = objtype
+  def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
   metadata : HasTSL = new 
     val parser = (* parser generator *)
 
 type Type = casetype
-  Name of ID
-  Objtype of MemberList
-  Casetype of CaseList
+  Named of ID
+  Objtype of List(MemberDecl)
+  Casetype of List(CaseDecl)
   Arrow of Type * Type
+  metadata : HasTSL = new
+    val parser = (* type quasiquotes *)
 
-type MemberList = casetype
-  Nil  of Unit
-  Cons of Label * Type * MemberList
+type ExpKw = objtype
+  val parser : ExpParser
 
-type CaseList = casetype
-  Nil  of Unit
-  Cons of Label * Type * CaseList
-
-type ExprKw = objtype
-  val parser : ExprParser
-
-type ExprParser = objtype
-  def parse(ps : ParseStream, expr : Expr) : Result[Exp]
+type ExpParser = objtype
+  def parse(ps : ParseStream, exp : Exp) : Result(Exp)
   metadata : HasTSL = new 
     val parser = (* parser generator *)
+
+type Exp = casetype
+  Var of ID
+  Lam of ID * Exp
+  Ap of Exp * Exp
+  (* ... *)
+  metadata : HasTSL = new
+    val parser = (* exp quasiquotes *)
+
+type KwMember = casetype
+  Whitebox of Label * ExpKw
+  Blackbox of Label * ExpKw * Type
 
 type Result[T] = casetype
   OK of T * ParseStream
@@ -273,7 +266,7 @@ type HTML = casetype
   ... (* Other HTML cases *)
   metadata = new : HasTSL
     val parser = ~
-      ... (* HTML parser definition *)
+      @\dslblue{...}@ (* HTML parser definition *)
 
 val heading_text : String = "A Heading"
 val x : HTML = ~
@@ -310,23 +303,23 @@ An expression keyword is a keyword associated with a parser to transform DSL lit
 We start with an example showing the usage of an expression keyword to construct an \verb|HTML| object with an alternative \verb|simpleHTML| syntax rather than the original HTML syntax displayed in figure \ref{f-htmltype}. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The parser of the grammar is defined in line 2-10 in figure \ref{f-simplehtml}.
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
-keyword simpleHTML : HTML = ~
+expkw simpleHTML : HTML = ~
   val parser = ~
     @\dslblue{start <- '>body'= attributes> start>}@
-      fn attrs, child => "BodyElement(($attrs, $child))"
+      fn attrs, child => "@\dslred{BodyElement((\$}@attrs@\dslred{, \$}@child@\dslred{))}@"
     @\dslblue{start <- '>p'= attributes> start>}@
-      fn attrs, child => "PElement(($attrs, $child))"
+      fn attrs, child => "@\dslred{PElement((\$}@attrs@\dslred{, \$}@ child@\dslred{))}@"
     @\dslblue{start <- text}@
-      fn text => "Text($text)"
+      fn text => "@\dslred{Text(\$}@text@\dslred{)}@"
     @\dslblue{start <- '<'= EXP>}@
-      fn e => '%e%'
+      fn e => '@\dslred{\$}@e'
 val y : HTML = simpleHTML ~
   @\dslgreen{>body[id="doc1"]}@
     @\dslgreen{>h1 <\{}@heading_text@\dslgreen{\}}@
     @\dslgreen{>p My first paragraph}@
 \end{lstlisting}
 \vspace{-8px}
-\caption{The `simpleHTML' keyword example. \todo{color quotations}\todo{set uniform spacing for whole document}}
+\caption{The `simpleHTML' keyword example.\todo{set uniform spacing for whole document}}
 \vspace{-10px}
 \label{f-simplehtml}
 \end{figure}
@@ -340,13 +333,13 @@ Another example about a white-box keyword \verb|if|. The keyword \verb|if| is de
 type Bool = casetype 
   True
   False
-  keyword if = ~
+  expkw if = ~
     val parser = fn self => ~
       @\dslblue{EXP BOUNDARY `else' BOUNDARY EXP}@
         fn e1, e2 => ~
-          case $self
-            True => $e1
-            False => $e2
+          @\dslred{case \$}@self
+            @\dslred{True => \$}@e1
+            @\dslred{False => \$}@e2
 def f(x : Bool)
   x.if {branch_1} @\dslgreen{else}@ {branch_2}
 \end{lstlisting}
@@ -367,40 +360,40 @@ Besides using expression keywords and TSLs to extend the host language with new 
 typekw DBSchema with metadata : HasTSL = new
   val parser = ~
     @\dslblue{start <- pairs}@
-      fn (pairs) =>
+      fn pairs =>
         let ty : Type = ~
-          objtype
-            type Entry = objtype
-              {map(pairs, Nil, 
+          @\dslpurple{objtype}@
+            @\dslpurple{type Entry = objtype}@
+              @\dslpurple{\{}@map(pairs, Nil, 
                 fn ((p, lbl, ty), l) => Cons(~, l))
-                  val $lbl : $ty
-              }
-            val connection : URL
-            val username : String
-            val password : String
-            ...
-            {map(pairs, Nil, 
+                  @\dslorange{val \$}@lbl @\dslorange{:  \$}@ty
+              @\dslpurple{\}}@
+            @\dslpurple{val connection : URL}@
+            @\dslpurple{val username : String}@
+            @\dslpurple{val password : String}@
+            @\dslpurple{...}@
+            @\dslpurple{\{}@map(pairs, Nil, 
               (fn ((p, lbl, ty), l) => Cons(~, l)))
-                def getBy$lbl ($ty)
-            }
+                @\dslorange{def getBy\$}@lbl @\dslorange{(\$}@ty@\dslorange{)}@
+            @\dslpurple{\}}@
         let md : HasTSL = new 
           val parser = ~
-            start <- (">connect to "= EXP>
-                      "username:"= EXP>
-                      "password:"= EXP>
-                      "table:" EXP>)
+            @\dslblue{start <- ("connect to "= EXP>}@
+                      @\dslblue{"username:"= EXP>}@
+                      @\dslblue{"password:"= EXP>}@
+                      @\dslblue{"table:" EXP>)}@
               fn url, un, pw, table => ~
-                new 
-                  val connection = $url
-                  val username = $un
-                  val password = $pw
-                  ...
-                  {map(pairs, Nil, 
+                @\dslred{new}@ 
+                  @\dslred{val connection = \$}@url
+                  @\dslred{val username = \$}@un
+                  @\dslred{val password = \$}@pw
+                  @\dslred{...}@
+                  @\dslred{\{}@map(pairs, Nil, 
                     (fn ((p, lbl, ty), l) => Cons(~, l)))
-                      def getBy$lbl (x) 
-                        (* implementation *)
-                  }
-        (ty, md)
+                      @\dslorange{def getBy}@$lbl @\dslorange{(x)}@ 
+                        @\dslorange{...}@(* implementation *)
+                  @\dslred{\}}@
+        (ty, md, Nil)
     @\dslblue{pairs <- ()}@
       fn () => Nil 
     @\dslblue{pairs <- pair= pairs=}@
@@ -480,46 +473,44 @@ The syntax for composable syntax macros is presented as an extension of TSL synt
 
 \begin{figure*}
 \begin{center}
-\begin{tabular}{ l r l l r l l}
-  Programs             & $\rho$            & ::= &  $\eta;\theta;e$       & \textcd{programs}  & $\rightarrow$ & \textcd{typekws= typedecls> e>}\\
-  Type Keywords        & $\eta$   & ::= &  $\emptyset$                      & \textcd{typekws}   & $\rightarrow$ & \textcd{$\epsilon$}\\
-                      &                   &     &  $\eta;k[e,\tau]$      & \textcd{typekws}   & $\rightarrow$ & \textcd{typekws= NEWLINE> `\textbf{type}'> ID>}\\
-                      &                   &     &                                   &                    &               & \textcd{~`='> e> `\textbf{with metadata}'> `:'> type>}\\
-  Type Declarations    & $\theta$          & ::= &  $\emptyset$                      & \textcd{typedecls} & $\rightarrow$ & \textcd{$\epsilon$}\\
-                      &                   &     &  $\theta; T[\tau, e, \kappa]$     & \textcd{typedecls} & $\rightarrow$ & \textcd{typedecls= NEWLINE> `\textbf{type}'> ID>}\\
-                      &                   &     &                                   &                    &               & \textcd{~`='> type> metadatadecl> keywords>}\\
-                      &                   &     &  $\theta; T[k, body, e, \kappa]$  & \textcd{typedecls} & $\rightarrow$ & \textcd{typedecls= NEWLINE> `\textbf{type}'> ID>`='> } \\
-                      &                   &     &                                   &                    &          & \textcd{~ID> inlinelit> metadatadecl> keywords> }\\
-  Types                & $\tau$            & ::= &  $\mathbf{named}[T]$              & \textcd{type}      & $\rightarrow$ & \textcd{ID=} \\
-                      &                   &     &  $\mathbf{objtype}[\omega]$         & \textcd{type}      & $\rightarrow$ & \textcd{`\textbf{objtype}'= objdecls>} \\
-                      &                   &     &  $\mathbf{casetype}[\chi]$        & \textcd{type}      & $\rightarrow$ & \textcd{`\textbf{casetype}'= casedecls>}\\
-                      &                   &     &  $\mathbf{arrow}[\tau, \tau]$     & \textcd{type}      & $\rightarrow$ & \textcd{type= `->'> type>}\\
-  Expression Keywords  & $\kappa$          & ::= &  $\emptyset$                      & \textcd{expkws}    & $\rightarrow$ & \textcd{$\epsilon$}\\
-                      &                   &     &  $\kappa;k[\mathbf{bk}(\tau),e]$  & \textcd{expkws}    & $\rightarrow$ & \textcd{expkws= NEWLINE> `\textbf{keyword}'> ID> `:'> e>} \\
-                      &                   &     &  $\kappa;k[\mathbf{wk},e]$        & \textcd{expkws}    & $\rightarrow$ & \textcd{expkws= NEWLINE> `\textbf{keyword}'> ID> e>}\\
-  Object Fields       & $\omega$          & ::= &  $\emptyset$                      & \textcd{objdecls}  & $\rightarrow$ & \textcd{$\epsilon$}\\
-                      &                   & ::= &  $l[\tau];\omega$                 & \textcd{objdecls}  & $\rightarrow$ & \textcd{objdecls= NEWLINE> ID> `:'> type>}\\
-  Casetype Cases      & $\chi$            & ::= &  $\emptyset$                      & \textcd{casedecls} & $\rightarrow$ & \textcd{$\epsilon$}\\                 
-                      &                   &     &  $C[\tau];\chi$                 & \textcd{casedecls} & $\rightarrow$ & \textcd{casedecls= NEWLINE> ID> ($\epsilon$ | `\textbf{of}'> types)}\\
-  External Term       & $e$               & ::= &  ...                              & \textcd{e}         & $\rightarrow$ & \textcd{...(* basic expressions *)}\\
-                      &                   &     &  $\mathbf{lit}[body]$             & \textcd{e}         & $\rightarrow$ & \textcd{inlinelit=}\\
-                      &                   &     &  $\mathbf{ekey}[k,body](e)$       & \textcd{e}         & $\rightarrow$ & \textcd{e= `.'> ID> e>}\\
-                      &                   &     &  $\mathbf{exprkwdef}[T,k]$        & \textcd{e}         & $\rightarrow$ & \textcd{`\textbf{kwdef}'= `['> ID> `.'> ID> `]'>}\\
-                      &                   &     &  $\mathbf{declkwdef}[k]$          & \textcd{e}         & $\rightarrow$ & \textcd{`\textbf{kwdef}'= `['> ID> `]'>}\\
-                      &                   &     &  $\mathbf{emetadata}[T]$          & \textcd{e}         & $\rightarrow$ & \textcd{`\textbf{metadata}'= `['> ID> `]'>}\\
+\begin{tabular}{ r r l l r c l}
+  & \multicolumn{3}{l}{\textbf{Abstract Forms}} & \multicolumn{3}{l}{\textbf{Concrete Forms}}\\
+  Programs            & $\rho$            & ::= &  $\eta;\theta;e$                  & $\rho$    & $\rightarrow$ & $\eta\searrow\theta\searrow e$\\
+  Type Keywords       & $\eta$            & ::= &  $\emptyset$                      & $\eta$    & $\rightarrow$ & $\epsilon$\\
+                      &                   &     &  $\eta;k[e,\tau]$                 &           & $\rightarrow$ & $\eta\searrow$ \textcd{typekw} $k$ \textcd{with metadata:}$\tau$ \textcd{=} $e$  \\
+  Expression Keywords & $\kappa$          & ::= &  $\emptyset$                      & $\kappa$  & $\rightarrow$ & $\epsilon$\\
+                      &                   &     &  $\kappa;k[\mathbf{bk}(\tau),e]$  &           & $\rightarrow$ & $\kappa\searrow$ \textcd{expkw} $k$ : $\tau$ \textcd{=} $e$\\
+                      &                   &     &  $\kappa;k[\mathbf{wk},e]$        &           & $\rightarrow$ & $\kappa\searrow$ \textcd{expkw} $k$ \textcd{=} $e$\\
+  Type Declarations   & $\theta$          & ::= &  $\emptyset$                      & $\theta$  & $\rightarrow$ & $\epsilon$\\
+                      &                   &     &  $\theta; T[\mathbf{explicit},\tau, e, \kappa]$     &           & $\rightarrow$ & $\theta\searrow$ \textcd{type} $T$ \textcd{=} $\tau$ $e$ $\kappa$\\
+                      &                   &     &  $\theta; T[\mathbf{tykey},k, body, e, \kappa]$  &           & $\rightarrow$ & $\theta\searrow$ \textcd{type} $T$ \textcd{=} $k$ $body$ $e$ $\kappa$\\
+  Types               & $\tau$            & ::= &  $\mathbf{named}[T]$              & $\tau$    & $\rightarrow$ & $T$\\
+                      &                   &     &  $\mathbf{objtype}[\omega]$       &           & $\rightarrow$ & \textcd{objtype} $\omega$ \\
+                      &                   &     &  $\mathbf{casetype}[\chi]$        &           & $\rightarrow$ & \textcd{casetype} $\chi$\\
+                      &                   &     &  $\mathbf{arrow}[\tau, \tau]$     &           & $\rightarrow$ & $\tau\rightarrow\tau$\\
+  Object Fields       & $\omega$          & ::= &  $\emptyset$                      & $\omega$  & $\rightarrow$ & $\epsilon$\\
+                      &                   & &  $l[\tau];\omega$                 &           & $\rightarrow$ & $l$ : $\tau$ $\searrow\omega$\\
+  Casetype Cases      & $\chi$            & ::= &  $\emptyset$                      & $\chi$    & $\rightarrow$ & $\epsilon$ \\                 
+                      &                   &     &  $C[\tau];\chi$                   &           & $\rightarrow$ & $C$ : $\tau$ $\searrow\chi$\\
+  External Term       & $e$               & ::= &  ...                              & $e$       & $\rightarrow$ & $...$\\
+                      &                   &     &  $\mathbf{lit}[body]$             &           & $\rightarrow$ & \{ $body$ \}\\
+                      &                   &     &                                   &           &               & \textcd{"} $body$ \textcd{"}\\
+                      &                   &     &                                   &           &               & \textcd{'} $body$ \textcd{'}\\
+                      &                   &     &                                   &           &               & \textcd{(} $body$ \textcd{)}\\ 
+                      &                   &     &  $\mathbf{ekey}[k,body](e)$       &           & $\rightarrow$ & $e.k$ $body$\\
   Translational Terms & $\hat{e}$         & ::= &  ... \\
                       &                   &     &  $\mathbf{spliced}[e]$\\
   Internal Terms      & $i$               & ::= &  ... \\
 \end{tabular}
 \end{center}
 \vspace{-8px}
-\caption{Abstract and Concrete Forms \todo{concrete forms, move exp and ty kws together, rename expr to exp, rename kappadelta to eta, add explicit and tykey to eta, remove kwdefs and metadata}}
+\caption{Abstract and Concrete Forms \todo{remove duplicate metavariable columns, separate out delimited into new concrete metavariable, add sequential delimited forms}}
 \vspace{-10px}
 \label{formal-syntax}
 \end{figure*}
 
 \paragraph{Type-keyword}
-Type-keyword declarations ($\kappa_{\delta}$) are global declarations to store keywords and their associated parsers($e$ in the syntax, as an expression of type $TypeKw$). \todo{Do we need to consider explaining them as keywords in a module?} 
+Type-keyword declarations ($\eta$) are global declarations to store keywords and their associated parsers($e$ in the syntax, as an expression of type $TypeKw$). \todo{Do we need to consider explaining them as keywords in a module?} 
 
 \paragraph{Named type declaration}
 There are two types of named type declarations: a type declared without using a type keyword, or a typed declared using a type keyword, both of them are used to declare a new named time in the environment.
@@ -544,15 +535,15 @@ The type checking process also involves the elaboration of an external expressio
 \subsection{Declaration Environments}
 The type declaration environments (figure \ref{typechecking-environment}) involves the declaration of type keywords and named types. The declarations appeared in the Wyvern program will be parsed and checked before going to the environment, and the type checking rules for environment is presented in figure \ref{typechecking-elaboration} \todo{modify the number}. 
 
-Type keyword environment ($\Delta_\kappa$) is used to store all type keywords declaration, and it will be used to look up a type keyword during type checking process.
+Type keyword environment ($\Delta$) is used to store all type keywords declaration, and it will be used to look up a type keyword during type checking process.
 
 In the type environment, external terms are replaced by the inner Wyvern expression they elaborates to, and a type declared with type keyword goes into the environment with its structure presented as a normal type with optional metadata and expression keywords. The environment formalization an be referred to figure \ref{typechecking-environment}.
 
 \begin{figure}[ht]
 \begin{center}
 \begin{tabular}{r r c l}
-Type Keyword Context & $\Delta_\kappa$ & ::= & $\emptyset$\\
-            &                 &  |   & $\Delta_{\kappa};k[i,\tau]$\\
+Type Keyword Context & $\Delta$ & ::= & $\emptyset$\\
+            &                 &  |   & $\Delta;k[i,\tau]$\\
 Named Type Context & $\Theta$        & ::= & $\emptyset$\\
             &                 &  |   & $\Theta,T[\delta,\mu,\zeta]$\\
        & $\delta$        & ::= & $?$ ~ | ~ $\tau$\\
@@ -560,11 +551,13 @@ Named Type Context & $\Theta$        & ::= & $\emptyset$\\
    & $\zeta$         & ::= & $?$ ~ | ~ $\dot\kappa$\\
 Keyword Members & $\dot\kappa$    & ::= & $\emptyset$\\
             &                 &   |  & $\dot\kappa;k[\mathbf{bk}(\tau),i]$\\
-            &                 &   |  & $\dot\kappa;k[\mathbf{wk},i]$
+            &                 &   |  & $\dot\kappa;k[\mathbf{wk},i]$\\
+Typing Context & $\Gamma$ &   ::=  & $\emptyset$\\
+                 &          &     |  & $\Gamma,x:\tau$
 \end{tabular}
 \end{center}
 \vspace{-8px}
-\caption{Definition of environment, including a set for type keywords ($\Delta_{\kappa}$) and a named type environment ($\Theta$). The type keyword environment is a set containing keywords ($k$) and their parser (an inner Wyvern expression $i$), while the named type environment consists of type declarations with its type structure($\delta$), metadata expression ($i:\tau$) and keywords set($\zeta$, expression keywords after elaboration). The question mark here indicates that these fields can be of a value `unknown' during type checking process. \todo{rename Deltakappa to Delta, add Gamma, }}
+\caption{Definition of environment, including a set for type keywords ($\Delta$) and a named type environment ($\Theta$). The type keyword environment is a set containing keywords ($k$) and their parser (an inner Wyvern expression $i$), while the named type environment consists of type declarations with its type structure($\delta$), metadata expression ($i:\tau$) and keywords set($\zeta$, expression keywords after elaboration). The question mark here indicates that these fields can be of a value `unknown' during type checking process.b}
 \vspace{-10px}
 \label{typechecking-environment}
 
@@ -586,7 +579,7 @@ The type checking rules for type keywords usage is labeled as type-name-2, type-
 The rule type-name-2 present the type elaboration process, and the external syntax used in type keyword will be transformed to a normalized type structure. The process consists of the following steps:
 \begin{enumerate}\setlength{\itemsep}{0pt}
 \item Check if the environment prelude is in the type environment. The prelude environment consists of necessary types and parser definition. 
-\item Look up the keyword in $\Delta_\kappa$. This requires a valid parser defined in the type keyword environment for parsing the literals later.
+\item Look up the keyword in $\Delta$. This requires a valid parser defined in the type keyword environment for parsing the literals later.
 \item Invoke the parser to parse the DSL literal body ($i_{ps}$, as an expression the parser parsed to). In the rule kw-env, the parser is already checked against type $TypeKw$, so the parser is of type $PasrseStream->DeclResult$. So a return type ($i_{type}$) and an type metadata ($i_{exp}$) will be provided by the parser.
 \item The type expression ($i_{type}$) will be transformed to a Wyvern type structure (i.e. objtype or casetype) using type dereification rules (marked as `$\uparrow$'). And the type will be checked to guarantee the formation of its structure.
 \item The metadata expression will be reconstructed, it will be reificate to a spliced expression and then transform to an inner Wyvern expression of type $\tau_m$. 
@@ -619,15 +612,15 @@ To formalize the type safety property, we defined the judgments for context form
 
 \todo{Writedown lemmas and theorems}
 \begin{theorem}[Internal Type Safety]
-If ~$\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Delta_\kappa$~ and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash^{\Theta}_{\Theta}i'\Leftarrow\tau$.
+If ~$\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Delta$~ and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash^{\Theta}_{\Theta}i'\Leftarrow\tau$.
 \end{theorem}
 
 \begin{theorem}[External Type Preservation]
-If ~$\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Delta_\kappa$, $\vdash_{\Theta}\Gamma$, and $\Gamma\myvdash e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\myvdash e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\myvdash i\Leftarrow\tau$.
+If ~$\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Delta$, $\vdash_{\Theta}\Gamma$, and $\Gamma\myvdash e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\myvdash e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\myvdash i\Leftarrow\tau$.
 \end{theorem}
 
 \begin{theorem}[Compilation]
-If ~$\rho\sim\Theta\rightsquigarrow i:\tau$~ then $\vdash\Theta$,~$\vdash_{\Theta}\Delta_\kappa$,~$\emptyset\myvdash i\Leftarrow\tau$.
+If ~$\rho\sim\Theta\rightsquigarrow i:\tau$~ then $\vdash\Theta$,~$\vdash_{\Theta}\Delta$,~$\emptyset\myvdash i\Leftarrow\tau$.
 \end{theorem}
 
 %\input{kw-contextformation.tex}
