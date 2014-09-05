@@ -5,7 +5,7 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 
-\newcommand{\typeexample}[3]{$#1$\\$#2$\\$#3$}
+\newcommand{\typeexample}[2]{$#1$\\$#2$}
 \newcommand{\st}{\ensuremath{\hspace{-1px}<:\hspace{-1px}}}
 \newcommand{\alphahat}{\hat{\alpha}}
 \newcommand{\betahat}{\hat{\beta}}
@@ -42,11 +42,13 @@
 
 \newcommand{\fnSynth}{\synth\hspace{-5px}\synth}
 
+\newcommand{\pronounce}[2]{{\makebox[\linewidth][l]{\framebox{#1} \parbox{\textwidth}{#2}}}}
+
 % simplicity: Pierce and Turner: 55 rules. DOES NOT INCLUDE EXPRESSION TYPING
 
 \begin{document}
 
-\title{Simple Bidirectional Typechecking for Higher-Order Polymorphism with Subtyping}
+\title{Simple Bidirectional Typechecking for Higher-Rank Polymorphism with Subtyping}
 \numberofauthors{3}
 \author{
 	\alignauthor
@@ -74,13 +76,15 @@ Bidirectional typechecking is a common method for implementing typecheckers. The
 
 Polymorphism is an important modern type system feature, and is common to many popular programming languages, including Java and C\#. However, past work on implementing it within bidirectional type systems has been complex, with the most notable work, Pierce and Turner's 2000 contribution~\cite{Pierce:2000:LTI:345099.345100} requiring constraint resolution. New approaches have been proposed since that time, by Odersky et al~\cite{odersky2001colored} and Dunfield et al~\cite{Dunfield:2013:CEB:2544174.2500582}, but these approaches, while simpler, consider languages without subtyping, reducing their applicability to many programming languages.
 
-We propose a new technique based on Dunfield et al~\cite{Dunfield:2013:CEB:2544174.2500582}, providing a simple approach for bidirectional typechecking among languages with higher-order polymorphism. We build off of the basic type system described by Dunfield, adding a constraint resolution system similar to the one used by Pierce, but while retaining the simple proof-theoretic construction of Dunfield. 
+The issue created by these approaches can be seen in very simple and common examples, as seen in figure~\ref{fig:intro-examples}. In this example, we attempt to pass a currying generic function two optional values, a use case that is commonly seen in scan and fold operations. However, typical approaches first check $f(\text{None})$ and infer that $f(\text{None}) : \text{None} \rightarrow \text{None}$, a type that clearly is inconsistent with the second argument to the function.
+
+We propose a new technique based on Dunfield et al~\cite{Dunfield:2013:CEB:2544174.2500582}, providing a simple approach for bidirectional typechecking among languages with higher-rank polymorphism. We build off of the basic type system described by Dunfield, adding a constraint resolution system similar to the one used by Pierce, but while retaining the simple proof-theoretic construction of Dunfield.
 \begin{figure}
 \centering
 \label{fig:intro-examples}
-\typeexample{\text{Car} \st \text{Vehicle}, \text{Truck} \st \text{Vehicle}}
-{c : \text{Car}, t : \text{Truck}, f : \forall \alpha.\alpha \rightarrow \alpha \rightarrow \alpha}
-{f(c)(t)}
+\typeexample
+{f : \forall \alpha.\alpha \rightarrow \alpha \rightarrow \alpha}
+{f(\text{None})(\text{Some}(3))}
 \caption{Terms where consideration of subtyping is required}
 \end{figure}
 
@@ -123,6 +127,7 @@ This approach is quite simple and elegant in construction, but has a major drawb
 %
  
 \begin{figure}
+\pronounce{$\Gamma \vdash A\lub B = C \dashv \Delta$}{Against context $\Gamma$, the least upper bound \\of $A$ and $B$ is $C$, producing output context $\Delta$}
 \[
 \begin{array}{llrcll}
 \;&\Gamma \vdash& 1 \lub 1 &=& 1 &\dashv \Gamma\\
@@ -139,6 +144,7 @@ This approach is quite simple and elegant in construction, but has a major drawb
 \multicolumn{6}{c}{\text{ if } \Gamma \vdash T \st S \dashv \Delta}\\
 \end{array}
 \]
+\pronounce{$\Gamma \vdash A\glb B = C \dashv \Delta$}{Against context $\Gamma$, the greatest lower bound \\of $A$ and $B$ is $C$, producing output context $\Delta$}
 \[
 \begin{array}{llrcll}
 \;&\Gamma \vdash& 1 \glb 1 &=& 1 &\dashv \Gamma\\
@@ -159,10 +165,16 @@ This approach is quite simple and elegant in construction, but has a major drawb
 \label{fig:bounds}
 \end{figure} 
 
-The structure of our language, environment, and types is identical to that of Dunfield et al, 2013~\cite{Dunfield:2013:CEB:2544174.2500582}, with one notable exception. Our system replaces the original $\Gamma, \hat{\alpha}$ and $\Gamma, \hat{\alpha}=\tau$ environment members with a new member, $\Gamma, \bound{\botbound }{\hat{\alpha}}{\topbound}$, or that $\alphahat$ is bounded below by $\botbound$ and above by $\topbound$. This new form allows us to store the bounds on the instantiation of an existential variable within a single context, negating the need for an additional constraint context.
+The structure of our language, environment, and types is almost identical to that of Dunfield et al, 2013~\cite{Dunfield:2013:CEB:2544174.2500582}. The core of this approach is the use of existential variables to determine subtyping relationships between parameterized types. For example, consider the types $\forall \alpha.\alpha$ and $\text{Int}$. Intuitively, a value of the type $\forall\alpha.\alpha$ can replace one with the type $\text{Int}$, simply by letting $\alpha=\text{Int}$. Dunfield's approach determines this by first converting $\forall\alpha.\alpha$ to $\alphahat$, where $\alphahat$ is an existential variable, and then checking if $\alphahat \st \text{Int}$. Since this clearly is true, the system determines that a subtype relation exists, and typechecking succeeds.
+
+Our approach works very similarly, using existential variables to infer generic type parameters. However, equality relationships in typing cannot handle type systems with subtyping beyond that exposed through higher-rank polymorphism, as the existential types will be resolved too early. Instead, we replace the original $\Gamma, \hat{\alpha}$ and $\Gamma, \hat{\alpha}=\tau$ environment members, representing existential variable assignment, with a new member, $\Gamma, \bound{\botbound }{\hat{\alpha}}{\topbound}$. This component should be interpreted as ``$\hat{\alpha}$ is between $\botbound$ and $\topbound$'' and allows us to represent constraints weaker than type equality on an existential variable.
 
 \subsection{Bounds}
 The bounding mechanism, as exposed in the context as $\bound{\botbound}{\hat{\alpha}}{\topbound}$, is the critical component of our system. A bound consists of two separate components: the concrete bound type $\tau$, and zero or more existential variables $\hat{\beta}, \ldots$. Each bound $\botbound,\topbound$ consists of a concrete bound plus zero or more existential bounds, allowing us to represent the set of constraints on the current existential variable and the variables that relate to it.
+
+To represent all possible bounds, we also have to add two types, $\top$ and $\bot$, that represent the maximal and minimal types. As these types cannot exist outside of bounds, we only define them within that context (see figure~\ref{fig:cons}). Bounds of this form appear when no ``tighter'' type has been determined, so a variable with the bounds $\bot\st\alphahat\st\top$ is one where any type will be a valid assignment of $\alphahat$.
+
+For example, a bound could be $\betahat\ctxbsep\tau\st\alphahat\st\top$, representing an existential type that bounds the other existential variable $\betahat$ from above, and is bounded in turn below by $\tau$ and above by $\top$. 
 
 
 \subsubsection{Concrete Bounds}
@@ -177,7 +189,7 @@ In concrete bounds, we also introduce the ``pseudotypes'' $\top$ and $\bot$. The
 \subsubsection{Existential Bounds}
 If we consider a variable bounded in the same way as discussed previously, $\hat{\alpha} \st \hat{\beta}, \hat{\beta} \st \tau$, and examine the first constraint, $\hat{\alpha} \st \hat{\beta}$, we would represent this constraint in the context by adding $\hat{\alpha}$ to the list of subtypes of $\hat{\beta}$, as in $\bound{\bot\ctxbsep \hat{\alpha}}{\hat{\beta}}{\top}$. Then, when we apply the constraint $\hat{\beta} \st \tau$, we also apply the constraint $\hat{\alpha}\st \tau$, which can be found through the new bound member. This allows us to maintain transitivity, as this relation is applied recursively.
 
-Note that the ``bound'' does not truly control the variable, as if $\Gamma, \bound{\tau}{\hat{\alpha}}{ \hat{\beta}}$, the relation $\hat{\alpha} \st \hat{\beta}$ holds, but is not maintained in the concrete bounds for $\hat{\alpha}$. Rather, we maintain this relationship by changing the bounds on $\hat{\beta}$. We do this to maintain the invariant that no ``forwards'' references are maintained in the context. For instance, if the context was structured as $\Gamma,\hat{\alpha},\hat{\beta}$, then we could interpret $\hat{\alpha}\st\hat{\beta}$ as as imposing a supertype constraint on $\hat{\alpha}$, creating the context $\Gamma,\hat{\alpha}\st\hat{\beta},\hat{\beta}$. However, once inference is complete, these existential variables are removed from the scope, last to first, potentially creating the context $\Gamma,\hat{\alpha}\st\hat{\beta}$, a patently nonsensical bound, as $\Gamma \vdash \betahat$ does not hold. As such, to avoid this, we always place the bound on the variable that is ``lowest'' in the context.
+Somewhat counter-intuitively, an existential bound $\betahat \st \alphahat \st \ldots$ should not be read as $\betahat$ bounds $\alphahat$ from below. Instead, it should be interpreted as $\alphahat$ bounds $\betahat$ from above. We implement bounds in this seemingly backwards manner to allow the context to remain well-formed. Definitionally, if an existential $\alphahat$ has some defined relationship to another existential $\betahat$, then $\betahat$ must be higher in the context than $\alphahat$. However, if $\alphahat$ is later removed from the context, $\betahat$ may end up with a existential bound that cannot be resolved against the current context. To avoid this, then, we define bounds bottom-to-top, with respect to the contexts.
  
 \subsection{Bound Operators}
 In order to maintain bounds without intersection and union types, we take the approach of introducing greatest lower bound and least upper bound operators from Pierce and Turner~\cite{Pierce:2000:LTI:345099.345100}. We use Pierce and Turner's construction and notation, with $S \st S \lub T, T \st S \lub T$, as well as $S \glb T \st S, S \glb T \st T$. However, we use a different formulation of these operators than Pierce and Turner do, as our bounding operators both only tighten the bounds, and also must ``save'' the (recursively) tightened environment produced by the subtyping checks that happen internally. We depict the rules governing the operators in figure~\ref{fig:bounds}.
@@ -188,6 +200,7 @@ It should be noted that at several points we write an expression of the form $\b
 
 \section{Algorithmic system}
 \begin{figure}
+\pronounce{$\botbound \sigbndl \tau$}{$\botbound$ is bounded above by $\tau$}
 \begin{mathpar}
 \inferrule*[right=BndLExt]{
 	\Gamma \vdash \tau\\
@@ -231,7 +244,9 @@ It should be noted that at several points we write an expression of the form $\b
 	\dashv
 		\Delta
 }
-\\
+\end{mathpar}
+\pronounce{$\tau \sigbndr \topbound$}{$\topbound$ is bounded below by $\tau$}
+\begin{mathpar}
 \inferrule*[right=BndRExt]{
 	\Gamma \vdash \tau\\
 		\Gamma
@@ -305,6 +320,7 @@ BndLType and BndRType deal with the type case of a concrete bound. They triviall
 BndLBot and BndRType are trivial, as the constraint they check is always true over the domain of the operator. As such, we only need to ensure that the type is valid against the input context.
 
 \begin{figure}
+\pronounce{$\alphahat \siginstl \topbound$}{Bound $\alphahat$ above with $\topbound$}
 \begin{mathpar}
 \inferrule*[right=SigInstLReach]{
 	\Gamma \vdash \hat{\alpha} \bndl \hat{\beta} \dashv \Theta\\
@@ -327,7 +343,9 @@ BndLBot and BndRType are trivial, as the constraint they check is always true ov
 {
 	\Gamma \vdash \hat{\alpha} \siginstl \top \dashv \Gamma
 }
-\\
+\end{mathpar}
+\pronounce{$\botbound\siginstr\alphahat$}{Bound $\alphahat$ below with $\botbound$}
+\begin{mathpar}
 \inferrule*[right=SigInstRReach]{
 	\Gamma \vdash \hat{\beta} \bndr \hat{\alpha} \dashv \Theta\\
 	\Theta \vdash \botbound \siginstr \hat{\alpha} \dashv \Delta
@@ -369,6 +387,9 @@ SigInstLTop and SigInstRTop implement the ``null'' case, where the existential $
 
 \subsection{Instantiation}
 \begin{figure*}
+\pronounce{$\Gamma \vdash e \synth A \dashv \Delta$}{Under context $\Gamma$, $e$ synthesizes output type $A$, with output context $\Delta$}
+\pronounce{$\Gamma \vdash e \analyzes A \dashv \Delta$}{Under context $\Gamma$, $e$ analyzes against the type $A$, with output context $\Delta$}
+\pronounce{$\Gamma \vdash A\bullet e \fnSynth C \dashv \Delta$}{Under context $\Gamma$, applying a function of type $A$ to an expression $e$ synthesizes type $C$ and output context $\Delta$}
 \centering
 \begin{mathpar}
 \inferrule*[right=Var]{
@@ -467,6 +488,7 @@ SigInstLTop and SigInstRTop implement the ``null'' case, where the existential $
 \end{figure*}
 
 \begin{figure*}
+\pronounce{$\Gamma \vdash A \st B \dashv \Delta$}{Against the context $\Gamma$, $A$ is a subtype of $B$, producing output context $\Delta$}
 \centering
 \begin{mathpar}
 \inferrule*[right=\st Var] { }
@@ -530,6 +552,8 @@ SigInstLTop and SigInstRTop implement the ``null'' case, where the existential $
 \end{figure*}
 
 \begin{figure*}
+\pronounce{$\Gamma \vdash \alphahat \instl A \dashv \Delta$}{Under context $\Gamma$, bound $\alphahat$ above with $A$ producing output context $\Delta$}
+\pronounce{$\Gamma \vdash A \instr \alphahat \dashv \Delta$}{Under context $\Gamma$, bound $\alphahat$ below with $A$ producing output context $\Delta$}
 \centering
 \begin{mathpar}
 \inferrule*[right=InstL]{ 
