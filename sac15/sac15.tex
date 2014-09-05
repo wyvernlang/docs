@@ -273,16 +273,15 @@ An expression keyword is a keyword associated with a parser to transform DSL lit
 We start with an example showing the usage of an expression keyword to construct an \verb|HTML| value using an expression keyword \verb|simpleHTML|, which provides an alternative syntax to construct the HTML value. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The syntax is declared using a parser TSL in line 2-10 in figure \ref{f-simplehtml}.
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
-expkw simpleHTML : HTML = ~
-  val parser = ~
-    @\expkwparsercolor{start <- '>body'= attributes> start>}@
-      fn attrs, child => "@\expcolor{BodyElement((\$}@attrs@\expcolor{, \$}@child@\expcolor{))}@"
-    @\expkwparsercolor{start <- '>p'= attributes> start>}@
-      fn attrs, child => "@\expcolor{PElement((\$}@attrs@\expcolor{, \$}@ child@\expcolor{))}@"
-    @\expkwparsercolor{start <- text}@
-      fn text => "@\expcolor{Text(\$}@text@\expcolor{)}@"
-    @\expkwparsercolor{start <- '<'= EXP>}@
-      fn e => '@\expcolor{\$}@e'
+expkw simpleHTML : HTML = ~ (* : ExpParser *)
+  @\expkwparsercolor{start <- '>body'= attributes> start>}@
+    fn attrs, child => "@\expcolor{BodyElement((\$}@attrs@\expcolor{, \$}@child@\expcolor{))}@"
+  @\expkwparsercolor{start <- '>p'= attributes> start>}@
+    fn attrs, child => "@\expcolor{PElement((\$}@attrs@\expcolor{, \$}@ child@\expcolor{))}@"
+  @\expkwparsercolor{start <- text}@
+    fn text => "@\expcolor{Text(\$}@text@\expcolor{)}@"
+  @\expkwparsercolor{start <- '<'= EXP>}@
+    fn e => '@\expcolor{\$}@e'
 val y : HTML = simpleHTML ~
   @\simpleHTMLcolor{>body[id="doc1"]}@
     @\simpleHTMLcolor{>h1 <\{}@heading_text@\simpleHTMLcolor{\}}@
@@ -303,14 +302,13 @@ Different from black-box keywords, white-box keywords are defined without a retu
 type Bool = casetype 
   True
   False
-  expkw if = ~
-    val parser = fn self => ~
-      @\expkwparsercolor{EXP BOUNDARY `else' BOUNDARY EXP}@
-        fn e1, e2 => ~
-          @\expcolor{case \$}@self
-            @\expcolor{True => \$}@e1
-            @\expcolor{False => \$}@e2
-def f(x : Bool)
+  expkw if = fn self (* : Exp *) => ~ (* : ExpParser *)
+    @\expkwparsercolor{EXP BOUNDARY `else' BOUNDARY EXP}@
+      fn e1 (* : Exp *), e2 (* : Exp *) => ~ (* : Exp *)
+        @\expcolor{case \$}@self
+          @\expcolor{True => \$}@e1
+          @\expcolor{False => \$}@e2
+def f(x : Bool) : T
   x.if {branch_1} @\boolIfcolor{else}@ {branch_2}
 \end{lstlisting}
 \caption{The black-box keyword `if' example\todo{color quotations}}
@@ -323,11 +321,8 @@ The keyword is associated with the type \verb|Bool| so it can be invoked on any 
 
 \begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
-type ExpKw = objtype
-  val parser : ExpParser
-
 type ExpParser = objtype
-  def parse(ps : ParseStream, exp : Exp) : Result(Exp)
+  def parse(ps : ParseStream) : Result(Exp)
   metadata : HasTSL = new 
     val parser = (* parser generator *)
 
@@ -338,10 +333,6 @@ type Exp = casetype
   (* ... *)
   metadata : HasTSL = new
     val parser = (* exp quasiquotes *)
-
-type KwMember = casetype
-  Whitebox of Label * ExpKw
-  Blackbox of Label * ExpKw * Type
 
 type Result[T] = casetype
   OK of T * ParseStream
@@ -401,50 +392,49 @@ val db : EmployeesDB = new
 
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
-typekw DBSchema with metadata : HasTSL = new
-  val parser = ~
-    @\typekwparsercolor{start <- pairs}@
-      fn pairs =>
-        let ty : Type = ~
-          @\typecolor{objtype}@
-            @\typecolor{type Entry = objtype}@
-              @\typecolor{\{}@map(pairs, Nil, 
-                fn ((p, lbl, ty), l) => Cons(~, l))
-                  @\membercolor{val \$}@lbl @\membercolor{:  \$}@ty
-              @\typecolor{\}}@
-            @\typecolor{val connection : URL}@
-            @\typecolor{val username : String}@
-            @\typecolor{val password : String}@
-            @\typecolor{...}@
+typekw DBSchema with metadata:HasTSL = ~ (*:TypeParser*)
+  @\typekwparsercolor{start <- pairs}@
+    fn pairs =>
+      let ty : Type = ~
+        @\typecolor{objtype}@
+          @\typecolor{type Entry = objtype}@
             @\typecolor{\{}@map(pairs, Nil, 
-              (fn ((p, lbl, ty), l) => Cons(~, l)))
-                @\membercolor{def getBy\$}@lbl @\membercolor{(\$}@ty@\membercolor{)}@
+              fn ((p, lbl, ty), l) => Cons(~, l))
+                @\membercolor{val \$}@lbl @\membercolor{:  \$}@ty
             @\typecolor{\}}@
-        let md : HasTSL = new 
-          val parser = ~
-            @\hastslcolor{start <- ("connect to "= EXP>}@
-                      @\hastslcolor{"username:"= EXP>}@
-                      @\hastslcolor{"password:"= EXP>}@
-                      @\hastslcolor{"table:" EXP>)}@
-              fn url, un, pw, table => ~
-                @\expcolor{new}@ 
-                  @\expcolor{val connection = \$}@url
-                  @\expcolor{val username = \$}@un
-                  @\expcolor{val password = \$}@pw
-                  @\expcolor{...}@
-                  @\expcolor{\{}@map(pairs, Nil, 
-                    (fn ((p, lbl, ty), l) => Cons(~, l)))
-                      @\membercolor{def getBy}@$lbl @\membercolor{(x)}@ 
-                        @\membercolor{...}@(* implementation *)
-                  @\expcolor{\}}@
-        (ty, md, Nil)
-    @\typekwparsercolor{pairs <- ()}@
-      fn () => Nil 
-    @\typekwparsercolor{pairs <- pair= pairs=}@
-      fn hd, tl => Cons(hd, tl)
-    @\typekwparsercolor{pair <- "*"? ID ID}@
-      fn is_primary, colid, tyid => (
-        is_primary, colid, ty_from_sqlty(tyid))
+          @\typecolor{val connection : URL}@
+          @\typecolor{val username : String}@
+          @\typecolor{val password : String}@
+          @\typecolor{...}@
+          @\typecolor{\{}@map(pairs, Nil, 
+            (fn ((p, lbl, ty), l) => Cons(~, l)))
+              @\membercolor{def getBy\$}@lbl @\membercolor{(\$}@ty@\membercolor{)}@
+          @\typecolor{\}}@
+      let md : HasTSL = new 
+        val parser = ~
+          @\hastslcolor{start <- ("connect to "= EXP>}@
+                    @\hastslcolor{"username:"= EXP>}@
+                    @\hastslcolor{"password:"= EXP>}@
+                    @\hastslcolor{"table:" EXP>)}@
+            fn url, un, pw, table => ~
+              @\expcolor{new}@ 
+                @\expcolor{val connection = \$}@url
+                @\expcolor{val username = \$}@un
+                @\expcolor{val password = \$}@pw
+                @\expcolor{...}@
+                @\expcolor{\{}@map(pairs, Nil, 
+                  (fn ((p, lbl, ty), l) => Cons(~, l)))
+                    @\membercolor{def getBy}@$lbl @\membercolor{(x)}@ 
+                      @\membercolor{...}@(* implementation *)
+                @\expcolor{\}}@
+      (ty, md, Nil)
+  @\typekwparsercolor{pairs <- ()}@
+    fn () => Nil 
+  @\typekwparsercolor{pairs <- pair= pairs=}@
+    fn hd, tl => Cons(hd, tl)
+  @\typekwparsercolor{pair <- "*"? ID ID}@
+    fn is_primary, colid, tyid => (
+      is_primary, colid, ty_from_sqlty(tyid))
 \end{lstlisting}
 \caption{The declaration the type keyword ``DBTable''}
 \label{typekw-example-1}
@@ -458,9 +448,6 @@ We present an example in figure \ref{typekw-example-1}: constructing the type \v
 With the parser declared, the type \verb|Employee| is created using an database schema syntax (line 19-20), and then use external syntax which specifies the connections (line 23-25) to initialize the data. The type \verb|Employee| and the value \verb|d| after elaboration is presented in figure \ref{typekw-example-2}: the field \verb|employee| is the structure to hold the data table, and method \verb|getById| is defined to retrieve elements by ID while fields related to connection are generated whatever schema is used.
 \begin{figure}
 \begin{lstlisting}[style=wyvern]
-type TypeKw = objtype
-  val parser : TypeParser
-
 type TypeParser = objtype
   def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
   metadata : HasTSL = new 
@@ -473,6 +460,10 @@ type Type = casetype
   Arrow of Type * Type
   metadata : HasTSL = new
     val parser = (* type quasiquotes *)
+
+type KwMember = casetype
+  Whitebox of Label * ExpKw
+  Blackbox of Label * ExpKw * Type
 \end{lstlisting}
 \caption{Wyvern prelude for type keywords}
 \end{figure}
@@ -504,7 +495,7 @@ The syntax for composable syntax macros is presented as an extension of TSL synt
   Object Fields       & $\omega$          & ::= &  $\emptyset$                      & $\omega$  & $\rightarrow$ & $\epsilon$\\
                       &                   & &  $l[\tau];\omega$                 &           & $\rightarrow$ & $l$ : $\tau$ $\searrow\omega$\\
   Casetype Cases      & $\chi$            & ::= &  $\emptyset$                      & $\chi$    & $\rightarrow$ & $\epsilon$ \\                 
-                      &                   &     &  $C[\tau];\chi$                   &           & $\rightarrow$ & $C$ : $\tau$ $\searrow\chi$\\
+                      &                   &     &  $C[\tau];\chi$                   &           & $\rightarrow$ & $C$~\textcd{of}~$\tau$ $\searrow\chi$\\
   External Term       & $e$               & ::= &  ...                              & $e$       & $\rightarrow$ & $...$\\
                       &                   &     &  $\mathbf{lit}[body]$             &           & $\rightarrow$ & $delims$\\
                       &                   &     &  $\mathbf{ekey}[k,body](e)$       &           & $\rightarrow$ & $e.k$ $delims$\\
@@ -630,7 +621,7 @@ Extension of the TSL Wyvern semantics with keywords mechanism still constitutes 
 To formalize the type safety property, we defined the judgments for context formation, type formation and bidirectional typing judgment. \todo{Refer to TSL as well as TR}
 
 \begin{theorem}[Internal Type Safety]
-If ~$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$~ and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash^{\Theta}_{\Theta}i'\Leftarrow\tau$.
+If ~$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$~ and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash_{\Theta}i'\Leftarrow\tau$.
 \end{theorem}
 \begin{proof}
 As the keyword extension on TSL framework does not extend inner Wyvern expressions, the proof for this theorem is directly from TSL proof. 
