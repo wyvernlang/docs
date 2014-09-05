@@ -57,6 +57,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{verbatim}
+\usepackage[skip=0pt]{caption}
 \EnableBpAbbreviations
 \input{macros.tex}
 
@@ -93,12 +94,18 @@ tabsize=4, % Number of spaces per tab in the code
 }
 \lstset{basicstyle=\footnotesize\,breaklines=true}
 \lstset{escapeinside={@}{@}}
-\newcommand{\dslgreen}[1]{\textcolor[HTML]{339933}{#1}}
-\newcommand{\dslblue}[1]{\textcolor[HTML]{336699}{#1}}
-\newcommand{\dslyellow}[1]{\textcolor[HTML]{FFCC33}{#1}}
-\newcommand{\dslred}[1]{\textcolor[HTML]{FF0033}{#1}}
-\newcommand{\dslorange}[1]{\textcolor[HTML]{FF6600}{#1}}
-\newcommand{\dslpurple}[1]{\textcolor[HTML]{660066}{#1}}
+\newcommand{\htmlcolor}[1]{\textcolor[HTML]{339933}{#1}}
+\newcommand{\expkwparsercolor}[1]{\textcolor[HTML]{336699}{#1}}
+\newcommand{\typekwparsercolor}[1]{\textcolor[HTML]{7C803E}{#1}}
+\newcommand{\urlcolor}[1]{\textcolor[HTML]{FFCC33}{#1}}
+\newcommand{\expcolor}[1]{\textcolor[HTML]{FF0033}{#1}}
+\newcommand{\membercolor}[1]{\textcolor[HTML]{FF6600}{#1}}
+\newcommand{\typecolor}[1]{\textcolor[HTML]{660066}{#1}}
+\newcommand{\dbcolor}[1]{\textcolor[HTML]{FF47FF}{#1}}
+\newcommand{\hastslcolor}[1]{\textcolor[HTML]{002FC9}{#1}}
+\newcommand{\simpleHTMLcolor}[1]{\textcolor[HTML]{7D5100}{#1}}
+\newcommand{\boolIfcolor}[1]{\textcolor[HTML]{5E0C0C}{#1}}
+\newcommand{\dbshcemacolor}[1]{\textcolor[HTML]{5AC3D1}{#1}}
 
 \newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
 \newcommand{\myvdash}{\vdash_{\Theta}^{\Delta}}
@@ -107,6 +114,7 @@ tabsize=4, % Number of spaces per tab in the code
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
 \newtheorem{definition}{Definition}
+\newtheorem{property}{Property}
 
 \begin{document}
 
@@ -209,22 +217,101 @@ The following example (Figure \ref{f-htmltype}) illustrates how to use TSL to co
 
 \begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
-type TypeKw = objtype
-  val parser : TypeParser
+type HTML = casetype 
+  Empty of Unit
+  Seq of HTML * HTML 
+  Text of String
+  BodyElement of Attributes * HTML
+  PElement of Attributes * HTML
+  StyleElement  of Attributes * CSS
+  ... (* Other HTML cases *)
+  metadata = new : HasTSL
+    val parser = ~
+      @\hastslcolor{...}@ (* HTML parser definition *)
 
-type TypeParser = objtype
-  def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
-  metadata : HasTSL = new 
-    val parser = (* parser generator *)
+val heading_text : String = "A Heading"
+val x : HTML = ~
+  @\htmlcolor{<body id="doc1">
+    <h1><\{}@heading_text@\htmlcolor{\}></h1>
+    <p>My first paragraph.</p>
+  </body>}@
+\end{lstlisting}
+\caption{A Wyvern case type with an associated TSL. \todo{color TSLs and show splicing. Set vspace using tex setting.}}
+\label{f-htmltype}
+\end{figure}
 
-type Type = casetype
-  Named of ID
-  Objtype of List(MemberDecl)
-  Casetype of List(CaseDecl)
-  Arrow of Type * Type
-  metadata : HasTSL = new
-    val parser = (* type quasiquotes *)
+In this example, we present the declaration of type \verb|HTML| as a Wyvern casetype with different HTML cases (StyleElement, Text etc). Along with the definition of different cases, a metadata of type \verb|HasParser| is defined with a parser to transform inserted DSL literals with HTML syntax. In line 13-17 of figure \ref{f-htmltype}, we construct a value \verb|x| of type \verb|HTML| using HTML syntax rather initialized all fields and methods one by one. The literals present inside the declaration body of type HTML body after a tilde (\verb|~|), and as the tilde indicates that the TSL body is the layout-delimited block beginning on the next line, the parser in the metadata of HTML will be invoked to parse them and then initialize the value \verb|x|.
 
+Using TSL mechanism, DSL literals (HTML in this example) can be safely injected into Wyvern, and with its type-specific property, composing different DSL syntax in Wyvern can be easily achieved. 
+
+Although TSL provides the mechanism to construct data using DSL syntax, TSL alone is not powerful enough enough due to its limits on: 
+\begin{enumerate}\setlength{\itemsep}{0pt}
+\item Only a single choice of syntax is available for any particular type.
+\item This couldn't be used to handle the usage of external syntax on an existing value after its construction.
+\item Only value construction is permitted with external syntax while type construction using external schema is not possible.
+\end{enumerate}
+
+In the following sections, we introduce an extensible keyword framework to deal with these problems mentioned before built atop of TSLs in Wyvern language. 
+
+\section{Extensible keywords in Wyvern}
+Several examples are presented in this section how the extensible keywords are used to solve these problems.
+\subsection{Expression Keyword}
+An expression keyword is a keyword associated with a parser to transform DSL literals into a Wyvern expression. Depending on whether a keyword provides the return type in its declaration, expression keywords are separated into two kinds, namely black-box keyword and white-box keyword (This terminology is borrowed from Scala's macro system). 
+
+\paragraph{Black-box ``simpleHTML'' keyword}
+We start with an example showing the usage of an expression keyword to construct an \verb|HTML| value using an expression keyword \verb|simpleHTML|, which provides an alternative syntax to construct the HTML value. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The syntax is declared using a parser TSL in line 2-10 in figure \ref{f-simplehtml}.
+\begin{figure}[ht]
+\begin{lstlisting}[style=wyvern]
+expkw simpleHTML : HTML = ~
+  val parser = ~
+    @\expkwparsercolor{start <- '>body'= attributes> start>}@
+      fn attrs, child => "@\expcolor{BodyElement((\$}@attrs@\expcolor{, \$}@child@\expcolor{))}@"
+    @\expkwparsercolor{start <- '>p'= attributes> start>}@
+      fn attrs, child => "@\expcolor{PElement((\$}@attrs@\expcolor{, \$}@ child@\expcolor{))}@"
+    @\expkwparsercolor{start <- text}@
+      fn text => "@\expcolor{Text(\$}@text@\expcolor{)}@"
+    @\expkwparsercolor{start <- '<'= EXP>}@
+      fn e => '@\expcolor{\$}@e'
+val y : HTML = simpleHTML ~
+  @\simpleHTMLcolor{>body[id="doc1"]}@
+    @\simpleHTMLcolor{>h1 <\{}@heading_text@\simpleHTMLcolor{\}}@
+    @\simpleHTMLcolor{>p My first paragraph}@
+\end{lstlisting}
+\caption{The `simpleHTML' keyword example.\todo{set uniform spacing for whole document}}
+\label{f-simplehtml}
+\end{figure}
+
+Besides the definition of the parser for \verb|simpleHTML| syntax, the return type (\verb|HTML|) is also provided, which indicates that the DSL literals used in the body of the keyword invocation will elaborates to an expression of type \verb|HTML|. The invocation of the keyword is presented in line 11-14, including a call to the keyword \verb|simpleHTML|, and providing the DSL literals in the next indent level (colored brown). The variable \verb|heading_text| (colored black, in line 13), a Wyvern variable of type\verb|String| defined in line 10 of figure \ref{f-htmltype}, is inserted using curly braces to switch back to Wyvern.
+
+The goal to support multiple external syntax for one type can be achieved using expression keywords.
+
+\paragraph{White-box ``if'' keyword}
+Different from black-box keywords, white-box keywords are defined without a return type. Here we use the key word \verb|if| as an example. The keyword \verb|if| is declared in the type \verb|Bool|, a casetype with two cases: \verb|True| and \verb|False|. As no return type is declared with \verb|if|, it will synthesize the return type based on the expression the DSL literals transformed to. The usage of the casetype requires the user to explicitly name two conditions, while using \verb|if| macro can simplify this.
+\begin{figure}[ht]
+\begin{lstlisting}[style=wyvern]
+type Bool = casetype 
+  True
+  False
+  expkw if = ~
+    val parser = fn self => ~
+      @\expkwparsercolor{EXP BOUNDARY `else' BOUNDARY EXP}@
+        fn e1, e2 => ~
+          @\expcolor{case \$}@self
+            @\expcolor{True => \$}@e1
+            @\expcolor{False => \$}@e2
+def f(x : Bool)
+  x.if {branch_1} @\boolIfcolor{else}@ {branch_2}
+\end{lstlisting}
+\caption{The black-box keyword `if' example\todo{color quotations}}
+\label{if-example}
+\end{figure}
+
+The syntax for the body of \verb|if| is defined in line 6, as two expressions with an addition inner keyword by a keyword \verb|`else'|. Here we use the mechanism in TSL to support multi-part body parsing: any delimited forms appeared next to each other or delimited by a keyword. The parser will then identify the variables and translate them into the grammar with \verb|BOUNDARY| token. The keyword invocation in line 13 will first identify the type of the term \verb|x|, then search the keyword definition of \verb|if| to select the right parser to transform the body. 
+
+The keyword is associated with the type \verb|Bool| so it can be invoked on any value of type \verb|Bool|, which permits operations on value after initialization. And it is composable without conflicts based on identification of types. 
+
+\begin{figure}[ht!]
+\begin{lstlisting}[style=wyvern]
 type ExpKw = objtype
   val parser : ExpParser
 
@@ -249,181 +336,26 @@ type Result[T] = casetype
   OK of T * ParseStream
   Error of String * Location
 \end{lstlisting}
-\vspace{-8px}
-\caption{Wyvern prelude for keywords extension}
-\vspace{-10px}
+\caption{Wyvern prelude for expression keywords extension}
 \end{figure}
-
-\begin{figure}[ht!]
-\begin{lstlisting}[style=wyvern]
-type HTML = casetype 
-  Empty of Unit
-  Seq of HTML * HTML 
-  Text of String
-  BodyElement of Attributes * HTML
-  PElement of Attributes * HTML
-  StyleElement  of Attributes * CSS
-  ... (* Other HTML cases *)
-  metadata = new : HasTSL
-    val parser = ~
-      @\dslblue{...}@ (* HTML parser definition *)
-
-val heading_text : String = "A Heading"
-val x : HTML = ~
-  @\dslgreen{<body id="doc1">
-    <h1><\{}@heading_text@\dslgreen{\}></h1>
-    <p>My first paragraph.</p>
-  </body>}@
-\end{lstlisting}
-\vspace{-8px}
-\caption{A Wyvern case type with an associated TSL. \todo{color TSLs and show splicing. Set vspace using tex setting.}}
-\vspace{-10px}
-\label{f-htmltype}
-\end{figure}
-
-In this example, we present the declaration of type \verb|HTML| as a Wyvern casetype with different HTML cases (StyleElement, Text etc). Along with the definition of different cases, a metadata of type \verb|HasParser| is defined with a parser to transform inserted DSL literals with HTML syntax. In line 13-17 of figure \ref{f-htmltype}, we construct a value \verb|x| of type \verb|HTML| using HTML syntax rather initialized all fields and methods one by one. The literals present inside the declaration body of type HTML body after a tilde (\verb|~|), and as the tilde indicates that the TSL body is the layout-delimited block beginning on the next line, the parser in the metadata of HTML will be invoked to parse them and then initialize the value \verb|x|.
-
-Using TSL mechanism, DSL literals (HTML in this example) can be safely injected into Wyvern, and with its type-specific property, composing different DSL syntax in Wyvern can be easily achieved. 
-
-Although TSL provides the mechanism to construct data using DSL syntax, TSL alone is not powerful enough enough due to its limits on: 
-\begin{enumerate}\setlength{\itemsep}{0pt}
-\item Only a single choice of syntax is available for any particular type.
-\item This couldn't be used to handle the usage of external syntax on an existing value after its construction.
-\item Only value construction is permitted with external syntax while type construction using external schema is not possible.
-\end{enumerate}
-
-In the following sections, we introduce an extensible keyword framework to deal with these problems mentioned before built atop of TSLs in Wyvern language. 
-
-\section{Extensible keywords in Wyvern}
-Several examples are presented in this section how the extensible keywords are used to solve these problems.
-\subsection{Expression Keyword}
-An expression keyword is a keyword associated with a parser to transform DSL literals into a Wyvern expression. Depending on whether a keyword provides the return type in its declaration, expression keywords are separated into two kinds, namely black-box keyword and white-box keyword (This terminology is borrowed from Scala's macro system). 
-
-\paragraph{Black-box ``simpleHTML'' keyword}
-We start with an example showing the usage of an expression keyword to construct an \verb|HTML| object with an alternative \verb|simpleHTML| syntax rather than the original HTML syntax displayed in figure \ref{f-htmltype}. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The parser of the grammar is defined in line 2-10 in figure \ref{f-simplehtml}.
-\begin{figure}[ht]
-\begin{lstlisting}[style=wyvern]
-expkw simpleHTML : HTML = ~
-  val parser = ~
-    @\dslblue{start <- '>body'= attributes> start>}@
-      fn attrs, child => "@\dslred{BodyElement((\$}@attrs@\dslred{, \$}@child@\dslred{))}@"
-    @\dslblue{start <- '>p'= attributes> start>}@
-      fn attrs, child => "@\dslred{PElement((\$}@attrs@\dslred{, \$}@ child@\dslred{))}@"
-    @\dslblue{start <- text}@
-      fn text => "@\dslred{Text(\$}@text@\dslred{)}@"
-    @\dslblue{start <- '<'= EXP>}@
-      fn e => '@\dslred{\$}@e'
-val y : HTML = simpleHTML ~
-  @\dslgreen{>body[id="doc1"]}@
-    @\dslgreen{>h1 <\{}@heading_text@\dslgreen{\}}@
-    @\dslgreen{>p My first paragraph}@
-\end{lstlisting}
-\vspace{-8px}
-\caption{The `simpleHTML' keyword example.\todo{set uniform spacing for whole document}}
-\vspace{-10px}
-\label{f-simplehtml}
-\end{figure}
-
-In figure \ref{f-simplehtml}, a black-box keyword \texttt{simpleHTML} is declared, which provides a parser to parse DSL literals written in an alternative \verb|simpleHTML| syntax. The keyword \texttt{simpleHTML} is declared with a return type, namely \texttt{HTML}, meaning that the DSL literals used in the body of the keyword invocation will elaborates to an expression of type \texttt{HTML}. As the keyword is declared as a global keywords, distinguished from those associated with a type, it is used directly by invoking the keyword name, followed by the DSL literals. In this way, if more than one keywords are defined to return an expression of type \verb|HTML|, the goal to integrate multiple external syntax for one type can be achieved.
-
-\paragraph{White-box ``if'' keyword}
-Another example about a white-box keyword \verb|if|. The keyword \verb|if| is declared in the type \verb|Bool|, a casetype with two cases of \verb|True| and \verb|False| without a return type, meaning that the type of the value the keyword invocation generated should be determined be the expression after literal transformation. An general usage of the casetype requires the user to explicitly name two conditions, while using \verb|if| macro can simplify this.
-\begin{figure}[ht]
-\begin{lstlisting}[style=wyvern]
-type Bool = casetype 
-  True
-  False
-  expkw if = ~
-    val parser = fn self => ~
-      @\dslblue{EXP BOUNDARY `else' BOUNDARY EXP}@
-        fn e1, e2 => ~
-          @\dslred{case \$}@self
-            @\dslred{True => \$}@e1
-            @\dslred{False => \$}@e2
-def f(x : Bool)
-  x.if {branch_1} @\dslgreen{else}@ {branch_2}
-\end{lstlisting}
-\vspace{-8px}
-\caption{The black-box keyword `if' example\todo{color quotations}}
-\vspace{-10px}
-\label{if-example}
-\end{figure}
-
-The syntax for the body of \verb|if| is defined in line 6, as two expressions with an addition inner keyword by a keyword \verb|`else'|. Here we use the mechanism in TSL to support multi-part body parsing: any delimited forms appeared next to each other or delimited by a keyword. The parser will then identify the variables and translate them into the grammar with \verb|BOUNDARY| token. The keyword invocation in line 13 will first identify the type of the term \verb|x|, then search the keyword definition of \verb|if| to select the right parser to transform the body. 
-
-The keyword is associated with the type \verb|Bool| so it can be invoked on any value of type \verb|Bool|, which permits operations on value after initialization. And it is composable without conflicts based on identification of types. 
 
 \subsection{Type Keyword}
 Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Declaring a type and defining a value requires much repetitive works to define fields and methods based on the data schema, and constructing a type and generating a metadata using data schema for a type can be easier. The following example shows how we construct a type using database schema.
-\begin{figure}[ht]
-\begin{lstlisting}[style=wyvern]
-typekw DBSchema with metadata : HasTSL = new
-  val parser = ~
-    @\dslblue{start <- pairs}@
-      fn pairs =>
-        let ty : Type = ~
-          @\dslpurple{objtype}@
-            @\dslpurple{type Entry = objtype}@
-              @\dslpurple{\{}@map(pairs, Nil, 
-                fn ((p, lbl, ty), l) => Cons(~, l))
-                  @\dslorange{val \$}@lbl @\dslorange{:  \$}@ty
-              @\dslpurple{\}}@
-            @\dslpurple{val connection : URL}@
-            @\dslpurple{val username : String}@
-            @\dslpurple{val password : String}@
-            @\dslpurple{...}@
-            @\dslpurple{\{}@map(pairs, Nil, 
-              (fn ((p, lbl, ty), l) => Cons(~, l)))
-                @\dslorange{def getBy\$}@lbl @\dslorange{(\$}@ty@\dslorange{)}@
-            @\dslpurple{\}}@
-        let md : HasTSL = new 
-          val parser = ~
-            @\dslblue{start <- ("connect to "= EXP>}@
-                      @\dslblue{"username:"= EXP>}@
-                      @\dslblue{"password:"= EXP>}@
-                      @\dslblue{"table:" EXP>)}@
-              fn url, un, pw, table => ~
-                @\dslred{new}@ 
-                  @\dslred{val connection = \$}@url
-                  @\dslred{val username = \$}@un
-                  @\dslred{val password = \$}@pw
-                  @\dslred{...}@
-                  @\dslred{\{}@map(pairs, Nil, 
-                    (fn ((p, lbl, ty), l) => Cons(~, l)))
-                      @\dslorange{def getBy}@$lbl @\dslorange{(x)}@ 
-                        @\dslorange{...}@(* implementation *)
-                  @\dslred{\}}@
-        (ty, md, Nil)
-    @\dslblue{pairs <- ()}@
-      fn () => Nil 
-    @\dslblue{pairs <- pair= pairs=}@
-      fn hd, tl => Cons(hd, tl)
-    @\dslblue{pair <- "*"? ID ID}@
-      fn is_primary, colid, tyid => (
-        is_primary, colid, ty_from_sqlty(tyid))
-\end{lstlisting}
-\vspace{-8px}
-\caption{The declaration the type keyword ``DBTable''}
-\vspace{-10px}
-\label{typekw-example-1}
-\end{figure}
 
 \begin{figure}
 \begin{lstlisting}[style=wyvern]
 type EmployeesDB = DBSchema ~
-  @\dslblue{*ID   int}@
-  @\dslblue{Name  varchar}@
+  @\dbshcemacolor{*ID   int}@
+  @\dbshcemacolor{Name  varchar}@
 
 val db : EmployeeDB = ~
-  @\dslgreen{connect to}@ ~
-    @\dslyellow{mysql://localhost:3306}@
-  @\dslgreen{username: }@"user1"
-  @\dslgreen{password: }@"001"
-  @\dslgreen{table: Employees}@
+  @\dbcolor{connect to}@ ~
+    @\urlcolor{mysql://localhost:3306}@
+  @\dbcolor{username: }@"user1"
+  @\dbcolor{password: }@"001"
+  @\dbcolor{table: Employees}@
 \end{lstlisting}
-\vspace{-8px}
 \caption{The usage of the type keyword ``DBTable''}
-\vspace{-10px}
 \end{figure}
 
 \begin{figure}[ht]
@@ -452,10 +384,59 @@ val db : EmployeesDB = new
   def getByID(x:Int) : List(Entry)
     ...
 \end{lstlisting}
-\vspace{-8px}
 \caption{An alternative version without using type keyword}
-\vspace{-10px}
 \label{typekw-example-2}
+\end{figure}
+
+\begin{figure}[ht]
+\begin{lstlisting}[style=wyvern]
+typekw DBSchema with metadata : HasTSL = new
+  val parser = ~
+    @\typekwparsercolor{start <- pairs}@
+      fn pairs =>
+        let ty : Type = ~
+          @\typecolor{objtype}@
+            @\typecolor{type Entry = objtype}@
+              @\typecolor{\{}@map(pairs, Nil, 
+                fn ((p, lbl, ty), l) => Cons(~, l))
+                  @\membercolor{val \$}@lbl @\membercolor{:  \$}@ty
+              @\typecolor{\}}@
+            @\typecolor{val connection : URL}@
+            @\typecolor{val username : String}@
+            @\typecolor{val password : String}@
+            @\typecolor{...}@
+            @\typecolor{\{}@map(pairs, Nil, 
+              (fn ((p, lbl, ty), l) => Cons(~, l)))
+                @\membercolor{def getBy\$}@lbl @\membercolor{(\$}@ty@\membercolor{)}@
+            @\typecolor{\}}@
+        let md : HasTSL = new 
+          val parser = ~
+            @\hastslcolor{start <- ("connect to "= EXP>}@
+                      @\hastslcolor{"username:"= EXP>}@
+                      @\hastslcolor{"password:"= EXP>}@
+                      @\hastslcolor{"table:" EXP>)}@
+              fn url, un, pw, table => ~
+                @\expcolor{new}@ 
+                  @\expcolor{val connection = \$}@url
+                  @\expcolor{val username = \$}@un
+                  @\expcolor{val password = \$}@pw
+                  @\expcolor{...}@
+                  @\expcolor{\{}@map(pairs, Nil, 
+                    (fn ((p, lbl, ty), l) => Cons(~, l)))
+                      @\membercolor{def getBy}@$lbl @\membercolor{(x)}@ 
+                        @\membercolor{...}@(* implementation *)
+                  @\expcolor{\}}@
+        (ty, md, Nil)
+    @\typekwparsercolor{pairs <- ()}@
+      fn () => Nil 
+    @\typekwparsercolor{pairs <- pair= pairs=}@
+      fn hd, tl => Cons(hd, tl)
+    @\typekwparsercolor{pair <- "*"? ID ID}@
+      fn is_primary, colid, tyid => (
+        is_primary, colid, ty_from_sqlty(tyid))
+\end{lstlisting}
+\caption{The declaration the type keyword ``DBTable''}
+\label{typekw-example-1}
 \end{figure}
 We present an example in figure \ref{typekw-example-1}: constructing the type \verb|Employee| using the type keyword \verb|DBSchema|. The parser defined here serves for the following purpose:
 \begin{enumerate}\setlength{\itemsep}{0pt}
@@ -464,6 +445,27 @@ We present an example in figure \ref{typekw-example-1}: constructing the type \v
 \item Generate a TSL metadata for value initialization using external syntax. 
 \end{enumerate}
 With the parser declared, the type \verb|Employee| is created using an database schema syntax (line 19-20), and then use external syntax which specifies the connections (line 23-25) to initialize the data. The type \verb|Employee| and the value \verb|d| after elaboration is presented in figure \ref{typekw-example-2}: the field \verb|employee| is the structure to hold the data table, and method \verb|getById| is defined to retrieve elements by ID while fields related to connection are generated whatever schema is used.
+\begin{figure}
+\begin{lstlisting}[style=wyvern]
+type TypeKw = objtype
+  val parser : TypeParser
+
+type TypeParser = objtype
+  def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
+  metadata : HasTSL = new 
+    val parser = (* parser generator *)
+
+type Type = casetype
+  Named of ID
+  Objtype of List(MemberDecl)
+  Casetype of List(CaseDecl)
+  Arrow of Type * Type
+  metadata : HasTSL = new
+    val parser = (* type quasiquotes *)
+\end{lstlisting}
+\caption{Wyvern prelude for type keywords}
+\end{figure}
+
 
 
 \section{Syntax}
@@ -483,7 +485,7 @@ The syntax for composable syntax macros is presented as an extension of TSL synt
                       &                   &     &  $\kappa;k[\mathbf{wk},e]$        &           & $\rightarrow$ & $\kappa\searrow$ \textcd{expkw} $k$ \textcd{=} $e$\\
   Type Declarations   & $\theta$          & ::= &  $\emptyset$                      & $\theta$  & $\rightarrow$ & $\epsilon$\\
                       &                   &     &  $\theta; T[\mathbf{explicit},\tau, e, \kappa]$     &           & $\rightarrow$ & $\theta\searrow$ \textcd{type} $T$ \textcd{=} $\tau$ $e$ $\kappa$\\
-                      &                   &     &  $\theta; T[\mathbf{tykey},k, body, e, \kappa]$  &           & $\rightarrow$ & $\theta\searrow$ \textcd{type} $T$ \textcd{=} $k$ $body$ $e$ $\kappa$\\
+                      &                   &     &  $\theta; T[\mathbf{tykey},k, body, e, \kappa]$  &           & $\rightarrow$ & $\theta\searrow$ \textcd{type} $T$ \textcd{=} $k$ $delims$ $e$ $\kappa$\\
   Types               & $\tau$            & ::= &  $\mathbf{named}[T]$              & $\tau$    & $\rightarrow$ & $T$\\
                       &                   &     &  $\mathbf{objtype}[\omega]$       &           & $\rightarrow$ & \textcd{objtype} $\omega$ \\
                       &                   &     &  $\mathbf{casetype}[\chi]$        &           & $\rightarrow$ & \textcd{casetype} $\chi$\\
@@ -493,19 +495,16 @@ The syntax for composable syntax macros is presented as an extension of TSL synt
   Casetype Cases      & $\chi$            & ::= &  $\emptyset$                      & $\chi$    & $\rightarrow$ & $\epsilon$ \\                 
                       &                   &     &  $C[\tau];\chi$                   &           & $\rightarrow$ & $C$ : $\tau$ $\searrow\chi$\\
   External Term       & $e$               & ::= &  ...                              & $e$       & $\rightarrow$ & $...$\\
-                      &                   &     &  $\mathbf{lit}[body]$             &           & $\rightarrow$ & \{ $body$ \}\\
-                      &                   &     &                                   &           &               & \textcd{"} $body$ \textcd{"}\\
-                      &                   &     &                                   &           &               & \textcd{'} $body$ \textcd{'}\\
-                      &                   &     &                                   &           &               & \textcd{(} $body$ \textcd{)}\\ 
-                      &                   &     &  $\mathbf{ekey}[k,body](e)$       &           & $\rightarrow$ & $e.k$ $body$\\
-  Translational Terms & $\hat{e}$         & ::= &  ... \\
-                      &                   &     &  $\mathbf{spliced}[e]$\\
-  Internal Terms      & $i$               & ::= &  ... \\
+                      &                   &     &  $\mathbf{lit}[body]$             &           & $\rightarrow$ & $delims$\\
+                      &                   &     &  $\mathbf{ekey}[k,body](e)$       &           & $\rightarrow$ & $e.k$ $delims$\\
+  Translational Terms & $\hat{e}$         & ::= &  ...                              &  $delims$ & $\rightarrow$ & \{~$body$~\}\\
+                      &                   &     &  $\mathbf{spliced}[e]$            &           & $\rightarrow$ & `~$body$~`\\
+  Internal Terms      & $i$               & ::= &  ...                              &           & $\rightarrow$ & [~$body$~]\\
+                      &                   &     &                                   &           & $\rightarrow$ & $delims$ $delims$\\
+                      &                   &     &                                   &           & $\rightarrow$ & $delims$ \textcd{ID}\\                                                          
 \end{tabular}
 \end{center}
-\vspace{-8px}
 \caption{Abstract and Concrete Forms \todo{remove duplicate metavariable columns, separate out delimited into new concrete metavariable, add sequential delimited forms}}
-\vspace{-10px}
 \label{formal-syntax}
 \end{figure*}
 
@@ -543,10 +542,10 @@ In the type environment, external terms are replaced by the inner Wyvern express
 \begin{center}
 \begin{tabular}{r r c l}
 Type Keyword Context & $\Delta$ & ::= & $\emptyset$\\
-            &                 &  |   & $\Delta;k[i,\tau]$\\
-Named Type Context & $\Theta$        & ::= & $\emptyset$\\
-            &                 &  |   & $\Theta,T[\delta,\mu,\zeta]$\\
-       & $\delta$        & ::= & $?$ ~ | ~ $\tau$\\
+              &                 &  |  & $\Delta;k[i,\tau]$\\
+Named Type Context  & $\Theta$        & ::= & $\emptyset$\\
+              &                 &  |  & $\Theta,T[\delta,\mu,\zeta]$\\
+              & $\delta$        & ::= & $?$ ~ | ~ $\tau$\\
    & $\mu$           & ::= & $?$ ~ | ~ $i:\tau$\\
    & $\zeta$         & ::= & $?$ ~ | ~ $\dot\kappa$\\
 Keyword Members & $\dot\kappa$    & ::= & $\emptyset$\\
@@ -556,9 +555,7 @@ Typing Context & $\Gamma$ &   ::=  & $\emptyset$\\
                  &          &     |  & $\Gamma,x:\tau$
 \end{tabular}
 \end{center}
-\vspace{-8px}
 \caption{Definition of environment, including a set for type keywords ($\Delta$) and a named type environment ($\Theta$). The type keyword environment is a set containing keywords ($k$) and their parser (an inner Wyvern expression $i$), while the named type environment consists of type declarations with its type structure($\delta$), metadata expression ($i:\tau$) and keywords set($\zeta$, expression keywords after elaboration). The question mark here indicates that these fields can be of a value `unknown' during type checking process.b}
-\vspace{-10px}
 \label{typechecking-environment}
 
 \end{figure}
@@ -606,25 +603,71 @@ Besides type keywords and TSLs, another usage of the DSL literals is in expressi
 \todo{Do we need to do it here?}
 
 \subsection{Metatheory}
+\paragraph{Reification and Dereification}
+For each type and expression, we have the following property to support converting a type to an expression of type \textbf{named}[$Type$] and an expression to an expression of type \textbf{named}[$Exp$]. And these two rules are used in elaboration phase to generate Wyvern expressions and types using the result of the parser.
+\begin{property}[Dereification]
+If $\emptyset\vdash_{\Theta} i:\mathbf{named}[Type]$ then $\exists\tau. i\uparrow\tau$. If $\emptyset\vdash_{\Theta} i:\mathbf{named}[Exp]$ then $\exists\hat{e}. i\uparrow\hat{e}$.
+\end{property}
+\begin{property}[Reification]
+$\forall i, \exists i'$, s.t. $i\downarrow i'$ and $\emptyset\vdash_{\Theta_0} i':\mathbf{named}[Exp]$.
+\end{property}
+The proof of the property can be referred to \todo{TR}.
+
+\paragraph{Type Safety and Preservation}
 Extension of the TSL Wyvern semantics with keywords mechanism still constitutes a type safe language. We will outline the key theorems and lemmas here presenting the properties a type safe language has: 1) internal type safety 2) type preservation. 
 
 To formalize the type safety property, we defined the judgments for context formation, type formation and bidirectional typing judgment. \todo{Refer to TSL as well as TR}
 
-\todo{Writedown lemmas and theorems}
 \begin{theorem}[Internal Type Safety]
-If ~$\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Delta$~ and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash^{\Theta}_{\Theta}i'\Leftarrow\tau$.
+If ~$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$~ and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash^{\Theta}_{\Theta}i'\Leftarrow\tau$.
 \end{theorem}
+\begin{proof}
+As the keyword extension on TSL framework does not extend inner Wyvern expressions, the proof for this theorem is directly from TSL proof. 
+\end{proof}
 
 \begin{theorem}[External Type Preservation]
-If ~$\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Delta$, $\vdash_{\Theta}\Gamma$, and $\Gamma\myvdash e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\myvdash e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\myvdash i\Leftarrow\tau$.
+If ~$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Gamma$, and $\Gamma\myvdash e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\myvdash e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\myvdash i\Leftarrow\tau$.
 \end{theorem}
+\begin{proof}
+Based on TSL proof of the external type preservation, we need to proof the following cases on keywords extension (Expressions for parser access is presented in the \todo{TR}, thus the corresponding proofs of the case for the expression is omitted here. ):
+\begin{itemize}
+\item $e=\mathbf{ekey}[k,body](e)$. According to the rule T-bk and T-wk, $\Gamma\vdash_{\Theta}\mathbf{ekey}[k,body](e_0) \rightsquigarrow i \Rightarrow \tau \Longrightarrow \Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Rightarrow \tau$. And based on translational type preservation lemma(\todo{?Present it or not?}), $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Rightarrow \tau \Longrightarrow \Gamma;\emptyset\vdash_{\Theta} i\Rightarrow\tau$.
+\end{itemize}
+\end{proof}
 
 \begin{theorem}[Compilation]
-If ~$\rho\sim\Theta\rightsquigarrow i:\tau$~ then $\vdash\Theta$,~$\vdash_{\Theta}\Delta$,~$\emptyset\myvdash i\Leftarrow\tau$.
+If ~$\rho\sim\Theta\rightsquigarrow i:\tau$~ then $\vdash_{\Theta_0}\Delta$,\ $\vdash_{\Theta_0}\Theta$ and $\emptyset\vdash_{\Theta} i\Leftarrow\tau$.
 \end{theorem}
+\begin{proof}
+This theorem can be proved with the following two lemmas for the formation of $\Delta$ and $\Theta$.
+\end{proof}
+
+\begin{lemma}[Type Keyword Declaration] 
+If $\vdash_{\Theta_0}\eta\sim\Delta$, then $\vdash_{\Theta_0}\Delta$.
+\end{lemma}
+\begin{proof}
+The proof is simple a induction on $\vdash_{\Theta_0}\Delta$ and using the External Type Preservation Theorem. (Not shown)
+\end{proof}
+
+\begin{lemma}[Type Declaration]
+If $\vdash_{\Theta_0}^{\Delta}\theta\sim\Theta$ then $\vdash\Theta_0\Theta$.
+\end{lemma}
+\begin{proof}
+By induction on the formation of $\Theta$, we have the following three cases:
+\begin{itemize}
+\item $\vdash_{\Theta}\emptyset\sim\emptyset \Longrightarrow \vdash{\emptyset}$.
+\item ${\vdash^{\Delta}_{\Theta}} \theta';T[\mathbf{explicit},\tau,e_m,\kappa] \sim \Theta',T[\tau,i_m:\tau_m,\dot\kappa] \Longrightarrow \vdash_{\Theta}\Theta',T[\tau,i_m:\tau_m,\dot{\kappa}]$. 
+
+By induction, we have $\vdash_{\Theta}\Theta'$. And by the rule (ctx-explicit-type), we have $\vdash_{\Theta\Theta',T[?,?,?]}^{\Delta}\tau, \myvdash\dot\kappa$ and $\emptyset\vdash_{\Theta\Theta',T[\tau,?,?]}^{\Delta}e\rightsquigarrow i_m\Rightarrow\tau_m$. With External Type Preservation Lemma, we have $\vdash_{\Theta}\Theta',T[\tau,i_m:\tau_m,\dot{\kappa}]$.
+\item $\myvdash \theta';T[\mathbf{tykey},k,body,e_m,\kappa] \sim \Theta',T[\tau,i''_m:\tau'_m,\dot{\kappa}\dot{\kappa}'] \Longrightarrow \vdash_{\Theta}\Theta',T[\tau,i''_m:\tau'_m,\dot{\kappa}\dot{\kappa}'].$
+
+By induction, we have $\myvdash\Theta'$. And by rule (ctx-typekw-type), we have (1) $\vdash_{\Theta\Theta',T[?,?,?]}^{\Delta}\tau$. (2).$\dot\kappa\dot\kappa'$ is well formed the the fact that $\myvdash \dot\kappa$~~~~ $\vdash^{\Delta}_{\Theta\Theta',T[\tau,i'_m:\tau'_m,?]}\kappa\rightsquigarrow\dot{\kappa}'$ ~~~~ $dom(\dot{\kappa})\cap dom(\dot{\kappa}')=\emptyset$. (3) $i''_m:\tau'_m$ is well formed by the formation of $i'_m$ and the application of $i'_m$ on $i_m$. Thus we have the formation of the \textbf{tykey} construction.
+\end{itemize}
+With the three cases proved, we have the formation of type declaration proved.
+\end{proof}
+
 
 %\input{kw-contextformation.tex}
-\input{kw-dereification.tex}
 
 % end the environment with {table*}, NOTE not {table}!
 
