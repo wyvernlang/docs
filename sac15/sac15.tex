@@ -325,7 +325,7 @@ Besides the definition of the parser for \verb|simpleHTML| syntax, the return ty
 The goal to support multiple external syntax for one type can be achieved using expression keywords.
 
 \paragraph{White-box ``if'' keyword}
-Different from black-box keywords, white-box keywords are defined without a return type. Here we use the key word \verb|if| as an example. The keyword \verb|if| is declared in the type \verb|Bool|, a casetype with two cases: \verb|True| and \verb|False|. As no return type is declared with \verb|if|, it will synthesize the return type based on the expression the DSL literals transformed to. The usage of the casetype requires the user to explicitly name two conditions, while using \verb|if| macro can simplify this.
+Differently, white-box keywords are defined without a return type. Here we use the key word \verb|if| as an example. The keyword \verb|if| is declared in the type \verb|Bool|, a casetype with two cases: \verb|True| and \verb|False|. As no return type is declared with \verb|if|, the return type should be provided when the keyword is used and the type checker will analyze the type against the provided type (Reversely, we can allow type synthesis on the expression after elaboration, but considering for stronger type preserving property, we only use type analysis for a white-box keyword, which will be discussed in Sec[\todo{Metadata Section}]). Using \verb|if| macro can simplify the required cases analysis process for a casetype.
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
 type Bool = casetype 
@@ -344,10 +344,11 @@ def f(x : Bool) : T
 \label{if-example}
 \end{figure}
 
-The syntax for the body of \verb|if| is defined in line 6, as two expressions with an addition inner keyword by a keyword \verb|`else'|. Here we use the mechanism in TSL to support multi-part body parsing: any delimited forms appeared next to each other or delimited by a keyword. The parser will then identify the variables and translate them into the grammar with \verb|BOUNDARY| token. The keyword invocation in line 13 will first identify the type of the term \verb|x|, then search the keyword definition of \verb|if| to select the right parser to transform the body. 
+The syntax for the body of \verb|if| is defined on line 5: an expression followed by an identifier \verb|else| and then another expression. Here we use the parsing mechanism in TSL to support multi-part body parsing: any delimited forms appeared next to each other or delimited by a keyword. (Different delimited forms can be referred to figure \ref{f-delimited}) The parser will identify the delimited form and insert a \verb|BOUNDRY| between different delimited forms and the keywords. 
 
-The keyword is associated with the type \verb|Bool| so it can be invoked on any value of type \verb|Bool|, which permits operations on value after initialization. And it is composable without conflicts based on identification of types. 
+The usage of the keyword is presented in line 11: the variable \verb|x| (of type \verb|Bool|) call the variable, followed by the keyword body. Wyvern type checker will identify the parser to parse the literals by checking the keyword definition in type $\verb|Bool|$, and the return type will be checked against $\verb|T|$, provided in the function definition.  
 
+The keyword is associated with the type \verb|Bool|, so it can be invoked by a value of type \verb|Bool|, which permits operations on value after initialization. 
 \begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
 type @\expkwparsercolor{ExpParser}@ = objtype
@@ -371,7 +372,7 @@ type Result[T] = casetype
 \end{figure}
 
 \subsection{Type Keyword}
-Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Declaring a type and defining a value requires much repetitive works to define fields and methods based on the data schema, and constructing a type and generating a metadata using data schema for a type can be easier. The following example shows how we construct a type using database schema.
+\todo{Not confident in this introduction paragraph.}Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Declaring a type and defining a value requires much repetitive works to define fields and methods based on the data schema, and constructing a type and generating a metadata using data schema for a type can be easier. The following example shows how we construct a type using database schema.
 
 \begin{figure}
 \begin{lstlisting}[style=wyvern]
@@ -387,6 +388,7 @@ val db : EmployeeDB = ~
   @\dbcolor{table: Employees}@
 \end{lstlisting}
 \mycaption{The usage of the type keyword ``DBTable''}
+\label{f-tykwexample}
 \end{figure}
 
 \begin{figure}[ht]
@@ -468,13 +470,18 @@ typekw @\dbshcemacolor{DBSchema}@ with metadata:HasTSL = ~ (*:TypeParser*)
 \mycaption{The declaration the type keyword ``DBTable''}
 \label{typekw-example-1}
 \end{figure}
-We present an example in figure \ref{typekw-example-1}: constructing the type \verb|Employee| using the type keyword \verb|DBSchema|. The parser defined here serves for the following purpose:
+We present an example in figure \ref{f-tykwexample}: constructing the type \verb|EmployeeDB| using the type keyword \verb|DBSchema|. By defining the type \verb|EmployeeDB| using a type keyword, \verb|EmployeeDB| will be provided with:
 \begin{enumerate}\setlength{\itemsep}{0pt}
-\item Generate fields and methods based on the database schema. (e.g. \verb|employee|, \verb|getByName|)
-\item Generate prelude fields and methods: Some fields are supposed be declared no matter what schema is used. (e.g. \verb|connection| and \verb|stmts|)
-\item Generate a TSL metadata for value initialization using external syntax. 
+\item Fields and methods declarations based on the data schema. (e.g. \verb|employee|, \verb|getByName|)
+\item Common fields and method declarations not depends on the schema. (e.g. \verb|connection| and \verb|stmts| and provided for whatever schema is provided.)
+\item A TSL metadata for value initialization using external syntax. 
 \end{enumerate}
-With the parser declared, the type \verb|Employee| is created using an database schema syntax (line 19-20), and then use external syntax which specifies the connections (line 23-25) to initialize the data. The type \verb|Employee| and the value \verb|d| after elaboration is presented in figure \ref{typekw-example-2}: the field \verb|employee| is the structure to hold the data table, and method \verb|getById| is defined to retrieve elements by ID while fields related to connection are generated whatever schema is used.
+
+Line 1-3 in figure \ref{f-tykwexample} shows the declaration of type \verb|EmployeeDB| using employee schema. And a value \verb|db| (line 5-10) is defined using the syntax which is defined in the generated TSL metadata. 
+
+The elaborated version of type \verb|Employee| and the value \verb|db| is presented in figure \ref{typekw-example-2}: a type member \verb|Entry| is declared in the type to represent a data table entry, and methods like \verb|getById| is generated as methods to access the database. The elaborated value \verb|db| (line 15) will be an initialized value with fields and methods declared.
+
+The definition of the type keyword \verb|DBSchema| can be referred to figure \ref{typekw-example-1}. The keyword itself is a \verb|TypeParser|, which will parse in a data schema and then generate \todo{finish describing the parser.}
 \begin{figure}
 \begin{lstlisting}[style=wyvern]
 type @\typekwparsercolor{TypeParser}@ = objtype
@@ -560,6 +567,7 @@ $i$~::=~...
   literals here, one more indent level beneath the tilde
 \end{lstlisting}
 \mycaption{Different kind of delimited forms used in Wyvern, including 4 inline delimited forms and one multiline example using tiled(line 5-6)}
+\label{f-delimited}
 \end{figure}
 
 \paragraph{Type-keyword}
