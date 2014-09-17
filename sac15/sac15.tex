@@ -293,13 +293,15 @@ Although TSL provides the mechanism to construct data using DSL syntax, TSL alon
 
 In the following sections, we introduce an extensible keyword framework to deal with these problems mentioned before built atop of TSLs in Wyvern language. 
 
-\section{Extensible keywords in Wyvern}
-Several examples are presented in this section how the extensible keywords are used to solve these problems.
-\subsection{Expression Keyword}
-An expression keyword is a keyword associated with a parser to transform DSL literals into a Wyvern expression. Depending on whether a keyword provides the return type in its declaration, expression keywords are separated into two kinds, namely black-box keyword and white-box keyword (This terminology is borrowed from Scala's macro system). 
+\section{Syntax macros in Wyvern}
+In this section, we employ several examples of syntax macros in Wyvern to illustrate how they are used to solve the problems mentioned in the last section. Syntax macros can be divided into two kinds based on their role in a Wyvern program: syntax macros equivalent to a Wyvern expression, and others equivalent to a Wyvern type declaration. As syntax macros are always associated with a keyword, we use the term ``expression keyword'' and ``type keyword'' to refer to these two kinds of syntax macros.
 
-\paragraph{Black-box ``simpleHTML'' keyword}
-We start with an example showing the usage of an expression keyword to construct an \verb|HTML| value using an expression keyword \verb|simpleHTML|, which provides an alternative syntax to construct the HTML value. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The syntax is declared using a parser TSL in line 2-10 in figure \ref{f-simplehtml}.
+\subsection{Expression Keyword}
+An expression keyword is a keyword associated with a parser to transform DSL literals into a Wyvern expression. Depending on whether a return type is provided in the keyword declaration, expression keywords can be further divided into black-box keyword and white-box keyword (This terminology is borrowed from Scala's macro system). 
+
+\paragraph{Black-box keyword ``simpleHTML''}
+We start with an example showing the use of the expression keyword \verb|simpleHTML| to construct a value of type \verb|HTML|. The expression keyword \verb|simpleHTML| provides an alternative syntax to construct the HTML value. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The syntax is declared using a parser TSL in line 2-10 in figure \ref{f-simplehtml}.
+
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
 expkw @\simpleHTMLcolor{simpleHTML}@ : HTML = ~ (* : ExpParser *)
@@ -320,12 +322,13 @@ val y : HTML = simpleHTML ~
 \label{f-simplehtml}
 \end{figure}
 
-Besides the definition of the parser for \verb|simpleHTML| syntax, the return type (\verb|HTML|) is also provided, which indicates that the DSL literals used in the body of the keyword invocation will elaborates to an expression of type \verb|HTML|. The invocation of the keyword is presented in line 11-14, including a call to the keyword \verb|simpleHTML|, and providing the DSL literals in the next indent level (colored brown). The variable \verb|heading_text| (colored black, in line 13), a Wyvern variable of type\verb|String| defined in line 10 of figure \ref{f-htmltype}, is inserted using curly braces to switch back to Wyvern.
+In the keyword declaration part, besides the parser definition, a return type (\verb|HTML|) is also provided, which indicates that the DSL literals will elaborate to an expression of type \verb|HTML|. The use of the keyword is presented in line 10-13: the keyword \verb|SimpleHTML| is call in line 10, followed by DSL literals on the next indent level (colored brown). The variable \verb|heading_text| (colored black, in line 12), a \verb|String| variable defined in line 10 of figure \ref{f-htmltype}, is inserted into \verb|SimpleHTML| literals using curly braces, which is used to switch between \verb|SimpleHTML| syntax and original Wyvern syntax.
 
-The goal to support multiple external syntax for one type can be achieved using expression keywords.
+\todo{Should we add a summary here like ``In this way we can solve the first problem mentioned in the last section''? }
 
-\paragraph{White-box ``if'' keyword}
-Differently, white-box keywords are defined without a return type. Here we use the key word \verb|if| as an example. The keyword \verb|if| is declared in the type \verb|Bool|, a casetype with two cases: \verb|True| and \verb|False|. As no return type is declared with \verb|if|, the return type should be provided when the keyword is used and the type checker will analyze the type against the provided type (Reversely, we can allow type synthesis on the expression after elaboration, but considering for stronger type preserving property, we only use type analysis for a white-box keyword, which will be discussed in Sec[\todo{Metadata Section}]). Using \verb|if| macro can simplify the required cases analysis process for a casetype.
+\paragraph{White-box keyword ``if''}
+Differently, white-box keywords are defined without specifying the return type. Here we use the key word \verb|if| as an example. The keyword \verb|if| is declared in the type \verb|Bool| which is a casetype with two cases: \verb|True| and \verb|False|. As no return type is declared with \verb|if|, a type should be provided when the keyword is used and the type checker will analyze the expression type against the provided type (e.g. a type \verb|T| is provided in line 10 of figure \ref{if-example} for type analysis). Besides type analysis, we may allow type synthesis on the elaborated Wyvern expression to synthesize the return type of the syntax macro. But considering a stronger type preserving property, we only use type analysis in this case for a white-box keyword, which will be discussed in Sec[\todo{Metatheory Section}].
+
 \begin{figure}[ht]
 \begin{lstlisting}[style=wyvern]
 type Bool = casetype 
@@ -344,11 +347,10 @@ def f(x : Bool) : T
 \label{if-example}
 \end{figure}
 
-The syntax for the body of \verb|if| is defined on line 5: an expression followed by an identifier \verb|else| and then another expression. Here we use the parsing mechanism in TSL to support multi-part body parsing: any delimited forms appeared next to each other or delimited by a keyword. (Different delimited forms can be referred to figure \ref{f-delimited}) The parser will identify the delimited form and insert a \verb|BOUNDRY| between different delimited forms and the keywords. 
+The syntax for \verb|if| is defined on line 5: starting with an expression, followed by an identifier \verb|else| and then another expression. Here we use the parsing mechanism in TSL to support multi-part body parsing: any delimited forms appeared next to each other or delimited by a keyword. Different delimited forms can be referred to figure \ref{f-delimited}. The parser will identify the delimited form and insert a \verb|BOUNDRY| between different delimited forms and the keywords. 
 
-The usage of the keyword is presented in line 11: the variable \verb|x| (of type \verb|Bool|) call the variable, followed by the keyword body. Wyvern type checker will identify the parser to parse the literals by checking the keyword definition in type $\verb|Bool|$, and the return type will be checked against $\verb|T|$, provided in the function definition.  
+An using example is presented in line 11: the variable \verb|x| (of type \verb|Bool|) invoke the keyword \verb|if| and DSL literals are right next to the keyword. The Wyvern type checker will look up the parser in the definition of \verb|if| in the type \verb|Bool|, and the return type of the keyword invocation expression will be checked against $\verb|T|$, which is provided in the function definition.  
 
-The keyword is associated with the type \verb|Bool|, so it can be invoked by a value of type \verb|Bool|, which permits operations on value after initialization. 
 \begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
 type @\expkwparsercolor{ExpParser}@ = objtype
@@ -368,12 +370,12 @@ type Result(T) = casetype
   OK of T * ParseStream
   Error of String * Location
 \end{lstlisting}
-\label{exp-prelude}
 \mycaption{Wyvern prelude for expression keywords extension}
+\label{exp-prelude}
 \end{figure}
 
 \subsection{Type Keyword}
-\todo{Not confident in this introduction paragraph.}Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Declaring a type and defining a value requires much repetitive works to define fields and methods based on the data schema, and constructing a type and generating a metadata using data schema for a type can be easier. The following example shows how we construct a type using database schema.
+Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Although data schema already exists, declaring a type with fields to represent the data structure still require users to create them manually in Wyvern syntax. Type keywords make this process easier by allowing users to generate type declarations directly using the data schema syntax, and furthermore, a metadata will be generated for initializing the value of that type. The following example shows how we construct a type using database schema.
 
 \begin{figure}
 \begin{lstlisting}[style=wyvern]
@@ -418,7 +420,7 @@ val db : EmployeesDB = new
   def getByID(x:Int) : List(Entry)
     ...
 \end{lstlisting}
-\mycaption{An alternative version without using type keyword}
+\mycaption{The elaborated type declaration}
 \label{typekw-example-2}
 \end{figure}
 
@@ -471,18 +473,19 @@ typekw @\dbshcemacolor{DBSchema}@ with metadata:HasTSL = ~ (*:TypeParser*)
 \mycaption{The declaration the type keyword ``DBTable''}
 \label{typekw-example-1}
 \end{figure}
-We present an example in figure \ref{f-tykwexample}: constructing the type \verb|EmployeeDB| using the type keyword \verb|DBSchema|. By defining the type \verb|EmployeeDB| using a type keyword, \verb|EmployeeDB| will be provided with:
-\begin{enumerate}\setlength{\itemsep}{0pt}
-\item Fields and methods declarations based on the data schema. (e.g. \verb|employee|, \verb|getByName|)
-\item Common fields and method declarations not depends on the schema. (e.g. \verb|connection| and \verb|stmts| and provided for whatever schema is provided.)
-\item A TSL metadata for value initialization using external syntax. 
-\end{enumerate}
 
-Line 1-3 in figure \ref{f-tykwexample} shows the declaration of type \verb|EmployeeDB| using employee schema. And a value \verb|db| (line 5-10) is defined using the syntax which is defined in the generated TSL metadata. 
+In figure \ref{f-tykwexample}, we present an example of constructing the type \verb|EmployeeDB| using the type keyword \verb|DBSchema|. By defining the type \verb|EmployeeDB| using a type keyword, the type \verb|EmployeeDB| will be provided with the following fields/methods after elaboration (line 1-13 in figure \ref{typekw-example-2}):
+\begin{itemize}\setlength{\itemsep}{0pt}
+\item Fields and method declarations based on the data schema. (e.g. \verb|employee|, \verb|getByName|)
+\item Common fields and method declarations provided for all types using the type keyword, and they don't depend on a certain schema. (e.g. \verb|connection| and \verb|stmts|)
+\item A TSL metadata for value initialization using the DSL syntax.
+\end{itemize}
 
-The elaborated version of type \verb|Employee| and the value \verb|db| is presented in figure \ref{typekw-example-2}: a type member \verb|Entry| is declared in the type to represent a data table entry, and methods like \verb|getById| is generated as methods to access the database. The elaborated value \verb|db| (line 15) will be an initialized value with fields and methods declared.
+Line 1-3 in figure \ref{f-tykwexample} shows the declaration of the type \verb|EmployeeDB| using database schema syntax. And a value \verb|db| (line 5-10) is defined using the syntax provided by the generated TSL metadata. 
 
-The definition of the type keyword \verb|DBSchema| can be referred to figure \ref{typekw-example-1}. A type keyword is a value of type \verb|TypeParser|, which takes in a parsestream and returns a parsing result (of type \verb|Result|, which is a casetype defined in figure \ref{exp-prelude}). When there is no parsing error, a tuple \verb|(t:Type, e:Exp, k:List(KwMember))| will be returned for type construction: the type structure provided by \verb|t|, metadata indicated by \verb|e|, and expression keywords defined by \verb|k|. \verb|DBSchema| will construct an object type (line 5-18), and provide a TSL metadata for value initialization (line 20-35). The type of the metadata is provided on the first line of keyword declaration with keyword \verb|with metadata|, which will be used to check against the metadata type during type checking.
+The elaborated version of the type \verb|Employee| and the value \verb|db| is presented in figure \ref{typekw-example-2}: a type member \verb|Entry| is declared in the type to represent a data table entry, and methods like \verb|getById| are generated for database access. The elaborated value \verb|db| (line 15) is initialized with fields and methods.
+
+The definition of the type keyword \verb|DBSchema| can be referred to figure \ref{typekw-example-1}. A type keyword itself is a parser for DSL literals: it is a value of type \verb|TypeParser|, which takes in a parsestream and returns a parsing result (of type \verb|Result|, which is a casetype defined in figure \ref{exp-prelude}). When there is no parsing error, a tuple \verb|(t:Type, e:Exp, k:List(KwMember))| will be returned for type construction: the type structure stored in \verb|t|, metadata in \verb|e|, and expression keywords defined by \verb|k|. \verb|DBSchema| will construct an object type with fields specified in line 5-18, and it will provide a TSL metadata for value initialization (line 20-35). The type of the metadata is provided on the first line of keyword declaration with keyword \verb|with metadata|, which is used by the type checker to analyze the metadata type.
 
 \begin{figure}
 \begin{lstlisting}[style=wyvern]
@@ -509,9 +512,11 @@ type KwMember = casetype
 
 
 \section{Syntax}
-We start our formal presentation by introducing the abstract syntax built upon pure functional Wyvern together their concrete forms. For simplicity consideration, we omit some of the syntax not directly related to composable syntax macros, which can be referred to \todo{TSL paper}.
+We start our formal presentation by introducing the abstract syntax built upon pure functional Wyvern, together with their concrete forms. For simplicity consideration, we omit some of the syntax not directly related to composable syntax macros, which can be referred to \todo{TSL paper}.
 
-A Wyvern program ($\rho$) is consisted of three parts: type-keyword declarations ($\eta$), named-type declarations ($\theta$) and an expression ($e$).
+A Wyvern program ($\rho$) consists of three parts: type keyword declarations ($\eta$), named-type declarations ($\theta$) and an expression ($e$) representing the program body.
+
+\todo{Stop here, continue working later}
 
 \begin{figure}[ht]
 \begin{tabular}{ l l l l l }
@@ -555,7 +560,7 @@ $\hat{e}$~::=~...                              & \\
 \multicolumn{3}{l}{Internal Terms}\\
 $i$~::=~...                                                     
 \end{tabular}
-\mycaption{Abstract and Concrete Forms \todo{remove duplicate metavariable columns, separate out delimited into new concrete metavariable, add sequential delimited forms}}
+\mycaption{Abstract and Concrete Forms}
 \label{formal-syntax}
 \end{figure}
 
@@ -568,7 +573,7 @@ $i$~::=~...
 ~
   literals here, one more indent level beneath the tilde
 \end{lstlisting}
-\mycaption{Different kind of delimited forms used in Wyvern, including 4 inline delimited forms and one multiline example using tiled(line 5-6)}
+\mycaption{Different kind of delimited forms used in Wyvern, including 4 inline delimited forms and one multi-line example using tilde(line 5-6)}
 \label{f-delimited}
 \end{figure}
 
@@ -588,16 +593,15 @@ Our extensions on external terms to support syntax macros including a keyword in
 Note that there is no extension on the translational expressions and inner expressions, as keywords invocation and parser access will be transformed to inner Wyvern expressions and no DSL literals will exist after elaboration.
 
 \section{Bidirectional Typechecking and Elaboration}
-As syntax macros consists of DSL literals, it is necessary to transform them into inner Wyvern expressions during compile time. Bidirectional typechecking is used here as type can be clearly specified as input or output during typechecking process. In conventional type systems, a type judgment is written as $\Gamma\vdash_{\Theta} e:\tau$, where $\Gamma$ is the typing context, $\Theta$ is the declaration environment, and $e:\tau$ specifies that the expression is of type $\tau$. But with a bidirectional type system, a type judgment is written as $\Gamma\vdash_{\Theta} e\Leftarrow(\Rightarrow)\tau$, which specifies the type $\tau$ is used as input(output) of the checking process, which is important in distinguishing the black-box keyword from while-box keyword.
-\par
-The type checking process also involves the elaboration of an external expression, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external expression will be elaborates to an inner expression and synthesis to (or analysis against) the type $\tau$. The arrow ($\rightsquigarrow$) is used to represent the elaboration process, including literal elimination and hygiene process, which is part of the type checking rules.
+Both expression keywords and type keywords are used in external Wyvern languages, so an elaboration phase is required to parse a type keyword defined type into type context and transform the external term into internal Wyvern terms. 
 
-\subsection{Declaration Environments}
-The type declaration environments (figure \ref{typechecking-environment}) involves the declaration of type keywords and named types. The declarations appeared in the Wyvern program will be parsed and checked before going to the environment, and the type checking rules for environment is presented in figure \ref{typechecking-elaboration} \todo{modify the number}. 
+Bidirectional typechecking is used here as type can be clearly specified as input or output during typechecking process. In bidirectional type system, a type judgment is written as $\Gamma\vdash_{\Theta} e\Leftarrow(\Rightarrow)\tau$ instead of $\Gamma\vdash_{\Theta} e:\tau$ in a traditional type system, where $\Gamma$ is the typing context, $\Theta$ is the declaration context, and the type $\tau$ is specified as input ($\Leftarrow$) or output ($\Rightarrow$) according to the arrow direction. 
 
-Type keyword environment ($\Delta$) is used to store all type keywords declaration, and it will be used to look up a type keyword during type checking process.
+The type checking process also involves the elaboration of an external expression, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external expression will be elaborates to an internal expression and synthesize to (or analyze against) the type $\tau$. The arrow ($\rightsquigarrow$) is used to represent the elaboration process, including literal elimination and hygiene process, which is part of the type checking rules.
 
-In the type environment, external terms are replaced by the inner Wyvern expression they elaborates to, and a type declared with type keyword goes into the environment with its structure presented as a normal type with optional metadata and expression keywords. The environment formalization an be referred to figure \ref{typechecking-environment}.
+\subsection{ Definition}
+\todo{Type environment or type context or typing context?}
+The type context (figure \ref{typechecking-environment}) contains the context for type keywords and named type declarations, which will be used during elaboration and type checking. The type context 
 
 \begin{figure}[ht]
 \begin{center}
@@ -616,9 +620,11 @@ Typing Context & $\Gamma$ &   ::=  & $\emptyset$\\
                  &          &     |  & $\Gamma,x:\tau$
 \end{tabular}
 \end{center}
-\mycaption{Definition of environment, including a set for type keywords ($\Delta$) and a named type environment ($\Theta$). The type keyword environment is a set containing keywords ($k$) and their parser (an inner Wyvern expression $i$), while the named type environment consists of type declarations with its type structure($\delta$), metadata expression ($i:\tau$) and keywords set($\zeta$, expression keywords after elaboration). The question mark here indicates that these fields can be of a value `unknown' during type checking process.b}
+\mycaption{Definition of type context}
 \label{typechecking-environment}
 \end{figure}
+
+The elaboration rules for type declarations includes 
 
 To support mutually recursive type declaration, we split the checking rules for type declarations into three steps: 1) Add the type name into the type environment. 2) Add the type structure into the environment. 3) Check the type extensions (i.e. TSL or expression keywords) and add them into the environment. A type can refer to another one in the field or type extensions. But the extension in a type cannot refer to that from a type defined after it, as using extension syntax recursively can make the program too complicated.
 
@@ -627,6 +633,7 @@ For a normal named type declaration, we have rules type-name, type-defs, type-ex
 In the transformation of $\kappa\rightsquigarrow\dot\kappa$, two rules exists to deal with both black-box keywords and white-box keywords. Both of the two rules will check there is no name conflicts in a type keyword. And the parser expression ($e_k$) should elaborates to an Wyvern expression ($i_m$) and checks against $TypeKw$, which is a standard type saved in the prelude environment for the keyword parser type. The difference between black-box and white-box keywords lies in the fact that a return type is presented in the declaration of a black-box keyword while a white-box one doesn't.
 
 The type environment $\Theta$ is finished once $\Theta_{names}, \Theta_{defs}$ and $\Theta_{exts}$ are processed.
+
 \subsection{External Type Literals}
 In the type environment, there is no difference between the two types of type declaration mentioned in the syntax as all types defined using type keywords elaborates to a type with concrete structure during type checking process.
 
