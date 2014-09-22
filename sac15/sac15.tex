@@ -102,9 +102,9 @@ tabsize=4, % Number of spaces per tab in the code
 
 %
 % --- Author Metadata here ---
-\conferenceinfo{SAC'15}{April 13-17, 2015, Salamanca, Spain.}
-\CopyrightYear{2015} % Allows default copyright year (2002) to be over-ridden - IF NEED BE.
-\crdata{978-1-4503-3196-8/15/04}  % Allows default copyright data (X-XXXXX-XX-X/XX/XX) to be over-ridden.
+\conferenceinfo{XXX}{XXX}
+\CopyrightYear{XXXX} % Allows default copyright year (2002) to be over-ridden - IF NEED BE.
+\crdata{X-XXXXX-XX-X/XX/XX}  % Allows default copyright data (X-XXXXX-XX-X/XX/XX) to be over-ridden.
 % --- End of Author Metadata ---
 
 \title{Composable and Hygienic Typed Syntax Macros}
@@ -178,26 +178,26 @@ Syntax extension mechanisms can be powerful, but ensuring that extensions are in
 
 \section{Introduction}
 \label{sec-intro}
-One way programming languages evolve is by introducing \emph{syntactic sugar} that captures common idioms more concisely and naturally. In most contemporary languages, this is the  responsibility of a language's designers. Unfortunately, the designers of general-purpose languages do not have strong incentives to capture idioms that arise only situationally. This has motivated research into mechanisms that might decentralize control over syntax by allowing the users of a language to extend it with new syntactic sugar themselves.%, freeing designers from this responsibility.%, to varying degrees. 
+One way programming languages evolve is by introducing \emph{syntactic sugar} that captures common idioms more concisely and naturally. In most contemporary languages, this is the  responsibility of the language designers. Unfortunately, the designers of general-purpose languages do not have strong incentives to capture idioms that arise only situationally, motivating research into mechanisms that allow the users of a language to extend it with new syntactic sugar themselves.%, freeing designers from this responsibility.%, to varying degrees. 
 
-Designing a useful syntax extension mechanism is non-trivial, however, because the designer can no longer  directly ensure that no parsing ambiguities have arisen and that the desugaring logic is semantically well-behaved. Instead, the mechanism must consider several important issues:
-
-\noindent
-\textbf{Composability} The mechanism cannot simply allow the base language's syntax to  be modified arbitrarily due to the potential for ambiguities. Critically, even separately defined fragments of syntax that are known not to cause parsing ambiguities individually can, if left unconstrained, lead to ambiguities when they are composed by interfering directly with one another (e.g. extensions adding support for XML and HTML). To avoid this issue, extensions must be kept delimited from the base language and from one another. 
+Designing a useful syntax extension mechanism is non-trivial, however, because the designer can no longer  directly ensure that no parsing ambiguities have arisen and that the desugaring logic is semantically well-behaved. Instead, the mechanism must make several important guarantees:
 
 \noindent
-\textbf{Hygiene} User-defined desugaring logic must be constrained to ensure that the meaning of a term cannot change simply because some of the surrounding variables have been renamed (manually or by a refactoring tool). It should also be possible to identify the binding site of a variable, even if there are intervening uses of sugar. These two situations correspond to inadvertent variable capture and shadowing. 
+\textbf{Composability} The mechanism cannot simply allow the base language's syntax to  be modified arbitrarily due to the potential for parsing ambiguities, both with the base language and, critically, with one another (e.g. extensions adding support for XML and HTML).% To avoid this issue, extensions must be kept delimited from the base language and from one another. 
 
 \noindent
-\textbf{Typing Discipline} In a statically typed setting, which will be our focus in this work, a \emph{typing discipline} is also desirable: determining the type a term will have should be possible without requiring that the desugaring be performed, to aid both programmers and tools. 
+\textbf{Hygiene} The logic specifying how newly introduced forms are elaborated must be constrained to ensure that the meaning of a program cannot change simply because some of the variables have been uniformly renamed (manually, or by a refactoring tool). It should also be straightforward to identify the binding site of a variable, even with intervening uses of sugar. These two situations correspond to inadvertent variable capture and shadowing by the desugaring logic. 
+
+\noindent
+\textbf{Typing Discipline} In a statically typed setting, which will be our focus in this work, a \emph{typing discipline} is also desirable: determining the type a term will have should be possible without requiring that the desugaring be performed, to aid both the programmer and tools like editors. 
 
 Most prior approaches to syntax extension, discussed in Sec. \ref{related}, fail to provide all of these guarantees. Recent work on \emph{type-specific languages  (TSLs)} makes these guarantees, but only in a limited setting: library providers can define new syntax only for introducing values of a type (i.e. \emph{literal forms}), associating it as metadata with the type when it is declared \cite{TSLs}. Local type inference, specified as a bidirectional type system \cite{Pierce:2000:LTI:345099.345100}, controls which TSL is used to parse delimited pieces of syntax, so TSLs are composable and maintain the typing discipline. The semantics also guarantees that hygiene is maintained. We will review TSLs in Sec. \ref{background}. 
 
-Many forms of syntactic sugar can be implemented as TSLs, but there are situations where TSLs do not suffice: 1) only a single TSL can be associated with a type, and only when it is declared, so alternative syntax for a type or syntax for a type not under a user's control cannot be defined; 2) idioms other than those that arise when introducing a value of a type (e.g. those related to control flow or API protocols) cannot be captured; and 3) types cannot themselves be declared using specialized syntax. In this paper, we introduce \emph{typed syntax macros (TSMs)}, which supplement TSLs to support these scenarios while maintaining the strong guarantees above.% A TSM is invoked explicitly but otherwise benefits from the same mechanisms developed for TSLs. 
+While many forms of syntactic sugar can be implemented as TSLs, there remain situations where TSLs do not suffice: 1) only a single TSL can be associated with a type, and only when it is declared, so alternative syntax for a type or syntax for a type not under a user's control cannot be defined; 2) idioms other than those that arise when introducing a value of a type (e.g. those related to control flow or API protocols) cannot be captured; and 3) types cannot themselves be declared using specialized syntax. In this paper, we introduce \emph{typed syntax macros (TSMs)}, which supplement TSLs to support these scenarios while maintaining the strong, and we believe crucial, guarantees above.% A TSM is invoked explicitly but otherwise benefits from the same mechanisms developed for TSLs. 
 
-We introduce TSMs at the term level in Sec. \ref{tsms-term}.  To maintain a typing discipline, there are two flavors of term-level TSMs: \emph{synthetic TSMs} can be used anywhere, while \emph{analytic TSMs} can only be used where the expected type of the term is otherwise known. Both TSLs and TSMs leverage a common set of  ligthweight delimited forms to separate syntax extensions from the host language. To support ``multi-argument'' TSMs (and TSLs), we supplement those previously defined with \emph{multipart delimited forms}. 
+We introduce TSMs first at the term level in Sec. \ref{tsms-term}.  To maintain a typing discipline, there are two flavors of term-level TSMs: \emph{synthetic TSMs} can be used anywhere, while \emph{analytic TSMs} can only be used where the expected type of the term is otherwise known. Both TSLs and TSMs leverage a common set of  ligthweight delimited forms to separate syntax extensions from the host language. To support ``multi-argument'' TSMs (and TSLs), we supplement those previously defined with \emph{multipart delimited forms}. 
 
-We next turn to the level of type declarations  in Sec. \ref{tsm-type}. Type-level TSMs generate not just a type declaration but also the TSL associated with it, allowing TSLs and TSMs to operate in concert, as we will show. 
+We next turn to the level of type declarations  in Sec. \ref{tsm-type}. Type-level TSMs generate not just a type declaration but also the TSL associated with it, allowing TSLs and TSMs to operate in concert, as we will demonstrate. 
 
 In Sec. \ref{theory}, we give a minimal type-theoretic account of these mechanisms by extending the bidirectionally typed elaboration semantics for TSLs given previously by Omar et al., leveraging the same underlying hygiene mechanism and internal language.% (emphasizing the cohesion of these mechanisms). %   mechanism to support efforts to  decentralize control over the concrete syntax of a typed programming language. 
 
@@ -219,32 +219,33 @@ type @\htmlcolor{HTML}@ = casetype
   metadata = new : HasTSL
     val parser = ~
       @\expkwparsercolor{start <- '<body' attributes '>' start '</body>'}@
-        fn attrs, e => '@\expcolor{BodyElement((\$}@attrs@\expcolor{, \$}@e@\expcolor{))}@'
+        fn atts, child => '@\expcolor{BodyElement((\$}@atts@\expcolor{, \$}@child@\expcolor{))}@'
       @\expkwparsercolor{start <- '<\{' EXP '\}>'}@
         fn e => e
       (* ... *)
 
-val heading : HTML = H1Element({}, Text("My Heading"))
+let heading : HTML = H1Element({}, Text("My Heading"))
 serve(~) (* serve : HTML -> Unit *)
-  @\htmlcolor{<body id="doc1">
-    <\{}@heading@\htmlcolor{\}>}@
-  @\htmlcolor{<p>My first paragraph.</p>
-  </body>}@
+  @\htmlcolor{<body id="doc1">}@
+    @\htmlcolor{<\{}@heading@\htmlcolor{\}>}@
+    @\htmlcolor{<p>My first paragraph.</p>}@
+  @\htmlcolor{</body>}@
 \end{lstlisting}
 \mycaption{A case type with an associated TSL.}
 \label{f-htmltype}
 \end{figure}
-We will present TSMs in the context of a simplified variant of the Wyvern programming language introduced previously to describe TSLs  \cite{TSLs}, making only minor changes that we will note as they come up. Wyvern is a simply-typed  language with features from both the functional and object-oriented traditions and has a layout-sensitive concrete syntax. An example of a type encoding the tree structure of HTML is declared in Figure \ref{f-htmltype}. The named type \verb|HTML| is a \emph{case type}, with cases for each HTML tag and additional cases for an empty document, a sequence of nodes and a text node. Case types are similar to datatypes in an ML-like language (in type-theoretic terms, recursive labeled sum types). 
-We can introduce a value of type \verb|HTML| by naming a case and providing data of the type that case declares,  line 12.
+We will present TSMs in the context of a simplified variant of the Wyvern programming language introduced previously to describe TSLs  \cite{TSLs}, making only minor changes that we will note as they come up. Wyvern is a statically typed  language with features from both the functional and object-oriented traditions and has a layout-sensitive concrete syntax. 
 
-Note that type declarations are generative: the type \verb|HTML| is distinct from any other type, including other case types with the same cases, also as in ML. Unlike in ML and the previous variant of Wyvern, we do not combine type generativity and case types into a single construct. Instead, a named type is declared by deferring semantically to any other type underneath. For the purposes of this paper, this includes case types, tuple types, e.g., \verb|HTML * HTML|, function types, e.g., \verb|HTML -> Unit|, and simple object types. 
+An example of a type encoding the tree structure of HTML is declared in Figure \ref{f-htmltype}. The named type \verb|HTML| is a \emph{case type}, with cases for each HTML tag and additional cases for an empty document, a sequence of nodes and a text node. Case types are similar to datatypes in an ML-like language (in type-theoretic terms, recursive labeled sum types). 
+We can introduce a value of type \verb|HTML| by naming a case and providing data of the type the case declares, seen on line 12.
+
+Type declarations are generative: \verb|HTML| is identified by name and so is distinct from any other type, including other case types with the same cases. Unlike in ML and the previously described variant of Wyvern, we do not combine type generativity and case types into a single construct. Instead, a named type is declared by deferring semantically to any other type underneath. For the purposes of this paper, this may be a  case type, a tuple types, e.g., \verb|HTML * HTML|, a function type, e.g., \verb|HTML -> Unit|, or an object type. We also assume that parameterized types can be defined, written e.g. \verb|List(T)|, where \verb|T| is another type. 
+We assume that the definitions of standard  types like strings, lists and options are ambiently available via the \emph{prelude}, a collection of type declarations loaded before all others. 
+
+Object types in Wyvern are structural (not class-based) and can declare fields (via \texttt{val}) and methods (via \texttt{def}). Two object types included in the prelude are shown in Figure \ref{exp-prelude}, described further below. The introductory form for an object type is \verb|new|, and it can only be used in an \emph{analytic position}, i.e. where the expected type is known (e.g. via an explicit type ascription or as an argument to a function). The keyword \verb|new| serves as a syntactic \emph{forward reference}: it can appear once per line, and the next indented block must give values for all the fields and implementations for all the methods specified by its type. We will see an example below.
 
 
-Object types in Wyvern are structural (not class-based) and can declare fields (via \texttt{val}) and methods (via \texttt{def}). Two object types are shown in Figure \ref{exp-prelude}, described further below. The introductory form for an object type is \verb|new|, and it can only be used in an \emph{analytic position}, i.e. where the expected type is known (e.g. via an explicit type ascription or as an argument to a function). The keyword \verb|new| serves as a syntactic \emph{forward reference}: it can appear once per line, and the next indented block must give values for all the fields and implementations for all the methods specified by the type.
-
-We also assume that parameterized types can be defined, written e.g. \verb|List(T)|, where \verb|T| is another type, and that the definitions of standard  types like strings, lists and options are ambiently available via the \emph{prelude}, a collection of type declarations loaded before all others. 
-
-All named types can be equipped with \emph{metadata}: a value constructed at compile-time and available for use by the language itself (in particular, the TSL mechanism) as well as other tools. Metadata is analagous to class annotations in Java, or class attributes in .NET languages, but unlike in these languages, it can be any Wyvern value (typically an object, see below).% Here, we will use metadata to associate a TSL with \verb|HTML|. 
+All named types can be equipped with \emph{metadata}: a value constructed at compile-time and available for use by the language itself (in particular, the TSL mechanism) as well as other tools. Metadata is analagous to class annotations in Java, or class attributes in .NET languages, but unlike in these languages, it can be any Wyvern value (see below). % Here, we will use metadata to associate a TSL with \verb|HTML|. 
 
 \subsection{Type-Specific Languages (TSLs)}
 
@@ -259,12 +260,16 @@ type @\expkwparsercolor{Parser}@(T) = objtype
   metadata = new : HasTSL
     val parser = (* ... parser generator ... *)
 
+type Result(T) = casetype
+  OK of T
+  Error of String * Location
+
 type @\expcolor{Exp}@ = casetype
   Var of ID
   Lam of ID * Exp
   Ap of Exp * Exp
   Ascription of Exp * Type
-  CaseIntro of Case * Exp
+  CaseIntro of ID * Exp
   (* ... *)
   metadata = new : HasTSL
     val parser = (* ... exp quasiquotes ... *)
@@ -276,127 +281,155 @@ type @\typecolor{Type}@ = casetype
   Arrow of Type * Type
   metadata : HasTSL = new
     val parser = (* ... type quasiquotes ... *)
-
-type Result(T) = casetype
-  OK of T
-  Error of String * Location
 \end{lstlisting}
 \mycaption{A portion of the Wyvern prelude relevant to TSLs and TSMs.}
 \label{exp-prelude}
 \end{figure}
-\begin{figure}[t]
-\begin{lstlisting}[style=tempwyvern]
-'@\htmlcolor{body here, '{}'inner single quotes'{}' must be doubled}@'
-{@\htmlcolor{body here, \{inner curly braces\} must be balanced}@}
-[@\htmlcolor{body here, [inner braces] must be balanced}@]
-<@\htmlcolor{body here, <inner angle brackets> must be balanced}@>
-~ (* can appear at any expression position *)
-  @\htmlcolor{body here, leading indentation will be removed}@
-[@\htmlcolor{adjacent}@] {@\htmlcolor{delimited forms}@} @\htmlcolor{or}@ [@\htmlcolor{those}@] @\htmlcolor{separated}@ ~ @\htmlcolor{form}@
-  @\htmlcolor{by identifiers create a single multipart delimited}@
-\end{lstlisting}
-\mycaption{Available delimited forms. The multipart delimited form is shown being used in Sec. \ref{tsms-term}.}
-\label{f-delimited}
-\end{figure}
 
-Directly introducing a term of a type like \verb|HTML| using general-purpose syntax like that shown on line 12 can be tedious. Moreover, there is standard concrete syntax for HTML that might be preferable for reasons of familiarity or compatibility. To allow for this, we associate a \emph{type-specific language} with the \verb|HTML| type by setting the metadata to a value of type \verb|HasTSL|, an object type with one field, \verb|parser|. The declarations of \verb|HasTSL| and other types in the prelude relevant to it are shown in Figure \ref{exp-prelude}. 
+Introducing a value of a type like \verb|HTML| using general-purpose syntax like that shown on line 12 can be tedious. Moreover, there is standard concrete syntax for HTML that might be preferable for reasons of familiarity or compatibility. To allow for this, we associate a \emph{type-specific language} with the \verb|HTML| type by setting the metadata to a value of type \verb|HasTSL|, an object type with a field \verb|parser| of type \verb|Parser(Exp)| (Figure \ref{exp-prelude}). 
  %We omit the implementation of the \verb|HTML| type's TSL \verb|parse| method here for concision. 
 
-The TSL for \verb|HTML| is shown being used on lines 13-15 of Figure \ref{f-htmltype}. On line 13, we wish to call a function \verb|serve| of type \verb|HTML -> Unit|. Rather than explicitly constructing a term of type \verb|HTML| as the argument, however, we use the \emph{forward referenced literal form} \lstinline[style=wyvern]{~}. The \emph{body} of the literal consists of the text in the indented block beginning on the next line, stripped of the leading indentation. In effect, whitespace is serving as a delimiter for the literal. We could equivalently have used other \emph{inline delimiters}, e.g. curly braces or single quotes, which restrict what can appear inside them, as described in Figure \ref{f-delimited}. For example, we could have written line 12 equivalently as:
+We see the TSL for \verb|HTML| being used on lines 13-15 of Figure \ref{f-htmltype}. On line 13, we wish to call a function \verb|serve| of type \verb|HTML -> Unit|. Rather than explicitly constructing a term of type \verb|HTML| as the argument, however, we use the \emph{forward referenced literal form} \lstinline[style=wyvern]{~}. The \emph{body} of the literal consists of the text in the indented block beginning on the next line, stripped of the leading indentation. In effect, whitespace is serving as a delimiter for the literal. We could equivalently have used other \emph{inline delimiters}, e.g. curly braces or single quotes, which restrict what can appear inside them, as described in Figure \ref{f-delimited}. For example, we could have written line 12 equivalently as:
 \begin{lstlisting}[style=wyvern, numbers=none, frame=none]
   val heading : HTML = '@\htmlcolor{<h1>My Heading</h1>}@'
 \end{lstlisting}
 
-When the type system encounters literal forms like this, it defers to the parser defining the TSL of the type the literal is being analyzed against, here \verb|HTML| because it is the argument type of \verb|serve|. As suggested by the definitions in Figure \ref{exp-prelude}, the TSL is responsible for transforming a \verb|ParseStream| based on the body to a \verb|Result(Exp)|, which is either an \verb|Exp| or a parse error. The case type \verb|Exp| simply encodes the abstract syntax of Wyvern, so the TSL is defined as a desugaring. 
+\begin{figure}[t]
+\begin{lstlisting}[style=tempwyvern]
+'@\htmlcolor{body here, '{}'inner single quotes'{}' must be doubled}@'
+[@\htmlcolor{body here, [inner braces] must be balanced}@]
+~ (* can appear at any expression position *)
+  @\htmlcolor{forward referenced body here, leading indent stripped}@
+{when body is a single base term, curly braces
+can be useful because forward references propagate out}
+[@\htmlcolor{adjacent}@] {@\htmlcolor{delimited forms}@} @\htmlcolor{or}@ [@\htmlcolor{those}@] @\htmlcolor{separated}@ ~ @\htmlcolor{form}@
+  @\htmlcolor{by identifiers create a single multipart delimited}@
+\end{lstlisting}
+\mycaption{Available delimited forms. The curly brace delimited and multipart delimited forms are novel and shown being used in Sec. \ref{tsms-term}. }
+\label{f-delimited}
+\end{figure}
 
-The \verb|parse| method can request that some portion of the parse stream be treated as a \emph{spliced} host language term. For example, the TSL for \verb|HTML| specifies the delimiters \verb|<{| and \verb|}>| to mean ``insert the enclosed term, of type \verb|HTML|, here''. For clarity in this paper, we will color host language terms, including those spliced in this way, black. Portions of TSL (and TSM) bodies that are not spliced host language terms will be colored a unique color corresponding to the TSL or TSM being used, identified when declared. Note that the prelude types \verb|Parser| and \verb|Exp| each have TSLs associated with them, which provide a \emph{grammar-based parser generator} and \emph{quasiquote} facilities, respectively. We see them being used in Figure \ref{f-htmltype}. We refer the reader to \cite{TSLs} for further details on the TSL mechanism.
 
-\section{Syntax macros in Wyvern}
-\label{sec-example}
-In this section, we employ several examples of syntax macros in Wyvern to illustrate how they are used to solve the problems mentioned in the last section. Syntax macros can be divided into two kinds based on their role in a Wyvern program: syntax macros equivalent to a Wyvern expression, and others equivalent to a Wyvern type declaration. As syntax macros are always associated with a keyword, we use the term ``expression keyword'' and ``type keyword'' to refer to these two kinds of syntax macros.
+When the type system encounters literal forms like this, it defers to the parser defining the TSL of the type the literal is being analyzed against, here \verb|HTML| because it is the argument type of \verb|serve|. As suggested by the declarations in Figure \ref{exp-prelude}, the TSL is responsible for transforming a \verb|ParseStream| based on the body to a \verb|Result(Exp)|, which is either an \verb|Exp| or a parse error. The case type \verb|Exp| simply encodes the abstract syntax of Wyvern, so the TSL is defined as a desugaring. Note that the prelude types \verb|Parser| and \verb|Exp| each have TSLs associated with them, which provide a \emph{grammar-based parser generator} (based on Adams grammars \cite{Adams:2013:PPI:2429069.2429129}, see below) and \emph{quasiquote} facilities, respectively. We see them being used in Figure \ref{f-htmltype}. We refer the reader to \cite{TSLs} for further details on the TSL mechanism and this application  of them.
 
-\subsection{Expression Keyword}
-An expression keyword is a keyword associated with a parser to transform DSL literals into a Wyvern expression. Depending on whether a return type is provided in the keyword declaration, expression keywords can be further divided into black-box keyword and white-box keyword (This terminology is borrowed from Scala's macro system). 
+The \verb|parse| method can request that some portion of the parse stream be treated as a \emph{spliced} host language term. For example, the TSL for \verb|HTML| specifies the delimiters \verb|<{| and \verb|}>| to mean ``insert the enclosed term, of type \verb|HTML|, here''. The parser generator reserves the non-terminal \verb|EXP| for such spliced host language terms. The hygiene mechanism for TSLs, which we will use essentially as-is, ensures that only spliced terms can refer to variables in the surrounding scope.
 
-\paragraph{Black-box keyword ``simpleHTML''}
-We start with an example showing the use of the expression keyword \verb|simpleHTML| to construct a value of type \verb|HTML|. The expression keyword \verb|simpleHTML| provides an alternative syntax to construct the HTML value. The \verb|simpleHTML| syntax is an abbreviate representation of HTML using whitespace to close tags rather than explicit closing tags. The syntax is declared using a parser TSL in line 2-10 in figure \ref{f-simplehtml}.
+For clarity in this paper, we will color host language terms, including those spliced in this way, black. Portions of TSL (and TSM) bodies that are not spliced host language terms will be colored a unique color corresponding to the TSL or TSM being used, identified when declared. 
 
-\begin{figure}[ht]
+\section{Term-Level TSM\lowercase{s}}\label{tsms-term}
+In this section, we will give examples of term-level typed syntax macros in Wyvern to illustrate how they are defined and can be used in situations where TSLs are not suitable. We follow up with a more formal treatment in Sec. \ref{theory}. 
+
+%Term-level TSMs come in two flavors: \emph{synthetic TSMs} specify the type of term they will elaborate to, meaning they can be used anywhere, while \emph{analytic TSMs} can elaborate to a term of any type, but to maintain the typing discipline, they can only be used in positions where the type can otherwise be determined. 
+
+\subsection{Synthetic TSMs}
+TSMs are defined using the \verb|syntax| keyword. Figure \ref{f-simplehtml} shows a synthetic TSM, \verb|simpleHTML|, being defined and used. The annotation on the first line indicates that valid uses of the TSM will always elaborate to a term that synthesizes the type \verb|HTML|. Like defining a TSL, defining a TSM requires defining a parser, which is a statically-evaluated value of type \verb|Parser(Exp)| (for the purposes of exposition, we include type annotations that are not strictly necessary in comments throughout the paper). 
+
+We again define the parser by using the TSL for \verb|Parser|. Here, we are defining an alternative layout-sensitive syntax for HTML that is more concise than the conventional one by way of an \emph{Adams grammar}, which supports declarative specifications of layout-sensitive grammars by using \emph{layout constraints} within productions \cite{Adams:2013:PPI:2429069.2429129}. Here, \verb|=| indicates that the left-most column (on any line) occupied by the annotated terminal or non-terminal must occur at the same column as the parent production and \verb|>| indicates that it must be further indented. More detail on Adams' grammars and this example syntax for HTML can be found in \cite{TSLs}. 
+
+A TSM is invoked by naming it and following it with a delimited form (Figure \ref{f-delimited}). The body of the delimited form is parsed according to the definition of the TSM. Notice here that on line 7, we no longer need a type annotation on \verb|heading| because \verb|simpleHTML| is synthetic. On lines 8-11, we use the same forward referenced delimited form introduced in the work on TSLs to avoid syntactic clashes between explicit delimiters and the extended syntax. The only difference here is the addition of the \verb|simpleHTML| ``keyword'', which indicates to the type system that the TSM should be used rather than the TSL for \verb|HTML|. Note that both can straightforwardly be used in the same program, so synthetic TSMs address the issue of defining more than one possible syntax for a type that either has a TSL defined for it already, or a type which a user cannot modify (because it appears in an external library). We do not here address namespacing issues, as standard techniques can be used to ensure that different TSMs have globally unique names. 
+
+%An expression keyword is a keyword associated with a parser to transform DSL literals into a Wyvern expression. Depending on whether a return type is provided in the keyword declaration, expression keywords can be further divided into black-box keyword and white-box keyword (This terminology is borrowed from Scala's macro system). 
+
+
+\begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
 syntax @\simpleHTMLcolor{simpleHTML}@ : HTML = ~ (* : Parser(Exp) *)
   @\expkwparsercolor{start <- '>body'= attributes> start>}@
-    fn attrs, child => "@\expcolor{BodyElement((\$}@attrs@\expcolor{, \$}@child@\expcolor{))}@"
-  @\expkwparsercolor{start <- '>p'= attributes> start>}@
-    fn attrs, child => "@\expcolor{PElement((\$}@attrs@\expcolor{, \$}@ child@\expcolor{))}@"
-  @\expkwparsercolor{start <- text}@
-    fn text => "@\expcolor{Text(\$}@text@\expcolor{)}@"
+    fn atts, child => '@\expcolor{BodyElement((\$}@atts@\expcolor{, \$}@child@\expcolor{))}@'
   @\expkwparsercolor{start <- '<'= EXP>}@
-    fn e => '@\expcolor{\$}@e'
-val y = simpleHTML ~
+    fn e => e
+  (* ... *)
+let heading = simpleHTML '@\simpleHTMLcolor{>h1 My Heading}@'
+serve(simpleHTML ~)
   @\simpleHTMLcolor{>body[id="doc1"]}@
-    @\simpleHTMLcolor{>h1 <\{}@heading_text@\simpleHTMLcolor{\}}@
+    @\simpleHTMLcolor{<}@ heading
     @\simpleHTMLcolor{>p My first paragraph}@
 \end{lstlisting}
-\mycaption{The `simpleHTML' keyword example.}
+\mycaption{A synthetic TSM providing alternative syntax for the \texttt{HTML} type in Figure \ref{f-htmltype}. The programs are semantically identical.}
 \label{f-simplehtml}
 \end{figure}
-
-In the keyword declaration part, besides the parser definition, a return type (\verb|HTML|) is also provided, which indicates that the DSL literals will elaborate to an expression of type \verb|HTML|. The use of the keyword is presented in line 10-13: the keyword \verb|SimpleHTML| is call in line 10, followed by DSL literals on the next indent level (colored brown). The variable \verb|heading_text| (colored black, in line 12), a \verb|String| variable defined in line 10 of figure \ref{f-htmltype}, is inserted into \verb|SimpleHTML| literals using curly braces, which is used to switch between \verb|SimpleHTML| syntax and original Wyvern syntax.
-
-\todo{Should we add a summary here like ``In this way we can solve the first problem mentioned in the last section''? }
-
-\paragraph{White-box keyword ``if''}
-Differently, white-box keywords are defined without specifying the return type. Here we use the key word \verb|if| as an example. The keyword \verb|if| is declared in the type \verb|Bool| which is a casetype with two cases: \verb|True| and \verb|False|. As no return type is declared with \verb|if|, a type should be provided when the keyword is used and the type checker will analyze the expression type against the provided type (e.g. a type \verb|T| is provided in line 10 of figure \ref{if-example} for type analysis). Besides type analysis, we may allow type synthesis on the elaborated Wyvern expression to synthesize the return type of the syntax macro. But considering a stronger type preserving property, we only use type analysis in this case for a white-box keyword, which will be discussed in Sec[\todo{Metatheory Section}].
-
-\begin{figure}[ht]
+\begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
 type Bool = casetype 
   True
   False
-  expkw @\boolIfcolor{if}@ = fn self (* : Exp *) => ~ (* : ExpParser *)
-    @\expkwparsercolor{EXP BOUNDARY `else' BOUNDARY EXP}@
-      fn e1 (* : Exp *), e2 (* : Exp *) => ~ (* : Exp *)
-        @\expcolor{case \$}@self
-          @\expcolor{True => \$}@e1
-          @\expcolor{False => \$}@e2
-def f(x : Bool) : T
-  x.if {branch_1} @\boolIfcolor{else}@ {branch_2}
+syntax @\boolIfcolor{if}@ = ~ (* : Parser(Exp) *)
+  @\expkwparsercolor{EXP BOUNDARY EXP BOUNDARY `else' BOUNDARY EXP}@
+    fn guard, branch1, branch2 => ~ (* : Exp *)
+      @\expcolor{case \$}@guard
+        @\expcolor{True => \$}@branch1
+        @\expcolor{False => \$}@branch2
+def testIf(ok : Bool) : HTML
+  if [ok] {simpleHTML ~} @\boolIfcolor{else }@{simpleHTML '@\simpleHTMLcolor{>h1 Not OK!}@'}
+    @\simpleHTMLcolor{>h1 Everything is OK!}@
 \end{lstlisting}
-\mycaption{The black-box keyword `if' example.}
+\mycaption{An analytic TSM providing a conventional syntax for \texttt{if} based on case analysis. Lines 11-12 demonstrate multipart delimited forms.}
 \label{if-example}
 \end{figure}
 
-The syntax for \verb|if| is defined on line 5: starting with an expression, followed by an identifier \verb|else| and then another expression. Here we use the parsing mechanism in TSL to support multi-part body parsing: any delimited forms appeared next to each other or delimited by a keyword. Different delimited forms can be referred to figure \ref{f-delimited}. The parser will identify the delimited form and insert a \verb|BOUNDRY| between different delimited forms and the keywords. 
+\subsection{Analytic TSMs}
+Some idioms may be valid at many types. As perhaps the simplest example, consider a case type encoding booleans, \verb|Bool|, shown in Figure \ref{if-example}. Using explicit case analysis on booleans is often unnecessarily verbose, so we wish to introduce the more idiomatic and concise \verb|if| construct. Rather than having to build this in to the language, however, we can implement it as an analytic TSM. These are distinguished from synthetic TSMs by the absence of a type annotation, because the type of an \verb|if| expression is determined by its branches. 
 
-An using example is presented in line 11: the variable \verb|x| (of type \verb|Bool|) invoke the keyword \verb|if| and DSL literals are right next to the keyword. The Wyvern type checker will look up the parser in the definition of \verb|if| in the type \verb|Bool|, and the return type of the keyword invocation expression will be checked against $\verb|T|$, which is provided in the function definition.  
+We see \verb|if| being used on lines 10-12 of Figure \ref{if-example} with a \emph{multipart delimited form}. Each \emph{part} can be either a delimited form (e.g. the guard and the two branches) or an intervening keyword (e.g. \verb|else|). There are implicit boundaries between each part which parse to  a special token called \verb|BOUNDARY| by our parser generator (line 5). For the branches, we use curly brace delimiters, which have evolved since our previous work on TSLs to be specialized for situations where the body consists of a single spliced term. Because the parser can assume this, forward references can be identified prior to typechecking and thus be allowed to escape, as we see in the ``then'' branch in our example: the body is on the next line. Were, for example, square brackets used, then we would need to write the example as follows:
 
-\begin{figure}[ht!]
 \begin{lstlisting}[style=wyvern]
-type @\expkwparsercolor{ExpParser}@ = objtype
-  def parse(ps : ParseStream) : Result(Exp)
-  metadata : HasTSL = new 
-    val parser = (* parser generator *)
-
-type @\expcolor{Exp}@ = casetype
-  Var of ID
-  Lam of ID * Exp
-  Ap of Exp * Exp
-  (* ... *)
-  metadata : HasTSL = new
-    val parser = (* exp quasiquotes *)
-
-type Result(T) = casetype
-  OK of T * ParseStream
-  Error of String * Location
+def testIf2(ok : Bool) : HTML
+  if [ok] [simpleHTML ~
+    @\simpleHTMLcolor{>h1 Everything is OK!}@
+  ] else [simpleHTML '@\simpleHTMLcolor{>h1 Not OK!}@']
 \end{lstlisting}
-\mycaption{Wyvern prelude for expression keywords extension}
-\label{exp-prelude}
-\end{figure}
 
-\subsection{Type Keyword}
+An analytic TSM can only be used in a position where the type is otherwise known, e.g. due to the return type annotation on line 10. This is to maintain the typing discipline: we do not need to expand the TSM to know what type it will have, as with synthetic TSMs and TSLs. Although we believe this trade-off is worthwhile, another point in the design space is to permit a special signifier that can be used to allow analytic TSMs to be used in synthetic positions. For example, we might permit a post-fix asterisk on the TSM to indicate that the elaboration is expected to synthesize a type. The specific type that is synthesized requires a deeper understanding of the TSM in question (e.g. by knowing how it elaborates, or based on a ``derived'' typing rule that the authors of \verb|if| assert, or prove \cite{conf/icfp/LorenzenE13}, is always admissible):
+
+\begin{lstlisting}[style=wyvern]
+def testIf3(ok : Bool) (* no return type annotation *)
+  if* [ok] {simpleHTML ~} else {simpleHTML '@\simpleHTMLcolor{>h1 Not OK!}@'}
+    @\simpleHTMLcolor{>h1 Everything is OK!}@
+\end{lstlisting}
+
+The most permissive point in the design space is to simply allow such TSMs in synthetic positions without an explicit signifier. We note that would be the syntax macro analogy of \emph{white-box (term rewriting) macros} in Scala \cite{ScalaMacros2013}, which are not  available by default in the upcoming Scala 2.12. Synthetic TSMs are analagous to black-box macros. 
+
+\section{Type-Level TSMs}
 Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Although data schema already exists, declaring a type with fields to represent the data structure still require users to create them manually in Wyvern syntax. Type keywords make this process easier by allowing users to generate type declarations directly using the data schema syntax, and furthermore, a metadata will be generated for initializing the value of that type. The following example shows how we construct a type using database schema.
 
-\begin{figure}
+
+
+In figure \ref{f-tykwexample}, we present an example of constructing the type \verb|EmployeeDB| using the type keyword \verb|DBSchema|. By defining the type \verb|EmployeeDB| using a type keyword, the type \verb|EmployeeDB| will be provided with the following fields/methods after elaboration (line 1-13 in figure \ref{typekw-example-2}):
+\begin{itemize}\setlength{\itemsep}{0pt}
+\item Fields and method declarations based on the data schema. (e.g. \verb|employee|, \verb|getByName|)
+\item Common fields and method declarations provided for all types using the type keyword, and they don't depend on a certain schema. (e.g. \verb|connection| and \verb|stmts|)
+\item A TSL metadata for value initialization using the DSL syntax.
+\end{itemize}
+
+Line 1-3 in figure \ref{f-tykwexample} shows the declaration of the type \verb|EmployeeDB| using database schema syntax. And a value \verb|db| (line 5-10) is defined using the syntax provided by the generated TSL metadata. 
+
+The elaborated version of the type \verb|Employee| and the value \verb|db| is presented in figure \ref{typekw-example-2}: a type member \verb|Entry| is declared in the type to represent a data table entry, and methods like \verb|getById| are generated for database access. The elaborated value \verb|db| (line 15) is initialized with fields and methods.
+
+The definition of the type keyword \verb|DBSchema| can be referred to figure \ref{typekw-example-1}. A type keyword itself is a parser for DSL literals: it is a value of type \verb|TypeParser|, which takes in a parsestream and returns a parsing result (of type \verb|Result|, which is a casetype defined in figure \ref{exp-prelude}). When there is no parsing error, a tuple \verb|(t:Type, e:Exp, k:List(KwMember))| will be returned for type construction: the type structure stored in \verb|t|, metadata in \verb|e|, and expression keywords defined by \verb|k|. \verb|DBSchema| will construct an object type with fields specified in line 5-18, and it will provide a TSL metadata for value initialization (line 20-35). The type of the metadata is provided on the first line of keyword declaration with keyword \verb|with metadata|, which is used by the type checker to analyze the metadata type.
+
+% \begin{figure}
+% \begin{lstlisting}[style=wyvern]
+% type @\typekwparsercolor{TypeParser}@ = objtype
+%   def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
+%   metadata : HasTSL = new 
+%     val parser = (* parser generator *)
+
+% type @\typecolor{Type}@ = casetype
+%   Named of ID
+%   Objtype of List(MemberDecl)
+%   Casetype of List(CaseDecl)
+%   Arrow of Type * Type
+%   metadata : HasTSL = new
+%     val parser = (* type quasiquotes *)
+
+% type KwMember = casetype
+%   Whitebox of Label * ExpKw
+%   Blackbox of Label * ExpKw * Type
+% \end{lstlisting}
+% \mycaption{Wyvern prelude for type keywords}
+% \label{type-prelude}
+% \end{figure}
+\begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
 type @\dbcolor{EmployeesDB}@ = DBSchema ~
   @\dbshcemacolor{*ID   int}@
@@ -413,7 +446,7 @@ val db : EmployeeDB = ~
 \label{f-tykwexample}
 \end{figure}
 
-\begin{figure}[ht]
+\begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
 type EmployeesDB = objtype
   type Entry = objtype
@@ -443,7 +476,7 @@ val db : EmployeesDB = new
 \label{typekw-example-2}
 \end{figure}
 
-\begin{figure}[ht]
+\begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
 typekw @\dbshcemacolor{DBSchema}@ with metadata:HasTSL = ~ (*:TypeParser*)
   @\typekwparsercolor{start <- pairs}@
@@ -493,6 +526,9 @@ typekw @\dbshcemacolor{DBSchema}@ with metadata:HasTSL = ~ (*:TypeParser*)
 \label{typekw-example-1}
 \end{figure}
 
+% IS THIS DELETED?
+\begin{comment}
+<<<<<<< HEAD
 In figure \ref{f-tykwexample}, we present an example of constructing the type \verb|EmployeeDB| using the type keyword \verb|DBSchema|. By defining the type \verb|EmployeeDB| using a type keyword, the type \verb|EmployeeDB| will be provided with the following fields/methods after elaboration (line 1-13 in figure \ref{typekw-example-2}):
 \begin{itemize}\setlength{\itemsep}{0pt}
 \item Fields and method declarations based on the data schema. (e.g. \verb|employee|, \verb|getByName|)
@@ -550,6 +586,12 @@ type @\typecolor{Type}@ = casetype
 
 \section{Syntax}
 We start our formal presentation by introducing the abstract syntax together with their concrete forms built upon pure functional Wyvern. For simplicity consideration, we omit some of the syntax not directly related to composable syntax macros, which can be referred to \cite{TSLs}.
+=======
+\end{comment}
+
+\section{Syntax}\label{theory}
+We start our formal presentation by introducing the abstract syntax together with their concrete forms built upon pure functional Wyvern. For simplicity consideration, we omit some of the syntax not directly related to composable syntax macros, which can be referred to \todo{TSL paper}.
+%>>>>>>> ea4d2199ced57f3233d65f0288f777fe918f4ad7
 
 A Wyvern program ($\rho$) consists of four parts: type keyword declarations ($\eta$), named-type declarations ($\theta$), expression keyword declarations ($\kappa$) and an expression ($e$) representing the program body.
 
