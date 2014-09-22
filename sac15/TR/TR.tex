@@ -1,0 +1,501 @@
+\documentclass[letterpaper, notitlepage]{article}
+\usepackage{bussproofs}
+\usepackage{amssymb}
+\usepackage{latexsym}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{stackengine}
+\usepackage[usenames,dvipsnames]{color} % Required for specifying custom colors and referring to colors by name
+\usepackage{listings}
+\usepackage[top=1in, bottom=1in, left=1.25in, right=1.25in]{geometry}
+\usepackage{xcolor}
+\usepackage{bera}% optional; just for the example
+
+\definecolor{DarkGreen}{rgb}{0.0,0.4,0.0} % Comment color
+\definecolor{highlight}{RGB}{255,251,204} % Code highlight color
+% This is the "centered" symbol
+\def\fCenter{{\mbox{\Large$\rightarrow$}}}
+
+% Optional to turn on the short abbreviations
+\EnableBpAbbreviations
+
+% This is the "centered" symbol
+\def\fCenter{{\mbox{\Large$\rightarrow$}}}
+
+\newcommand{\blue}[1] {\textcolor{blue}{#1}}
+\newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
+\newcommand{\doublebox}[2]{\begin{flushleft}\fbox{{#1}}\ \fbox{{#2}}\end{flushleft}}
+\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta;\Psi}}
+\newcommand{\todo}[1]{{\bf \{TODO: {#1}\}}}
+
+% Optional to turn on the short abbreviations
+\EnableBpAbbreviations
+
+% \alwaysRootAtTop  % makes proofs upside down
+% \alwaysRootAtBottom % -- this is the default setting
+
+\lstdefinestyle{wyvern}{ % Define a style for your code snippet, multiple definitions can be made if, for example, you wish to insert multiple code snippets using different programming languages into one document
+%backgroundcolor=\color{highlight}, % Set the background color for the snippet - useful for highlighting
+basicstyle=\footnotesize\ttfamily, % The default font size and style of the code
+breakatwhitespace=false, % If true, only allows line breaks at white space
+breaklines=true, % Automatic line breaking (prevents code from protruding outside the box)
+captionpos=b, % Sets the caption position: b for bottom; t for top
+morecomment=[s]{(*}{*)},
+commentstyle=\fontshape{it}\color{DarkGreen}\selectfont, % Style of comments within the code - dark green courier font
+deletekeywords={}, % If you want to delete any keywords from the current language separate them by commas
+%escapeinside={\%}, % This allows you to escape to LaTeX using the character in the bracket
+firstnumber=1, % Line numbers begin at line 1
+frame=lines, % Frame around the code box, value can be: none, leftline, topline, bottomline, lines, single, shadowbox
+frameround=tttt, % Rounds the corners of the frame for the top left, top right, bottom left and bottom right positions
+keywords=[1]{new, objtype, type, casetype, val, def, metadata, keyword, of},
+keywordstyle={[1]\ttfamily\color{blue!90!black}},
+keywordstyle={[3]\ttfamily\color{red!80!orange}},
+morekeywords={}, % Add any functions no included by default here separated by commas
+numbers=left, % Location of line numbers, can take the values of: none, left, right
+numbersep=10pt, % Distance of line numbers from the code box
+numberstyle=\tiny\color{Gray}, % Style used for line numbers
+rulecolor=\color{black}, % Frame border color
+showstringspaces=false, % Don't put marks in string spaces
+showtabs=false, % Display tabs in the code as lines
+stepnumber=5, % The step distance between line numbers, i.e. how often will lines be numbered
+tabsize=4, % Number of spaces per tab in the code
+}
+
+
+\begin{document}
+
+\title{Composable and Hygienic Typed Syntax Macros}
+\maketitle
+
+\section{Wyvern Prelude}
+\begin{lstlisting}[style=wyvern]
+type TypeParser = objtype
+	def parse(ps : ParseStream) : Result(Type * Exp)
+	metadata : HasTSL = new 
+		val parser = (* parser generator *)
+
+type Type = casetype
+	Named of ID
+	Objtype of List(MemberDecl)
+	Casetype of List(CaseDecl)
+	Arrow of Type * Type
+	metadata : HasTSL = new
+		val parser = (* type quasiquotes *)
+
+type MemberList = casetype
+	Nil  of Unit
+	Cons of Label * Type * MemberList
+
+type CaseList = casetype
+	Nil  of Unit
+	Cons of Label * Type * CaseList
+
+type ExpParser = objtype
+	def parse(ps : ParseStream) : Result(Exp)
+	metadata : HasTSL = new 
+		val parser = (* parser generator *)
+
+type Exp = casetype
+	Var of ID
+	Lam of ID * Exp
+	Ap of Exp * Exp
+	(* ... *)
+	metadata : HasTSL = new
+		val parser = (* exp quasiquotes *)
+
+type Result(T) = casetype
+	OK of Exp * ParseStream
+	Error of String * Location
+\end{lstlisting}
+
+\section{Syntax \& Type Checking}
+\subsection{Syntax}
+\[
+\begin{array}{rlrlrl}
+	\rho		~::=&~ \eta;\theta;\kappa;e\\
+	\eta		~::=&~ \emptyset						& \kappa 		~::=&~\emptyset\\
+				|~ 	& ~ \eta;k[\mathbf{ty},e,\tau]		& 				| ~ &~ \kappa;k[\mathbf{bk}(\tau),e]\\
+					&									& 				| ~ &~ \kappa;k[\mathbf{wk},e]\\
+	\theta		~::=&~ \emptyset\\
+				|~ 	&~ \theta; T[\mathbf{explicit}, \tau, e]\\
+				|~ 	&~ \theta; T[\mathbf{tykw}, k, body, e]\\
+	\tau 		~::=&~ \mathbf{named}[T]\\
+				|~	& ~ \mathbf{objtype}[\omega]		& \omega 		~::=&~ 	\emptyset ~ | ~ l[\mathbf{val}, \tau];\omega ~ | ~ l[\mathbf{def}, \tau];\omega\\
+				|~	& ~ \mathbf{casetype}[\chi]			& \chi 			~::=&~	\emptyset ~ | ~	C[\tau];\omega\\
+				|~  & ~ \mathbf{arrow}[\tau, \tau]\\
+	e 			~::=&~ x 								&\hat{e}	~::=&~ 	x 										& i 		~::=&~ 	x\\
+				| ~ &~ \mathbf{easc}[\tau](e)			& 		 	| ~ &~ 	\mathbf{hasc}[\tau](\hat{e})			& 		 	| ~ &~	\mathbf{iasc}[\tau](\dot{e})\\
+				| ~ &~ \mathbf{elet}(e; x.e)     		& 		 	| ~ &~ 	\mathbf{hlet}(\hat{e}; x.\hat{e})		& 		 	| ~ &~	\mathbf{ilet}(i;x.i)\\
+				| ~ &~ \mathbf{elam}(x.e)     			& 		 	| ~ &~ 	\mathbf{hlam}(x.\hat{e})				& 		 	| ~ &~	\mathbf{ilam}(x.i)\\
+				| ~ &~ \mathbf{eap}(e;e)     			& 		 	| ~ &~ 	\mathbf{hap}(\hat{e};\hat{e})			& 		 	| ~ &~	\mathbf{iap}(i;i)\\
+				| ~ &~ \mathbf{enew}(m)     			& 		 	| ~ &~	\mathbf{hnew}(\hat{m})					& 		 	| ~ &~	\mathbf{inew}(\dot{m})\\
+				| ~ &~ \mathbf{eprj}[l](e)     			& 		 	| ~ &~	\mathbf{hprj}[l](\hat{e})				& 		 	| ~ &~	\mathbf{iprj}[l](i)\\
+				| ~ &~ \mathbf{einj}[C](e)     			& 		 	| ~ &~	\mathbf{hinj}[C](\hat{e})				& 		 	| ~ &~	\mathbf{iinj}[C](i)\\
+				| ~ &~ \mathbf{ecase}[e]\{r\}     		& 		 	| ~ &~	\mathbf{hcase}[\hat{e}]\{\hat{r}\}		& 		 	| ~ &~	\mathbf{icase}[i]\{\dot{r}\}\\
+				| ~ &~ \mathbf{etoast}(e)     			& 		 	| ~ &~	\mathbf{htoast}(\hat{e})				& 		 	| ~ &~	\mathbf{itoast}[i]\\
+				| ~ &~ \mathbf{emetadata}[T]     		& 		 	| ~ &~	\mathbf{hmetadata}[T]\\
+				| ~ &~ \mathbf{expkwdef}[k]     		&			| ~ &~ 	\mathbf{hexpkwdef}[k]\\
+				| ~ &~ \mathbf{typekwdef}[k]			& 			| ~ &~ 	\mathbf{htypekwdef}[k]\\
+				| ~ &~ \mathbf{lit}[T]					& 		 	| ~ &~ 	\mathbf{spliced}[e]\\
+				| ~ &~ \mathbf{ekey}[k,body]\\
+	m 			~::=&~ \emptyset						&\hat{m}	~::=&~ \emptyset								&\dot{m}	~::=&~ \emptyset\\
+				| ~ &~ \mathbf{eval}[l](e);m 			&			| ~ &~ \mathbf{hval}[l](\hat{e});\hat{m} 		&			| ~ &~ \mathbf{ival}[l](i);\dot{m}\\
+				| ~ &~ \mathbf{edef}[l](x.e);m 			&			| ~ &~ \mathbf{hdef}[l](x.\hat{e});\hat{m}		&			| ~ &~ \mathbf{idef}[l](x.i);\dot{m}\\
+	r 			~::=&~ \emptyset 						&\hat{r} 	~::=&~ \emptyset 								&\dot{r} 	~::=&~ \emptyset\\
+				| ~ &~ \mathbf{erule}[C](x.e);r 		& 			| ~ &~ \mathbf{hrule}[C](x.\hat{e});\hat{r} 	&			| ~ &~ \mathbf{irule}[C](x.i);\dot{r}
+\end{array}
+\]
+\subsection{Context Definition}
+\[
+\begin{array}{rrl}
+\text{Type-keyword Context}			&	\Delta 			~::=&~ 	\emptyset\\
+&					| ~ &~ 	\Delta;k[\mathbf{ty},i,\tau]\\
+\text{Expression-keyword Context}			&	\Psi 			~::=&~	\emptyset\\
+&					| ~ &~ 	\Psi;k[\mathbf{bk}(\tau),i]\\
+&					| ~ &~ 	\Psi;k[\mathbf{wk},i]\\
+\text{Named-type Context}&	\Theta 			~::=&~ \emptyset\\
+&					| ~ &~ \Theta,T[\delta,\mu] \\
+&	\delta 			~::=&~ ? ~~ | ~~ \tau\\
+&	\mu	   			~::=&~ ? ~~ | ~~ i:\tau\\
+\text{Typing Context}&	\Gamma 			~::=&~ \emptyset\\
+&					| ~ &~ \Gamma,x:\tau\\
+\end{array}
+\]
+
+\subsection{Type Checking and Elaboration}
+\flyingbox{$\rho \sim \Delta\sim \Theta\sim\Psi\rightsquigarrow i:\tau$}
+\begin{center}
+\AXC{$\vdash_{\Theta_{0}}\eta \sim \Delta$ ~~~~ $\vdash_{\Theta_{0}}^{\Delta;\emptyset}\theta\sim\Theta$ ~~~~ $\vdash_{\Theta_0\Theta}^{\Delta;\emptyset}\kappa\sim\Psi $ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}^{\Delta;\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
+\UIC{$\eta;\theta;\kappa;e\sim\Delta\sim\Theta\sim\Psi\rightsquigarrow i:\tau$}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta}\eta\sim\Delta$}
+\vspace{-15px}
+\begin{center}
+\AXC{}\RightLabel{~(tykw-empty)}
+\UIC{$\vdash_{\Theta} \emptyset\sim\emptyset$}
+\DP
+\end{center}
+\begin{center}
+\AXC{$\Theta_0 \subset\Theta$ ~~~~ $\vdash_\Theta \eta\sim\Delta$ ~~~~ $k\notin dom(\Delta)$ ~~~~ $\vdash_{\Theta}^{\emptyset;\emptyset}e\rightsquigarrow i\Leftarrow \mathbf{named}[TypeKw]$ ~~~~ $\vdash_{\Theta}\tau$}
+\RightLabel{~(tykw-c)}
+\UIC{$\vdash_{\Theta} \eta;k[\mathbf{ty},e, \tau] \sim \Delta;k[\mathbf{ty},i, \tau]$}
+\DP
+\end{center}
+
+\flyingbox{${\myvdash}\theta\sim \Theta$}
+\begin{center}
+\AXC{$\vdash_{\Theta_{0}}\theta \sim_{names}\Theta_{names} ~~~~~ \vdash_{\Theta_{0}\Theta_{names}}^{\Delta;\Psi}\theta \sim_{defs}\Theta_{defs} ~~~~~ \vdash^{\Delta;\Psi}_{\Theta_{0}\Theta_{defs}}\theta \sim_{exts}\Theta $} \RightLabel{(rec-decls)}
+\UIC{$\vdash_{\Theta_{0}}^{\Delta;\Psi} \theta \sim \Theta$} 
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta}\theta\sim_{names} \Theta$}
+\begin{center}
+\AXC{} \RightLabel{(empty-names)}
+\UIC{${\vdash_{\Theta}} \emptyset \sim_{names} \emptyset$}
+\DP
+\end{center}
+\begin{center}
+\AXC{${\vdash_{\Theta}}\theta' \sim_{names} \Theta' ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names)}
+\UIC{${\vdash_{\Theta}} \theta';T[\mathbf{explicit},\tau,e_m] \sim_{names} \Theta',T[?,?]$}
+\DP
+\end{center}
+\begin{center}
+\AXC{${\vdash_{\Theta}}\theta' \sim_{names} \Theta' ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names-2)}
+\UIC{${\vdash_{\Theta}} \theta';T[\mathbf{tykw},k,body,e_m] \sim_{names} \Theta',T[?,?]$}
+\DP
+\end{center}
+
+\flyingbox{${\myvdash}\theta\sim_{defs} \Theta$}
+\begin{center}
+\AXC{} \RightLabel{~~~ (empty-defs)}
+\UIC{${\myvdash} \emptyset \sim_{defs} \emptyset$}
+%%% the next rule
+\AXC{${\myvdash}\theta' \sim_{defs} \Theta'$ ~~~~ ${\vdash_{\Theta}}\tau$}\RightLabel{(type-defs)}
+\UIC{${\myvdash}\theta';T[\mathbf{explicit},\tau,e_m] \sim_{defs} \Theta',T[\tau,?]$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+\begin{center}
+\AXC{
+	\stackanchor
+	{\stackanchor
+		{$\Theta_0\subset\Theta$ ~~~~ $k[\mathbf{ty},i,\tau_m]\in\Delta_\kappa$ ~~~~ $\texttt{parsestream}(body)=i_{ps}$}
+		{$\mathbf{iap}(\mathbf{iprj}[parse](\mathbf{iprj}[parser](i_{k}));i_{ps})\Downarrow(i_{type},i_m)$}
+	}
+	{$\vdash_{\Theta}i_{type}\uparrow \tau$ ~~~~ $\vdash_{\Theta} \tau$ ~~~~ $\vdash_{\Theta} i_m \Leftarrow \tau_m$ ~~~~ $\myvdash\Theta'\sim_{defs}\Theta'$}
+}\RightLabel{(type-defs-2)}
+\UIC{${\myvdash} \theta';T[\mathbf{tykw},k,body,e_m] \sim_{defs} \Theta',T[\tau,i_m:\tau_m]$}
+\DP
+\end{center}
+
+
+\flyingbox{${\myvdash}\theta\sim_{exts} \Theta$}
+\begin{center}
+\AXC{} \RightLabel{(empty-exts)}
+\UIC{${\myvdash} \emptyset \sim_{exts} \emptyset$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash^{\Delta;\Psi}_{\Theta_1,T[\tau,?],\Theta_2}\theta'\sim_{exts}\Theta' $ ~~~~~ $\emptyset\vdash^{\Delta;\Psi}_{\Theta_1,T[\tau,?],\Theta_2}e_m\rightsquigarrow i_m\Rightarrow \tau_m$}			\RightLabel{(type-exts)}
+\UIC{$\vdash^{\Delta;\Psi}_{\Theta_1,T[\tau,?],\Theta_2}\theta';T[\mathbf{explicit},\tau,e_m] \sim_{exts} \Theta',T[\tau,i_m:\tau_m]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{
+	\stackanchor
+	{$\vdash^{\Delta_\kappa}_{\Theta_{1},T[\tau,i_{m}:\tau_{m}],\Theta_2}\theta'\sim_{exts}\Theta' $}
+	{$\myvdash e_m\Rightarrow i'_m:\mathbf{arrow}(\tau_m,\tau''_m)$ ~~~~ $\mathbf{iap}(i'_m; i_m) \Downarrow i''_m$}
+}\RightLabel{(type-exts-2)}
+\UIC{$\vdash_{\Theta_1,T[\tau,i_{m}:\tau_m],\Theta_2}\theta';T[\mathbf{tykw},k,body,e_m] \sim_{exts} \Theta',T[\tau,i'_m:\tau'_m]$}
+\DP
+\end{center}
+
+\flyingbox{$\myvdash \kappa\rightsquigarrow \Psi$}
+\begin{center}
+\AXC{}\RightLabel{(expkw-empty)}
+\UIC{$\myvdash \emptyset \sim \emptyset$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{
+	\stackanchor
+	{
+		$\Theta_0\subset \Theta$ ~~~~ $\myvdash \kappa'\rightsquigarrow\Psi'$ ~~~~ $k\notin dom(\Psi)$
+	}
+		{$k\notin dom(\Psi')$ ~~~~ $\emptyset\vdash_{\Theta}^{\Delta;\Psi\Psi'} e_{k}\rightsquigarrow i_{k}\Leftarrow \mathbf{named}[ExpKw]$
+	}
+}\RightLabel{(expkw-wk)}
+\UIC{$\myvdash\kappa';k[\mathbf{wk},e_k]\rightsquigarrow \Psi';k[\mathbf{wk},i_k]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{
+	\stackanchor
+	{$\Theta_0\subset \Theta$ ~~~~ $\myvdash \kappa'\rightsquigarrow\Psi'$ ~~~~ $k\notin dom(\Psi)$ ~~~~ $k\notin dom(\Psi')$}
+	{$\vdash_{\Theta} \tau$ ~~~~ $\emptyset\vdash_{\Theta}^{\Delta;\Psi\Psi'} e_{k}\rightsquigarrow i_{k}\Leftarrow \mathbf{named}[ExpKw]$}
+}	\RightLabel{(expkw-bk)}
+\UIC{$\myvdash\kappa';k[\mathbf{bk}(\tau),e_k]\rightsquigarrow \Psi';k[\mathbf{bk}(\tau),i_k]$}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta} i\uparrow \tau$}
+\begin{center}
+\AXC{$\vdash_{\Theta} i\uparrow T$}
+\UIC{$\vdash_{\Theta} \mathbf{iinj}[Named](i)\uparrow \mathbf{named}[T]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_{\Theta} i\uparrow \omega$}
+\UIC{$\vdash_{\Theta} \mathbf{iinj}[Objtype](i)\uparrow \mathbf{objtype}[\omega]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_{\Theta} i\uparrow \chi$}
+\UIC{$\vdash_{\Theta} \mathbf{iinj}[Casetype](i)\uparrow \mathbf{casetype}[\chi]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_{\Theta} i_1\uparrow \tau_1$ ~~~~ $\vdash_{\Theta} i_2\uparrow \tau_2$}
+\UIC{$\vdash_{\Theta} \mathbf{iinj}[Arrow]((i_1, i_2))\uparrow \mathbf{arrow}(\tau_1,\tau_2)$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_{\Theta} i\Leftarrow MemberList$}
+\UIC{$\vdash_{\Theta}\mathbf{iinj}[Nil](i)\uparrow \emptyset$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_{\Theta} i\Leftarrow MemberList$ ~~~~ $i_l\uparrow l$ ~~~~ $\vdash_{\Theta} i_t\uparrow \tau$ ~~~~ $\vdash_{\Theta} i_c\uparrow \omega$}
+\UIC{$\vdash_{\Theta}\mathbf{iinj}[Cons]((i_l, i_t, i_c))\uparrow l[\tau],\omega$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_{\Theta} i\Leftarrow CaseList$}
+\UIC{$\vdash_{\Theta}\mathbf{iinj}[Nil](i)\uparrow \emptyset$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_{\Theta} i\Leftarrow CaseList$ ~~~~ $i_l\uparrow C$ ~~~~ $\vdash_{\Theta} i_t\uparrow \tau$ ~~~~ $\vdash_{\Theta} i_c\uparrow \chi$}
+\UIC{$\vdash_{\Theta}\mathbf{iinj}[Cons]((i_l, i_t, i_c))\uparrow C[\tau],\chi$}
+\DP
+\end{center}
+
+\subsection{Context Formation}
+
+\flyingbox{$\vdash_{\Theta} \Delta$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} \emptyset$}
+%%% the next rule
+\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Delta$ ~~~~ $k\notin dom(\Delta)$ ~~~~ $\emptyset\vdash_{\Theta}i\Leftarrow \mathbf{named}[TypeKw]$}
+\UIC{$\vdash_{\Theta}\Delta;k[\mathbf{ty}, i]$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash \Theta$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash \emptyset$}
+%%% the next rule
+\AXC{$\vdash \Theta$ ~~~~ $T\notin dom(\Theta)$ ~~~~ $\vdash_{\Theta,T[?,?]}\delta~ok$ ~~~~ $\vdash_{\Theta,T[\delta,?]}\mu~ok$}
+\UIC{$\vdash\Theta,T[\delta,\mu]$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta}\Psi$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} \emptyset$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $k\notin dom(\Psi)$ ~~~~ $\emptyset\vdash_{\Theta}i\Leftarrow \mathbf{named}[ExpKw]$}
+\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{wk}, i]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $k\notin dom(\Psi)$ ~~~~ $\vdash_{\Theta}\tau$~~~~ $\emptyset\vdash_{\Theta}i\Leftarrow \mathbf{named}[ExpKw]$}
+\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{bk}(\tau), i]$}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta}{\tau}$}
+\begin{center}
+\AXC{$\vdash_{\Theta} \omega$}
+\UIC{$\vdash_{\Theta} \mathbf{objtype}[\omega]$}
+%%% the next rule
+\AXC{$\vdash_{\Theta} \chi$}
+\UIC{$\vdash_{\Theta} \mathbf{casetype}[\chi]$}
+%%% the next rule
+\AXC{$\vdash_{\Theta} \tau_1$ ~~~~ $\vdash_{\Theta}\tau_2$}
+\UIC{$\vdash_{\Theta} \mathbf{arrow}[\tau_1,\tau_2]$}
+%%% the next rule
+\AXC{$T[\tau,\mu]\in\Theta$}
+\UIC{$\vdash_{\Theta} \mathbf{named}[T]$}
+\noLine
+\QIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta} \omega$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} \emptyset$}
+%%% the next rule
+\AXC{$l\notin dom(\omega)$ ~~~~ $\vdash_{\Theta}\tau$ ~~~~ $\vdash_{\Theta}\omega$}
+\UIC{$\vdash_{\Theta} l[\mathbf{def},\tau];\omega$}
+%%%
+\AXC{$l\notin dom(\omega)$ ~~~~ $\vdash_{\Theta}\tau$ ~~~~ $\vdash_{\Theta}\omega$}
+\UIC{$\vdash_{\Theta} l[\mathbf{val},\tau];\omega$}
+\noLine
+\TIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta} \chi$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} \emptyset$}
+%%% the next rule
+\AXC{$C\notin dom(\chi)$ ~~~~ $\vdash_{\Theta}\tau$ ~~~~ $\vdash_{\Theta}\chi$}
+\UIC{$\vdash_{\Theta} C[\tau];\chi$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta} \delta~ok$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} ?~ok$}
+%%% the next rule
+\AXC{$\vdash_{\Theta} \tau$}
+\UIC{$\vdash_{\Theta} \tau~ok$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta} \mu~ok$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} ?~ok$}
+%%% the next rule
+\AXC{$\vdash_{\Theta}\tau$ ~~~~ $\emptyset\vdash_{\Theta} i\Leftarrow \tau$}
+\UIC{$\vdash_{\Theta} i:\tau~ok$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta} \Gamma$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} \emptyset~ok$}
+%%% the next rule
+\AXC{$\vdash_{\Theta} \Gamma$ ~~~~ $\emptyset\vdash_{\Theta} \tau$}
+\UIC{$\vdash_{\Theta} \Gamma,x:\tau$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+\subsection{Statics for externel terms}
+\vspace{3pt}
+\begin{center}
+\AXC{$\Theta_0\subset\Theta$ ~~~~ $k[\_, i] \in \Psi$}\RightLabel{(T-expkwdef)}
+\UIC{$\Gamma\myvdash \mathbf{exprkwdef}[k] \rightsquigarrow i\Rightarrow ExpKw$}
+\DP
+\end{center}
+
+\vspace{3pt}
+\begin{center}
+\AXC{$\Theta_0\subset\Theta$ ~~~~ $k[\mathbf{ty}, e]\in\Delta_\kappa$ ~~~~ $\myvdash e\rightsquigarrow i\Leftarrow TypeKw$} \RightLabel{(T-typekwdef)}
+\UIC{$\Gamma\myvdash \mathbf{typekwdef}[k]\rightsquigarrow i \Rightarrow TypeKw$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{
+	\stackanchor
+	{$\Theta_0 \subset \Theta$ ~~~~ $k[\mathbf{wk},i_k]\in\Psi$ ~~~~ $i_0\downarrow i'_0$ ~~~~ $\texttt{parsestream}(body)=i_{ps}$}
+	{$\mathbf{iap}(\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps}); i'_0)\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$ ~~~~ $i_{ast}\uparrow \hat{e}$ ~~~~ $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$}
+}\RightLabel{(T-wk)}
+\UIC{$\Gamma\myvdash\mathbf{ekey}[k,body] \rightsquigarrow i \Leftarrow \tau$}  
+\DP
+\end{center}
+
+\begin{center}
+\AXC{
+	\stackanchor
+	{$\Theta_0 \subset \Theta$ ~~~~ $k[\mathbf{bk}(\tau),i_k]\in\Psi$ ~~~~ $i_0\downarrow i'_0$ ~~~~ $\texttt{parsestream}(body)=i_{ps}$}
+	{$\mathbf{iap}(\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps}); i'_0)\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$ ~~~~ $i_{ast}\uparrow \hat{e}$ ~~~~ $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$}
+} \RightLabel{(T-bk)}
+\UIC{$\Gamma\myvdash\mathbf{ekey}[k,body] \rightsquigarrow i\Leftarrow \tau$}  
+\DP
+\end{center}
+
+
+\end{document}

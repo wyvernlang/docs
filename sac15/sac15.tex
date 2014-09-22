@@ -11,6 +11,7 @@
 \usepackage{multirow}
 \usepackage{array}
 \usepackage{parcolumns}
+\usepackage{stackengine}
 \EnableBpAbbreviations
 \input{macros.tex}
 
@@ -86,11 +87,11 @@ tabsize=4, % Number of spaces per tab in the code
 \newcommand{\dbshcemacolor}[1]{\textcolor[HTML]{5AC3D1}{#1}}
 
 \newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
-\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta}}
+\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta;\Psi}}
 \newcommand{\textcd}[1]{\textbf{\scriptsize\BeraMonottfamily{#1}}}
 \newcommand{\textsp}[1]{\text{\footnotesize\BeraMonottfamily{#1}}}
 \newcommand{\mycaption}[1]{\vspace{-4px}\caption{#1}\vspace{-2px}}
-\newcommand{\tabularspace}{~~~~~~}
+\newcommand{\tabularspace}{~~~~~~~~}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
@@ -176,6 +177,7 @@ Syntax extension mechanisms can be powerful, but ensuring that extensions are in
 %\keywords{ACM proceedings, \LaTeX, text tagging}
 
 \section{Introduction}
+\label{sec-intro}
 One way programming languages evolve is by introducing \emph{syntactic sugar} that captures common idioms more concisely and naturally. In most contemporary languages, this is the  responsibility of a language's designers. Unfortunately, the designers of general-purpose languages do not have strong incentives to capture idioms that arise only situationally. This has motivated research into mechanisms that might decentralize control over syntax by allowing the users of a language to extend it with new syntactic sugar themselves.%, freeing designers from this responsibility.%, to varying degrees. 
 
 Designing a useful syntax extension mechanism is non-trivial, however, because the designer can no longer  directly ensure that no parsing ambiguities have arisen and that the desugaring logic is semantically well-behaved. Instead, the mechanism must consider several important issues:
@@ -310,6 +312,7 @@ When the type system encounters literal forms like this, it defers to the parser
 The \verb|parse| method can request that some portion of the parse stream be treated as a \emph{spliced} host language term. For example, the TSL for \verb|HTML| specifies the delimiters \verb|<{| and \verb|}>| to mean ``insert the enclosed term, of type \verb|HTML|, here''. For clarity in this paper, we will color host language terms, including those spliced in this way, black. Portions of TSL (and TSM) bodies that are not spliced host language terms will be colored a unique color corresponding to the TSL or TSM being used, identified when declared. Note that the prelude types \verb|Parser| and \verb|Exp| each have TSLs associated with them, which provide a \emph{grammar-based parser generator} and \emph{quasiquote} facilities, respectively. We see them being used in Figure \ref{f-htmltype}. We refer the reader to \cite{TSLs} for further details on the TSL mechanism.
 
 \section{Syntax macros in Wyvern}
+\label{sec-example}
 In this section, we employ several examples of syntax macros in Wyvern to illustrate how they are used to solve the problems mentioned in the last section. Syntax macros can be divided into two kinds based on their role in a Wyvern program: syntax macros equivalent to a Wyvern expression, and others equivalent to a Wyvern type declaration. As syntax macros are always associated with a keyword, we use the term ``expression keyword'' and ``type keyword'' to refer to these two kinds of syntax macros.
 
 \subsection{Expression Keyword}
@@ -503,10 +506,33 @@ The elaborated version of the type \verb|Employee| and the value \verb|db| is pr
 
 The definition of the type keyword \verb|DBSchema| can be referred to figure \ref{typekw-example-1}. A type keyword itself is a parser for DSL literals: it is a value of type \verb|TypeParser|, which takes in a parsestream and returns a parsing result (of type \verb|Result|, which is a casetype defined in figure \ref{exp-prelude}). When there is no parsing error, a tuple \verb|(t:Type, e:Exp, k:List(KwMember))| will be returned for type construction: the type structure stored in \verb|t|, metadata in \verb|e|, and expression keywords defined by \verb|k|. \verb|DBSchema| will construct an object type with fields specified in line 5-18, and it will provide a TSL metadata for value initialization (line 20-35). The type of the metadata is provided on the first line of keyword declaration with keyword \verb|with metadata|, which is used by the type checker to analyze the metadata type.
 
+%\begin{figure}
+%\begin{lstlisting}[style=wyvern]
+%type @\typekwparsercolor{TypeParser}@ = objtype
+%  def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
+%  metadata : HasTSL = new 
+%    val parser = (* parser generator *)
+
+%type @\typecolor{Type}@ = casetype
+%  Named of ID
+%  Objtype of List(MemberDecl)
+%  Casetype of List(CaseDecl)
+%  Arrow of Type * Type
+%  metadata : HasTSL = new
+%    val parser = (* type quasiquotes *)
+
+%type KwMember = casetype
+%  Whitebox of Label * ExpKw
+%  Blackbox of Label * ExpKw * Type
+%\end{lstlisting}
+%\mycaption{Wyvern prelude for type keywords}
+%\label{type-prelude}
+%\end{figure}
+
 \begin{figure}
 \begin{lstlisting}[style=wyvern]
 type @\typekwparsercolor{TypeParser}@ = objtype
-  def parse(ps : ParseStream) : Result(Type * Exp * List(KwMember))
+  def parse(ps : ParseStream) : Result(Type * Exp)
   metadata : HasTSL = new 
     val parser = (* parser generator *)
 
@@ -517,43 +543,35 @@ type @\typecolor{Type}@ = casetype
   Arrow of Type * Type
   metadata : HasTSL = new
     val parser = (* type quasiquotes *)
-
-type KwMember = casetype
-  Whitebox of Label * ExpKw
-  Blackbox of Label * ExpKw * Type
 \end{lstlisting}
 \mycaption{Wyvern prelude for type keywords}
 \label{type-prelude}
 \end{figure}
 
-
-
 \section{Syntax}
-We start our formal presentation by introducing the abstract syntax together with their concrete forms built upon pure functional Wyvern. For simplicity consideration, we omit some of the syntax not directly related to composable syntax macros, which can be referred to \todo{TSL paper}.
+We start our formal presentation by introducing the abstract syntax together with their concrete forms built upon pure functional Wyvern. For simplicity consideration, we omit some of the syntax not directly related to composable syntax macros, which can be referred to \cite{TSLs}.
 
-A Wyvern program ($\rho$) consists of three parts: type keyword declarations ($\eta$), named-type declarations ($\theta$) and an expression ($e$) representing the program body.
+A Wyvern program ($\rho$) consists of four parts: type keyword declarations ($\eta$), named-type declarations ($\theta$), expression keyword declarations ($\kappa$) and an expression ($e$) representing the program body.
 
 \begin{figure}[ht]
   \[
   \begin{array}{ll}
       \textbf{Abstract Forms}   & \textbf{Concrete Forms}\\
       \text{Program}\\
-      \rho~::=~\eta;\theta;e  &\\
+      \rho~::=~\eta;\theta;\kappa;e  &\\
       \text{Type Keywords}\\
       \eta~::=~\emptyset      &\\
-      \tabularspace\eta;k[e,\tau] & \textcd{typekw}~k~\textcd{with metadata:}\tau~\textcd{=}~e\\
+      \tabularspace\eta;k[\mathbf{ty},e,\tau] & \textcd{typekw}~k~\textcd{with metadata:}\tau~\textcd{=}~e\\
       \text{Expression Keywords}\\
       \kappa~::=~\emptyset\\
       \tabularspace\kappa;k[\mathbf{bk}(\tau),e]    & \textcd{expkw}~k : \tau~\textcd{=}~e\\
       \tabularspace\kappa;k[\mathbf{wk},e]          & \textcd{expkw}~k~\textcd{=}~e\\
       \text{Type Declarations}\\
       \theta~::=~\emptyset\\
-      \tabularspace\theta; T[\mathbf{explicit},\tau, e, \kappa]  & \textcd{type}~T~\textcd{=}~\tau\\
+      \tabularspace\theta; T[\mathbf{explicit},\tau, e]  & \textcd{type}~T~\textcd{=}~\tau\\
                                                             & ~~~\textcd{metadata = }e\\
-                                                            & ~~~\kappa\\
-      \tabularspace\theta; T[\mathbf{tykw},k, body, e, \kappa]   & \textcd{type}~T~\textcd{=}~k~delims\\
+      \tabularspace\theta; T[\mathbf{tykw},k, body, e]   & \textcd{type}~T~\textcd{=}~k~delims\\
                                                             & ~~~\textcd{metadata = }e\\
-                                                            & ~~~\kappa\\
       \text{Types}\\
       \tau~::=~\mathbf{named}[T]              & T\\
       \tabularspace\mathbf{objtype}[\omega]       & \textcd{objtype}~\omega \\
@@ -561,15 +579,15 @@ A Wyvern program ($\rho$) consists of three parts: type keyword declarations ($\
       \tabularspace\mathbf{arrow}[\tau, \tau]     & \tau \textcd{->}~\tau\\
       \text{Object Fields}\\
       \omega~::=~\emptyset                      \\
-      \tabularspace l[\mathbf{val},\tau];\omega                 & \textcd{val} l : \tau\\
-      \tabularspace l[\mathbf{def},\tau];\omega                 & \textcd{def} l : \tau\\
+      \tabularspace l[\mathbf{val},\tau];\omega                 & \textcd{val}~l : \tau\\
+      \tabularspace l[\mathbf{def},\tau];\omega                 & \textcd{def}~l : \tau\\
       \text{Casetype Cases}\\
       \chi~::=~\emptyset                      \\                 
       \tabularspace C[\tau];\chi                   & C~\textcd{of}~\tau\\
       \text{External Terms}\\
        e~::=~...                              & \\
       \tabularspace\mathbf{lit}[body]             & delims\\
-      \tabularspace\mathbf{ekey}[k,body](e)       & e.k~delims\\
+      \tabularspace\mathbf{ekey}[k,body]       & k~delims\\
       \text{Translational Terms}\\
       \hat{e}~::=~...                              & \\
       \tabularspace\mathbf{spliced}[e]            & \\
@@ -631,50 +649,49 @@ $i$~::=~...
 \end{comment}
 
 
-\paragraph{Type-keyword Declaration}
-Users define type keywords in the type-keyword declaration section ($\eta$). The declaration of a keyword includes an expression $e$ and a metadata type $\tau$. The expression $e$ is the parser to parse the DSL literals used in a type keyword invocation, and the type $\tau$ is the type of the generated metadata. Type keyword declarations are in the top level of the program in our formal definition, but in practice, they will be defined in different modules, which supports better modularity.
+\paragraph{Type-keyword Declarations}
+Users define type keywords in the type-keyword declaration section ($\eta$). The declaration of a keyword includes an expression $e$ and a type $\tau$: the expression $e$ is the parser to parse the DSL literals, and the type $\tau$ is the type of the generated metadata.
 
-\paragraph{Named type declaration}
-Named type declarations is the declaration of types ($\tau$) which are associated with a type name ($T$). 
-According to the way to declare, there are two kinds of type declarations: an explicit type declaration with its structure and metadata explicitly specified, or a type declared with a type keyword invocation, whose structure, metadata and keywords are generated by the elaborated DSL literals presented in the keyword invocation body.
+\paragraph{Expression-keyword Declarations}
+Similar to type-keyword declarations, expression-keywords are declared in $\kappa$. As we presented in section \ref{sec-example}, black box keywords ($k[\mathbf{bk}(\tau),e]$) are defined with its return type $\tau$ while white-box keywords ($k[\mathbf{wk}, e]$) are not. The expression ($e$) in both cases represents the parser, which is supposed to be of type $ExpParser$.
 
-An explicit type declaration ($T[\mathbf{explicit}, \tau,e,\kappa]$) consists of four parts: $T$ is the type name, $\tau$ is the structure of the type, which can be one of $\mathbf{objtype}$, $\mathbf{casetype}$, $\mathbf{arrowtype}$ or a copy of named type $\mathbf{named}[T']$,  $e$ is the metadata associated with the type and $\kappa$ is the expression keyword declarations in the type.
+\paragraph{Named-type declarations}
+Named-type declarations are the declaration of the types $\tau$ which are associated with a name $T$.
 
-The second kind of type declaration ($T[\mathbf{tykw},k,body,e,\kappa]$) is a type declared using DSL syntax specified in a type keyword $k$, with DSL literals specified in $body$. Metadata ($e$) and expression keywords ($\kappa$), different from those in the first kind, serve as an extension to metadata and keywords generated by the keyword parser. Details for this extension mechanism will be discussed in the next section.
+Depending on the definition method, there are two kinds of type declarations: an explicit type declaration with its structure and metadata explicitly declared, or a keyword-defined type using a type keyword invocation, whose structure and metadata will be generated by the elaborated DSL literals presented in the keyword invocation body.
+
+An explicit type declaration ($T[\mathbf{explicit},\tau,e]$) consists of three parts: $T$ is the type name, $\tau$ is the type structure, which can be one of $\mathbf{objtype}$, $\mathbf{casetype}$, $\mathbf{arrowtype}$ or named type $\mathbf{named}[T']$,  and $e$ is the metadata associated with the type.
+
+The second kind of type declaration ($T[\mathbf{tykw},k,body,e]$) is a type declared using DSL syntax specified in a type keyword $k$. DSL literals are presented as $body$ in the declaration and the type metadata as $e$. Different from those in the first kind, metadata $e$ here serve as a metadata extender to extend the metadata generated by the keyword parser.
 
 \paragraph{External Expressions}
 By naming expressions presented in a Wyvern program ``external expressions'' ($e$), we distinguish them from ``internal expressions'' ($i$), which are pure Wyvern expressions without DSL literals. 
 
-To support syntax macros, we extend Wyvern syntax with a keyword invocation expression ($\mathbf{ekey}[k,body](e)$) and several expressions for run-time parser access (omitted here, can be referred to \todo{TR}). The concrete form of a keyword invocation expression can be referred to figure~\ref{formal-syntax}, which consists of a call to the keyword followed by delimited DSL literals. 
+Wyvern expression syntax is extended with a keyword invocation expression and several expressions for run-time parser access (omitted here, can be referred to \todo{TR}) to support expression level syntax macros. The keyword invocation expression $\mathbf{ekey}[k,body]$ specifies an invocation of the keyword $k$ and DSLs presented in delimited forms as $body$, its concrete form can be referred to figure \ref{formal-syntax}.
 
-An external expression with DSL literals will elaborate to internal Wyvern expressions finally with the help from the DSL parser, and a translational expression  
-is defined in the abstract syntax to represent the expression forms in translational phase. The syntax for translational terms mirrors that of external terms, except that literal forms are removed and and translational state $\mathbf{spliced}[e]$ is added, which represents an external term $e$ spliced into a literal body.
+An external expression with DSL literals will elaborate to internal Wyvern expressions with the help of the DSL parsers. During elaboration, translational expressions  
+are defined to support ``spliced expression'' with internal Wyvern terms and external terms. The syntax for translational terms mirrors that of external terms, except that literal forms are removed and and translational state $\mathbf{spliced}[e]$ is added, which represents an external term $e$ spliced into a literal body.
 
 \section{Bidirectional Typechecking and Elaboration}
-Both expression keywords and type keywords are used in external Wyvern languages, so an elaboration phase is required to transform external a Wyvern program with DSL literals into internal Wyvern representations.
-
-
 Bidirectional typechecking is used here as type can be clearly specified as input or output during typechecking process. In bidirectional type system, a type judgment is written as $\Gamma\vdash_{\Theta} e\Leftarrow(\Rightarrow)\tau$ instead of $\Gamma\vdash_{\Theta} e:\tau$ in a traditional type system, where $\Gamma$ is the typing context, $\Theta$ is the declaration context, and the type $\tau$ is specified as input ($\Leftarrow$) or output ($\Rightarrow$) according to the arrow direction. 
 
-The type checking process involves the elaboration of an external expression, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external expression will be elaborates to an internal expression and synthesize to (or analyze against) the type $\tau$. The arrow ($\rightsquigarrow$) is used to represent the elaboration process, including literal elimination and hygiene process, which is part of the type checking rules.
+Syntax macros contains DSL literals and they belongs to external Wyvern language, and an elaboration phase is required to transform them into internal Wyvern representations for execution. The elaboration of an external expression is part of type checking process, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external expression elaborates to an internal expression and synthesize to (or analyze against) the type $\tau$. The arrow $\rightsquigarrow$ is used to represent the elaboration process, including literal elimination and hygiene process.
 
-\subsection{Program Context}
-\todo{Type environment or type context or typing context? -I use ``program context'' for the moment to refer to them}
-The program context (figure \ref{typechecking-environment}) contains the context for type keywords and named type declarations, which will be used during elaboration and type checking. 
+\subsection{Contexts}
+The program contexts (figure \ref{typechecking-environment}) include type keywords context ($\Delta$), expression keyword context ($\Psi$), named type declarations ($\Theta$) and typing context ($\Gamma$). 
 
 \begin{figure}[ht]
 \begin{center}
 \begin{tabular}{r r c l}
 Type Keyword Context & $\Delta$ & ::= & $\emptyset$\\
-              &                 &  |  & $\Delta;k[i,\tau]$\\
+              &                 &  |  & $\Delta;k[\mathbf{ty},i,\tau]$\\
+Expression Keyword Context & $\Psi$    & ::= & $\emptyset$\\
+            &                 &   |  & $\Psi;k[\mathbf{bk}(\tau),i]$\\
+            &                 &   |  & $\Psi;k[\mathbf{wk},i]$\\
 Named Type Context  & $\Theta$        & ::= & $\emptyset$\\
-              &                 &  |  & $\Theta,T[\delta,\mu,\zeta]$\\
+              &                 &  |  & $\Theta,T[\delta,\mu]$\\
               & $\delta$        & ::= & $?$ ~ | ~ $\tau$\\
    & $\mu$           & ::= & $?$ ~ | ~ $i:\tau$\\
-   & $\zeta$         & ::= & $?$ ~ | ~ $\dot\kappa$\\
-Keyword Members & $\dot\kappa$    & ::= & $\emptyset$\\
-            &                 &   |  & $\dot\kappa;k[\mathbf{bk}(\tau),i]$\\
-            &                 &   |  & $\dot\kappa;k[\mathbf{wk},i]$\\
 Typing Context & $\Gamma$ &   ::=  & $\emptyset$\\
                  &          &     |  & $\Gamma,x:\tau$
 \end{tabular}
@@ -683,43 +700,48 @@ Typing Context & $\Gamma$ &   ::=  & $\emptyset$\\
 \label{typechecking-environment}
 \end{figure}
 
-Type keyword context ($\Delta$) is the environment for user defined type keywords. A keyword in $\Delta$ is associate with an internal Wyvern expression, representing the parser expression, and a type $\tau$ representing the metadata type of the keyword. 
+Type keyword context ($\Delta$) is the environment for user defined type keywords. Type keywords defined in a Wyvern program goes into context in the form of $k[\mathbf{ty},i,\tau]$: the keyword $k$ is a type keyword with parser $i$ and return metadata type $\tau$. Similarly, expression keyword context ($\Psi$) is the context for expression keywords, a black-box expression keyword is $k[\mathbf{bk}(\tau),i]$, representing a keyword $k$ with parser $i$ and return type $\tau$, while a white-box keyword in the context is represented as $k[\mathbf{wk},i]$, which is a keyword $k$ with parser $i$.
 
-Named typed context ($\Theta$) is the environment to keep all elaborated type declarations. In named typed context both explicitly declared types and type keyword defined types will go into the context in the form of $T[\delta,\mu,\zeta]$, which is interpreted as a type of name $T$ with structure $\delta$, metadata $\mu$ and expression keywords $\zeta$. In named typed context, all of $\delta$, $\mu$, $\zeta$ have an option to be $?$, which is used to represent an ``unknown state'' during elaboration phase. 
+Named typed context ($\Theta$) is the environment to keep elaborated type declarations. A declared type (either explicitly declared or type keyword defined) has the form of $T[\delta,\mu]$, which is interpreted as a type of name $T$ with structure $\delta$ and metadata $\mu$. We wrap the type structure $\tau$ in $\delta$ and the metadata $i:\tau$ in $\mu$ in order to represent their ``unknown state'' using ``$?$'' in type checking.
 
-And at last, $Gamma$ is the typing context used in type checking, values in $\Gamma$ are bindings of variables and their types ($x:\tau$).
+$\Gamma$ is the typing context, elements in $\Gamma$ are bindings of variables and their types ($x:\tau$).
 
-\todo{Stop here}
+\subsection{Checking rules for keywords}
+A type keyword declaration $k[\mathbf{ty},e,\tau]$ is well type iff 1) the keyword has no name conflicts with those defined in previous context, 2) the parser $e$ elaborates to an internal term $i$ of type $\mathbf{named}[TypeKw]$ and 3) the metadata type $\tau$ is well formed within the given named type context $\Theta$. The named type context we used for checking type keywords is $\Theta_0$ (in the rule $\mathsf{compile}$), thus the type keyword is supposed to be well formed only under Wyvern prelude.
+
+While for expression keywords, we use the context $\Theta_0\Theta$ for type checking, which allows expression keywords to use both prelude types and user defined types. The checking rules of expression keywords can be referred to expkw-wk and expkw-bk, and the checking process is similar to that for type keywords: it will check that no name conflicts in keyword declarations, the parser should elaborate to an internal term $i$ of type $\mathbf{named}[ExpKw]$, and the type defined in a black box keyword is well formed under named type context $\Theta$.
 
 \subsection{External Type Literals}
-In the type environment, there is no difference between the two types of type declaration mentioned in the syntax as all types defined using type keywords elaborates to a type with concrete structure during type checking process.
+Declaring a type using a type keyword involves the use of external DSL literals, and the rule ctx-typekw-type is used to transform it into internal Wyvern type representations with concrete type structure and metadata.
 
-The type checking rules for type keywords usage is labeled as type-name-2, type-defs-2 and type-exts-2. The rule type-name-2 simply adds the type name into the environment for other types to refer to.
-
-The rule type-name-2 present the type elaboration process, and the external syntax used in type keyword will be transformed to a normalized type structure. The process consists of the following steps:
+The elaboration process of a type $T[\mathbf{tykw},k,body,e_m]$ under context $\Theta,\Delta,\Psi$ contains the following steps:
 \begin{enumerate}\setlength{\itemsep}{0pt}
-\item Check if the environment prelude is in the type environment. The prelude environment consists of necessary types and parser definition. 
-\item Look up the keyword in $\Delta$. This requires a valid parser defined in the type keyword environment for parsing the literals later.
-\item Invoke the parser to parse the DSL literal body ($i_{ps}$, as an expression the parser parsed to). In the rule kw-env, the parser is already checked against type $TypeKw$, so the parser is of type $PasrseStream->DeclResult$. So a return type ($i_{type}$) and an type metadata ($i_{exp}$) will be provided by the parser.
-\item The type expression ($i_{type}$) will be transformed to a Wyvern type structure (i.e. objtype or casetype) using type dereification rules (marked as `$\uparrow$'). And the type will be checked to guarantee the formation of its structure.
-\item The metadata expression will be reconstructed, it will be reificate to a spliced expression and then transform to an inner Wyvern expression of type $\tau_m$. 
-\end{enumerate} 
-After these steps, the type structure as well as the TSL metadata associated with the type is generated, and no more external type syntax exists.
+\item Check that the Wyvern prelude is contained in the named type context, as parser types are defined in Wyvern preludes. ($\Theta_0\subset \Theta$)
+\item Elaborate the previous named type context ($\theta'\sim\Theta'$), and check that the type name $T$ has no name conflicts with those in previous context ($T\notin dom(\Theta\Theta')$).
+\item Look up the keyword $k$ in $\Delta$. ($k[\mathbf{ty},i_k,\tau_m]\in\Delta$)
+\item Read in the literals ($body$) as an expression $i$, and apply the parser $i_k$ to the DSL body, which will generate a tuple: $(i_{type}, i_m)$. $i_{type}$ is an expression of type $\mathbf{named}[Type]$ and $i_m$ is the generated metadata term. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k);i_{ps})\Downarrow(i_{type},i_{m})$)
+\item Reificate the term $i_{type}$ to an Wyvern type $\tau$, and check the formation of the type $\tau$ under context $\Theta\Theta',T[?,?]$, which allows self recursion. ($i_{type}\uparrow\tau$ and $\vdash_{\Theta\Theta',T[?,?]}\tau$) Reification rules for types can be referred to \todo{cite TR}.
+\item Elaborate the metadata defined in the type $e_m$ to an internal term $i'_m$ of type $\mathbf{arrow}[\tau_m,\tau'_m]$, which is an metadata extender to extend the metadata generated by the type keyword. ($\emptyset\vdash_{\Theta\Theta',T[\tau,?]}^{\Delta;\Psi}e_m\rightsquigarrow i_m' \Rightarrow \mathbf{arrow}[\tau_m, \tau'_m]$)
+\item Apply the keyword extender ($i'_m$) to the generated metadata ($i_m$) and generate the metadata of the type $T$. ($\mathbf{iap}(i'_m,i_m)\Downarrow i''_m$)  
+\end{enumerate}
+After elaboration, the type declaration $T[\mathbf{tykw},k,body,e_m]$ elaborates to $T[\tau,i''_m:\tau'_m]$ and is added into environment for further reference.
 
-The rule type-exts-2 stands for the rule to resolve the metadata conflict between the metadata generated by type keyword ($i_m$) and that defined in the named type declaration ($i_w$). In the rule type-exts for normal named type declaration, the metadata will be directly added into the environment, but in this case, we require $i_w$ to be a metadata resolver: it should be a function of type $\tau_m\rightarrow\tau'_m$, as it will take in $i_m$ and return a modified metadata $i'_m$ ($\mathbf{iap}(i_w, i_m)\Downarrow i'_m$ presents the process). The expression keywords part is the same as that in a normal named type declaration.
 \input{kw-elaboration.tex}
 
 \subsection{Expression Keywords Literals}
-Besides type keywords and TSLs, another usage of the DSL literals is in expression keywords. The different rules to process keywords invocation includes three situations: Using DSL literals in a black-box keyword, using DSL literals in a white-box keyword with type analysis and using DSL literals in a white-box keyword with type synthesis. Their difference only lies in the inference of the return type so we only explain the rule using the rule T-wk-syn. Processing literals in an expression keyword invocation includes the following steps:
+Expression keyword invocations contains the DSL literals which will be transformed to internal Wyvern expressions. Elaboration rules are presented in figure~\ref{expkw-kwstatics}: T-wk for white-box invocation and T-bk for black-box keyword invocation.
+
+For white-box keywords, we have the following elaboration steps:
 \begin{enumerate}\setlength{\itemsep}{0pt}
-\item Check that the prelude environment $\Theta_0$ is in the current environment. 
-\item The target term ($e_0$) elaborates into an inner Wyvern term ($i_0:T$), and then check that the type $T$ is declared in the type environment with an keyword environment $\dot\kappa$ inside it.
-\item Look up the expression keyword inside the keyword declarations, as checked in the rule expkw-bk and expkw-wk, the parser should be of type $ExprKw$ (The parser type for expression keyword presented in Wyvern prelude).
-\item Transform the target expression into an reified elaboration form ($i_0\downarrow i'_0$), this will transform the target expression into an \verb|Exp| expression, which will be used in the parsing process of literal elaboration.
-\item The parser takes in two expressions: the reified target expression and the parsestream of the literals, then generate an expression of type $Result$, which will be used to build the return expression.
-\item The expression is dereified into an translational term of $\hat{e}$, which is used to mirror an external term but transform the representation of DSL literals into $\mathbf{spliced}[e]$, as a middle representation before elaborates to an external term.
-\item The last step is type checking. It checks the term $i$ which will synthesize to type $\tau$ (For black-box keyword or white-box under analysis, it will be replaced by a type analysis against $\tau$). The expression the keyword invocation elaborates to should be the expression $i$ of type $\tau$, which is an inner Wyvern term used to compile and execute at run time. 
+\item Check that the prelude is in the named type context. ($\Theta_0\subset\Theta$)
+\item Look up the keyword in $\Psi$. ($k[\mathbf{wk},i_k]\in\Psi$)
+\item Read in the DSL literals into an expression $i_{ps}$ of type $\mathbf{named}[ParseStream]$ and parse them by invoking the parser $i_k$. The parsing result is a value of type $\mathbf{named}[Result]$, and an AST term $i_{ast}$ is provided. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps});\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$)
+\item Reificate the term $i_{ast}$ to an translational term $\hat{e}$ with spliced DSL body, then elaborate the translational term $\hat{e}$ to an internal Wyvern term and check it against the type $\tau$. ($i_{ast}\uparrow \hat{e}$ and $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$)
 \end{enumerate}
+The term $\mathbf{ekey}[k,body]$ is transformed into $i$ of type $\tau$, which is an internal term can be used for evaluation. The process for black-box keyword elaboration is similar, except that the type of the elaborated expression comes from the keyword definition. 
+
+In fact, for white-box keyword, besides using type analysis, we may also allow type synthesis in the 4th step by replacing the rule to  $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Rightarrow \tau$. We do not  
+
 \input{kw-statics.tex}
 
 \subsection{Hygiene}
@@ -745,14 +767,14 @@ Extension of the TSL Wyvern semantics with keywords mechanism still constitutes 
 To formalize the type safety property, we defined the judgments for context formation, type formation and bidirectional typing judgment. \todo{Refer to TSL as well as TR}
 
 \begin{theorem}[Internal Type Safety]
-If ~$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$~ and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash_{\Theta}i'\Leftarrow\tau$.
+If $\vdash_{\Theta_0}\Theta$, and $\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset\vdash_{\Theta}i'\Leftarrow\tau$.
 \end{theorem}
 \begin{proof}
 As the keyword extension on TSL framework does not extend inner Wyvern expressions, the proof for this theorem is directly from TSL proof. 
 \end{proof}
 
 \begin{theorem}[External Type Preservation]
-If ~$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta}\Gamma$, and $\Gamma\myvdash e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\myvdash e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\myvdash i\Leftarrow\tau$.
+If ~$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta_0\Theta}\Psi$, $\vdash_{\Theta_0\Theta}\Gamma$, and $\Gamma\vdash_{\Theta_0\Theta}^{\Delta;\Psi} e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\vdash_{\Theta_0\Theta}^{\Delta;\Psi} e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\vdash_{\Theta} i\Leftarrow\tau$.
 \end{theorem}
 \begin{proof}
 Based on TSL proof of the external type preservation, we need to proof the following cases on keywords extension (Expressions for parser access is presented in the \todo{TR}, thus the corresponding proofs of the case for the expression is omitted here. ):
@@ -762,23 +784,26 @@ Based on TSL proof of the external type preservation, we need to proof the follo
 \end{proof}
 
 \begin{lemma}[Translational Type Preservation]
-If \\$\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta_0}\Delta$ and $\vdash_{\Theta}\Gamma_{out}$ and $\vdash_{\Theta}\Gamma$ and $dom(\Gamma_{out})\cap dom(\Gamma)=\emptyset$ and $\Gamma_{out};\Gamma\vdash_{\Theta}^{\Delta}\hat{e}\rightsquigarrow i\Leftarrow\tau$ or $\Gamma_{out};\Gamma\vdash_{\Theta}^{\Delta}\hat{e}\rightsquigarrow i\Rightarrow \tau$ then $\Gamma_{out}\Gamma\vdash_{\Theta}i\Leftarrow \tau$.
+If \\$\vdash_{\Theta_0}\Delta$, $\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta_0\Theta}\Psi$ and $\vdash_{\Theta_0\Theta}\Gamma_{out}$, $\vdash_{\Theta_0\Theta}\Gamma$, $dom(\Gamma_{out})\cap dom(\Gamma)=\emptyset$ and $\Gamma_{out};\Gamma\vdash_{\Theta\Theta_0}^{\Delta;\Psi}\hat{e}\rightsquigarrow i\Leftarrow\tau$ or $\Gamma_{out};\Gamma\vdash_{\Theta\Theta_0}^{\Delta;\Psi}\hat{e}\rightsquigarrow i\Rightarrow \tau$ then $\Gamma_{out}\Gamma\vdash_{\Theta}i\Leftarrow \tau$.
 \end{lemma}
 
-
 \begin{theorem}[Compilation]
-If ~$\rho\sim\Theta\rightsquigarrow i:\tau$~ then $\vdash_{\Theta_0}\Delta$,\ $\vdash_{\Theta_0}\Theta$ and $\emptyset\vdash_{\Theta} i\Leftarrow\tau$.
+If ~$\rho\sim\Delta\sim\Theta\sim\Psi\rightsquigarrow i:\tau$~ then $\vdash_{\Theta_0}\Delta$,\ $\vdash_{\Theta_0}\Theta$, $\vdash_{\Theta_0\Theta}\Psi$ and $\emptyset\vdash_{\Theta_0\Theta} i\Leftarrow\tau$.
 \end{theorem}
 \begin{proof}
 This theorem can be proved with the following two lemmas for the formation of $\Delta$ and $\Theta$.
 \end{proof}
 
-\begin{lemma}[Type Keyword Declaration] 
+\begin{lemma}[Type Keyword Declarations] 
 If $\vdash_{\Theta_0}\eta\sim\Delta$, then $\vdash_{\Theta_0}\Delta$.
 \end{lemma}
 \begin{proof}
 The proof is simple a induction on $\vdash_{\Theta_0}\Delta$ and using the External Type Preservation Theorem. (Not shown)
 \end{proof}
+
+\begin{lemma}[Expression Keyword Declarations]\  \\
+If $\vdash_{\Theta}\kappa\sim\Psi$, then $\vdash_{\Theta}\Psi$.
+\end{lemma}
 
 \begin{lemma}[Type Declaration]
 If $\vdash_{\Theta_0}^{\Delta}\theta\sim\Theta$ then $\vdash\Theta_0\Theta$.
