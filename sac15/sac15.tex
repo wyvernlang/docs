@@ -387,30 +387,30 @@ def testIf3(ok : Bool) (* no return type annotation *)
     @\simpleHTMLcolor{>h1 Everything is OK!}@
 \end{lstlisting}
 
-The most permissive point in the design space is to simply allow such TSMs in synthetic positions without an explicit signifier. We note that would be the syntax macro analogy of \emph{white-box (term rewriting) macros} in Scala \cite{ScalaMacros2013}, which are not  available by default in the upcoming Scala 2.12. Synthetic TSMs are analagous to black-box macros. 
+The most permissive point in the design space is to simply allow such TSMs in synthetic positions without an explicit signifier. Note that this would be the syntax macro analogy of \emph{white-box  macros} in Scala \cite{ScalaMacros2013}, which are not  available by default in the upcoming Scala 2.12. Synthetic TSMs are analagous to black-box macros. 
 
 \section{Type-Level TSM\lowercase{s}}
-We now turn our attention to TSMs at the level of type declarations. Our primary example in this section is a simple object-relational mapping (ORM) syntax, shown being used in Figure \ref{f-tykwexample}. An ORM provides an object-oriented interface to a relational database, generated based on a database \emph{schema}. The schema in Figure \ref{f-tykwexample}, for example, specifies a table with two columns, \verb|ID| and \verb|Name|, holding values of the SQL datatypes \verb|int| and \verb|varchar|. The \verb|ID| column is marked with an asterisk as being a \emph{primary key}, meaning that it must be unique across the table. 
+We now turn our attention to TSMs at the level of type declarations. Our example in this section is a simple object-relational mapping (ORM) syntax, shown being used in Figure \ref{f-tykwexample}. An ORM provides an object-oriented interface to a relational database, generated based on a database \emph{schema}. The schema in Figure \ref{f-tykwexample}, for example, specifies a table with two columns, \verb|ID| and \verb|Name|, holding values of the SQL data types \verb|int| and \verb|varchar|. The \verb|ID| column is marked with an asterisk as being a \emph{primary key}, meaning that it must be unique across the rows. 
 
-ORMs typically rely on an external code generator, which can hinder code comprehension because the fully elaborated interface is exposed directly to the programmer, obscuring the simpler schema by moving it to an external resource. Using type-level TSMs, however, the elaborated interface, shown in Figure \ref{typekw-example-2}, is generated based on the schema directly, during compilation. The type member \verb|Entry| is generated based on Wyvern types corresponding to the SQL types specified by the schema. For each column \verb|C|, a method named \verb|getByC| is generated. Its return type is either an option type if the column is a primary key (reflecting the uniqueness invariant) or a list otherwise. There are also fields for storing connection parameters. 
+ORMs typically rely on an external code generator, which can hinder code comprehension because the fully elaborated interface is exposed directly to the programmer, obscuring the simpler schema by moving it to an external resource. Using the type-level TSM \verb|fromSchema|, the interface, shown in Figure \ref{typekw-example-2}, is generated based on the schema directly, during compilation. The type member \verb|Entry| is generated based on Wyvern types corresponding to the SQL types specified by the schema. For each column \verb|C|, a method named \verb|getByC| is generated. Its return type is an option if the column is a primary key (reflecting the uniqueness invariant) or a list otherwise. There are also fields for connection parameters. 
 
-Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Although data schema already exists, declaring a type with fields to represent the data structure still require users to create them manually in Wyvern syntax. Type keywords make this process easier by allowing users to generate type declarations directly using the data schema syntax, and furthermore, a metadata will be generated for initializing the value of that type. The following example shows how we construct a type using database schema.
+A type-level TSM can also equip the type it generates with metadata, which, as discussed in Section \ref{background}, can be used to associate a TSL with it. Here, the TSL that \verb|fromSchema| generates is shown being used on lines 5-10 of Figure \ref{typekw-example-1} to populate the fields and methods declared. Only the per-database settings need to be provided, here with a slightly simplified syntax (deferring to the TSL for \verb|URL|, not shown, for that portion of the configuration, demonstrating again that composition is safe and straightforward).% The remaining details are filled in automatically.
 
 \begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
-type @\dbcolor{EmployeesDB}@ = DBSchema ~
+type @\dbcolor{EmployeesDB}@ = fromSchema ~
   @\dbshcemacolor{*ID   int}@
   @\dbshcemacolor{Name  varchar}@
 
-val db : EmployeeDB = ~
+let db : EmployeesDB = ~
   @\dbcolor{connect to}@ ~
     @\urlcolor{mysql://localhost:3306}@
+  @\dbcolor{table: Employees}@
   @\dbcolor{username: }@"user1"
   @\dbcolor{password: }@"001"
-  @\dbcolor{table: Employees}@
-db.getByID(1043) (* : Option(EmployeeDB.Entry) *)
+db.getByID(758) (* : Option(EmployeeDB.Entry) *)
 \end{lstlisting}
-\mycaption{The usage of the type keyword ``DBTable''}
+\mycaption{The usage of a type-level TSM and the TSL it generates to enable a simple ORM scheme.}
 \label{f-tykwexample}
 \end{figure}
 
@@ -423,24 +423,24 @@ type EmployeesDB = objtype
   val connection : URL
   val username : String
   val password : String
-  ...
-  def getById (x:Int) : Option(Entry)
-  def getByName (x : String) : List(Entry)
+  (* ... *)
+  def getByID(x : Int) : Option(Entry)
+  def getByName(x : String) : List(Entry)
   metadata = new : HasTSL
-    val parser = ~
-      ... (* TSL parser generated by type constructor *)
+    val parser = (* ... generated TSL ... *)
 
-val db : EmployeesDB = new
+let db : EmployeesDB = new
   val connection = new
     val domain = "localhost"
-    ...
+    (* ... *)
   val username = "user1"
   val password = "001"
-  ... (* Other fields *)
-  def getByID(x:Int) : List(Entry)
-    ...
+  (* ... *)
+  def getByID(x)
+    (* ... sends appropriate query to DB ... *)
+db.getByID(758)
 \end{lstlisting}
-\mycaption{The elaborated type declaration}
+\mycaption{The elaboration of Figure \ref{f-tykwexample}.}
 \label{typekw-example-2}
 \end{figure}
 
