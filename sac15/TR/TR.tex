@@ -27,7 +27,7 @@
 \newcommand{\blue}[1] {\textcolor{blue}{#1}}
 \newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
 \newcommand{\doublebox}[2]{\begin{flushleft}\fbox{{#1}}\ \fbox{{#2}}\end{flushleft}}
-\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta;\Psi}}
+\newcommand{\myvdash}{\vdash_{\Theta}^{\Delta}}
 \newcommand{\todo}[1]{{\bf \{TODO: {#1}\}}}
 
 \newtheorem{theorem}{Theorem}
@@ -119,17 +119,13 @@ type Result(T) = casetype
 \subsection{Syntax}
 \[
 \begin{array}{rlrlrl}
-	\rho		~::=&~ \eta;\theta;\kappa;e\\
-	\eta		~::=&~ \emptyset						& \kappa 		~::=&~\emptyset\\
-				|~ 	& ~ \eta;k[\mathbf{ty},e,\tau]		& 				| ~ &~ \kappa;k[\mathbf{bk}(\tau),e]\\
-					&									& 				| ~ &~ \kappa;k[\mathbf{wk},e]\\
-	\theta		~::=&~ \emptyset\\
-				|~ 	&~ \theta; T[\mathbf{explicit}, \tau, e]\\
-				|~ 	&~ \theta; T[\mathbf{tykw}, k, body, e]\\
-	\tau 		~::=&~ \mathbf{named}[T]\\
-				|~	& ~ \mathbf{objtype}[\omega]		& \omega 		~::=&~ 	\emptyset ~ | ~ l[\mathbf{val}, \tau];\omega ~ | ~ l[\mathbf{def}, \tau];\omega\\
-				|~	& ~ \mathbf{casetype}[\chi]			& \chi 			~::=&~	\emptyset ~ | ~	C[\tau];\omega\\
-				|~  & ~ \mathbf{arrow}[\tau, \tau]\\
+	\rho		~::=&~ \theta;e\\				
+	\theta		~::=&~ \emptyset								&\tau 		~::=&~ \mathbf{named}[T]	& \omega 		~::=&~ 	\emptyset\\
+				| ~	&~ \theta; T[\mathbf{explicit}, \tau, e]	&|~	& ~ \mathbf{objtype}[\omega]		& |~&  	~l[\mathbf{val}, \tau];\omega\\
+				| ~	&~ \theta; T[\mathbf{tykw}, k, body, e]		&|~	& ~ \mathbf{casetype}[\chi]			& |~&	~l[\mathbf{def}, \tau];\omega\\
+				| ~	&~ \theta;k[\mathbf{ty},e,\tau]				&|~ & ~ \mathbf{arrow}[\tau, \tau]		& \chi 			~::=&~	\emptyset ~ \\
+				| ~ &~ \theta;k[\mathbf{bk}(\tau),e]			&	&									& |~&	~C[\tau];\omega\\
+				| ~ &~ \theta;k[\mathbf{wk},e]\\
 	e 			~::=&~ x 								&\hat{e}	~::=&~ 	x 										& i 		~::=&~ 	x\\
 				| ~ &~ \mathbf{easc}[\tau](e)			& 		 	| ~ &~ 	\mathbf{hasc}[\tau](\hat{e})			& 		 	| ~ &~	\mathbf{iasc}[\tau](\dot{e})\\
 				| ~ &~ \mathbf{elet}(e; x.e)     		& 		 	| ~ &~ 	\mathbf{hlet}(\hat{e}; x.\hat{e})		& 		 	| ~ &~	\mathbf{ilet}(i;x.i)\\
@@ -141,8 +137,8 @@ type Result(T) = casetype
 				| ~ &~ \mathbf{ecase}[e]\{r\}     		& 		 	| ~ &~	\mathbf{hcase}[\hat{e}]\{\hat{r}\}		& 		 	| ~ &~	\mathbf{icase}[i]\{\dot{r}\}\\
 				| ~ &~ \mathbf{etoast}(e)     			& 		 	| ~ &~	\mathbf{htoast}(\hat{e})				& 		 	| ~ &~	\mathbf{itoast}[i]\\
 				| ~ &~ \mathbf{emetadata}[T]     		& 		 	| ~ &~	\mathbf{hmetadata}[T]\\
-				| ~ &~ \mathbf{expkwdef}[k]     		&			| ~ &~ 	\mathbf{hexpkwdef}[k]\\
-				| ~ &~ \mathbf{typekwdef}[k]			& 			| ~ &~ 	\mathbf{htypekwdef}[k]\\
+				| ~ &~ \mathbf{termtsmdef}[k]     		&			| ~ &~ 	\mathbf{htermtsmdef}[k]\\
+				| ~ &~ \mathbf{typetsmdef}[k]			& 			| ~ &~ 	\mathbf{htypetsmdef}[k]\\
 				| ~ &~ \mathbf{lit}[T]					& 		 	| ~ &~ 	\mathbf{spliced}[e]\\
 				| ~ &~ \mathbf{ekey}[k,body]\\
 	m 			~::=&~ \emptyset						&\hat{m}	~::=&~ \emptyset								&\dot{m}	~::=&~ \emptyset\\
@@ -155,92 +151,119 @@ type Result(T) = casetype
 \subsection{Context Definition}
 \[
 \begin{array}{rrl}
-\text{Type-keyword Context}			&	\Delta 			~::=&~ 	\emptyset\\
-&					| ~ &~ 	\Delta;k[\mathbf{ty},i,\tau]\\
-\text{Expression-keyword Context}			&	\Psi 			~::=&~	\emptyset\\
-&					| ~ &~ 	\Psi;k[\mathbf{bk}(\tau),i]\\
-&					| ~ &~ 	\Psi;k[\mathbf{wk},i]\\
-\text{Named-type Context}&	\Theta 			~::=&~ \emptyset\\
-&					| ~ &~ \Theta,T[\delta,\mu] \\
-&	\delta 			~::=&~ ? ~~ | ~~ \tau\\
-&	\mu	   			~::=&~ ? ~~ | ~~ i:\tau\\
-\text{Typing Context}&	\Gamma 			~::=&~ \emptyset\\
-&					| ~ &~ \Gamma,x:\tau\\
+\text{Keyword Context}	&	\Delta 	~::=&~ 	\emptyset\\
+						&			| ~ &~ 	\Delta;k[\mathbf{tytsm}(i,\tau)]\\
+						&			| ~ &~ 	\Delta;k[\mathbf{syntsm}(\tau,i)]\\
+						&			| ~ &~ 	\Delta;k[\mathbf{anatsm}(i)]\\
+\text{Type Context}		&	\Theta 	~::=&~ \emptyset\\
+						&			| ~ &~ \Theta,T[\delta,\mu] \\
+						&	\delta 	~::=&~ ? ~~ | ~~ \tau\\
+						&	\mu	   	~::=&~ ? ~~ | ~~ i:\tau\\
+\text{Typing Context}	&	\Gamma 	~::=&~ \emptyset\\
+						&			| ~ &~ \Gamma,x:\tau\\
 \end{array}
 \]
 
 \subsection{Type Checking and Elaboration}
-\flyingbox{$\rho \sim \Delta\sim \Theta\sim\Psi\rightsquigarrow i:\tau$}
+\flyingbox{$\rho \sim (\Theta;\Delta)\rightsquigarrow i:\tau$}
 \begin{center}
-\AXC{$\vdash_{\Theta_{0}}\eta \sim \Delta$ ~~~~ $\vdash_{\Theta_{0}}^{\Delta;\emptyset}\theta\sim\Theta$ ~~~~ $\vdash_{\Theta_0\Theta}^{\Delta;\emptyset}\kappa\sim\Psi $ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}^{\Delta;\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
-\UIC{$\eta;\theta;\kappa;e\sim\Delta\sim\Theta\sim\Psi\rightsquigarrow i:\tau$}
+\AXC{$\vdash_{\Theta_{0}}^{\emptyset}\theta\sim(\Theta;\Delta)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}^{\Delta}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
+\UIC{$\theta;e\sim(\Theta;\Delta)\rightsquigarrow i:\tau$}
 \DP
 \end{center}
 
-\flyingbox{$\vdash_{\Theta}\eta\sim\Delta$}
-\vspace{-15px}
+\flyingbox{${\myvdash}\theta\sim (\Theta;\Delta)$}
+
 \begin{center}
-\AXC{}\RightLabel{~(tykw-empty)}
-\UIC{$\vdash_{\Theta} \emptyset\sim\emptyset$}
-\DP
-\end{center}
-\begin{center}
-\AXC{$\Theta_0 \subset\Theta$ ~~~~ $\vdash_\Theta \eta\sim\Delta$ ~~~~ $k\notin dom(\Delta)$ ~~~~ $\vdash_{\Theta}^{\emptyset;\emptyset}e\rightsquigarrow i\Leftarrow \mathbf{named}[TypeKw]$ ~~~~ $\vdash_{\Theta}\tau$}
+\AXC{$\Theta_0 \subset\Theta$ ~~~~ $\vdash_\Theta \eta\sim\Delta$ ~~~~ $k\notin dom(\Delta)$ ~~~~ $\vdash_{\Theta}^{\emptyset}e\rightsquigarrow i\Leftarrow \mathbf{named}[TypeKw]$ ~~~~ $\vdash_{\Theta}\tau$}
 \RightLabel{~(tykw-c)}
 \UIC{$\vdash_{\Theta} \eta;k[\mathbf{ty},e, \tau] \sim \Delta;k[\mathbf{ty},i, \tau]$}
 \DP
 \end{center}
 
-\flyingbox{${\myvdash}\theta\sim \Theta$}
 \begin{center}
-\AXC{$\vdash_{\Theta_{0}}\theta \sim_{names}\Theta_{names} ~~~~~ \vdash_{\Theta_{0}\Theta_{names}}^{\Delta;\Psi}\theta \sim_{defs}\Theta_{defs} ~~~~~ \vdash^{\Delta;\Psi}_{\Theta_{0}\Theta_{defs}}\theta \sim_{exts}\Theta $} \RightLabel{(rec-decls)}
-\UIC{$\vdash_{\Theta_{0}}^{\Delta;\Psi} \theta \sim \Theta$} 
+\AXC{
+	\stackanchor
+	{$\vdash_{\Theta_{0}}^{\emptyset}\theta \sim_{names}(\Theta_{names};\Delta_{names})$ ~~~~ $\vdash_{\Theta_{0}\Theta_{names}}^{\Delta_{names}}\theta \sim_{defs}(\Theta_{defs};\Delta_{defs})$}
+	{$\vdash^{\Delta_{defs}}_{\Theta_{0}\Theta_{defs}}\theta \sim_{exts}(\Theta;\Delta) $}
+} \RightLabel{(rec-decls)}
+\UIC{$\vdash_{\Theta_{0}}^{\Delta} \theta \sim (\Theta;\Delta)$} 
 \DP
 \end{center}
 
-\flyingbox{$\vdash_{\Theta}\theta\sim_{names} \Theta$}
+\flyingbox{$\vdash_{\Theta}^{\Delta}\theta\sim_{names} (\Theta;\Delta)$}
 \begin{center}
 \AXC{} \RightLabel{(empty-names)}
-\UIC{${\vdash_{\Theta}} \emptyset \sim_{names} \emptyset$}
+\UIC{${\vdash_{\Theta}^{\Delta}} \emptyset \sim_{names} (\emptyset;\emptyset)$}
 \DP
 \end{center}
 \begin{center}
-\AXC{${\vdash_{\Theta}}\theta' \sim_{names} \Theta' ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names)}
-\UIC{${\vdash_{\Theta}} \theta';T[\mathbf{explicit},\tau,e_m] \sim_{names} \Theta',T[?,?]$}
-\DP
-\end{center}
-\begin{center}
-\AXC{${\vdash_{\Theta}}\theta' \sim_{names} \Theta' ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names-2)}
-\UIC{${\vdash_{\Theta}} \theta';T[\mathbf{tykw},k,body,e_m] \sim_{names} \Theta',T[?,?]$}
+\AXC{${\vdash_{\Theta}^{\Delta}}\theta' \sim_{names} (\Theta';\Delta') ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names)}
+\UIC{${\vdash_{\Theta}^{\Delta}} \theta';T[\mathbf{explicit},\tau,e_m] \sim_{names} (\Theta',T[?,?];\Delta')$}
 \DP
 \end{center}
 
-\flyingbox{${\myvdash}\theta\sim_{defs} \Theta$}
+\begin{center}
+\AXC{${\vdash_{\Theta}^{\Delta}}\theta' \sim_{names} (\Theta';\Delta') ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names-2)}
+\UIC{${\vdash_{\Theta}^{\Delta}} \theta';T[\mathbf{tykw},k,body,e_m] \sim_{names} (\Theta',T[?,?];\Delta')$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{${\vdash_{\Theta}^{\Delta}}\theta' \sim_{names} (\Theta';\Delta') ~~~~~~ \nexists~k.(k[\mathbf{ty}(\_,\_)]\in \Delta\Delta')$} \RightLabel{(typetsm-names)}
+\UIC{${\vdash_{\Theta}} \theta';k[\mathbf{tytsm}(e,\tau)] \sim_{names} (\Theta';\Delta',k[\mathbf{ty}(?,?)])$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{${\vdash_{\Theta}^{\Delta}}\theta' \sim_{names} (\Theta';\Delta') ~~~~~~ \nexists~k.(k[\mathbf{syn}(\_,\_)]\in \Delta\Delta' \lor k[\mathbf{ana}(\_)]\in \Delta\Delta')$} \RightLabel{(syntsm-names)}
+\UIC{${\vdash_{\Theta}} \theta';k[\mathbf{syntsm}(\tau,e)] \sim_{names} (\Theta';\Delta',k[\mathbf{syn}(?,?)])$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{${\vdash_{\Theta}^{\Delta}}\theta' \sim_{names} (\Theta';\Delta') ~~~~~~ \nexists~k.(k[\mathbf{syn}(\_,\_)]\in \Delta\Delta' \lor k[\mathbf{ana}(\_)]\in \Delta\Delta')$} \RightLabel{(anatsm-names)}
+\UIC{${\vdash_{\Theta}} \theta';k[\mathbf{anatsm}(e)] \sim_{names} (\Theta';\Delta',k[\mathbf{ana}(?)])$}
+\DP
+\end{center}
+
+
+\flyingbox{${\myvdash}\theta\sim_{defs} (\Theta;\Delta)$}
 \begin{center}
 \AXC{} \RightLabel{~~~ (empty-defs)}
-\UIC{${\myvdash} \emptyset \sim_{defs} \emptyset$}
+\UIC{${\myvdash} \emptyset \sim_{defs} (\emptyset;\emptyset)$}
 %%% the next rule
-\AXC{${\myvdash}\theta' \sim_{defs} \Theta'$ ~~~~ ${\vdash_{\Theta}}\tau$}\RightLabel{(type-defs)}
-\UIC{${\myvdash}\theta';T[\mathbf{explicit},\tau,e_m] \sim_{defs} \Theta',T[\tau,?]$}
+\AXC{${\myvdash}\theta' \sim_{defs} (\Theta';\Delta')$ ~~~~ ${\vdash_{\Theta\Theta'}}\tau$}\RightLabel{(type-defs)}
+\UIC{${\myvdash}\theta';T[\mathbf{explicit}(\tau,e_m)] \sim_{defs} (\Theta',T[\tau,?];\Delta)$}
 \noLine
 \BIC{}
 \DP
 \end{center}
+
+
+\begin{center}
+\AXC{}
+\end{center}
+
+
 \begin{center}
 \AXC{
 	\stackanchor
 	{\stackanchor
-		{$\Theta_0\subset\Theta$ ~~~~ $k[\mathbf{ty},i,\tau_m]\in\Delta_\kappa$ ~~~~ $\texttt{parsestream}(body)=i_{ps}$}
+		{\stackanchor
+			{$\Theta_0\subset\Theta$ ~~~~ $\myvdash\theta'\sim_{defs}\Theta'$ ~~~~ $k[\mathbf{ty}(i,\tau_m)]\in\Delta$}
+			{$\texttt{parsestream}(body)=i_{ps}$}
+		}
 		{$\mathbf{iap}(\mathbf{iprj}[parse](\mathbf{iprj}[parser](i_{k}));i_{ps})\Downarrow(i_{type},i_m)$}
 	}
-	{$\vdash_{\Theta}i_{type}\uparrow \tau$ ~~~~ $\vdash_{\Theta} \tau$ ~~~~ $\vdash_{\Theta} i_m \Leftarrow \tau_m$ ~~~~ $\myvdash\Theta'\sim_{defs}\Theta'$}
+	{$\vdash_{\Theta\Theta'}i_{type}\uparrow \tau$ ~~~~ $\vdash_{\Theta\Theta'} \tau$ ~~~~ $\vdash_{\Theta\Theta'} i_m \Leftarrow \tau_m$}
 }\RightLabel{(type-defs-2)}
 \UIC{${\myvdash} \theta';T[\mathbf{tykw},k,body,e_m] \sim_{defs} \Theta',T[\tau,i_m:\tau_m]$}
 \DP
 \end{center}
 
 
-\flyingbox{${\myvdash}\theta\sim_{exts} \Theta$}
+\flyingbox{${\myvdash}\theta\sim_{exts} (\Theta;\Delta)$}
 \begin{center}
 \AXC{} \RightLabel{(empty-exts)}
 \UIC{${\myvdash} \emptyset \sim_{exts} \emptyset$}
