@@ -444,20 +444,21 @@ db.getByID(758)
 \label{typekw-example-2}
 \end{figure}
 
-The definition of \verb|schema| is shown in Figure \ref{typekw-example-1}. 
+The definition of \verb|schema| is shown in Figure \ref{typekw-example-1}. To declare a type-level TSM, you must specify the type of metadata that will be generated as well, here \verb|HasTSL|. The TSM is defined by a parser that elaborates a pair consisting of a reified type (\verb|Type| is analagous to \verb|Exp|, see Figure \ref{exp-prelude}) and the metadata value itself. Here, the type is generated again by using quasiquotation, implemented itself as a TSL for \verb|Type|, by generating field and method declarations based on the column specifications in the provided schema. We assume a mapping from SQL types to Wyvern types, not shown. The metadata specifies the TSL in the usual way. The generated expression implements the necessary \verb|getByC| methods again by mapping over the column specifications. Notice that the TSL is generated based on the body of the type-level TSM.
 
-In figure \ref{f-tykwexample}, we present an example of constructing the type \verb|EmployeeDB| using the type keyword \verb|DBSchema|. By defining the type \verb|EmployeeDB| using a type keyword, the type \verb|EmployeeDB| will be provided with the following fields/methods after elaboration (line 1-13 in figure \ref{typekw-example-2}):
-\begin{itemize}\setlength{\itemsep}{0pt}
-\item Fields and method declarations based on the data schema. (e.g. \verb|employee|, \verb|getByName|)
-\item Common fields and method declarations provided for all types using the type keyword, and they don't depend on a certain schema. (e.g. \verb|connection| and \verb|stmts|)
-\item A TSL metadata for value initialization using the DSL syntax.
-\end{itemize}
+The metadata mechanism in Wyvern is designed for more than just TSLs. For example, a documentation generator might look for a \verb|doc| field in the metadata. The type-level TSM only generates the TSL definition, however. To support extending the metadata produced by a type-level TSM, the mechanism allows for a \emph{metadata transformation} when a type is declared using a type-level TSM:
 
-Line 1-3 in figure \ref{f-tykwexample} shows the declaration of the type \verb|EmployeeDB| using database schema syntax. And a value \verb|db| (line 5-10) is defined using the syntax provided by the generated TSL metadata. 
+\begin{lstlisting}[style=wyvern]
+type EmployeesDB2 = (schema ~
+  @\dbshcemacolor{...}@
+) metadata fn original_md (* : HasTSL *) => new
+  val parser = original_md.parser
+  val doc = "ORM for Employees table in database."
+\end{lstlisting}
 
-The elaborated version of the type \verb|Employee| and the value \verb|db| is presented in figure \ref{typekw-example-2}: a type member \verb|Entry| is declared in the type to represent a data table entry, and methods like \verb|getById| are generated for database access. The elaborated value \verb|db| (line 15) is initialized with fields and methods.
+The metadata type declared by the type-level TSM determines the input type of the transformation.
 
-The definition of the type keyword \verb|DBSchema| can be referred to figure \ref{typekw-example-1}. A type keyword itself is a parser for DSL literals: it is a value of type \verb|TypeParser|, which takes in a parsestream and returns a parsing result (of type \verb|Result|, which is a casetype defined in figure \ref{exp-prelude}). When there is no parsing error, a tuple \verb|(t:Type, e:Exp, k:List(KwMember))| will be returned for type construction: the type structure stored in \verb|t|, metadata in \verb|e|, and expression keywords defined by \verb|k|. \verb|DBSchema| will construct an object type with fields specified in line 5-18, and it will provide a TSL metadata for value initialization (line 20-35). The type of the metadata is provided on the first line of keyword declaration with keyword \verb|with metadata|, which is used by the type checker to analyze the metadata type.
+%The definition of the type keyword \verb|DBSchema| can be referred to figure \ref{typekw-example-1}. A type keyword itself is a parser for DSL literals: it is a value of type \verb|TypeParser|, which takes in a parsestream and returns a parsing result (of type \verb|Result|, which is a casetype defined in figure \ref{exp-prelude}). When there is no parsing error, a tuple \verb|(t:Type, e:Exp, k:List(KwMember))| will be returned for type construction: the type structure stored in \verb|t|, metadata in \verb|e|, and expression keywords defined by \verb|k|. \verb|DBSchema| will construct an object type with fields specified in line 5-18, and it will provide a TSL metadata for value initialization (line 20-35). The type of the metadata is provided on the first line of keyword declaration with keyword \verb|with metadata|, which is used by the type checker to analyze the metadata type.
 
 % \begin{figure}
 % \begin{lstlisting}[style=wyvern]
@@ -485,14 +486,7 @@ The definition of the type keyword \verb|DBSchema| can be referred to figure \re
 
 \begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
-syntax @\dbshcemacolor{schema}@ with metadata:HasTSL = ~ (*:Parser(Type)*)
-  @\expkwparsercolor{column <- "*"? ID ID}@
-    fn is_primary, colname, sqlty => (
-      is_primary, colname, ty_from_sqlty(sqlty))
-  @\expkwparsercolor{columns <- column}@
-    fn column => Cons(column, Nil)
-  @\expkwparsercolor{columns <- column= columns=}@
-    fn column, columns => Cons(column, columns)
+syntax @\dbshcemacolor{schema}@ with metadata:HasTSL = ~ (* : Parser(Type * HasTSL) *)
   @\expkwparsercolor{start <- columns}@
     fn columns =>
       let ty : Type = ~
@@ -510,7 +504,7 @@ syntax @\dbshcemacolor{schema}@ with metadata:HasTSL = ~ (*:Parser(Type)*)
             (fn ((p, lbl, ty), l) => Cons(~, l)))
               @\typecolor{def getBy\$}@lbl@\typecolor{(\$}@ty@\typecolor{)}@
           @\typecolor{\}}@
-      let mdata : HasTSL = new 
+      let md : HasTSL = new 
         val parser = ~
           @\expkwparsercolor{start <- ("connect to "= EXP>}@
                     @\expkwparsercolor{"table:"= EXP>}@
@@ -528,8 +522,15 @@ syntax @\dbshcemacolor{schema}@ with metadata:HasTSL = ~ (*:Parser(Type)*)
                       @\expcolor{(* ... *)}@
                 @\expcolor{\}}@
       (ty, md)
+  @\expkwparsercolor{column <- "*"? ID ID}@
+    fn is_primary, colname, sqlty => (
+      is_primary, colname, ty_from_sqlty(sqlty))
+  @\expkwparsercolor{columns <- column}@
+    fn column => Cons(column, Nil)
+  @\expkwparsercolor{columns <- column= columns=}@
+    fn column, columns => Cons(column, columns)
 \end{lstlisting}
-\mycaption{The declaration the type keyword ``DBTable''}
+\mycaption{The definition of a type-level TSM.}
 \label{typekw-example-1}
 \end{figure}
 
