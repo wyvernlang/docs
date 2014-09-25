@@ -387,12 +387,64 @@ def testIf3(ok : Bool) (* no return type annotation *)
     @\simpleHTMLcolor{>h1 Everything is OK!}@
 \end{lstlisting}
 
-The most permissive point in the design space is to simply allow such TSMs in synthetic positions without an explicit signifier. We note that would be the syntax macro analogy of \emph{white-box (term rewriting) macros} in Scala \cite{ScalaMacros2013}, which are not  available by default in the upcoming Scala 2.12. Synthetic TSMs are analagous to black-box macros. 
+The most permissive point in the design space is to simply allow such TSMs in synthetic positions without an explicit signifier. Note that this would be the syntax macro analogy of \emph{white-box  macros} in Scala \cite{ScalaMacros2013}, which are not  available by default in the upcoming Scala 2.12. Synthetic TSMs are analagous to black-box macros. 
 
-\section{Type-Level TSMs}
-Besides using expression keywords and TSLs to extend the host language with new syntax in expressions, constructing a type with external syntax can be useful in object-relational mapping (ORM). Although data schema already exists, declaring a type with fields to represent the data structure still require users to create them manually in Wyvern syntax. Type keywords make this process easier by allowing users to generate type declarations directly using the data schema syntax, and furthermore, a metadata will be generated for initializing the value of that type. The following example shows how we construct a type using database schema.
+\section{Type-Level TSM\lowercase{s}}
+We now turn our attention to TSMs at the level of type declarations. Our example in this section is a simple object-relational mapping (ORM) syntax, shown being used in Figure \ref{f-tykwexample}. An ORM provides an object-oriented interface to a relational database, generated based on a database \emph{schema}. The schema in Figure \ref{f-tykwexample}, for example, specifies a table with two columns, \verb|ID| and \verb|Name|, holding values of the SQL data types \verb|int| and \verb|varchar|. The \verb|ID| column is marked with an asterisk as being a \emph{primary key}, meaning that it must be unique across the rows. 
 
+ORMs typically rely on an external code generator, which can hinder code comprehension because the fully elaborated interface is exposed directly to the programmer, obscuring the simpler schema by moving it to an external resource. Using the type-level TSM \verb|schema|, the interface, shown in Figure \ref{typekw-example-2}, is generated based on the schema directly, during compilation. The type member \verb|Entry| is generated based on Wyvern types corresponding to the SQL types specified by the schema. For each column \verb|C|, a method named \verb|getByC| is generated. Its return type is an option if the column is a primary key (reflecting the uniqueness invariant) or a list otherwise. There are also fields for connection parameters. 
 
+A type-level TSM can also equip the type it generates with metadata, which, as discussed in Section \ref{background}, can be used to associate a TSL with it. Here, the TSL that \verb|schema| generates is shown being used on lines 5-10 of Figure \ref{typekw-example-1} to populate the fields and methods declared. Only the per-database settings need to be provided, here with a slightly simplified syntax (deferring to the TSL for \verb|URL|, not shown, for that portion of the configuration, demonstrating again that composition is safe and straightforward).% The remaining details are filled in automatically.
+
+\begin{figure}[t]
+\begin{lstlisting}[style=wyvern]
+type @\dbcolor{EmployeesDB}@ = schema ~
+  @\dbshcemacolor{*ID   int}@
+  @\dbshcemacolor{Name  varchar}@
+
+let db : EmployeesDB = ~
+  @\dbcolor{connect to}@ ~
+    @\urlcolor{mysql://localhost:3306}@
+  @\dbcolor{table: Employees}@
+  @\dbcolor{username: }@"user1"
+  @\dbcolor{password: }@"001"
+db.getByID(758) (* : Option(EmployeeDB.Entry) *)
+\end{lstlisting}
+\mycaption{The usage of a type-level TSM and the TSL it generates to enable a simple ORM scheme.}
+\label{f-tykwexample}
+\end{figure}
+
+\begin{figure}[t]
+\begin{lstlisting}[style=wyvern]
+type EmployeesDB = objtype
+  type Entry = objtype
+    val ID : Int
+    val Name : String 
+  val connection : URL
+  val username : String
+  val password : String
+  (* ... *)
+  def getByID(x : Int) : Option(Entry)
+  def getByName(x : String) : List(Entry)
+  metadata = new : HasTSL
+    val parser = (* ... generated TSL ... *)
+
+let db : EmployeesDB = new
+  val connection = new
+    val domain = "localhost"
+    (* ... *)
+  val username = "user1"
+  val password = "001"
+  (* ... *)
+  def getByID(x)
+    (* ... sends appropriate query to DB ... *)
+db.getByID(758)
+\end{lstlisting}
+\mycaption{The elaboration of Figure \ref{f-tykwexample}.}
+\label{typekw-example-2}
+\end{figure}
+
+The definition of \verb|schema| is shown in Figure \ref{typekw-example-1}. 
 
 In figure \ref{f-tykwexample}, we present an example of constructing the type \verb|EmployeeDB| using the type keyword \verb|DBSchema|. By defining the type \verb|EmployeeDB| using a type keyword, the type \verb|EmployeeDB| will be provided with the following fields/methods after elaboration (line 1-13 in figure \ref{typekw-example-2}):
 \begin{itemize}\setlength{\itemsep}{0pt}
@@ -429,79 +481,41 @@ The definition of the type keyword \verb|DBSchema| can be referred to figure \re
 % \mycaption{Wyvern prelude for type keywords}
 % \label{type-prelude}
 % \end{figure}
-\begin{figure}[t]
-\begin{lstlisting}[style=wyvern]
-type @\dbcolor{EmployeesDB}@ = DBSchema ~
-  @\dbshcemacolor{*ID   int}@
-  @\dbshcemacolor{Name  varchar}@
 
-val db : EmployeeDB = ~
-  @\dbcolor{connect to}@ ~
-    @\urlcolor{mysql://localhost:3306}@
-  @\dbcolor{username: }@"user1"
-  @\dbcolor{password: }@"001"
-  @\dbcolor{table: Employees}@
-\end{lstlisting}
-\mycaption{The usage of the type keyword ``DBTable''}
-\label{f-tykwexample}
-\end{figure}
 
 \begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
-type EmployeesDB = objtype
-  type Entry = objtype
-    val ID : Int
-    val Name : String 
-  val connection : URL
-  val username : String
-  val password : String
-  ...
-  def getById (x:Int) : Option(Entry)
-  def getByName (x : String) : List(Entry)
-  metadata = new : HasTSL
-    val parser = ~
-      ... (* TSL parser generated by type constructor *)
-
-val db : EmployeesDB = new
-  val connection = new
-    val domain = "localhost"
-    ...
-  val username = "user1"
-  val password = "001"
-  ... (* Other fields *)
-  def getByID(x:Int) : List(Entry)
-    ...
-\end{lstlisting}
-\mycaption{The elaborated type declaration}
-\label{typekw-example-2}
-\end{figure}
-
-\begin{figure}[t]
-\begin{lstlisting}[style=wyvern]
-typekw @\dbshcemacolor{DBSchema}@ with metadata:HasTSL = ~ (*:TypeParser*)
-  @\typekwparsercolor{start <- pairs}@
-    fn pairs =>
+syntax @\dbshcemacolor{schema}@ with metadata:HasTSL = ~ (*:Parser(Type)*)
+  @\expkwparsercolor{column <- "*"? ID ID}@
+    fn is_primary, colname, sqlty => (
+      is_primary, colname, ty_from_sqlty(sqlty))
+  @\expkwparsercolor{columns <- column}@
+    fn column => Cons(column, Nil)
+  @\expkwparsercolor{columns <- column= columns=}@
+    fn column, columns => Cons(column, columns)
+  @\expkwparsercolor{start <- columns}@
+    fn columns =>
       let ty : Type = ~
         @\typecolor{objtype}@
           @\typecolor{type Entry = objtype}@
-            @\typecolor{\{}@map(pairs, Nil, 
+            @\typecolor{\{}@map(columns, Nil, 
               fn ((p, lbl, ty), l) => Cons(~, l))
-                @\membercolor{val \$}@lbl @\membercolor{:  \$}@ty
+                @\typecolor{val \$}@lbl @\typecolor{:  \$}@ty
             @\typecolor{\}}@
           @\typecolor{val connection : URL}@
           @\typecolor{val username : String}@
           @\typecolor{val password : String}@
-          @\typecolor{...}@
-          @\typecolor{\{}@map(pairs, Nil, 
+          @\typecolor{(* ... *)}@
+          @\typecolor{\{}@map(columns, Nil, 
             (fn ((p, lbl, ty), l) => Cons(~, l)))
-              @\membercolor{def getBy\$}@lbl @\membercolor{(\$}@ty@\membercolor{)}@
+              @\typecolor{def getBy\$}@lbl@\typecolor{(\$}@ty@\typecolor{)}@
           @\typecolor{\}}@
-      let md : HasTSL = new 
+      let mdata : HasTSL = new 
         val parser = ~
-          @\hastslcolor{start <- ("connect to "= EXP>}@
-                    @\hastslcolor{"username:"= EXP>}@
-                    @\hastslcolor{"password:"= EXP>}@
-                    @\hastslcolor{"table:" EXP>)}@
+          @\expkwparsercolor{start <- ("connect to "= EXP>}@
+                    @\expkwparsercolor{"table:"= EXP>}@
+                    @\expkwparsercolor{"username:"= EXP>}@
+                    @\expkwparsercolor{"password:"= EXP>)}@
             fn url, un, pw, table => ~
               @\expcolor{new}@ 
                 @\expcolor{val connection = \$}@url
@@ -510,17 +524,10 @@ typekw @\dbshcemacolor{DBSchema}@ with metadata:HasTSL = ~ (*:TypeParser*)
                 @\expcolor{...}@
                 @\expcolor{\{}@map(pairs, Nil, 
                   (fn ((p, lbl, ty), l) => Cons(~, l)))
-                    @\membercolor{def getBy}@$lbl @\membercolor{(x)}@ 
-                      @\membercolor{...}@(* implementation *)
+                    @\expcolor{def getBy}@$lbl@\expcolor{(x)}@ 
+                      @\expcolor{(* ... *)}@
                 @\expcolor{\}}@
-      (ty, md, Nil)
-  @\typekwparsercolor{pairs <- ()}@
-    fn () => Nil 
-  @\typekwparsercolor{pairs <- pair= pairs=}@
-    fn hd, tl => Cons(hd, tl)
-  @\typekwparsercolor{pair <- "*"? ID ID}@
-    fn is_primary, colid, tyid => (
-      is_primary, colid, ty_from_sqlty(tyid))
+      (ty, md)
 \end{lstlisting}
 \mycaption{The declaration the type keyword ``DBTable''}
 \label{typekw-example-1}
