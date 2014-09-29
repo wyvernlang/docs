@@ -86,7 +86,7 @@ tabsize=4, % Number of spaces per tab in the code
 \newcommand{\boolIfcolor}[1]{\textcolor[HTML]{5E0C0C}{#1}}
 \newcommand{\dbshcemacolor}[1]{\textcolor[HTML]{5AC3D1}{#1}}
 
-\newcommand{\flyingbox}[1]{\begin{flushleft}\fbox{{#1}}\end{flushleft}}
+\newcommand{\flyingbox}[1]{\fbox{{#1}}}
 \newcommand{\myvdash}{\vdash_{\Theta}^{\Delta}}
 \newcommand{\textcd}[1]{\textbf{\scriptsize\BeraMonottfamily{#1}}}
 \newcommand{\textsp}[1]{\text{\footnotesize\BeraMonottfamily{#1}}}
@@ -310,7 +310,9 @@ can be useful because forward references propagate out}
 \end{figure}
 
 
-When the type system encounters literal forms like this, it defers to the parser defining the TSL of the type the literal is being analyzed against, here \verb|HTML| because it is the argument type of \verb|serve|. As suggested by the declaration of \verb|Parser(Exp)| in Figure \ref{exp-prelude}, the TSL is responsible for transforming a \verb|ParseStream| based on the body to a \verb|Result(Exp)|, which is either an \verb|Exp| or a parse error. The case type \verb|Exp| simply encodes the abstract syntax of Wyvern, so the TSL is defined as a desugaring. Note that the prelude types \verb|Parser| and \verb|Exp| each have TSLs associated with them, which provide a \emph{grammar-based parser generator} (based on Adams grammars \cite{Adams:2013:PPI:2429069.2429129}, see below) and \emph{quasiquote} facilities, respectively. We see them being used in Figure \ref{f-htmltype}. Each production in the parser generator is followed by a Wyvern function taking in the elaborations of each constituent non-terminal and producing the final elaboration. The non-terminal \verb|start| is the top-level non-terminal. We refer the reader to \cite{TSLs} for further details on the TSL mechanism and these two modes of use, which will recur throughout the paper.
+When the type system encounters literal forms like this, it defers to the parser associated with the type the literal is being analyzed against, here \verb|HTML|. As suggested by the declaration of \verb|Parser(Exp)| in Figure \ref{exp-prelude}, the TSL is responsible for transforming a \verb|ParseStream| based on the body to a \verb|Result(Exp)|, which is either an \verb|Exp| or a parse error. The case type \verb|Exp| simply encodes the abstract syntax of Wyvern, so the TSL is defined as an elaboration.
+
+Note that the prelude types \verb|Parser| and \verb|Exp| each have TSLs associated with them, which provide a \emph{grammar-based parser generator} (based on Adams grammars \cite{Adams:2013:PPI:2429069.2429129}, see below) and \emph{quasiquote} facilities, respectively. We see them being used in Figure \ref{f-htmltype}. Each production is followed by a Wyvern function taking in the elaborations of each constituent non-terminal and producing the final elaboration, using the variable unquote form \verb|$x|. The non-terminal \verb|start| serves as the top-level non-terminal. We refer the reader to \cite{TSLs} for further details on the TSL mechanism and these two modes of use, which will recur throughout the paper.
 
 The parser can request that some portion of the parse stream be treated as a \emph{spliced} host language term. For example, the TSL for \verb|HTML| specifies the delimiters \verb|<{| and \verb|}>| to mean ``insert the enclosed term, of type \verb|HTML|, here''. The parser generator reserves the non-terminal \verb|EXP| for such spliced host language terms. The hygiene mechanism for TSLs, which we will use essentially as-is, ensures that only spliced terms can refer to variables in the surrounding scope. New variables cannot be introduced into their scope (functions must be used to communicate between TSLs and the host language), so that binding sites are easy to determine.
 
@@ -546,14 +548,14 @@ syntax @\dbshcemacolor{schema}@ with metadata:HasTSL = ~ (* : Parser(Type * HasT
 \end{figure}
 
 \section{Formal Syntax and Semantics}\label{theory}
-We start our formal presentation by introducing the abstract syntax together with their concrete forms built upon pure functional Wyvern. For simplicity consideration, we omit some of the syntax not directly related to TSMs, and the full syntax can be found in \todo{cite TR}.
-%>>>>>>> ea4d2199ced57f3233d65f0288f777fe918f4ad7
+We will now give a formal type theoretic treatment of the mechanisms described thusfar, building directly upon the calculus for TSLs in Wyvern presented previously by Omar et al. \cite{TSLs}. 
+The abstract syntax corresponding to the concrete syntax we introduced above is shown in Figure \ref{formal-syntax}. A \emph{program}, $\rho$, consists of a series of declarations, $\theta$, followed by a single external term, $e$. In practice, the declarations would be imported from separate packages, but we omit details of the package system here for simplicity. The top-level judgement in the system is the program compilation judgement, which generates a \emph{named type context} $\Theta$, a \emph{TSM context} $\Delta$, an \emph{internal term} $i$, and a type $\tau$ from a program:
+$$\AXC{$\vdash_{\Theta_{0}}^{\emptyset}\theta\sim(\Theta;\Delta)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}^{\Delta}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(program)}
+\UIC{$\theta;e\sim(\Theta;\Delta)\rightsquigarrow i:\tau$}
+\DP$$
 
-A Wyvern program ($\rho$) consists two parts: declarations $\theta$ (including TSM declarations and type declarations) and an expression $e$, representing the program body.
-
-\begin{figure}[ht]
-  \[
-  \begin{array}{ll}
+\begin{figure}[t]
+  $\begin{array}{ll}
       \textbf{Abstract Forms}   & \textbf{Concrete Forms}\\
       \text{Program}\\
       \rho~::=~\theta;e  &\\
@@ -587,9 +589,8 @@ A Wyvern program ($\rho$) consists two parts: declarations $\theta$ (including T
       \tabularspace\mathbf{spliced}[e]            & \\
       \text{Internal Terms}\\
       i~::=~...
-  \end{array}
-  \]
-\mycaption{Abstract and Concrete Forms}
+  \end{array}$
+\mycaption{Abstract and concrete forms for TSM Wyvern. Metavariable $k$ ranges over TSM names, $T$ over type names, $l$ over member labels, $C$ over case names, $x$ over term variables, $dform$ over delimited forms, per Figure \ref{f-delimited}, and $body$ over their bodies.}
 \label{formal-syntax}
 \end{figure}
 
@@ -668,21 +669,15 @@ A term-TSM application contains DSL literals in its body, so it belongs to exter
 \subsection{Contexts}
 The program contexts (figure \ref{typechecking-environment}) contains TSM context $\Delta$, declaration context $\Theta$ and typing context $\Gamma$. 
 
-\begin{figure}[ht]
-\begin{center}
-\begin{tabular}{r r c l}
-TSM Context       & $\Delta$  & ::=   & $\emptyset$\\
-                      &           &   |   & $\Delta,k[\mathbf{ty}(i,\tau)]$\\
-                      &           &   |   & $\Delta,k[\mathbf{syn}(\tau,i)]$\\
-                      &           &   |   & $\Delta,k[\mathbf{ana}(i)]$\\
-Declaration Context   & $\Theta$  & ::=   & $\emptyset$\\
-                      &           &   |   & $\Theta,T[\delta,\mu]$\\
-                      & $\delta$  &  ::=  & $?$ ~ | ~ $\tau$\\
-                      & $\mu$     &  ::=  & $?$ ~ | ~ $i:\tau$\\
-Typing Context        & $\Gamma$  &  ::=  & $\emptyset$\\
-                      &           &   |   & $\Gamma,x:\tau$
+\begin{figure}[t]
+\begin{tabular}{l}
+      \text{Named Type Contexts}\\
+      \Theta ::= \emptyset~|~\Theta, T[\delta,\mu]~~~~\delta ::=~? ~|~ \tau~~~~\mu ::=~? ~|~ i : \tau\\
+      \text{TSM Contexts}\\
+      \Delta ::= \emptyset ~|~ \Delta, k[\mathbf{ty}(i, \tau)] ~|~ \Delta, k[\mathbf{syn}(i, \tau)] ~|~ \Delta, k[\mathbf{ana}(i)]\\
+      \text{Typing Contexts}\\
+      \Gamma ::= \emptyset ~|~ \Gamma, x : \tau
 \end{tabular}
-\end{center}
 \mycaption{Definition of type context}
 \label{typechecking-environment}
 \end{figure}
@@ -772,15 +767,6 @@ this paper are to articles which have nothing to
 do with the present subject and are used as
 examples only.
 %\end{document}  % This is where a 'short' article might terminate
-
-%ACKNOWLEDGMENTS are optional
-\section{Acknowledgments}
-This section is optional; it is a location for you
-to acknowledge grants, funding, editing assistance and
-what have you.  In the present case, for example, the
-authors would like to thank Gerald Murray of ACM for
-his help in codifying this \textit{Author's Guide}
-and the \textbf{.cls} and \textbf{.tex} files that it describes.
 
 %
 % The following two commands are all you need in the
