@@ -91,7 +91,8 @@ tabsize=4, % Number of spaces per tab in the code
 \newcommand{\textcd}[1]{\textbf{\scriptsize\BeraMonottfamily{#1}}}
 \newcommand{\textsp}[1]{\text{\footnotesize\BeraMonottfamily{#1}}}
 \newcommand{\mycaption}[1]{\vspace{-4px}\caption{#1}\vspace{-2px}}
-\newcommand{\tabularspace}{~~~~~~}
+\newcommand{\tabularspace}{~~~~}
+\newcommand{\tsm}{s}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
@@ -558,7 +559,7 @@ syntax @\dbshcemacolor{schema}@ :: * with metadata : HasTSL = ~ (* : Parser(Type
 \section{Formal Syntax and Semantics}\label{theory}
 We will now give a formal type theoretic treatment of the mechanisms described thusfar, building directly upon the calculus for TSLs in Wyvern presented previously by Omar et al. \cite{TSLs}. 
 The abstract syntax corresponding to the concrete syntax we introduced above is shown in Figure \ref{formal-syntax}. A \emph{program}, $\rho$, consists of a series of declarations, $ d$, followed by a single external term, $e$. In practice, the declarations would be imported from separate packages, but we omit details of the package system here for simplicity. The top-level judgement in the system is the program compilation judgement, which generates a \emph{named type context} $\Theta$, a \emph{TSM context} $\Psi$, an \emph{internal term} $i$, and a type $\tau$ from a program:
-$$\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(Program)}
+$$\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(Program)}
 \UIC{$ d;e\sim(\Psi;\Theta)\rightsquigarrow i:\tau$}
 \DP$$
 
@@ -576,12 +577,12 @@ The program compilation judgement begins by constructing contexts $\Psi$ and $\T
       \rho~::=~ d;e  &\\
       \textsf{Declarations}\\
        d~::=~\emptyset      &\\
-      \tabularspace d;\mathbf{syntsm}(k,\tau,e)    & \textcd{syntax}~k : \tau~\textcd{=}~e\\
-      \tabularspace d;\mathbf{anatsm}(k,e)          & \textcd{syntax}~k~\textcd{=}~e\\
-      \tabularspace d;\mathbf{tytsm}(k, \tau, e) & \textcd{syntax}~k~\textcd{with metadata:}\tau\,\textcd{=}\,e\\
+      \tabularspace d;\mathbf{syntsm}(\tsm,\tau,e)    & \textcd{syntax}~\tsm : \tau~\textcd{=}~e\\
+      \tabularspace d;\mathbf{anatsm}(\tsm,e)          & \textcd{syntax}~\tsm~\textcd{=}~e\\
+      \tabularspace d;\mathbf{tytsm}(\tsm, \tau, e) & \textcd{syntax}~\tsm::K~\textcd{with metadata:}\tau\,\textcd{=}\,e\\
       \tabularspace d; \mathbf{tydecl}(T, \tau, e)  & \textcd{type}~T~\textcd{=}~\tau\\
                                                             & ~~~\textcd{metadata = }e\\
-      \tabularspace d; \mathbf{tyaptsm}(T, k, body, e)   & \textcd{type}~T~\textcd{=}~k~dform\\
+      \tabularspace d; \mathbf{tyaptsm}(T, \tsm, body, e)   & \textcd{type}~T~\textcd{=}~\tsm~dform\\
                                                             & ~~~\textcd{metadata }e\\
       \textsf{Types}\\
       \tau~::=~\mathbf{named}[T]              & T\\
@@ -593,10 +594,10 @@ The program compilation judgement begins by constructing contexts $\Psi$ and $\T
       \tabularspace \tau\times\tau & {\tau *\tau}\\
       \tabularspace X     & X\\
       \tabularspace \mathbf{Tap}(\tau;\tau)   & \tau(\tau)\\
-      \tabularspace \mathbf{Tabs}(X.\tau) \\
+      \tabularspace \mathbf{Tabs}(X.\tau)     & \textcd{tyfn}~X\textcd{=>}~\tau\\
       \mathsf{Kinds}\\
-      K~::=~ *\\
-      \tabularspace \mathbf{arrow}[K,K]\\ 
+      K~::=~ \star                            & *\\
+      \tabularspace K\Rightarrow K                      & K~\textcd{->}~K\\ 
 %      \text{Object Fields}\\
 %      \omega~::=~\emptyset                      \\
 %      \tabularspace l[\mathbf{val},\tau];\omega                 & \textcd{val}~l : \tau\\
@@ -604,17 +605,20 @@ The program compilation judgement begins by constructing contexts $\Psi$ and $\T
 %      \text{Casetype Cases}\\
 %      \chi~::=~\emptyset                      \\                 
 %      \tabularspace C[\tau];\chi                   & C~\textcd{of}~\tau\\
+      \textsf{Translational Types}\\
+      \hat{\tau}~::=~...\\
+      \tabularspace \mathbf{spliced}[\tau]\\
       \textsf{External Terms}\\
        e~::=~...                              & \\
       \tabularspace\mathbf{lit}[body]             & dform\\
-      \tabularspace\mathbf{eaptsm}[k,body]       & k~dform\\
+      \tabularspace\mathbf{eaptsm}[\tsm,body]       & \tsm~dform\\
       \textsf{Translational Terms}\\
-      \hat{e}~::=~...                              & \\
+      \hat{e}~::=~...                              &\\
       \tabularspace\mathbf{spliced}[e]            & \\
       \textsf{Internal Terms}\\
       i~::=~...
   \end{array}$
-\mycaption{Abstract and concrete forms for TSM Wyvern. Metavariable $k$ ranges over TSM names, $T$ over type names, $l$ over member labels, $C$ over case names, $x$ over term variables, $dform$ over delimited forms, per Figure \ref{f-delimited}, and $body$ over their bodies.}
+\mycaption{Abstract and concrete forms for TSM Wyvern. Metavariable $\tsm$ ranges over TSM names, $T$ over type names, $l$ over member labels, $C$ over case names, $x$ over term variables, $X$ over type variables, $dform$ over delimited forms, per Figure \ref{f-delimited}, and $body$ over their bodies.}
 \label{formal-syntax}
 \end{figure}
 
@@ -714,28 +718,36 @@ The program contexts (figure \ref{typechecking-environment}) contains TSM contex
 \label{typechecking-environment}
 \end{figure}
 
-\begin{figure}[ht]
+\input{kw-elaboration.tex}
+
+\begin{figure*}[ht]
+\flyingbox{$\Delta\vdash_{\Theta}\tau::K$}
+\vspace{-12px}
 \begin{center}
 \AXC{$X::K\in\Delta$}
 \UIC{$\Delta\vdash_{\Theta} X::K$}
 %%
-\AXC{$\Delta,X:*\vdash_{\Theta}\tau::K$}
-\UIC{$\Delta\vdash_{\Theta}\mathbf{Tabs}(X.\tau)::*\Rightarrow K$}
-\noLine
-\BIC{}
-\DP
-\end{center}
-
-\begin{center}
+\AXC{$\Delta,X:\star\vdash_{\Theta}\tau::K$}
+\UIC{$\Delta\vdash_{\Theta}\mathbf{Tabs}(X.\tau)::\star\Rightarrow K$}
+%%
 \AXC{$\Delta\vdash_{\Theta}\tau_1::K_1\Rightarrow K_2$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::K_1$}
 \UIC{$\Delta\vdash_{\Theta}\mathbf{Tap}(\tau_1,\tau_2)::K_2$}
+\noLine
+\TIC{}
 \DP
 \end{center}
-
 \caption{Kinding}
+\end{figure*}
+
+\begin{figure}
+\flyingbox{$\Delta;\Delta\vdash_{\Theta}\hat{\tau}\rightsquigarrow \tau::K$}
+\begin{center}
+\AXC{$\Delta_{out}\vdash_{\Theta}^{\Psi} \tau\rightsquigarrow {\tau'}::K$}
+\UIC{$\Delta_{out};\Delta\vdash_{\Theta}^{\Psi}\mathbf{spliced}[\tau]\rightsquigarrow \tau'::K$}
+\DP
+\end{center}
 \end{figure}
 
-\input{kw-elaboration.tex}
 \input{kw-statics.tex}
 
 TSM context $\Psi$ is the environment for user defined TSMs. Type-level TSMs defined in a Wyvern program goes into context in the form of $k[\mathbf{ty}(i,\tau)]$: the macro $k$ is a type-level TSM with parser $i$ and metadata type $\tau$. Besides type-level TSMs, term-level TSMs are also defined in $\Psi$: synthetic TSMs goes into context in the form of $k[\mathbf{bk}(\tau,i)]$, representing a macro $k$ with parser $i$ and return type $\tau$, while an analytic TSM in the context is represented as $k[\mathbf{wk}(i)]$, which is a macro $k$ with parser $i$.
