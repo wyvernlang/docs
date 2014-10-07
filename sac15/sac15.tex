@@ -559,7 +559,7 @@ syntax @\dbshcemacolor{schema}@ :: * with metadata : HasTSL = ~ (* : Parser(Type
 \section{Formal Syntax and Semantics}\label{theory}
 We will now give a formal type theoretic treatment of the mechanisms described thusfar, building directly upon the calculus for TSLs in Wyvern presented previously by Omar et al. \cite{TSLs}. 
 The abstract syntax corresponding to the concrete syntax we introduced above is shown in Figure \ref{formal-syntax}. A \emph{program}, $\rho$, consists of a series of declarations, $ d$, followed by a single external term, $e$. In practice, the declarations would be imported from separate packages, but we omit details of the package system here for simplicity. The top-level judgement in the system is the program compilation judgement, which generates a \emph{named type context} $\Theta$, a \emph{TSM context} $\Psi$, an \emph{internal term} $i$, and a type $\tau$ from a program:
-$$\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(Program)}
+$$\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(Program)}
 \UIC{$ d;e\sim(\Psi;\Theta)\rightsquigarrow i:\tau$}
 \DP$$
 
@@ -591,13 +591,15 @@ The program compilation judgement begins by constructing contexts $\Psi$ and $\T
       & ~~~\omega\\
       \tabularspace\mathbf{casetype}[\chi]        & \textcd{casetype}\\
       & ~~~\chi\\
+      \tabularspace \mathbf{rec}(T::\kappa.\tau)\\
       \tabularspace \tau\times\tau & {\tau *\tau}\\
       \tabularspace X     & X\\
       \tabularspace \mathbf{Tap}(\tau;\tau)   & \tau(\tau)\\
       \tabularspace \mathbf{Tabs}(X.\tau)     & \textcd{tyfn}~X\textcd{=>}~\tau\\
+      \textsf{Translational Types}\\
+      \hat{\tau}~::=~... ~|~ \mathbf{spliced}[\tau]\\
       \mathsf{Kinds}\\
-      \kappa~::=~ \star                            & *\\
-      \tabularspace \kappa\rightarrow \kappa                      & \kappa~\textcd{->}~\kappa\\ 
+      \kappa~::=~ \star  ~|~ \kappa\rightarrow \kappa\\ 
 %      \text{Object Fields}\\
 %      \omega~::=~\emptyset                      \\
 %      \tabularspace l[\mathbf{val},\tau];\omega                 & \textcd{val}~l : \tau\\
@@ -605,16 +607,12 @@ The program compilation judgement begins by constructing contexts $\Psi$ and $\T
 %      \text{Casetype Cases}\\
 %      \chi~::=~\emptyset                      \\                 
 %      \tabularspace C[\tau];\chi                   & C~\textcd{of}~\tau\\
-      \textsf{Translational Types}\\
-      \hat{\tau}~::=~...\\
-      \tabularspace \mathbf{spliced}[\tau]\\
       \textsf{External Terms}\\
        e~::=~...                              & \\
       \tabularspace\mathbf{lit}[body]             & dform\\
       \tabularspace\mathbf{eaptsm}[\tsm,body]       & \tsm~dform\\
       \textsf{Translational Terms}\\
-      \hat{e}~::=~...                              &\\
-      \tabularspace\mathbf{spliced}[e]            & \\
+      \hat{e}~::=~... ~|~ \mathbf{spliced}[e]         \\
       \textsf{Internal Terms}\\
       i~::=~...
   \end{array}$
@@ -622,63 +620,13 @@ The program compilation judgement begins by constructing contexts $\Psi$ and $\T
 \label{formal-syntax}
 \end{figure}
 
-
-\begin{comment}
-\begin{figure}[ht]
-\hspace{-5px}\begin{tabular}{ l l l l l }
- \multicolumn{1}{l}{\textbf{Abstract Forms}} & \multicolumn{1}{l}{\textbf{Concrete Forms}}\\
- \multicolumn{3}{l}{Programs}\\
-$\rho$~::=~$\eta; d;e$\\
-\multicolumn{3}{l}{Type Keywords}\\
-$\eta$~::=~$\emptyset$\\
-\tabularspace$\eta;k[e,\tau]$ & \textcd{typekw} $k$ \textcd{with metadata:}$\tau$ \textcd{=} $e$ \\
-\multicolumn{3}{l}{Expression Keywords}\\
-$\kappa$~::=~$\emptyset$                        & \\
-\tabularspace$\kappa;k[\mathbf{bk}(\tau),e]$    & \textcd{expkw} $k$ : $\tau$ \textcd{=} $e$\\
-\tabularspace$\kappa;k[\mathbf{wk},e]$          & \textcd{expkw} $k$ \textcd{=} $e$\\
-\multicolumn{3}{l}{Type Declarations}\\
-$ d$~::=~$\emptyset$                        & \\
-\tabularspace$ d; T[\mathbf{explicit},\tau, e, \kappa]$  & \textcd{type} $T$ \textcd{=} $\tau$\\
-&~~~\textcd{metadata = }$e$\\
-&~~~$\kappa$\\
-\tabularspace$ d; T[\mathbf{tykw},k, body, e, \kappa]$   & \textcd{type} $T$ \textcd{=} $k$ $delims$\\
-                                                          & ~~~\textcd{metadata = }$e$\\
-                                                          & ~~~$\kappa$\\
-\multicolumn{3}{l}{Types}\\
-$\tau$~::=~$\mathbf{named}[T]$              & $T$\\
-\tabularspace$\mathbf{objtype}[\omega]$       & \textcd{objtype} $\omega$ \\
-\tabularspace$\mathbf{casetype}[\chi]$        & \textcd{casetype} $\chi$\\
-\tabularspace$\mathbf{arrow}[\tau, \tau]$     & $\tau$ \textcd{->} $\tau$\\
-\multicolumn{3}{l}{Object Fields}\\       
-$\omega$~::=~$\emptyset$                      \\
-\tabularspace$l[\mathbf{val},\tau];\omega$                 & \textcd{val} $l$ : $\tau$\\
-\tabularspace$l[\mathbf{def},\tau];\omega$                 & \textcd{def} $l$ : $\tau$\\
-\multicolumn{3}{l}{Casetype Cases}\\
-$\chi$~::=~$\emptyset$                      \\                 
-\tabularspace$C[\tau];\chi$                   & $C$~\textcd{of}~$\tau$\\
-\multicolumn{3}{l}{External Term}\\
- $e$~::=~...                              & \\
-\tabularspace$\mathbf{lit}[body]$             & $delims$\\
-\tabularspace$\mathbf{ekey}[k,body](e)$       & $e.k$ $delims$\\
-\multicolumn{3}{l}{Translational Terms}\\
-$\hat{e}$~::=~...                              & \\
-\tabularspace$\mathbf{spliced}[e]$            & \\
-\multicolumn{3}{l}{Internal Terms}\\
-$i$~::=~...                                                     
-\end{tabular}
-\mycaption{Abstract and Concrete Forms}
-\label{formal-syntax}
-\end{figure}
-\end{comment}
-
-
 \paragraph{Declarations}
 
 An element in the declaration section can be one of type-level TSM, term-level synthetic TSM, analytical TSM or named type. By allowing different kinds of declarations appearing in the same section, a declaration can refer to any kind of declarations appeared in the previous context, which enhance the flexibility of the TSM usage.
 
-For a type level TSM $k[\mathbf{tytsm}(e,\tau)]$, its declaration contains a term $e$ and a type $\tau$: the term $e$ is the parser for DSL literal parsing, and the type $\tau$ is the type of the generated metadata.
+For a type level TSM $s[\mathbf{tytsm}(e,\tau)]$, its declaration contains a term $e$ and a type $\tau$: the term $e$ is the parser for DSL literal parsing, and the type $\tau$ is the type of the generated metadata.
 
-Similar to type-level TSMs, a term-level TSM can be one of $k[\mathbf{syn}(\tau,e)]$ or $k[\mathbf{ana}(e)]$. As we presented in section \ref{tsms-term}, synthetic TSMs are defined with its return type $\tau$ while analytic TSMs are not. The expression ($e$) in both cases represents the parser, which is supposed to be of type $ExpParser$.
+Similar to type-level TSMs, a term-level TSM can be one of $s[\mathbf{syn}(\tau,e)]$ or $s[\mathbf{ana}(e)]$. As we presented in section \ref{tsms-term}, synthetic TSMs are defined with its return type $\tau$ while analytic TSMs are not. The expression ($e$) in both cases represents the parser, which is supposed to be of type $ExpParser$.
 
 Named type declarations are the type declarations associated with a name $T$. Depending on the its definition method, there are two kinds of type declarations: an explicit type declaration with its structure and metadata explicitly declared, or a type defined by applying a TSM to DSL literals, whose structure and metadata will be generated by the elaborated DSL literals presented in the keyword invocation body. An explicit type declaration ($T[\mathbf{explicit}(\tau,e)]$) consists of three parts: $T$ is the type name, $\tau$ is the type structure, which can be one of $\mathbf{objtype}$, $\mathbf{casetype}$, $\mathbf{arrowtype}$ or named type $\mathbf{named}[T']$,  and $e$ is the metadata associated with the type. And the second kind of type declaration ($T[\mathbf{aptsm}(k,body,e)]$) is a type declared using DSL syntax specified in a type TSM $k$. DSL literals are presented as $body$ in the declaration and the type metadata as $e$. Different from those in the first kind, metadata $e$ here serve as a metadata extender to extend the metadata generated by the keyword parser.
 
@@ -711,7 +659,7 @@ The program contexts (figure \ref{typechecking-environment}) contains TSM contex
       \textsf{Typing Contexts}\\
       ~~\Gamma ::= \emptyset ~|~ \Gamma, x : \tau\\
       \textsf{Kinding Contexts}
-      ~~\Delta ::= \emptyset ~|~ \Delta,X::K
+      ~~\Delta ::= \emptyset ~|~ \Delta,X::\kappa
 \end{array}
 \]
 \mycaption{Definition of type context}
@@ -728,9 +676,9 @@ The program contexts (figure \ref{typechecking-environment}) contains TSM contex
 \UIC{$\Delta\vdash_{\Theta} X::K$}
 %%
 \AXC{$\Delta,X:\star\vdash_{\Theta}\tau::K$}
-\UIC{$\Delta\vdash_{\Theta}\mathbf{Tabs}(X.\tau)::\star\Rightarrow K$}
+\UIC{$\Delta\vdash_{\Theta}\mathbf{Tabs}(X.\tau)::\star\rightarrow K$}
 %%
-\AXC{$\Delta\vdash_{\Theta}\tau_1::K_1\Rightarrow K_2$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::K_1$}
+\AXC{$\Delta\vdash_{\Theta}\tau_1::K_1\rightarrow K_2$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::K_1$}
 \UIC{$\Delta\vdash_{\Theta}\mathbf{Tap}(\tau_1,\tau_2)::K_2$}
 \noLine
 \TIC{}
@@ -740,17 +688,17 @@ The program contexts (figure \ref{typechecking-environment}) contains TSM contex
 \end{figure*}
 
 \begin{figure}
-\flyingbox{$\Delta;\Delta\vdash_{\Theta}\hat{\tau}\rightsquigarrow \tau::K$}
+\flyingbox{$\Delta;\Delta\vdash_{\Theta}\hat{\tau}\rightsquigarrow \tau::\kappa$}
 \begin{center}
-\AXC{$\Delta_{out}\vdash_{\Theta}^{\Psi} \tau\rightsquigarrow {\tau'}::K$}
-\UIC{$\Delta_{out};\Delta\vdash_{\Theta}^{\Psi}\mathbf{spliced}[\tau]\rightsquigarrow \tau'::K$}
+\AXC{$\Delta_{out}\vdash_{\Theta}^{\Psi} \tau\rightsquigarrow {\tau'}::\kappa$}
+\UIC{$\Delta_{out};\Delta\vdash_{\Theta}^{\Psi}\mathbf{spliced}[\tau]\rightsquigarrow \tau'::\kappa$}
 \DP
 \end{center}
 \end{figure}
 
 \input{kw-statics.tex}
 
-TSM context $\Psi$ is the environment for user defined TSMs. Type-level TSMs defined in a Wyvern program goes into context in the form of $k[\mathbf{ty}(i,\tau)]$: the macro $k$ is a type-level TSM with parser $i$ and metadata type $\tau$. Besides type-level TSMs, term-level TSMs are also defined in $\Psi$: synthetic TSMs goes into context in the form of $k[\mathbf{bk}(\tau,i)]$, representing a macro $k$ with parser $i$ and return type $\tau$, while an analytic TSM in the context is represented as $k[\mathbf{wk}(i)]$, which is a macro $k$ with parser $i$.
+TSM context $\Psi$ is the environment for user defined TSMs. Type-level TSMs defined in a Wyvern program goes into context in the form of $s[\mathbf{ty}(i,\tau)]$: the macro $k$ is a type-level TSM with parser $i$ and metadata type $\tau$. Besides type-level TSMs, term-level TSMs are also defined in $\Psi$: synthetic TSMs goes into context in the form of $s[\mathbf{bk}(\tau,i)]$, representing a macro $k$ with parser $i$ and return type $\tau$, while an analytic TSM in the context is represented as $s[\mathbf{wk}(i)]$, which is a macro $k$ with parser $i$.
 
 Named typed context ($\Theta$) is the context to keep elaborated type declarations. A declared type (either explicitly declared or type keyword defined) has the form of $T[\delta,\mu]$, which is interpreted as a type of name $T$ with structure $\delta$ and metadata $\mu$. We wrap the type structure $\tau$ in $\delta$ and the metadata $i:\tau$ in $\mu$ in order to represent their ``unknown state'' using ``$?$'' in type checking.
 
@@ -759,7 +707,7 @@ Besides, $\Gamma$ is the typing context, and elements in $\Gamma$ are bindings o
 \subsection{Checking rules for keywords}
 The rules ctx-tytsm, ctx-syntsm and ctx-anatsm in Fig~\ref{typechecking-elaboration} present the type checking process for TSMs.
 
-According to the rule ctx-tytsm, a type TSM declaration $k[\mathbf{ty}(e,\tau)]$ is well typed iff 1) the macro has no name conflicts with those defined in the previous context, 2) the parser $e$ elaborates to an internal term $i$ of type $\mathbf{named}[TypeKw]$ and 3) the metadata type $\tau$ is well formed within the given named type context $\Theta$.
+According to the rule ctx-tytsm, a type TSM declaration $s[\mathbf{ty}(e,\tau)]$ is well typed iff 1) the macro has no name conflicts with those defined in the previous context, 2) the parser $e$ elaborates to an internal term $i$ of type $\mathbf{named}[TypeKw]$ and 3) the metadata type $\tau$ is well formed within the given named type context $\Theta$.
 
 For term level TSMs, the checking rules are similar to that for the type TSM: it checks that no name conflicts exists in TSM declarations, the parser elaborate to an internal term $i$ of type $\mathbf{named}[ExpKw]$, and the type defined in a synthetic TSM is well formed under named type context $\Theta$.
 
@@ -768,11 +716,11 @@ By allowing both TSMs and types declared in the same part of the program (i.e. $
 \subsection{External Type Literals}
 Declaring a type using a type-level TSM involves application of a macro parser to external DSL literals, and the rule ctx-aptsm-type is used to transform it into internal Wyvern type representations with concrete type structure and metadata.
 
-The elaboration process of a type $T[\mathbf{aptsm}(k,body,e_m)]$ under context $\Theta,\Psi$ contains the following steps:
+The elaboration process of a type $T[\mathbf{aptsm}(s,body,e_m)]$ under context $\Theta,\Psi$ contains the following steps:
 \begin{enumerate}\setlength{\itemsep}{0pt}
 \item Check that the Wyvern prelude is contained in the named type context, as parser types are defined in Wyvern preludes. ($\Theta_0\subset \Theta$)
 \item Elaborate previous declarations ($ d'\sim(\Theta';\Psi')$), and check that the type name $T$ has no name conflicts with those in previous context ($T\notin dom(\Theta\Theta')$).
-\item Look up the keyword $k$ in $\Psi\Psi'$. ($k[\mathbf{ty}(i_k,\tau_m)]\in\Psi\Psi'$)
+\item Look up the keyword $k$ in $\Psi\Psi'$. ($s[\mathbf{ty}(i_k,\tau_m)]\in\Psi\Psi'$)
 \item Read in the literals ($body$) as an expression $i$, and apply the parser $i_k$ to the DSL body. A tuple $(i_{type}, i_m)$ is return by the parser: $i_{type}$ is an expression of type $\mathbf{named}[Type]$ and $i_m$ is the generated metadata term. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k);i_{ps})\Downarrow(i_{type},i_{m})$)
 \item Dereificate the term $i_{type}$ to an Wyvern type $\tau$, and check the formation of the type $\tau$ under the context $\Theta\Theta',T[?,?]$. ($i_{type}\uparrow\tau$ and $\vdash_{\Theta\Theta',T[?,?]}\tau$) Dereification rules for types can be referred to \todo{cite TR}.
 \item Elaborate the metadata $e_m$ defined in the type to an internal term $i'_m$ of type $\mathbf{arrow}[\tau_m,\tau'_m]$, which serves as an metadata extender to extend the metadata generated by the type keyword. ($\emptyset\vdash_{\Theta\Theta',T[\tau,?]}e_m\rightsquigarrow i_m' \Rightarrow \mathbf{arrow}[\tau_m, \tau'_m]$)
@@ -786,7 +734,7 @@ DSL literals are used in a TSM application term $\mathbf{eaptsm}$ and these DSLs
 For analytic TSMs, we have the following steps to transform them into internal terms:
 \begin{enumerate}\setlength{\itemsep}{0pt}
 \item Check that the prelude is in the named type context. ($\Theta_0\subset\Theta$)
-\item Look up the TSM is defined in $\Psi$. ($k[\mathbf{ana}(i_k)]\in\Psi$)
+\item Look up the TSM is defined in $\Psi$. ($s[\mathbf{ana}(i_k)]\in\Psi$)
 \item Read in the DSL literals into an expression $i_{ps}$ of type $\mathbf{named}[ParseStream]$ and parse them by invoking the parser $i_k$. The parsing result is a term of type $\mathbf{named}[Result]$, and an AST term $i_{ast}$ is provided. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps});\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$)
 \item Dereificate the term $i_{ast}$ to an translational term $\hat{e}$ with spliced DSL body, then elaborate the translational term $\hat{e}$ to an internal Wyvern term and check it against the type $\tau$. ($i_{ast}\uparrow \hat{e}$ and $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$)
 \end{enumerate}
