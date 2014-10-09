@@ -84,10 +84,14 @@ type TypeParser = objtype
 			... (* parser generator *)
 
 type Type = casetype
+	TVar of ID
+	TLam of ID * Type
+	TAp of ID * Type
 	Named of ID
 	Objtype of List(MemberDecl)
 	Casetype of List(CaseDecl)
 	Arrow of Type * Type
+	Spliced of ParseStream
 	metadata : HasTSL = new
 		val parser = 
 			... (* type quasiquotes *)
@@ -116,7 +120,7 @@ type Exp = casetype
 			... (* exp quasiquotes *)
 
 type Result(T) = casetype
-	OK of Exp * ParseStream
+	OK of T * ParseStream
 	Error of String * Location
 \end{lstlisting}
 
@@ -125,16 +129,27 @@ type Result(T) = casetype
 \[
 \begin{array}{rlrlrl}
 	\rho		~::=&~ {d};e\\				
-	{d}		~::=&~ \emptyset								&\tau 		~::=&~ \mathbf{named}[T]	& \omega 		~::=&~ 	\emptyset\\
-				| ~	&~ {d}; \mathbf{syntsm}(k,\tau,e)	&|~	& ~ \mathbf{objtype}[\omega]		& |~&  	~l[\mathbf{val}, \tau];\omega\\
-				| ~	&~ {d}; \mathbf{anatsm}(k,e)		&|~	& ~ \mathbf{casetype}[\chi]			& |~&	~l[\mathbf{def}, \tau];\omega\\
-				| ~	&~ {d};\mathbf{tytsm}(k,\tau,e)				&|~ & ~ \mathbf{arrow}[\tau, \tau]		& \chi 			~::=&~	\emptyset ~ \\
-				| ~ &~ {d};\mathbf{tydecl}(T,\tau,e)			&|~	& ~ \tau\times\tau									& |~&	~C[\tau];\omega\\
-				| ~ &~ {d};\mathbf{tyaptsm}(T,k,body,e)			&|~ & ~ X\\
-	K           ~::=& *											&|~ & ~ \mathbf{Tabs}(X.\tau)\\
-				| ~ & K\Rightarrow K 							&|~ & ~ \mathbf{Tap}(\tau,\tau)\\
+	{d}		~::=&~ \emptyset									&\kappa      ~::=& \star\\
+				| ~	&~ {d}; \mathbf{syntsm}(s,\tau,e)			&| ~ & \kappa\rightarrow\kappa\\
+				| ~	&~ {d}; \mathbf{anatsm}(s,e)				\\
+				| ~	&~ {d};\mathbf{tytsm}(s,\kappa,\tau,e)				\\
+				| ~ &~ {d};\mathbf{tydecl}(T,\tau,e)			\\
+				| ~ &~ {d};\mathbf{tyaptsm}(T,s,body,e)			\\
+	\tau 		~::=&~ \mathbf{named}[T]				&\hat{\tau} ~::=&~ \mathbf{named}[T]\\
+				|~	& ~ \mathbf{objtype}[\omega]		&|~ &~ \mathbf{objtype}[\omega]				\\
+				|~	& ~ \mathbf{casetype}[\chi]			&|~ &~ \mathbf{casetype}[\chi] 				\\
+				|~ & ~ \mathbf{arrow}[\tau, \tau]		&|~ &~ \mathbf{arrow}[\hat\tau,\hat\tau] 	\\
+				|~ & ~ t								&|~ &~ t 									\\
+				|~ & ~ \lambda[\kappa](t.\tau)			&|~ &~ \lambda[\kappa](t.\hat{\tau})\\
+				|~ & ~ \tau(\tau)						&|~ &~ \hat{\tau}(\hat{\tau})\\
+				   &									&|~ &~ \mathbf{spliced}[\tau]\\
+	\omega ~::=&~ 	\emptyset							&\hat{\omega} ~::&~ \emptyset\\
+	 |~&  	~l[\mathbf{val}, \tau];\omega				&|~ & ~l[\mathbf{val}, \hat\tau];\hat\omega \\
+	 |~&	~l[\mathbf{def}, \tau];\omega				&|~ & ~l[\mathbf{def}, \hat\tau];\hat\omega\\
+	 \chi 			~::=&~	\emptyset					&\hat\chi ~::=&~	\emptyset\\
+	 |~&	~C[\tau];\chi								&|~&  ~C[\hat\tau];\hat{\chi}\\
 	e 			~::=&~ x 								&\hat{e}	~::=&~ 	x 										& i 		~::=&~ 	x\\
-				| ~ &~ \mathbf{easc}[\tau](e)			& 		 	| ~ &~ 	\mathbf{hasc}[\tau](\hat{e})			& 		 	| ~ &~	\mathbf{iasc}[\tau](\dot{e})\\
+				| ~ &~ \mathbf{easc}[\tau](e)			& 		 	| ~ &~ 	\mathbf{hasc}[\hat\tau](\hat{e})		& 		 	| ~ &~	\mathbf{iasc}[\hat\tau](\dot{e})\\
 				| ~ &~ \mathbf{elet}(e; x.e)     		& 		 	| ~ &~ 	\mathbf{hlet}(\hat{e}; x.\hat{e})		& 		 	| ~ &~	\mathbf{ilet}(i;x.i)\\
 				| ~ &~ \mathbf{elam}(x.e)     			& 		 	| ~ &~ 	\mathbf{hlam}(x.\hat{e})				& 		 	| ~ &~	\mathbf{ilam}(x.i)\\
 				| ~ &~ \mathbf{eap}(e;e)     			& 		 	| ~ &~ 	\mathbf{hap}(\hat{e};\hat{e})			& 		 	| ~ &~	\mathbf{iap}(i;i)\\
@@ -144,10 +159,10 @@ type Result(T) = casetype
 				| ~ &~ \mathbf{ecase}[e]\{r\}     		& 		 	| ~ &~	\mathbf{hcase}[\hat{e}]\{\hat{r}\}		& 		 	| ~ &~	\mathbf{icase}[i]\{\dot{r}\}\\
 				| ~ &~ \mathbf{etoast}(e)     			& 		 	| ~ &~	\mathbf{htoast}(\hat{e})				& 		 	| ~ &~	\mathbf{itoast}[i]\\
 				| ~ &~ \mathbf{emetadata}[T]     		& 		 	| ~ &~	\mathbf{hmetadata}[T]\\
-				| ~ &~ \mathbf{etermtsmdef}[k]     		&			| ~ &~ 	\mathbf{htermtsmdef}[k]\\
-				| ~ &~ \mathbf{etypetsmdef}[k]			& 			| ~ &~ 	\mathbf{htypetsmdef}[k]\\
-				| ~ &~ \mathbf{lit}[body]					& 		 	| ~ &~ 	\mathbf{spliced}[e]\\
-				| ~ &~ \mathbf{eaptsm}[k,body]\\
+				| ~ &~ \mathbf{etermtsmdef}[s]     		&			| ~ &~ 	\mathbf{htermtsmdef}[s]\\
+				| ~ &~ \mathbf{etypetsmdef}[s]			& 			| ~ &~ 	\mathbf{htypetsmdef}[s]\\
+				| ~ &~ \mathbf{lit}[body]				& 		 	| ~ &~ 	\mathbf{spliced}[e]\\
+				| ~ &~ \mathbf{eaptsm}[s,body]\\
 	m 			~::=&~ \emptyset						&\hat{m}	~::=&~ \emptyset								&\dot{m}	~::=&~ \emptyset\\
 				| ~ &~ \mathbf{eval}[l](e);m 			&			| ~ &~ \mathbf{hval}[l](\hat{e});\hat{m} 		&			| ~ &~ \mathbf{ival}[l](i);\dot{m}\\
 				| ~ &~ \mathbf{edef}[l](x.e);m 			&			| ~ &~ \mathbf{hdef}[l](x.\hat{e});\hat{m}		&			| ~ &~ \mathbf{idef}[l](x.i);\dot{m}\\
@@ -159,37 +174,35 @@ type Result(T) = casetype
 \[
 \begin{array}{rrl}
 \text{Keyword Context}	&	\Psi 	~::=&~ 	\emptyset\\
-						&			| ~ &~ 	\Psi;k[\mathbf{ty}(\gamma,\delta)]\\
-						&			| ~ &~ 	\Psi;k[\mathbf{syn}(\delta,\gamma)]\\
-						&			| ~ &~ 	\Psi;k[\mathbf{ana}(\gamma)]\\
+						&			| ~ &~ 	\Psi;s[\mathbf{ty}(\kappa,\tau,i)]\\
+						&			| ~ &~ 	\Psi;s[\mathbf{syn}(\tau,i)]\\
+						&			| ~ &~ 	\Psi;s[\mathbf{ana}(i)]\\
 \text{Type Context}		&	\Theta 	~::=&~ \emptyset\\
-						&			| ~ &~ \Theta,T[\delta,\mu] \\
-						&	\delta 	~::=&~ ? ~~ | ~~ \tau\\
-						&	\mu	   	~::=&~ ? ~~ | ~~ i:\tau\\
-						& 	\gamma  ~::=&~ ? ~~ | ~~ i\\
+						&			| ~ &~ \Theta,T[\tau::\kappa,i:\tau] \\
 \text{Typing Context}	&	\Gamma 	~::=&~ \emptyset\\
 						&			| ~ &~ \Gamma,x:\tau\\
 \text{Kinding Context}	& 	\Delta	~::=&~ \emptyset\\
-						& 			| ~ &~ \Delta,X:K\\
+						& 			| ~ &~ \Delta,t::\kappa\\
 \end{array}
 \]
 
 \subsection{Type Checking and Elaboration}
 \begin{definition}[Context Override]Given two type contexts $\Theta_1$ and $\Theta_2$, we define $\Theta_1\Theta_2$ as a new context $\Theta'$, which satisfies:
 \[
-	\Theta_1\Theta_2 = \Theta' = \{~T[\delta,\mu]~|~ (T\notin dom(\Theta_2)\land T[\delta,\mu]\in\Theta_1)\lor(T[\delta,\mu]\in\Theta_2) ~\}
+	\Theta_1\Theta_2 = \Theta' = \{~T[\tau::\kappa,i:\tau]~|~ (T\notin dom(\Theta_2)\land T[\tau::\kappa,i:\tau]\in\Theta_1)\lor(T[\tau::\kappa,i:\tau]\in\Theta_2) ~\}
 \]
 Similarly, we define $\Psi_1\Psi_2$ as a new keyword context $\Psi'$, which satisfies:
 \[
 	\begin{array}{rl}
-	\Psi_1\Psi_2=\Psi'=&\{~k[\mathbf{ty}(\gamma,\delta)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{ty}(\gamma,\delta)]\in\Psi_1)\lor(k[\mathbf{ty}(\gamma,\delta)]\in\Psi_2)  ~\}\\
-							 &\cup~\{~k[\mathbf{syn}(\delta,\gamma)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{syn}(\delta,\gamma)]\in\Psi_1) \lor(k[\mathbf{syn}(\delta,\gamma)]\in\Psi_2)  ~\}\\
+	\Psi_1\Psi_2=\Psi'=&\{~k[\mathbf{ty}(\gamma,\tau::\kappa)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{ty}(\gamma,\tau::\kappa)]\in\Psi_1)\lor(k[\mathbf{ty}(\gamma,\tau::\kappa)]\in\Psi_2)  ~\}\\
+							 &\cup~\{~k[\mathbf{syn}(\tau::\kappa,\gamma)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{syn}(\tau::\kappa,\gamma)]\in\Psi_1) \lor(k[\mathbf{syn}(\tau::\kappa,\gamma)]\in\Psi_2)  ~\}\\
 							 &\cup~\{~k[\mathbf{ana}(\gamma)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{ana}(\gamma)]\in\Psi_1) \lor(k[\mathbf{ana}(\gamma)]\in\Psi_2)  ~\}
 	\end{array}
 \]
 \end{definition}
 Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the context $\Theta_1$ using the context $\Theta_2$ by adding new elements from $\Theta_2$ and update old elements in $\Theta_1$ with new fields, while keeping elements appeared only in $\Theta_1$ untouched.
 
+\todo{Continue here}
 \flyingbox{$\rho \sim (\Psi;\Theta)\rightsquigarrow i:\tau$}
 \begin{center}
 \AXC{$\emptyset\vdash_{\Theta_{0}}^{\emptyset}\theta\sim(\Psi;\Theta)$ ~~~~ $\emptyset|\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
@@ -351,7 +364,7 @@ Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the co
 \AXC{$\Delta\vdash_{\Theta} \tau_1::*$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::*$}
 \UIC{$\Delta\vdash_{\Theta} \mathbf{arrow}[\tau_1,\tau_2]::*$}
 %%% the next rule
-\AXC{$T[\tau,\mu]\in\Theta$ ~~~~ $\Delta\vdash_\Theta\tau::K$}
+\AXC{$T[\tau,i:\tau]\in\Theta$ ~~~~ $\Delta\vdash_\Theta\tau::K$}
 \UIC{$\Delta\vdash_{\Theta} \mathbf{named}[T]::K$}
 \noLine
 \BIC{}
@@ -540,8 +553,8 @@ Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the co
 \AXC{}
 \UIC{$\vdash_{\Theta} \emptyset$}
 %%% the next rule
-\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~k.(k[\mathbf{ty}(\_,\_)]\in\Psi)$ ~~~~ $\vdash_{\Theta}\delta$ ~~~~ $\vdash_{\Theta}\gamma:\mathbf{named}[TypeParser]$}
-\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{ty}(\gamma,\delta)]$}
+\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~k.(k[\mathbf{ty}(\_,\_)]\in\Psi)$ ~~~~ $\vdash_{\Theta}\tau::\kappa$ ~~~~ $\vdash_{\Theta}\gamma:\mathbf{named}[TypeParser]$}
+\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{ty}(\gamma,\tau::\kappa)]$}
 \noLine
 \BIC{}
 \DP
@@ -556,9 +569,9 @@ Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the co
 \begin{center}
 \AXC{
 	{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~k.(k[\mathbf{syn}(\_,\_)]\in \Psi\lor k[\mathbf{ana}(\_)]\in \Psi)$} ~~~~
-	{$\vdash_{\Theta}\delta$~~~~ $\vdash_{\Theta}\gamma:\mathbf{named}[ExpParser]$}
+	{$\vdash_{\Theta}\tau::\kappa$~~~~ $\vdash_{\Theta}\gamma:\mathbf{named}[ExpParser]$}
 }
-\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{bk}(\delta), \gamma]$}
+\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{bk}(\tau::\kappa), \gamma]$}
 \DP
 \end{center}
 
@@ -567,8 +580,8 @@ Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the co
 \AXC{}
 \UIC{$\vdash \emptyset$}
 %%% the next rule
-\AXC{$\vdash \Theta$ ~~~~ $T\notin dom(\Theta)$ ~~~~ $\vdash_{\Theta,T[?,?]}\delta~ok$ ~~~~ $\vdash_{\Theta,T[\delta,?]}\mu~ok$}
-\UIC{$\vdash\Theta,T[\delta,\mu]$}
+\AXC{$\vdash \Theta$ ~~~~ $T\notin dom(\Theta)$ ~~~~ $\vdash_{\Theta,T[?,?]}\tau::\kappa~ok$ ~~~~ $\vdash_{\Theta,T[\tau::\kappa,?]}i:\tau~ok$}
+\UIC{$\vdash\Theta,T[\tau::\kappa,i:\tau]$}
 \noLine
 \BIC{}
 \DP
@@ -601,7 +614,7 @@ Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the co
 \DP
 \end{center}
 
-\flyingbox{$\vdash_{\Theta} \delta~ok$}
+\flyingbox{$\vdash_{\Theta} \tau::\kappa~ok$}
 \begin{center}
 \AXC{}
 \UIC{$\vdash_{\Theta} ?$}
@@ -613,7 +626,7 @@ Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the co
 \DP
 \end{center}
 
-\flyingbox{$\vdash_{\Theta} \mu$}
+\flyingbox{$\vdash_{\Theta} i:\tau$}
 \begin{center}
 \AXC{}
 \UIC{$\vdash_{\Theta} ?$}
@@ -656,7 +669,7 @@ Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the co
 \AXC{
 	\stackanchor{
 		\stackanchor
-		{$\Theta_0\subset\Theta$ ~~~~ $T[\delta,i_m:\mathbf{named}[HasTSL]]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
+		{$\Theta_0\subset\Theta$ ~~~~ $T[\tau::\kappa,i_m:\mathbf{named}[HasTSL]]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
 		{$\mathbf{iap}(\mathbf{iprj}[parse](\mathbf{iprj}[parser](i_m));i_{ps})\Downarrow \mathbf{iinj}[OK]((i_{ast},i'_{ps}))$}
 	}
 	{$i_{ast}\uparrow \hat{e}$ ~~~~ $\Delta|\Gamma;\emptyset\vdash_{\Theta}\hat{e}\rightsquigarrow i\Leftarrow \mathbf{named}[T]$}
@@ -760,7 +773,7 @@ If $\vdash_{\Theta}^{\Psi}\theta\sim_{names}(\Psi';\Theta')$, then we have $\vda
 \begin{proof}
 By induction on the elaboration steps of $\theta$ for all of the three phases (i.e. names, defs, exts). We only need to discuss the last step of the elaboration rule, which contains the following cases:
 \begin{itemize}
-\item $\vdash_{\Theta}^{\Psi}\theta_1,T[\mathbf{explicit}(\tau,e_m)] \sim (\Theta_1,T[?,?];\Psi_1)$. For the names phase, we will check that $T\notin dom(\Theta\Theta')$. By the formation rule for $\Theta$, we have $\vdash ?$ (for $\delta$), and $\vdash ?$(for $\mu$). And by induction, we have $\vdash\Theta\Theta_1$. Then the case is well formed for $\vdash\Theta\Theta_1,T[?,?]$. As this case does not change the TSM contexts, $\vdash_{\Theta\Theta_1}\Psi_1$ remains true.
+\item $\vdash_{\Theta}^{\Psi}\theta_1,T[\mathbf{explicit}(\tau,e_m)] \sim (\Theta_1,T[?,?];\Psi_1)$. For the names phase, we will check that $T\notin dom(\Theta\Theta')$. By the formation rule for $\Theta$, we have $\vdash ?$ (for $\tau::\kappa$), and $\vdash ?$(for $i:\tau$). And by induction, we have $\vdash\Theta\Theta_1$. Then the case is well formed for $\vdash\Theta\Theta_1,T[?,?]$. As this case does not change the TSM contexts, $\vdash_{\Theta\Theta_1}\Psi_1$ remains true.
 \item$\vdash_{\Theta}^{\Psi}\theta_1,T[\mathbf{tsmap}(k,body)] \sim (\Theta_1,T[?,?];\Psi_1)$. Similar to the proof of the first case.
 \item $\vdash_{\Theta}^{\Psi}\theta_1,k[\mathbf{tytsm}(e,\tau)] \sim (\Theta_1;\Psi_1,k[\mathbf{ty}(?,?)])$. As the named type context is not modified, by induction, we have $\vdash\Theta\Theta_1$. And by the rule typetsm-names, it checks that there is no type TSM name conflicts, which satisfies the formation rule for $\Psi$. And thus we have $\vdash_{\Theta\Theta_1}\Psi\Psi_1,k[\mathbf{ty}(?,?)]$, and the case is proved.
 \item $\vdash_{\Theta}^{\Psi}\theta_1,k[\mathbf{syntsm}(\tau,e)] \sim (\Theta_1;\Psi_1,k[\mathbf{syn}(?,?)])$.
