@@ -33,7 +33,7 @@ deletekeywords={}, % If you want to delete any keywords from the current languag
 firstnumber=1, % Line numbers begin at line 1
 frame=lines, % Frame around the code box, value can be: none, leftline, topline, bottomline, lines, single, shadowbox
 frameround=tttt, % Rounds the corners of the frame for the top left, top right, bottom left and bottom right positions
-keywords=[1]{new, objtype, type, casetype, val, def, metadata, syntax, of, fn, typekw, with, let},
+keywords=[1]{new, objtype, type, casetype, val, def, metadata, syntax, of, fn, typekw, with, let, tyfn},
 keywordstyle={[1]\bfseries},
 keywordstyle={[3]\color{red!80!orange}},
 morekeywords={}, % Add any functions no included by default here separated by commas
@@ -573,21 +573,6 @@ Judgements $\Delta; \Gamma \vdash_\Theta^\Phi e \leadsto i \Rightarrow \tau$ and
 
 \subsection{Term-Level TSMs}
 
-The rule (D-syntsm) shows how a synthetic TSM named $s$, synthesizing type $\tau$ and implemented by $e_{tsm}$ is declared. The rule first recursively checks the preceding declarations, then ensures that no other TSM named $s$ was declared  (we treat contexts as finite mappings and write, e.g., $\text{dom}(\Psi)$ to be the domain of $\Psi$). Then, it checks that $\tau$ is a closed type by checking that it's kind is $\star$ in an empty kinding context. Kinding contexts are simply mappings from type variables to kinds and the key kinding rules are shown in Figure \ref{kinding}. We will return to them when discussing type declarations below. Finally, $e_{tsm}$ is analyzed against  $Parser(Exp)$, defined in the prelude. It must be a closed term, so the kinding and typing contexts are empty (it can use the named types and TSMs declared previously, however). Once these checks are complete, the definition of $s$ is added to $\Psi$. The rule for analytic TSM declarations, (D-anatsm), is nearly identical, differing only in that no kind check is needed.
-
-Term-level TSM application is captured by the abstract form $\textbf{eaptsm}[s, body]$, where $s$ is the name of the TSM and $body$ is the body of the (generalized) delimited form given, per the discussion in Section \ref{tsms-term}. The rule (T-syn) in Figure \ref{expkw-kwstatics} shows how typing and elaboration for a synthetic TSM proceeds. First, the definition of $s$ is extracted from $\Psi$. Then, a parse stream is constructed on the basis of $body$. We assume the relation $\textsf{parsestream}(body)=i_{ps}$ is defined such that $i_{ps}$ is a closed term of type $ParseStream$. Then, the $parse$ method of the TSM implementation is invoked with the parse stream. As suggested by the declarations in Figure \ref{exp-prelude}, the result is either a parse error or a valid parse, written $OK(i_{exp})$, where $i_{exp}$ is a value of type $Exp$. Here, we simply leave the error case undefined -- the typing judgement cannot be derived if there is a parse error -- though in practice, the compiler would report errors that occurred. The judgement $i \uparrow \hat{e}$, defined in \cite{TSLs}, takes a value of type $Exp$ and produces a corresponding \emph{translational term}, $\hat{e}$. 
-
-TODO: describe HYGIENE
-
-
-
-
-\subsection{Declarations}\label{declarations}
-
-The program compilation judgement begins by constructing contexts $\Psi$ and $\Theta$ from the TSM declarations and named types, respectively, in $ d$. The TSM context begins empty, written $\emptyset$, but the named type context initially includes the prelude, written $\Theta_0$ (cf. Figure \ref{exp-prelude}). 
-
-\subsection{Bidirectional Typechecking and Elaboration of External Terms}\label{elaboration}
-
 \begin{figure}[t]
 \hspace{-5px}$\begin{array}{ll}
       \textbf{Abstract Forms}   & \textbf{Concrete Forms}\\
@@ -630,36 +615,6 @@ The program compilation judgement begins by constructing contexts $\Psi$ and $\T
 %Metavariable $T$ ranges over type names, $l$ over member labels, $C$ over case names, $x$ over term variables, $X$ over type variables.
 }\label{syntax-types}
 \end{figure}
-
-\paragraph{Declarations}
-
-An element in the declaration section can be one of type-level TSM, term-level synthetic TSM, analytical TSM or named type. By allowing different kinds of declarations appearing in the same section, a declaration can refer to any kind of declarations appeared in the previous context, which enhance the flexibility of the TSM usage.
-
-For a type level TSM $s[\mathbf{tytsm}(e,\tau)]$, its declaration contains a term $e$ and a type $\tau$: the term $e$ is the parser for DSL literal parsing, and the type $\tau$ is the type of the generated metadata.
-
-Similar to type-level TSMs, a term-level TSM can be one of $s[\mathbf{syn}(\tau,e)]$ or $s[\mathbf{ana}(e)]$. As we presented in section \ref{tsms-term}, synthetic TSMs are defined with its return type $\tau$ while analytic TSMs are not. The expression ($e$) in both cases represents the parser, which is supposed to be of type $ExpParser$.
-
-Named type declarations are the type declarations associated with a name $T$. Depending on the its definition method, there are two kinds of type declarations: an explicit type declaration with its structure and metadata explicitly declared, or a type defined by applying a TSM to DSL literals, whose structure and metadata will be generated by the elaborated DSL literals presented in the keyword invocation body. An explicit type declaration ($T[\mathbf{explicit}(\tau,e)]$) consists of three parts: $T$ is the type name, $\tau$ is the type structure, which can be one of $\mathbf{objtype}$, $\mathbf{casetype}$, $\mathbf{arrowtype}$ or named type $\mathbf{named}[T']$,  and $e$ is the metadata associated with the type. And the second kind of type declaration ($T[\mathbf{aptsm}(k,body,e)]$) is a type declared using DSL syntax specified in a type TSM $k$. DSL literals are presented as $body$ in the declaration and the type metadata as $e$. Different from those in the first kind, metadata $e$ here serve as a metadata extender to extend the metadata generated by the keyword parser.
-
-\paragraph{External Terms}
-By naming terms in a Wyvern program ``external terms'' ($e$), we distinguish them from ``internal terms'' ($i$), which are pure Wyvern terms without DSL literals. 
-
-To support term-level TSMs, the syntax for external terms is extended with a TSM application term and several terms for run-time parser access (omitted here, can be referred to TR). The term-level TSM application term $\mathbf{eaptsm}[k,body]$ specifies the application of the TSM $k$ to DSLs presented in delimited forms as $body$. Its concrete form can be referred to figure \ref{formal-syntax}.
-
-An external term with DSL literals will elaborate to internal Wyvern terms with the help of the DSL parsers. During elaboration, translational expressions  
-are defined to support ``spliced terms'', allowing external terms co-exist with internal terms: its syntax mirrors that of external terms, except that literal forms are removed and and translational state $\mathbf{spliced}[e]$ is added, which represents an external term $e$ spliced into a literal body.
-
-\subsection{Bidirectional Typechecking and Elaboration}
-
-
-
-Bidirectional typechecking is used here as type can be clearly specified as input or output during typechecking process. In bidirectional type system, a type judgment is written as $\Gamma\vdash_{\Theta} e\Leftarrow(\Rightarrow)\tau$ instead of $\Gamma\vdash_{\Theta} e:\tau$ in a traditional type system, where $\Gamma$ is the typing context, $\Theta$ is the declaration context, and the type $\tau$ is specified as input ($\Leftarrow$) or output ($\Rightarrow$) according to the arrow direction. 
-
-A term-TSM application contains DSL literals in its body, so it belongs to external Wyvern language, and an elaboration phase is required to transform them into internal Wyvern terms before execution. The elaboration of external terms is part of type checking process, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external term elaborates to an internal term and synthesize to (or analyze against) the type $\tau$. The arrow $\rightsquigarrow$ is used to represent the elaboration process, including literal elimination and hygiene process.
-
-\subsection{Contexts}
-The program contexts (figure \ref{typechecking-environment}) contains TSM context $\Psi$, declaration context $\Theta$ and typing context $\Gamma$. 
-
 \begin{figure}[t]
 $\begin{array}{l}
       \textsf{TSM Contexts}\\
@@ -669,10 +624,21 @@ $\begin{array}{l}
       \textsf{Kinding Contexts}
       ~~\Delta ::= \emptyset ~|~ \Delta,t::\kappa
 \end{array}$
-\mycaption{Syntax of contexts.}
+\mycaption{Syntax for contexts.}
 \label{typechecking-environment}
 \end{figure}
+The rule (D-syntsm) shows how a synthetic TSM named $s$, synthesizing type $\tau$ and implemented by $e_{tsm}$ is declared. The rule first recursively checks the preceding declarations, then ensures that no other TSM named $s$ was declared  (we treat contexts as finite mappings and write, e.g., $\text{dom}(\Psi)$ to be the domain of $\Psi$). Then, it checks that $\tau$ is a closed type by checking that it's kind is $\star$ in an empty kinding context. Kinding contexts are simply mappings from type variables to kinds and the key kinding rules are shown in Figure \ref{kinding}. We will return to them when discussing type declarations below. Finally, $e_{tsm}$ is analyzed against  $Parser(Exp)$, defined in the prelude. It must be a closed term, so the kinding and typing contexts are empty (it can use the named types and TSMs declared previously, however). Once these checks are complete, the definition of $s$ is added to $\Psi$. The rule for analytic TSM declarations, (D-anatsm), is nearly identical, differing only in that no kind check is needed.
 
+Term-level TSM application is captured by the abstract form $\textbf{eaptsm}[s, body]$, where $s$ is the name of the TSM and $body$ is the body of the (generalized) delimited form given, per the discussion in Section \ref{tsms-term}. The rule (T-syn) in Figure \ref{expkw-kwstatics} shows how typing and elaboration for a synthetic TSM proceeds. First, the definition of $s$ is extracted from $\Psi$. Then, a parse stream is constructed on the basis of $body$. We assume the relation $\textsf{parsestream}(body)=i_{ps}$ is defined such that $i_{ps}$ is a closed term of type $ParseStream$. Then, the $parse$ method of the TSM implementation is invoked with the parse stream. The judgement $i \Downarrow i'$ expresses evaluation to a value, $\i'$ (see \cite{TSLs}). As suggested by the declarations in Figure \ref{exp-prelude}, the result is either a parse error or a valid parse, written $OK(i_{exp})$, where $i_{exp}$ is a value of type $Exp$. Here, we simply leave the error case undefined -- the typing judgement cannot be derived if there is a parse error -- though in practice, the compiler would report errors that occurred. The \emph{dereification judgement} $i \uparrow \hat{e}$, defined in \cite{TSLs}, tales a value of type $Exp$ to a corresponding \emph{translational term}, $\hat{e}$. 
+
+Translational terms mirror external terms but include an additional form, $\textbf{spliced}[e]$, which captures portions of the parsestream parsed as a spliced term. The case \verb|Spliced| of case type \verb|Exp|, which takes a (portion of) a parse stream, dereifies to this form. The reason for this is that it permits us to ensure that only spliced portions of parse streams can refer to variables in the surrounding scope (and only these), ensuring that hygiene is maintained. The judgements $\Delta_{out}; \Gamma_{out}; \Delta; \Gamma \vdash_{\Theta}^{\Psi} \hat{e} \leadsto i {\Rightarrow}{(\Leftarrow)} \tau$ can be read ``Under outer typing and kinding contexts $\Delta_{out}$ and $\Gamma_{out}$ and inner typing and kinding contexts $\Delta$ and $\Gamma$,  $\hat{e}$ elaborates to internal term $i$ and (synthesizes/analyzes against) type $\tau$''. These judgements behave identically to the corresponding judgements for external terms, using the inner typing and kinding contexts, until a term of the form $\textbf{spliced}[e]$ is encountered. The outer contexts are then used for $e$. 
+
+In the rules for TSLs and TSMs, e.g. (T-syn) and (T-ana), the inner contexts begin empty so only variables inside spliced terms can refer to outer variables. A \verb|parse| function that inadvertently produced, for example, \verb|Var('x')|, would not typecheck, because it captures a variable that it cannot know exists. Because parsestreams can only be created by the semantics, only variables explicitly mentioned by the user of the TSL or TSM can appear in spliced terms, ensuring hygiene. The details of this mechanism at the term level are essentially identical (up to the orthogonal addition of parameterized types) to that in \cite{TSLs}, so we omit the rules.
+
+In the rule (T-syn), the type that $\hat{e}$ is being analyzed against is determined by the definition of the TSM. The rule (T-ana) is essentially identical, but the type is determined by the type that the whole application is being analyzed against instead, consistent with the descriptions in Sec. \ref{tsms-term}. 
+
+
+\subsection{Type Declarations}\label{declarations}
 \input{kw-elaboration.tex}
 
 \input{kw-statics.tex}
@@ -709,7 +675,7 @@ $\begin{array}{l}
 \UIC{$\Delta_{out}; \Delta\vdash_{\Theta}\lambda[\kappa](t.\tau)::\kappa\rightarrow \kappa'$}
 %%
 \AXC{$\Delta_{out}\vdash_{\Theta}^{\Psi} \tau ::\kappa$}
-\UIC{$\Delta_{out};\Delta\vdash_{\Theta}^{\Psi}\mathbf{spliced}[\tau]\rightsquigarrow \tau::\kappa$}
+\UIC{$\Delta_{out};\Delta\vdash_{\Theta}\mathbf{spliced}[\tau]\rightsquigarrow \tau::\kappa$}
 \noLine
 \TIC{}
 \DP
@@ -718,51 +684,116 @@ $\begin{array}{l}
 \label{tr-kinding}
 \end{figure*}
 
-TSM context $\Psi$ is the environment for user defined TSMs. Type-level TSMs defined in a Wyvern program goes into context in the form of $s[\mathbf{ty}(i,\tau)]$: the macro $k$ is a type-level TSM with parser $i$ and metadata type $\tau$. Besides type-level TSMs, term-level TSMs are also defined in $\Psi$: synthetic TSMs goes into context in the form of $s[\mathbf{bk}(\tau,i)]$, representing a macro $k$ with parser $i$ and return type $\tau$, while an analytic TSM in the context is represented as $s[\mathbf{wk}(i)]$, which is a macro $k$ with parser $i$.
+The rule (D-tydecl) shows how explicit named type declarations (those which do not apply a type-level TSM) work. First, the preceding declarations are processed and we ensure that no other type named $T$ was declared. Then, we need that the type $\tau$ has arrow kind $\kappa \rightarrow \kappa$ where $\kappa$ is the kind of type being declared, e.g. $\kappa = \star \rightarrow \star$ for \verb|List|. The reason for this is to support recursive named types. For example:
 
-Named typed context ($\Theta$) is the context to keep elaborated type declarations. A declared type (either explicitly declared or type keyword defined) has the form of $T[\delta,\mu]$, which is interpreted as a type of name $T$ with structure $\delta$ and metadata $\mu$. We wrap the type structure $\tau$ in $\delta$ and the metadata $i:\tau$ in $\mu$ in order to represent their ``unknown state'' using ``$?$'' in type checking.
+\begin{lstlisting}[style=wyvern]
+type List(T) = casetype
+  Nil
+  Cons of T * List(T)
+\end{lstlisting}
+\noindent
+desugars to a type-level function taking in a self-reference and return a type-level function taking in the type parameter and then finally returning the case type being declared:
 
-Besides, $\Gamma$ is the typing context, and elements in $\Gamma$ are bindings of variables and their types ($x:\tau$).
+\begin{lstlisting}[style=wyvern]
+type List = tyfn(List::* -> *) => tyfn(T::*) => casetype 
+  Nil 
+  Cons of T * List(T)
+\end{lstlisting}
 
-\subsection{Checking rules for keywords}
-The rules ctx-tytsm, ctx-syntsm and ctx-anatsm in Fig~\ref{typechecking-elaboration} present the type checking process for TSMs.
+Before being added to the named type context, the named type $\textbf{named}[List]$ is substituted for the type variable $List$ via type-level function application, $\tau(\textbf{named}[T])$.\todo{fix named types} 
 
-According to the rule ctx-tytsm, a type TSM declaration $s[\mathbf{ty}(e,\tau)]$ is well typed iff 1) the macro has no name conflicts with those defined in the previous context, 2) the parser $e$ elaborates to an internal term $i$ of type $\mathbf{named}[TypeKw]$ and 3) the metadata type $\tau$ is well formed within the given named type context $\Theta$.
+We do not formalize mutually recursive types here, though they follow the same pattern (taking $n$ arguments rather than just one). \todo{if we finish this in TR, cite it} Note that we do not explicitly check for cyclic type definitions. Standard syntactic constraints can be imposed to rule these out. 
 
-For term level TSMs, the checking rules are similar to that for the type TSM: it checks that no name conflicts exists in TSM declarations, the parser elaborate to an internal term $i$ of type $\mathbf{named}[ExpKw]$, and the type defined in a synthetic TSM is well formed under named type context $\Theta$.
+The final premise of (D-tydecl) synthesizes a type for the metadata. Metadata can use  the type declaration, but not recursively refer to its own metadata yet so we write a dash for a dummy metadata value.
 
-By allowing both TSMs and types declared in the same part of the program (i.e. $ d$), we allow the definition of a named type or a TSM referred to declarations appeared in its previous context, which provides a flexible way to define macros and types. For simplicity consideration, we only present rules to support recursive declaration here, and the rules for mutually recursive type and macro declarations can be referred to TR \todo{cite TR}.
+Figure \ref{kinding} shows that named types have the kind of their underlying unnamed type. Parameterized types can thus be applied to parameters like type-level functions.
 
-\subsection{External Type Literals}
-Declaring a type using a type-level TSM involves application of a macro parser to external DSL literals, and the rule ctx-aptsm-type is used to transform it into internal Wyvern type representations with concrete type structure and metadata.
+\subsection{Type-Level TSMs}
+Rule (D-tytsm) declares a type-level TSM $s$ that generates a type of kind $\kappa$ with metadata of type $\tau_{md}$ and an implementation $e_{tsm}$. The metadata type is checked to ensure that it is a type and the implementation is checked against type $Parser(Type \times \tau_{md})$, consistent with the explanation in Section \ref{tsms-type}. Note that we assume product types can be encoded as object types for simplicity in our calculus. This information is recorded in the TSM context, $\Psi$.
 
-The elaboration process of a type $T[\mathbf{aptsm}(s,body,e_m)]$ under context $\Theta,\Psi$ contains the following steps:
-\begin{enumerate}\setlength{\itemsep}{0pt}
-\item Check that the Wyvern prelude is contained in the named type context, as parser types are defined in Wyvern preludes. ($\Theta_0\subset \Theta$)
-\item Elaborate previous declarations ($ d'\sim(\Theta';\Psi')$), and check that the type name $T$ has no name conflicts with those in previous context ($T\notin dom(\Theta\Theta')$).
-\item Look up the keyword $k$ in $\Psi\Psi'$. ($s[\mathbf{ty}(i_k,\tau_m)]\in\Psi\Psi'$)
-\item Read in the literals ($body$) as an expression $i$, and apply the parser $i_k$ to the DSL body. A tuple $(i_{type}, i_m)$ is return by the parser: $i_{type}$ is an expression of type $\mathbf{named}[Type]$ and $i_m$ is the generated metadata term. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k);i_{ps})\Downarrow(i_{type},i_{m})$)
-\item Dereificate the term $i_{type}$ to an Wyvern type $\tau$, and check the formation of the type $\tau$ under the context $\Theta\Theta',T[?,?]$. ($i_{type}\uparrow\tau$ and $\vdash_{\Theta\Theta',T[?,?]}\tau$) Dereification rules for types can be referred to \todo{cite TR}.
-\item Elaborate the metadata $e_m$ defined in the type to an internal term $i'_m$ of type $\mathbf{arrow}[\tau_m,\tau'_m]$, which serves as an metadata extender to extend the metadata generated by the type keyword. ($\emptyset\vdash_{\Theta\Theta',T[\tau,?]}e_m\rightsquigarrow i_m' \Rightarrow \mathbf{arrow}[\tau_m, \tau'_m]$)
-\item Apply the keyword extender ($i'_m$) to the generated metadata ($i_m$) and generate the metadata of the type $T$. ($\mathbf{iap}(i'_m,i_m)\Downarrow i''_m$)  
-\end{enumerate}
-After these steps, the declaration $T[\mathbf{aptsm}(k,body,e_m)]$ elaborates to $T[\tau,i''_m:\tau'_m]$ and is added into environment for further reference.
+Rule (D-aptsm) shows how type-level TSMs are applied. If the result of the \verb|parse| method is $OK((i_{type}, i_{md}))$, then we dereify $i_{type}$ to a \emph{translational type}, $\hat{\tau}$. These are analagous to translational terms, $\hat{e}$, and serve to ensure hygiene at the level of types. The judgement $\Delta_{out}; \Delta \vdash_{\Theta} \hat{\tau} \leadsto \tau :: \kappa$ can be read ``under outer kinding context $\Delta_{out}$, inner kinding context $\Delta$ and named type context $\Theta$, translational type $\hat\tau$ elaborates to type $\tau$ at kind $\kappa$''. The syntax of translational types mirrors that of types, again with the addition of a form capturing spliced type-level terms arising from the parse stream, $\textbf{spliced}[\tau]$. The rules related to type variables and spliced forms are shown in Figure \ref{tr-kinding}. Only spliced types are checked under the outer context. As with type declarations, we need that $\hat{\tau}$ has kind $\kappa \rightarrow \kappa$ to support recursive types (non-recursive types can simply ignore the argument). \todo{fix example}. 
 
-\subsection{Literals in TSM applications}
-DSL literals are used in a TSM application term $\mathbf{eaptsm}$ and these DSLs will be transformed to internal terms. Elaboration rules for both kinds of TSMs are presented in figure~\ref{expkw-kwstatics}.
+The remaining two premises of (D-aptsm) check that the metadata transformer is a function of the right type and invoke it to produce the final metadata (per Sec. \ref{tsms-type}). An identity function can be generated automatically when a metadata transformer is not explicitly provided by the user.
 
-For analytic TSMs, we have the following steps to transform them into internal terms:
-\begin{enumerate}\setlength{\itemsep}{0pt}
-\item Check that the prelude is in the named type context. ($\Theta_0\subset\Theta$)
-\item Look up the TSM is defined in $\Psi$. ($s[\mathbf{ana}(i_k)]\in\Psi$)
-\item Read in the DSL literals into an expression $i_{ps}$ of type $\mathbf{named}[ParseStream]$ and parse them by invoking the parser $i_k$. The parsing result is a term of type $\mathbf{named}[Result]$, and an AST term $i_{ast}$ is provided. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps});\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$)
-\item Dereificate the term $i_{ast}$ to an translational term $\hat{e}$ with spliced DSL body, then elaborate the translational term $\hat{e}$ to an internal Wyvern term and check it against the type $\tau$. ($i_{ast}\uparrow \hat{e}$ and $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$)
-\end{enumerate}
-The term $\mathbf{ekey}[k,body]$ is then transformed into $i$ of type $\tau$, which is an internal term that can be used for evaluation. The process for synthetic TSMs is similar, except that the type of the elaborated expression comes from its definition. 
+% \subsection{Bidirectional Typechecking and Elaboration of External Terms}\label{elaboration}
 
 
-\subsection{Hygiene}
-\todo{Where are we supposed to discuss Hygiene?}
+% \paragraph{Declarations}
+
+% An element in the declaration section can be one of type-level TSM, term-level synthetic TSM, analytical TSM or named type. By allowing different kinds of declarations appearing in the same section, a declaration can refer to any kind of declarations appeared in the previous context, which enhance the flexibility of the TSM usage.
+
+% For a type level TSM $s[\mathbf{tytsm}(e,\tau)]$, its declaration contains a term $e$ and a type $\tau$: the term $e$ is the parser for DSL literal parsing, and the type $\tau$ is the type of the generated metadata.
+
+% Similar to type-level TSMs, a term-level TSM can be one of $s[\mathbf{syn}(\tau,e)]$ or $s[\mathbf{ana}(e)]$. As we presented in section \ref{tsms-term}, synthetic TSMs are defined with its return type $\tau$ while analytic TSMs are not. The expression ($e$) in both cases represents the parser, which is supposed to be of type $ExpParser$.
+
+% Named type declarations are the type declarations associated with a name $T$. Depending on the its definition method, there are two kinds of type declarations: an explicit type declaration with its structure and metadata explicitly declared, or a type defined by applying a TSM to DSL literals, whose structure and metadata will be generated by the elaborated DSL literals presented in the keyword invocation body. An explicit type declaration ($T[\mathbf{explicit}(\tau,e)]$) consists of three parts: $T$ is the type name, $\tau$ is the type structure, which can be one of $\mathbf{objtype}$, $\mathbf{casetype}$, $\mathbf{arrowtype}$ or named type $\mathbf{named}[T']$,  and $e$ is the metadata associated with the type. And the second kind of type declaration ($T[\mathbf{aptsm}(k,body,e)]$) is a type declared using DSL syntax specified in a type TSM $k$. DSL literals are presented as $body$ in the declaration and the type metadata as $e$. Different from those in the first kind, metadata $e$ here serve as a metadata extender to extend the metadata generated by the keyword parser.
+
+% \paragraph{External Terms}
+% By naming terms in a Wyvern program ``external terms'' ($e$), we distinguish them from ``internal terms'' ($i$), which are pure Wyvern terms without DSL literals. 
+
+% To support term-level TSMs, the syntax for external terms is extended with a TSM application term and several terms for run-time parser access (omitted here, can be referred to TR). The term-level TSM application term $\mathbf{eaptsm}[k,body]$ specifies the application of the TSM $k$ to DSLs presented in delimited forms as $body$. Its concrete form can be referred to figure \ref{formal-syntax}.
+
+% An external term with DSL literals will elaborate to internal Wyvern terms with the help of the DSL parsers. During elaboration, translational expressions  
+% are defined to support ``spliced terms'', allowing external terms co-exist with internal terms: its syntax mirrors that of external terms, except that literal forms are removed and and translational state $\mathbf{spliced}[e]$ is added, which represents an external term $e$ spliced into a literal body.
+
+% \subsection{Bidirectional Typechecking and Elaboration}
+
+
+
+% Bidirectional typechecking is used here as type can be clearly specified as input or output during typechecking process. In bidirectional type system, a type judgment is written as $\Gamma\vdash_{\Theta} e\Leftarrow(\Rightarrow)\tau$ instead of $\Gamma\vdash_{\Theta} e:\tau$ in a traditional type system, where $\Gamma$ is the typing context, $\Theta$ is the declaration context, and the type $\tau$ is specified as input ($\Leftarrow$) or output ($\Rightarrow$) according to the arrow direction. 
+
+% A term-TSM application contains DSL literals in its body, so it belongs to external Wyvern language, and an elaboration phase is required to transform them into internal Wyvern terms before execution. The elaboration of external terms is part of type checking process, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external term elaborates to an internal term and synthesize to (or analyze against) the type $\tau$. The arrow $\rightsquigarrow$ is used to represent the elaboration process, including literal elimination and hygiene process.
+
+% \subsection{Contexts}
+% The program contexts (figure \ref{typechecking-environment}) contains TSM context $\Psi$, declaration context $\Theta$ and typing context $\Gamma$. 
+
+
+
+% TSM context $\Psi$ is the environment for user defined TSMs. Type-level TSMs defined in a Wyvern program goes into context in the form of $s[\mathbf{ty}(i,\tau)]$: the macro $k$ is a type-level TSM with parser $i$ and metadata type $\tau$. Besides type-level TSMs, term-level TSMs are also defined in $\Psi$: synthetic TSMs goes into context in the form of $s[\mathbf{bk}(\tau,i)]$, representing a macro $k$ with parser $i$ and return type $\tau$, while an analytic TSM in the context is represented as $s[\mathbf{wk}(i)]$, which is a macro $k$ with parser $i$.
+
+% Named typed context ($\Theta$) is the context to keep elaborated type declarations. A declared type (either explicitly declared or type keyword defined) has the form of $T[\delta,\mu]$, which is interpreted as a type of name $T$ with structure $\delta$ and metadata $\mu$. We wrap the type structure $\tau$ in $\delta$ and the metadata $i:\tau$ in $\mu$ in order to represent their ``unknown state'' using ``$?$'' in type checking.
+
+% Besides, $\Gamma$ is the typing context, and elements in $\Gamma$ are bindings of variables and their types ($x:\tau$).
+
+% \subsection{Checking rules for keywords}
+% The rules ctx-tytsm, ctx-syntsm and ctx-anatsm in Fig~\ref{typechecking-elaboration} present the type checking process for TSMs.
+
+% According to the rule ctx-tytsm, a type TSM declaration $s[\mathbf{ty}(e,\tau)]$ is well typed iff 1) the macro has no name conflicts with those defined in the previous context, 2) the parser $e$ elaborates to an internal term $i$ of type $\mathbf{named}[TypeKw]$ and 3) the metadata type $\tau$ is well formed within the given named type context $\Theta$.
+
+% For term level TSMs, the checking rules are similar to that for the type TSM: it checks that no name conflicts exists in TSM declarations, the parser elaborate to an internal term $i$ of type $\mathbf{named}[ExpKw]$, and the type defined in a synthetic TSM is well formed under named type context $\Theta$.
+
+% By allowing both TSMs and types declared in the same part of the program (i.e. $ d$), we allow the definition of a named type or a TSM referred to declarations appeared in its previous context, which provides a flexible way to define macros and types. For simplicity consideration, we only present rules to support recursive declaration here, and the rules for mutually recursive type and macro declarations can be referred to TR \todo{cite TR}.
+
+% \subsection{External Type Literals}
+% Declaring a type using a type-level TSM involves application of a macro parser to external DSL literals, and the rule ctx-aptsm-type is used to transform it into internal Wyvern type representations with concrete type structure and metadata.
+
+% The elaboration process of a type $T[\mathbf{aptsm}(s,body,e_m)]$ under context $\Theta,\Psi$ contains the following steps:
+% \begin{enumerate}\setlength{\itemsep}{0pt}
+% \item Check that the Wyvern prelude is contained in the named type context, as parser types are defined in Wyvern preludes. ($\Theta_0\subset \Theta$)
+% \item Elaborate previous declarations ($ d'\sim(\Theta';\Psi')$), and check that the type name $T$ has no name conflicts with those in previous context ($T\notin dom(\Theta\Theta')$).
+% \item Look up the keyword $k$ in $\Psi\Psi'$. ($s[\mathbf{ty}(i_k,\tau_m)]\in\Psi\Psi'$)
+% \item Read in the literals ($body$) as an expression $i$, and apply the parser $i_k$ to the DSL body. A tuple $(i_{type}, i_m)$ is return by the parser: $i_{type}$ is an expression of type $\mathbf{named}[Type]$ and $i_m$ is the generated metadata term. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k);i_{ps})\Downarrow(i_{type},i_{m})$)
+% \item Dereificate the term $i_{type}$ to an Wyvern type $\tau$, and check the formation of the type $\tau$ under the context $\Theta\Theta',T[?,?]$. ($i_{type}\uparrow\tau$ and $\vdash_{\Theta\Theta',T[?,?]}\tau$) Dereification rules for types can be referred to \todo{cite TR}.
+% \item Elaborate the metadata $e_m$ defined in the type to an internal term $i'_m$ of type $\mathbf{arrow}[\tau_m,\tau'_m]$, which serves as an metadata extender to extend the metadata generated by the type keyword. ($\emptyset\vdash_{\Theta\Theta',T[\tau,?]}e_m\rightsquigarrow i_m' \Rightarrow \mathbf{arrow}[\tau_m, \tau'_m]$)
+% \item Apply the keyword extender ($i'_m$) to the generated metadata ($i_m$) and generate the metadata of the type $T$. ($\mathbf{iap}(i'_m,i_m)\Downarrow i''_m$)  
+% \end{enumerate}
+% After these steps, the declaration $T[\mathbf{aptsm}(k,body,e_m)]$ elaborates to $T[\tau,i''_m:\tau'_m]$ and is added into environment for further reference.
+
+% \subsection{Literals in TSM applications}
+% DSL literals are used in a TSM application term $\mathbf{eaptsm}$ and these DSLs will be transformed to internal terms. Elaboration rules for both kinds of TSMs are presented in figure~\ref{expkw-kwstatics}.
+
+% For analytic TSMs, we have the following steps to transform them into internal terms:
+% \begin{enumerate}\setlength{\itemsep}{0pt}
+% \item Check that the prelude is in the named type context. ($\Theta_0\subset\Theta$)
+% \item Look up the TSM is defined in $\Psi$. ($s[\mathbf{ana}(i_k)]\in\Psi$)
+% \item Read in the DSL literals into an expression $i_{ps}$ of type $\mathbf{named}[ParseStream]$ and parse them by invoking the parser $i_k$. The parsing result is a term of type $\mathbf{named}[Result]$, and an AST term $i_{ast}$ is provided. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps});\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$)
+% \item Dereificate the term $i_{ast}$ to an translational term $\hat{e}$ with spliced DSL body, then elaborate the translational term $\hat{e}$ to an internal Wyvern term and check it against the type $\tau$. ($i_{ast}\uparrow \hat{e}$ and $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$)
+% \end{enumerate}
+% The term $\mathbf{ekey}[k,body]$ is then transformed into $i$ of type $\tau$, which is an internal term that can be used for evaluation. The process for synthetic TSMs is similar, except that the type of the elaborated expression comes from its definition. 
+
+
+% \subsection{Hygiene}
+% \todo{Where are we supposed to discuss Hygiene?}
 
 \subsection{Metatheory}
 \paragraph{Type Safety and Preservation}
