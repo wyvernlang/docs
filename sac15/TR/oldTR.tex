@@ -79,8 +79,8 @@ tabsize=4, % Number of spaces per tab in the code
 \section{Wyvern Prelude}
 Wyvern prelude is a collection of type declarations loaded before all other declarations. Type declarations in Wyvern prelude include the definition of Wyvern utils like type String, List, Int etc and parser types to support TSL and TSM mechanism.  
 \begin{lstlisting}[style=wyvern]
-type Parser(T) = objtype
-	def parse(ps : ParseStream) : Result(T)
+type TypeParser = objtype
+	def parse(ps : ParseStream) : Result(Type * Exp)
 	metadata : HasTSL = new 
 		val parser = 
 			... (* parser generator *)
@@ -106,6 +106,12 @@ type CaseList = casetype
 	Nil  of Unit
 	Cons of Label * Type * CaseList
 
+type ExpParser = objtype
+	def parse(ps : ParseStream) : Result(Exp)
+	metadata : HasTSL = new 
+		val parser = 
+			... (* parser generator *)
+
 type Exp = casetype
 	Var of ID
 	Lam of ID * Exp
@@ -125,24 +131,20 @@ type Result(T) = casetype
 \[
 \begin{array}{rlrlrl}
 	\rho		~::=&~ {d};e\\				
-	{d}		~::=&~ \emptyset									& \kappa      ~::=& \star\\
-				| ~	&~ {d}; \mathbf{syntsm}(s,\tau,e)			&		| ~ & \kappa\rightarrow\kappa\\
+	{d}		~::=&~ \emptyset									&\kappa      ~::=& \star\\
+				| ~	&~ {d}; \mathbf{syntsm}(s,\tau,e)			&| ~ & \kappa\rightarrow\kappa\\
 				| ~	&~ {d}; \mathbf{anatsm}(s,e)				\\
 				| ~	&~ {d};\mathbf{tytsm}(s,\kappa,\tau,e)				\\
 				| ~ &~ {d};\mathbf{tydecl}(\T,\tau,e)			\\
-				| ~ &~{d};\mathbf{mrectydecl}(\theta_1,...,\theta_n)\\
-				| ~ &~ {d};\mathbf{tyaptsm}(\T,s,body,e)\\
-	\theta 	~::=&\mathbf{tydecl}(\T,\tau,e)				&\mathring\theta~::=&\T[\tau::\kappa,e]\\
-			|~&\mathbf{tyaptsm}(\T,s,body,e)			&|~&\T[\tau::\kappa,i:\tau,i]\\
+				| ~ &~ {d};\mathbf{tyaptsm}(\T,s,body,e)			\\
 	\tau 		~::=&~ \T				&\hat{\tau} ~::=&~ \T\\
 				|~	& ~ \mathbf{objtype}[\omega]		&|~ &~ \mathbf{objtype}[\omega]				\\
 				|~	& ~ \mathbf{casetype}[\chi]			&|~ &~ \mathbf{casetype}[\chi] 				\\
-				|~ 	& ~ \tau\rightarrow\tau				&|~ &~ \hat\tau\rightarrow\hat\tau 	\\
-				|~ 	& ~ t								&|~ &~ t 									\\
-				|~ 	& ~ \lambda[\kappa](t.\tau)			&|~ &~ \lambda[\kappa](t.\hat{\tau})\\
-				|~ 	& ~ \tau(\tau)						&|~ &~ \hat{\tau}(\hat{\tau})\\
-				|~ 	& ~ \tau \times \tau 				&|~ &~ \hat{\tau}\times\hat{\tau}\\
-				   	&									&|~ &~ \mathbf{spliced}[\tau]\\
+				|~ & ~ \mathbf{arrow}[\tau, \tau]		&|~ &~ \mathbf{arrow}[\hat\tau,\hat\tau] 	\\
+				|~ & ~ t								&|~ &~ t 									\\
+				|~ & ~ \lambda[\kappa](t.\tau)			&|~ &~ \lambda[\kappa](t.\hat{\tau})\\
+				|~ & ~ \tau(\tau)						&|~ &~ \hat{\tau}(\hat{\tau})\\
+				   &									&|~ &~ \mathbf{spliced}[\tau]\\
 	\omega ~::=&~ 	\emptyset							&\hat{\omega} ~::&~ \emptyset\\
 	 |~&  	~l[\mathbf{val}, \tau];\omega				&|~ & ~l[\mathbf{val}, \hat\tau];\hat\omega \\
 	 |~&	~l[\mathbf{def}, \tau];\omega				&|~ & ~l[\mathbf{def}, \hat\tau];\hat\omega\\
@@ -187,165 +189,206 @@ type Result(T) = casetype
 \]
 
 \subsection{Type Checking and Elaboration}
+\begin{definition}[Context Override]Given two type contexts $\Theta_1$ and $\Theta_2$, we define $\Theta_1\Theta_2$ as a new context $\Theta'$, which satisfies:
+\[
+	\Theta_1\Theta_2 = \Theta' = \{~\T[\tau::\kappa,i:\tau]~|~ (\T\notin dom(\Theta_2)\land \T[\tau::\kappa,i:\tau]\in\Theta_1)\lor(\T[\tau::\kappa,i:\tau]\in\Theta_2) ~\}
+\]
+Similarly, we define $\Psi_1\Psi_2$ as a new keyword context $\Psi'$, which satisfies:
+\[
+	\begin{array}{rl}
+	\Psi_1\Psi_2=\Psi'=&\{~k[\mathbf{ty}(\gamma,\tau::\kappa)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{ty}(\gamma,\tau::\kappa)]\in\Psi_1)\lor(k[\mathbf{ty}(\gamma,\tau::\kappa)]\in\Psi_2)  ~\}\\
+							 &\cup~\{~k[\mathbf{syn}(\tau::\kappa,\gamma)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{syn}(\tau::\kappa,\gamma)]\in\Psi_1) \lor(k[\mathbf{syn}(\tau::\kappa,\gamma)]\in\Psi_2)  ~\}\\
+							 &\cup~\{~k[\mathbf{ana}(\gamma)]~|~ (k\notin dom(\Psi_2) \land k[\mathbf{ana}(\gamma)]\in\Psi_1) \lor(k[\mathbf{ana}(\gamma)]\in\Psi_2)  ~\}
+	\end{array}
+\]
+\end{definition}
+Intuitively, $\Theta_1\Theta_2$ (or $\Psi_1\Psi_2$) represents ``update'' the context $\Theta_1$ using the context $\Theta_2$ by adding new elements from $\Theta_2$ and update old elements in $\Theta_1$ with new fields, while keeping elements appeared only in $\Theta_1$ untouched.
 
 \flyingbox{$\rho \sim (\Psi;\Theta)\rightsquigarrow i:\tau$}
 \begin{center}
-\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
+\AXC{$\emptyset\vdash_{\Theta_{0}}^{\emptyset}d\sim(\Psi;\Theta)$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
 \UIC{$d;e\sim(\Psi;\Theta)\rightsquigarrow i:\tau$}
 \DP
 \end{center}
 
-\flyingbox{$d\sim (\Psi;\Theta)$}
+\flyingbox{$\Delta{\myvdash}d\sim (\Psi;\Theta)$}
 \begin{center}
-\AXC{} \RightLabel{(D-empty)}
-\UIC{$\emptyset \sim (\emptyset;\emptyset)$} 
+\AXC{
+	\stackanchor
+	{$\vdash_{\Theta_{0}}^{\emptyset}d \sim_{names}(\Psi_{names};\Theta_{names})$}
+	{$\Delta\vdash_{\Theta_{0}\Theta_{names}}^{\Psi_{names}}d \sim_{defs}(\Psi_{defs};\Theta_{defs})$ ~~~~ $\Delta\vdash^{\Psi_{defs}}_{\Theta_{0}\Theta_{defs}}d \sim_{exts}(\Psi;\Theta) $}
+} \RightLabel{(rec-decls)}
+\UIC{$\Delta\vdash_{\Theta_{0}}^{\Psi} d \sim (\Psi;\Theta)$} 
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta}^{\Psi}\theta\sim_{names} (\Psi;\Theta)$}
+\begin{center}
+\AXC{} \RightLabel{(empty-names)}
+\UIC{${\vdash_{\Theta}^{\Psi}} \emptyset \sim_{names} (\emptyset;\emptyset)$}
+\DP
+\end{center}
+\begin{center}
+\AXC{${\vdash_{\Theta}^{\Psi}}\theta' \sim_{names} (\Psi';\Theta') ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names)}
+\UIC{${\vdash_{\Theta}^{\Psi}} \theta';\mathbf{typedecl}(T,\tau,e_m) \sim_{names} (\Psi';\Theta',T[?,?])$}
 \DP
 \end{center}
 
 \begin{center}
-
-\AXC{
-	\stackanchor{
-	$d\sim(\Psi;\Theta)$ ~~~~ $s\notin\text{dom}(\Psi)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau::\star$}{$\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e_{tsm}\rightsquigarrow i_{tsm} \Leftarrow \mathtt{Parser(Exp)}$}
-}\RightLabel{(D-syntsm)}
-\UIC{$d;\mathbf{syntsm}(s,\tau,e_{tsm})\sim (\Psi,s[\mathbf{syn}(\tau,i_{tsm})];\Theta)$}
+\AXC{${\vdash_{\Theta}^{\Psi}}\theta' \sim_{names} (\Psi';\Theta') ~~~~~~ T\notin {dom}(\Theta) ~~~~~~ T\notin dom(\Theta')$} \RightLabel{(type-names-2)}
+\UIC{${\vdash_{\Theta}^{\Psi}} \theta';\mathbf{tyaptsm}(T,k,body,e_m) \sim_{names} (\Psi';\Theta',T[?,?])$}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{
-	$d\sim(\Psi;\Theta)$ ~~~~ $s\notin\text{dom}(\Psi)$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e_{tsm}\rightsquigarrow i_{tsm} \Leftarrow \mathtt{Parser(Exp)}$
-}\RightLabel{(D-syntsm)}
-\UIC{$d;\mathbf{anatsm}(s,e_{tsm})\sim (\Psi,s[\mathbf{ana}(i_{tsm})];\Theta)$}
+\AXC{${\vdash_{\Theta}^{\Psi}}\theta' \sim_{names} (\Psi';\Theta') ~~~~~~ \nexists~k.(k[\mathbf{ty}(\_,\_)]\in \Psi\Psi')$} \RightLabel{(typetsm-names)}
+\UIC{${\vdash_{\Theta}} \theta';\mathbf{tytsm}(k,\tau,e) \sim_{names} (\Psi',k[\mathbf{ty}(?,?)];\Theta')$}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{
-\stackanchor{
-	$d\sim(\Psi;\Theta)$ ~~~~ $s\notin(\Psi)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau::\star$}
-	{$\emptyset;\emptyset\vdash_{\Theta_0\Theta}e_{tsm}\rightsquigarrow i_{tsm}\Leftarrow \mathtt{Parser}(\mathtt{Type}\times\tau_{md})$}
-}\RightLabel{(D-tytsm)}
-\UIC{$d;\mathbf{tytsm}(s,\kappa,\tau_{md},e_{tsm})\sim(\Psi,s[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})];\Theta)$}
+\AXC{${\vdash_{\Theta}^{\Psi}}\theta' \sim_{names} (\Psi';\Theta') ~~~~~~ \nexists~k.(k[\mathbf{syn}(\_,\_)]\in \Psi\Psi' \lor k[\mathbf{ana}(\_)]\in \Psi\Psi')$} \RightLabel{(syntsm-names)}
+\UIC{${\vdash_{\Theta}} \theta';\mathbf{syntsm}(k,\tau,e) \sim_{names} (\Psi',k[\mathbf{syn}(?,?)];\Theta')$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{${\vdash_{\Theta}^{\Psi}}\theta' \sim_{names} (\Psi';\Theta') ~~~~~~ \nexists~k.(k[\mathbf{syn}(\_,\_)]\in \Psi\Psi' \lor k[\mathbf{ana}(\_)]\in \Psi\Psi')$} \RightLabel{(anatsm-names)}
+\UIC{${\vdash_{\Theta}} \theta';\mathbf{anatsm}(k,e) \sim_{names} (\Psi',k[\mathbf{ana}(?)];\Theta')$}
+\DP
+\end{center}
+
+
+\flyingbox{$\Delta{\myvdash}\theta\sim_{defs} (\Psi;\Theta)$}
+\begin{center}
+\AXC{} \RightLabel{~~~ (empty-defs)}
+\UIC{$\Delta{\myvdash} \emptyset \sim_{defs} (\emptyset;\emptyset)$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\Delta{\vdash_{\Theta}}\theta' \sim_{defs} (\Psi';\Theta')$ ~~~~ $\Delta{\vdash_{\Theta\Theta'}}\tau::K$}\RightLabel{(type-defs)}
+\UIC{$\Delta{\myvdash}\theta';\mathbf{typedecl}(T,\tau,e_m) \sim_{defs} (\Psi;\Theta',T[\tau,?])$}
 \DP
 \end{center}
 
 \begin{center}
 \AXC{
 	\stackanchor
-	{$d\sim(\Psi;\Theta)$ ~~~~ $\T\notin\text{dom}(\Theta_0\Theta)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau::\kappa\rightarrow\kappa$}
-	{$\emptyset;\emptyset\vdash_{\Theta_0\Theta,\T[\tau(\T)::\kappa,-]}^{\Psi}e_{md}\rightsquigarrow i_{md}\Rightarrow\tau_{md}$}
-}\RightLabel{(D-tydecl)}
-\UIC{$d;\mathbf{typedecl}(\T,\tau,e)\sim (\Psi;\Theta,\T[\tau(\T)::\kappa,i_{md}::\tau_{md}])$}
-\DP
-\end{center}
-
-\begin{center}
-\AXC{
-	\stackanchor{
-		\stackanchor{$d \sim (\Psi;\Theta)$ ~~~~ $\mathtt{T}\notin \text{dom}(\Theta_0\Theta)$ ~~~~ $s[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})]\in\Psi$}
-		{
-			\stackanchor{$\mathsf{parsestream}(body)=i_{ps}$ ~~~~ $i_{tsm}.parse(i_{ps}) \Downarrow OK((i_{type},i_{md}))$}{
-				$i_{type}\uparrow\hat\tau$ ~~~~ $\Delta;\emptyset\vdash_{\Theta\Theta'}\hat\tau\rightsquigarrow\tau::\kappa \rightarrow \kappa$
-			}
+	{\stackanchor
+		{\stackanchor
+			{$\Theta_0\subset\Theta$ ~~~~ $\Delta\myvdash\theta'\sim_{defs}(\Psi';\Theta')$ ~~~~ $k[\mathbf{ty}(i,\tau_m)]\in\Psi'$}
+			{$\texttt{parsestream}(body)=i_{ps}$}
 		}
+		{$\mathbf{iap}(\mathbf{iprj}[parse](\mathbf{iprj}[parser](i_{k}));i_{ps})\Downarrow(i_{type},i_m)$}
 	}
-	{$\emptyset;\emptyset\vdash_{\Theta_0\Theta,\mathtt{T}[\tau(\mathtt{T}) :: \kappa,-]}^{\Psi}e_{mdx}\rightsquigarrow i_{mdx} \Rightarrow \tau_{md}\rightarrow\tau'_{md}$ ~~~~ $i_{mdx}(i_{md})\Downarrow i'_{md}$}
-}
-\RightLabel{(D-aptsm)}
-\UIC{$d;\mathbf{tyaptsm}(\mathtt{T},s,body,e_{mdx}) \sim (\Psi; \Theta,\mathtt{T}[\tau(\mathtt{T}) :: \kappa,i'_{md}:\tau'_{md}])$}
+	{$\vdash_{\Theta\Theta'}i_{type}\uparrow \tau$ ~~~~ $\Delta\vdash_{\Theta\Theta'} \tau::*$ ~~~~ $\vdash_{\Theta\Theta'} i_m \Leftarrow \tau_m$}
+}\RightLabel{(type-defs-2)}
+\UIC{$\Delta{\myvdash} \theta';\mathbf{tyaptsm}(T,k,body,e_m) \sim_{defs} (\Psi';\Theta',T[\tau,i_m:\tau_m])$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\Delta\myvdash\theta'\sim_{defs}(\Psi';\Theta')$ ~~~~ $\Delta\vdash_{\Theta\Theta'}\tau::*$ ~~~~ $\Delta|\emptyset\vdash_{\Theta\Theta'}^{\Psi\Psi'}e\rightsquigarrow i\Leftarrow\mathbf{named}[TypeParser]$} \RightLabel{(tytsm-defs)}
+\UIC{$\Delta\myvdash\theta';\mathbf{tytsm}(k,\tau,e)\sim_{defs}(\Psi',k[\mathbf{ty}(i,\tau)];\Theta')$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\Delta\myvdash\theta'\sim_{defs}(\Psi';\Theta')$ ~~~~ $\Delta\vdash_{\Theta\Theta'}\tau::*$} \RightLabel{(syntsm-defs)}
+\UIC{$\Delta\myvdash\theta';\mathbf{syntsm}(k,\tau,e)\sim_{defs}(\Psi',k[\mathbf{syn}(\tau,?)];\Theta')$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\Delta\myvdash\theta'\sim_{defs}(\Psi';\Theta')$} \RightLabel{(anatsm-defs)}
+\UIC{$\Delta\myvdash\theta';\mathbf{anatsm}(k,e)\sim_{defs}(\Psi',k[\mathbf{ana}(?)];\Theta')$}
+\DP
+\end{center}
+
+
+\flyingbox{$\Delta{\myvdash}\theta\sim_{exts} (\Psi;\Theta)$}
+\begin{center}
+\AXC{} \RightLabel{(empty-exts)}
+\UIC{$\Delta{\myvdash} \emptyset \sim_{exts} (\emptyset;\emptyset)$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\Delta\vdash^{\Psi}_{\Theta}\theta'\sim_{exts}(\Psi';\Theta')$ ~~~~ $T[\tau,?]\in\Theta$ ~~~~ $\Delta|\emptyset\vdash^{\Psi\Psi'}_{\Theta\Theta'}e_m\rightsquigarrow i_m\Rightarrow \tau_m$}			\RightLabel{(type-exts)}
+\UIC{$\Delta\vdash^{\Psi}_{\Theta}\theta';\mathbf{typedecl}(\tau,e_m) \sim_{exts} (\Psi';\Theta',T[\tau,i_m:\tau_m])$}
 \DP
 \end{center}
 
 \begin{center}
 \AXC{
-	\stackanchor{
-	$d\sim(\Psi;\Theta)$ ~~~~ $\forall~k\in\{1,...,n\}.(\vdash_{\Theta_0\Theta}^{\Psi}\theta_k\leadsto \mathring\theta_k\land \mathsf{name}(\mathring\theta_k)=\T_k \land \emptyset\vdash\mathsf{type}(\mathring\theta_k)::\kappa_1\rightarrow...\rightarrow\kappa_n\rightarrow\kappa_k)$}
-	{$\forall~k.(\vdash_{\Theta_0\Theta,\T_1[\tau_1(\T_1,...,\T_n)::\kappa_1,-],...,\T_n[\tau_n(\T_1,...,\T_n)::\kappa_n,-]}\mathring\theta_k\leadsto \T_k[\tau_k::\kappa_k,i_k:\tau_{mdk}]$)}
-	}\RightLabel{(D-rec)}
-\UIC{$d;\mathbf{mrectydecl}(\theta_1,...,\theta_n)\sim(\Psi;\Theta,\T_1[\tau_1::\kappa_1,i_1:\tau_{md1}],...,\T_n[\tau_n::\kappa_n,i_n:\tau_{mdn}])$}
-\DP
-\end{center}
-
-\flyingbox{$\vdash_{\Theta}^{\Psi}\theta\leadsto\mathring\theta$}
-\begin{center}
-\AXC{
-	{$\T\notin\text{dom}(\Theta_0\Theta)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau::\kappa$}
-}
-\UIC{$\vdash_{\Theta}^{\Psi}\mathbf{typedecl}(\T,\tau,e)\leadsto (\Psi;\Theta,\T[\tau::\kappa,e])$}
+	\stackanchor
+	{$\Delta\vdash^{\Psi}_{\Theta}\theta'\sim_{exts}(\Psi';\Theta')$ ~~~~ $T[\tau,i_m:\tau_m]\in\Theta$}
+	{$\Delta|\emptyset\vdash_{\Theta\Theta'}^{\Psi\Psi'} e_m\rightsquigarrow i'_m\Leftarrow\mathbf{arrow}(\tau_m,\tau''_m)$ ~~~~ $\mathbf{iap}(i'_m; i_m) \Downarrow i''_m$}
+}\RightLabel{(type-exts-2)}
+\UIC{$\Delta\vdash_{\Theta}\theta';\mathbf{tyaptsm}(k,body,e_m) \sim_{exts} (\Psi';\Theta',T[\tau,i'_m:\tau'_m])$}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{
-		\stackanchor{$\mathtt{T}\notin \text{dom}(\Theta_0\Theta)$ ~~~~ $s[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})]\in\Psi$}
-		{
-			\stackanchor{$\mathsf{parsestream}(body)=i_{ps}$ ~~~~ $i_{tsm}.parse(i_{ps}) \Downarrow OK((i_{type},i_{md}))$}{
-				$i_{type}\uparrow\hat\tau$ ~~~~ $\Delta;\emptyset\vdash_{\Theta\Theta'}\hat\tau\rightsquigarrow\tau::\kappa$
-			}
-		}
-}
-\UIC{$\vdash_{\Theta}^{\Psi}\mathbf{tyaptsm}(\mathtt{T},s,body,e_{mdx}) \leadsto (\Psi; \Theta,\mathtt{T}[\tau::\kappa,e_{mdx},i_{md}:\tau_{md}])$}
-\DP
-\end{center}
-
-\flyingbox{$\vdash^{\Psi}_{\Theta}\mathring\theta\leadsto\T[\tau::\kappa,i:\tau]$}
-\begin{center}
-\AXC{
-	$\emptyset;\emptyset\vdash_{\Theta}^{\Psi}e_{md}\rightsquigarrow i_{md}\Rightarrow\tau_{md}$
-}
-\UIC{$\vdash_{\Theta}^{\Psi}\T[\tau::\kappa,e_{md}]\leadsto\T[\tau::\kappa,i_{md}::\tau_{md}])$}
+\AXC{$\Delta\vdash_{\Theta}^{\Psi}\theta'\sim_{exts}(\Psi';\Theta')$ ~~~~ $k[\mathbf{syn}(\tau,?)]\in \Psi$ ~~~~ $\Delta|\emptyset\vdash_{\Theta\Theta'}^{\Psi\Psi'}e\rightsquigarrow i\Leftarrow \mathbf{named}[TypeParser]$} \RightLabel{(tytsm-exts)}
+\UIC{$\Delta\vdash_{\Theta}^{\Psi} \theta';\mathbf{syntsm}(k,e)\sim_{exts}(\Psi',k[\mathbf{syn}(\tau,i)];\Theta)$}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{
-	{$\emptyset;\emptyset\vdash_{\Theta}^{\Psi}e_{mdx}\rightsquigarrow i_{mdx} \Rightarrow \tau_{md}\rightarrow\tau'_{md}$ ~~~~ $i_{mdx}(i_{md})\Downarrow i'_{md}$}
-}
-\UIC{$\vdash_{\Theta}^{\Psi}\T[\tau::\kappa,e_{mdx},i_{md}:\tau_{md}] \leadsto\mathtt{T}[\tau::\kappa,i'_{md}:\tau'_{md}])$}
+\AXC{$\Delta\vdash_{\Theta}^{\Psi}\theta'\sim_{exts}(\Psi';\Theta')$ ~~~~ $\Delta|\emptyset\vdash_{\Theta\Theta'}^{\Psi\Psi'}e\rightsquigarrow i\Leftarrow \mathbf{named}[TypeParser]$}	\RightLabel{(syntsm-exts)}
+\UIC{$\Delta\vdash_{\Theta}^{\Psi} \theta';\mathbf{anatsm}(k,e)\sim_{exts}(\Psi',k[\mathbf{ana}(i)];\Theta)$}
 \DP
 \end{center}
 
-\flyingbox{$\Delta\vdash_{\Theta}{\tau}::\kappa$}
+\begin{center}
+\AXC{$\Delta\vdash_{\Theta}^{\Psi}\theta'\sim_{exts}(\Psi';\Theta')$ ~~~~ $k[\mathbf{ty}(i,\tau)]\in\Psi$}	\RightLabel{(anatsm-exts)}
+\UIC{$\Delta\vdash_{\Theta}^{\Psi} \theta';\mathbf{tytsm}(k,\tau,e)\sim_{exts}(\Psi',k[\mathbf{ty}(i,\tau)];\Theta)$}
+\DP
+\end{center}
+
+
+\flyingbox{$\Delta\vdash_{\Theta}{\tau}::K$}
 \begin{center}
 \AXC{$\vdash_{\Theta} \omega$}
-\UIC{$\Delta\vdash_{\Theta} \mathbf{objtype}[\omega]::\star$}
+\UIC{$\Delta\vdash_{\Theta} \mathbf{objtype}[\omega]::*$}
 %%% the next rule
 \AXC{$\vdash_{\Theta} \chi$}
-\UIC{$\Delta\vdash_{\Theta} \mathbf{casetype}[\chi]::\star$}
+\UIC{$\Delta\vdash_{\Theta} \mathbf{casetype}[\chi]::*$}
 \noLine
 \BIC{}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{$\Delta\vdash_{\Theta} \tau_1::\star$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::\star$}
-\UIC{$\Delta\vdash_{\Theta} \tau_1\rightarrow\tau_2::\star$}
+\AXC{$\Delta\vdash_{\Theta} \tau_1::*$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::*$}
+\UIC{$\Delta\vdash_{\Theta} \mathbf{arrow}[\tau_1,\tau_2]::*$}
 %%% the next rule
-\AXC{$\T[\tau::\kappa,i:\tau]\in\Theta$}
-\UIC{$\Delta\vdash_{\Theta} \T::\kappa$}
+\AXC{$T[\tau,i:\tau]\in\Theta$ ~~~~ $\Delta\vdash_\Theta\tau::K$}
+\UIC{$\Delta\vdash_{\Theta} \mathbf{named}[T]::K$}
 \noLine
 \BIC{}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{$\Delta\vdash_{\Theta} \tau_1::\star$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::\star$}
-\UIC{$\Delta\vdash_{\Theta} \tau\times\tau::\star$}
+\AXC{$\Delta\vdash_{\Theta} \tau_1::*$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::*$}
+\UIC{$\Delta\vdash_{\Theta} \tau\times\tau::*$}
 %%%
-\AXC{$\Delta\vdash_{\Theta}\tau_1::\kappa_1\rightarrow \kappa_2$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::\kappa_1$}
-\UIC{$\Delta\vdash_{\Theta}\tau_1(\tau_2)::\kappa_2$}
+\AXC{$\Delta\vdash_{\Theta}\tau_1::K_1\Rightarrow K_2$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::K_1$}
+\UIC{$\Delta\vdash_{\Theta}\mathbf{Tap}(\tau_1,\tau_2)::K_2$}
 \noLine
 \BIC{}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{$t::\kappa\in\Delta$}
-\UIC{$\Delta\vdash_{\Theta} t::\kappa$}
+\AXC{$X::K\in\Delta$}
+\UIC{$\Delta\vdash_{\Theta} X::K$}
 %%
-\AXC{$\Delta,X:\kappa_1\vdash_{\Theta}\tau::\kappa_1$}
-\UIC{$\Delta\vdash_{\Theta}\lambda[\kappa_1](t.\tau)::\kappa\rightarrow \kappa_2$}
+\AXC{$\Delta,X:*\vdash_{\Theta}\tau::K$}
+\UIC{$\Delta\vdash_{\Theta}\mathbf{Tabs}(X.\tau)::*\Rightarrow K$}
 \noLine
 \BIC{}
 \DP
@@ -353,11 +396,11 @@ type Result(T) = casetype
 
 \doublebox{$\vdash_{\Theta} i\uparrow \tau$}{$\vdash_{\Theta}\tau\downarrow i$}
 \begin{center}
-\AXC{$\vdash_{\Theta} i\uparrow \T$}
-\UIC{$\vdash_{\Theta} \mathbf{iinj}[Named](i)\uparrow \T$}
+\AXC{$\vdash_{\Theta} i\uparrow T$}
+\UIC{$\vdash_{\Theta} \mathbf{iinj}[Named](i)\uparrow \mathbf{named}[T]$}
 %%% the next rule
-\AXC{$\T\downarrow i_{id}$}
-\UIC{$\T\downarrow \mathbf{iinj}[Named](i_{id})$}
+\AXC{$T\downarrow i_{id}$}
+\UIC{$\mathbf{named}[T]\downarrow \mathbf{iinj}[Named](i_{id})$}
 \noLine
 \BIC{}
 \DP
@@ -387,10 +430,10 @@ type Result(T) = casetype
 
 \begin{center}
 \AXC{$\vdash_{\Theta} i_1\uparrow \tau_1$ ~~~~ $\vdash_{\Theta} i_2\uparrow \tau_2$}
-\UIC{$\vdash_{\Theta} \mathbf{iinj}[Arrow]((i_1, i_2))\uparrow \tau_1\rightarrow\tau_2$}
+\UIC{$\vdash_{\Theta} \mathbf{iinj}[Arrow]((i_1, i_2))\uparrow \mathbf{arrow}(\tau_1,\tau_2)$}
 %%%
 \AXC{$\tau_1\downarrow i_1$ ~~~~ $\tau_2\downarrow i_2$}
-\UIC{$\tau_1\rightarrow\tau_2 \downarrow\mathbf{iinj}[Arrow]((i_1, i_2))$}
+\UIC{$\mathbf{arrow}(\tau_1,\tau_2) \downarrow\mathbf{iinj}[Arrow]((i_1, i_2))$}
 \noLine
 \BIC{}
 \DP
@@ -445,16 +488,6 @@ type Result(T) = casetype
 \UIC{$C[\tau],\chi \downarrow \mathbf{iinj}[Cons]((i_l,i_t,i_c))$}
 \noLine
 \BIC{}
-\DP
-\end{center}
-
-\begin{center}
-... ...
-\end{center}
-
-\begin{center}
-\AXC{$\mathsf{body}(i_{ps})=body$ ~~~~ $\mathsf{tparse}(body)=\tau$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Spliced](i_{ps})\uparrow \mathbf{spliced}[\tau]$}
 \DP
 \end{center}
 
@@ -521,26 +554,25 @@ type Result(T) = casetype
 \AXC{}
 \UIC{$\vdash_{\Theta} \emptyset$}
 %%% the next rule
-\AXC{\stackanchor{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~s.(s=s_0\land s[\mathbf{ty}(\_,\_,\_)]\in\Psi)$}{$\vdash_{\Theta}\tau_{md}::\star$ ~~~~ $\vdash_{\Theta}i:\mathtt{Parser}(\mathtt{Type}\times\tau_{md})$}}
-\UIC{$\vdash_{\Theta}\Psi;s_0[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})]$}
+\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~k.(k[\mathbf{ty}(\_,\_)]\in\Psi)$ ~~~~ $\vdash_{\Theta}\tau::\kappa$ ~~~~ $\vdash_{\Theta}\gamma:\mathbf{named}[TypeParser]$}
+\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{ty}(\gamma,\tau::\kappa)]$}
 \noLine
 \BIC{}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~s.(s=s_0\land s[\mathbf{syn}(\_,\_)]\in \Psi\lor s[\mathbf{ana}(\_)]\in \Psi)$ ~~~~ $\vdash_{\Theta}i:\mathtt{Parser}(\mathtt{Exp})$}
-\UIC{$\vdash_{\Theta}\Psi;s_0[\mathbf{ana}(i)]$}
+\AXC{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~k.(k[\mathbf{syn}(\_,\_)]\in \Psi\lor k[\mathbf{ana}(\_)]\in \Psi)$ ~~~~ $\vdash_{\Theta}\gamma:\mathbf{named}[ExpParser]$}
+\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{ana}(\gamma)]$}
 \DP
 \end{center}
 
 \begin{center}
 \AXC{
-	\stackanchor
-	{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~s.(s=s_0\land s[\mathbf{syn}(\_,\_)]\in \Psi\lor s[\mathbf{ana}(\_)]\in \Psi)$}
-	{$\vdash_{\Theta}\tau::\star$~~~~ $\vdash_{\Theta}i:\mathtt{Parser}(\mathtt{Exp})$}
+	{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~k.(k[\mathbf{syn}(\_,\_)]\in \Psi\lor k[\mathbf{ana}(\_)]\in \Psi)$} ~~~~
+	{$\vdash_{\Theta}\tau::\kappa$~~~~ $\vdash_{\Theta}\gamma:\mathbf{named}[ExpParser]$}
 }
-\UIC{$\vdash_{\Theta}\Psi;s_0[\mathbf{syn}(\tau,i)]$}
+\UIC{$\vdash_{\Theta}\Psi;k[\mathbf{bk}(\tau::\kappa), \gamma]$}
 \DP
 \end{center}
 
@@ -549,8 +581,8 @@ type Result(T) = casetype
 \AXC{}
 \UIC{$\vdash \emptyset$}
 %%% the next rule
-\AXC{$\vdash \Theta$ ~~~~ $\T\notin \text{dom}(\Theta)$ ~~~~ $\vdash_{\Theta}\lambda[\kappa](t.[t/\T]\tau)::\kappa\rightarrow\kappa$ ~~~~ $\vdash_{\Theta,T[\tau(\T)::\kappa,-]}i:\tau~ok$}
-\UIC{$\vdash\Theta,\T[\tau::\kappa,i:\tau]$}
+\AXC{$\vdash \Theta$ ~~~~ $T\notin dom(\Theta)$ ~~~~ $\vdash_{\Theta,T[?,?]}\tau::\kappa~ok$ ~~~~ $\vdash_{\Theta,T[\tau::\kappa,?]}i:\tau~ok$}
+\UIC{$\vdash\Theta,T[\tau::\kappa,i:\tau]$}
 \noLine
 \BIC{}
 \DP
@@ -561,10 +593,10 @@ type Result(T) = casetype
 \AXC{}
 \UIC{$\vdash_{\Theta} \emptyset$}
 %%% the next rule
-\AXC{$l\notin \text{dom}(\omega)$ ~~~~ $\emptyset\vdash_{\Theta}\tau::\star$ ~~~~ $\vdash_{\Theta}\omega$}
+\AXC{$l\notin dom(\omega)$ ~~~~ $\emptyset\vdash_{\Theta}\tau::*$ ~~~~ $\vdash_{\Theta}\omega$}
 \UIC{$\vdash_{\Theta} l[\mathbf{def},\tau];\omega$}
 %%%
-\AXC{$l\notin \text{dom}(\omega)$ ~~~~ $\emptyset\vdash_{\Theta}\tau::\star$ ~~~~ $\vdash_{\Theta}\omega$}
+\AXC{$l\notin dom(\omega)$ ~~~~ $\emptyset\vdash_{\Theta}\tau::*$ ~~~~ $\vdash_{\Theta}\omega$}
 \UIC{$\vdash_{\Theta} l[\mathbf{val},\tau];\omega$}
 \noLine
 \TIC{}
@@ -576,8 +608,20 @@ type Result(T) = casetype
 \AXC{}
 \UIC{$\vdash_{\Theta} \emptyset$}
 %%% the next rule
-\AXC{$C\notin \text{dom}(\chi)$ ~~~~ $\emptyset\vdash_{\Theta}\tau::\star$ ~~~~ $\vdash_{\Theta}\chi$}
+\AXC{$C\notin dom(\chi)$ ~~~~ $\emptyset\vdash_{\Theta}\tau::*$ ~~~~ $\vdash_{\Theta}\chi$}
 \UIC{$\vdash_{\Theta} C[\tau];\chi$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta} \tau::\kappa~ok$}
+\begin{center}
+\AXC{}
+\UIC{$\vdash_{\Theta} ?$}
+%%% the next rule
+\AXC{$\emptyset\vdash_{\Theta} \tau::K$}
+\UIC{$\vdash_{\Theta} \tau~ok$}
 \noLine
 \BIC{}
 \DP
@@ -588,7 +632,20 @@ type Result(T) = casetype
 \AXC{}
 \UIC{$\vdash_{\Theta} ?$}
 %%% the next rule
-\AXC{$\emptyset\vdash_{\Theta}\tau::\star$ ~~~~ $\emptyset\vdash_{\Theta} i\Leftarrow \tau$}
+\AXC{$\emptyset\vdash_{\Theta}\tau::*$ ~~~~ $\emptyset\vdash_{\Theta} i\Leftarrow \tau$}
+\UIC{$\vdash_{\Theta} i:\tau$}
+\noLine
+\BIC{}
+\DP
+\end{center}
+
+
+\flyingbox{$\vdash_{\Theta} \gamma:\tau$}
+\begin{center}
+\AXC{$\vdash_{\Theta}\tau$}
+\UIC{$\vdash_{\Theta} ?:\tau$}
+%%% the next rule
+\AXC{$\emptyset\vdash_{\Theta}\tau::*$ ~~~~ $\emptyset\vdash_{\Theta} i\Leftarrow \tau$}
 \UIC{$\vdash_{\Theta} i:\tau$}
 \noLine
 \BIC{}
@@ -600,7 +657,7 @@ type Result(T) = casetype
 \AXC{}
 \UIC{$\vdash_{\Theta} \emptyset$}
 %%% the next rule
-\AXC{$\vdash_{\Theta} \Gamma$ ~~~~ $\emptyset\vdash_{\Theta} \tau::\star$}
+\AXC{$\vdash_{\Theta} \Gamma$ ~~~~ $\emptyset\vdash_{\Theta} \tau::*$}
 \UIC{$\vdash_{\Theta} \Gamma,x:\tau$}
 \noLine
 \BIC{}
@@ -613,55 +670,53 @@ type Result(T) = casetype
 \AXC{
 	\stackanchor{
 		\stackanchor
-		{$\Theta_0\subset\Theta$ ~~~~ $T[\tau::\kappa,i_m:\mathtt{HasTSL}]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
-		{$i_m.parser.parse(i_{ps})\Downarrow OK((i_{ast},i'_{ps}))$}
+		{$\Theta_0\subset\Theta$ ~~~~ $T[\tau::\kappa,i_m:\mathbf{named}[HasTSL]]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
+		{$\mathbf{iap}(\mathbf{iprj}[parse](\mathbf{iprj}[parser](i_m));i_{ps})\Downarrow \mathbf{iinj}[OK]((i_{ast},i'_{ps}))$}
 	}
-	{$i_{ast}\uparrow \hat{e}$ ~~~~ $\Delta;\emptyset;\Gamma;\emptyset\vdash_{\Theta}\hat{e}\rightsquigarrow i\Leftarrow \mathtt{T}$}
+	{$i_{ast}\uparrow \hat{e}$ ~~~~ $\Delta|\Gamma;\emptyset\vdash_{\Theta}\hat{e}\rightsquigarrow i\Leftarrow \mathbf{named}[T]$}
 }	\RightLabel{(T-lit)}
-\UIC{$\Delta;\Gamma\vdash_{\Theta}\mathbf{lit}[body]\rightsquigarrow i\Leftarrow \mathtt{T}$}
+\UIC{$\Delta|\Gamma\vdash_{\Theta}\mathbf{lit}[body]\rightsquigarrow i\Leftarrow \mathbf{named}[T]$}
 \DP
 \end{center}
 
 
 \begin{center}
-\AXC{$\Theta_0\subset\Theta$ ~~~~ $s[\mathbf{syn}(\tau,i)]\in\Psi$}\RightLabel{(T-syntsmdef)}
-\UIC{$\Delta;\Gamma\myvdash\mathbf{esyntsmdef}[s] \rightsquigarrow i\Rightarrow\mathtt{Parser}(\mathtt{Exp})$}
+\AXC{$\Theta_0\subset\Theta$ ~~~~ $k[\mathbf{syn}(\tau,i)] \in \Psi$}\RightLabel{(T-syntsmdef)}
+\UIC{$\Delta|\Gamma\myvdash \mathbf{esyntsmdef}[k] \rightsquigarrow i\Rightarrow \mathbf{named}[ExpParser]$}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{$\Theta_0\subset\Theta$ ~~~~ $s[\mathbf{ana}(i)] \in \Psi$}\RightLabel{(T-anatsmdef)}
-\UIC{$\Delta|\Gamma\myvdash \mathbf{eanatsmdef}[s] \rightsquigarrow i\Rightarrow\mathtt{Parser}(\mathtt{Exp})$}
+\AXC{$\Theta_0\subset\Theta$ ~~~~ $k[\mathbf{ana}(i)] \in \Psi$}\RightLabel{(T-anatsmdef)}
+\UIC{$\Delta|\Gamma\myvdash \mathbf{eanatsmdef}[k] \rightsquigarrow i\Rightarrow \mathbf{named}[ExpParser]$}
 \DP
 \end{center}
 
 \begin{center}
-\AXC{$\Theta_0\subset\Theta$ ~~~~ $k[\mathbf{ty}(\kappa,\tau,i)]\in\Psi$} \RightLabel{(T-typetsmdef)}
-\UIC{$\Delta|\Gamma\myvdash \mathbf{etypetsmdef}[k]\rightsquigarrow i\Rightarrow\mathtt{Parser}(\mathtt{Type})$}
+\AXC{$\Theta_0\subset\Theta$ ~~~~ $k[\mathbf{ty}(i,\tau)]\in\Psi$} \RightLabel{(T-typetsmdef)}
+\UIC{$\Delta|\Gamma\myvdash \mathbf{etypetsmdef}[k]\rightsquigarrow i \Rightarrow \mathbf{named}[TypeParser]$}
 \DP
 \end{center}
 
 \begin{center}
 \AXC{
 	\stackanchor
-	{$\Theta_0 \subset \Theta$ ~~~~ $s[\mathbf{ana}(i_{tsm})]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
-	{$i_{tsm}.parse(i_{ps});\Downarrow OK((i_{ast}, i'_{ps}))$ ~~~~ $i_{ast}\uparrow \hat{e}$ ~~~~ $\Delta;\emptyset;\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$}
+	{$\Theta_0 \subset \Theta$ ~~~~ $k[\mathbf{ana}(i_k)]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
+	{$\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps});\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$ ~~~~ $i_{ast}\uparrow \hat{e}$ ~~~~ $\Delta|\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$}
 }\RightLabel{(T-ana)}
-\UIC{$\Delta;\Gamma\myvdash\mathbf{etsmap}[s,body] \rightsquigarrow i \Leftarrow \tau$}  
+\UIC{$\Delta|\Gamma\myvdash\mathbf{etsmap}[k,body] \rightsquigarrow i \Leftarrow \tau$}  
 \DP
 \end{center}
 
 \begin{center}
 \AXC{
 	\stackanchor
-	{$\Theta_0 \subset \Theta$ ~~~~ $s[\mathbf{syn}(\tau,i_{tsm})]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
-	{$i_{tsm}.parse(i_{ps})\Downarrow OK((i_{ast}, i'_{ps}))$ ~~~~ $i_{ast}\uparrow \hat{e}$ ~~~~ $\Delta;\emptyset;\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$}
+	{$\Theta_0 \subset \Theta$ ~~~~ $k[\mathbf{syn}(\tau,i_k)]\in\Theta$ ~~~~ $\mathsf{parsestream}(body)=i_{ps}$}
+	{$\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps})\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$ ~~~~ $i_{ast}\uparrow \hat{e}$ ~~~~ $\Delta|\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$}
 } \RightLabel{(T-syn)}
-\UIC{$\Delta;\Gamma\myvdash\mathbf{etsmap}[s,body] \rightsquigarrow i\Rightarrow \tau$}  
+\UIC{$\Delta|\Gamma\myvdash\mathbf{etsmap}[k,body] \rightsquigarrow i\Rightarrow \tau$}  
 \DP
 \end{center}
-
-\todo{Stanley stops here}
 
 \section{Metatheory}
 \begin{theorem}[Internal Type Safety]
