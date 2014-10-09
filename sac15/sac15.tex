@@ -98,7 +98,6 @@ tabsize=4, % Number of spaces per tab in the code
 \setlength{\belowcaptionskip}{-5px}
 
 \begin{document}
-
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
 \newtheorem{definition}{Definition}
@@ -667,7 +666,7 @@ In the rule (T-syn), the type that $\hat{e}$ is being analyzed against is determ
 \BIC{}
 \DP
 \end{center}
-\mycaption{Kinding. Rules for object and case types follow \cite{TSLs}.}
+\mycaption{Kinding (object and case types follow \cite{TSLs})}
 \label{kinding}
 \end{figure}
 
@@ -808,7 +807,13 @@ The remaining two premises of (D-aptsm) check that the metadata transformation i
 % \todo{Where are we supposed to discuss Hygiene?}
 
 \subsection{Metatheory}
-The main theorems guaranteeing that the language is well-behaved are essentially identical to those in \cite{TSLs}. We prove the new cases in the accompanying appendix.%\todo{appendix}
+The main theorems guaranteeing that the language is well-behaved are essentially identical to those in \cite{TSLs}. The key theorem states that well-typed external terms translate to internal terms of the same type. Combined with type safety of the IL, this constitutes type safety for the language.
+
+\begin{theorem}[External Type Preservation]
+If $\vdash\Theta$ and $\vdash_{\Theta}\Psi$ and $\vdash_{\Theta}\Gamma$ and $\Gamma\vdash_{\Theta}^{\Psi} e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\vdash_{\Theta}^{\Psi} e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\vdash_{\Theta} i\Leftarrow\tau$.
+\end{theorem}
+
+We define context well-formedness judgements and prove the new cases of this theorem in the accompanying appendix, along with several other lemmas and theorems.%\todo{appendix}
 
 % \paragraph{Type Safety and Preservation}
 % Extending Wyvern semantics with TSMs still constitutes a type safe language. We will outline the key theorems here presenting the properties a type safe language has: 1) internal type sfaety and 2) type preservation. 
@@ -829,33 +834,44 @@ The main theorems guaranteeing that the language is well-behaved are essentially
 
 % end the environment with {table*}, NOTE not {table}!
 \section{Related Work}\label{related}
-Existing mechanisms to support DSL language extension atop a general purpose language includes 1) extensible macro systems and 2) syntax libraries.
-\paragraph{Macro Systems}
-Macro systems are either lexical or syntactic. 
+Unlike other work on library-integrated syntax extension mechanisms, e.g. SugarJ and its subsequent variations \cite{erdweg2013framework}, and language-external mechanisms like Camlp4 \cite{ocaml-manual}, we do not permit the syntax of the base language to be extended directly. Instead, we directly follow \cite{TSLs} in delimiting syntax extensions from the base language. This guarantees composability -- any combination of  libraries can be imported and used together, without ``link-time'' ambiguities, because different extensions can only interact via the host language (using splicing). We retain the layout delimited forward referenced form and we introduce two variations on the delimiters used by \cite{TSLs}, multipart delimited forms and a curly-brace delimited form that allow escape of forward references. 
 
-Lexical macro systems like CPP (C preprocessor) simply perform text substitution before compiling, which sometimes lead to ill-formed program structure after transformation. 
+Schwerdfeger and Van Wyk have shown a composable analysis for syntax specified using an LR parser generator with a context-aware scanner \cite{conf/pldi/SchwerdfegerW09}. Like our work, they rely on a unique starting token to identify a language, but perform a sophisticated analysis on follow sets of non-terminals to guarantee composability. Our use of fixed delimiters is simpler -- no analysis need to be run at all -- and allows for arbitrary parse functions. A parser generator (in our case, based on Adams grammars \cite{Adams:2013:PPI:2429069.2429129}) is simply a TSL atop this mechanism. Using a synthetic TSM, different parser generator formalisms could be defined (e.g. for regular languages, a simpler mechanism using regular expressions might suffice).
 
-Syntactic macro systems in Scheme~\cite{Dybvig:1992:SAS:173617.173620}, Lisp, Dylan~\cite{Shalit:1996:DRM:236379} and Nemerle provide users the ability to extend the host language with syntax libraries. These macros are expanded after the parsing of the program, thus can guarantee a well structured program. However, Lisp macro system lacks hygiene mechanism to avoid identifier conflicts, while hygienic macros in Scheme and Dylan are limited in its way of pattern matching and substitution. Nemerle provides a relatively flexible way to define macro syntax rules, but its extension strictly limited to those which can be expressed as a single production extension to its grammar. And all of these macros system does not support type-level syntax sugar for the host language.
+None of these mechanisms supports a typing discipline directly, though Lorenzen and Erdweg have described a mechanism for proving the admissibility of derived typing rules for syntax extensions \cite{conf/icfp/LorenzenE13}. Ichikawa and Chiba recently described \emph{ProteaJ}, which, like TSLs, supports associating new productions with types, maintaining a typing discipline \cite{Ichikawa:2014:CUO:2577080.2577092}. This permits some literal forms, though conflicts between these new forms and the base language can arise because delimiters are not used. Like TSLs, alternative syntax for an existing type cannot be defined, and there is no analog to analytic TSMs or type-level TSMs.
 
-TSMs support language extension with arbitrary syntax forms with user defined parser, and limited them into term-level and type-level macros, TSM stay statically typed before literals elaboration. Besides, with hygiene mechanism and modular design specified, TSMs remains hygienic and composable.
+Macro systems have a long history in the LISP family of languages. These typically only permit reinterpretting existing syntax (typically, a variant on S-expressions), rather than introducing arbitrary new syntax, though \emph{reader macros} do allow some syntax extensions as well, albeit without strict composability guarantees \cite{steele1990common}. Nemerle provides a similar facility that does use delimiters \cite{skalski2004meta}. These do not consider issues related to the typing discipline. Macro systems that do consider the typing discipline, e.g. in Scala \cite{ScalaMacros2013}, do not support syntax extension. In Scala, \emph{black box macros} are like synthetic TSMs: they give a type signature. Analytic TSMs do not directly have an analog, but they can be seen as a restriction on the use of \emph{white box macros} (disabled by default) to analytic positions. 
 
-\paragraph{Syntax Extensions}
-Another fashion of extending a general purpose language is through syntax extensions.
+Concerns about hygiene have been well-studied in these communities, e.g. in Scheme \cite{Dybvig:1992:SAS:173617.173620}. 
+Our formalization of the hygiene mechanism is cleanly specified in terms of access to typing contexts and, uniquely, we track portions of the parse stream that correspond to spliced terms implicitly. We also consider hygiene at both the term and type level.
 
-ProteaJ~\cite{Ichikawa:2014:CUO:2577080.2577092} describes the {\it ProteaJ} language, which allows users to define operators annotated with named types. And conflicts between {\it ProteaJ} operators require users to disambiguate them manually. By allowing different TSMs to share same return types, different DSL literals can be composed safely without syntax conflicts. 
+% Existing mechanisms to support DSL language extension atop a general purpose language includes 1) extensible macro systems and 2) syntax libraries.
+% \paragraph{Macro Systems}
+% Macro systems are either lexical or syntactic. 
 
-SugarJ~\cite{erdweg2011sugarjDONOTUSETHIS} supports direct syntactic extension of Java by adding sugar libraries. And CamlP4 is a preprocessor for OCaml that can be used to extend the concrete syntax of the language with parsers and extensible grammars. TSMs differs from these systems by associating parsing with macros, which avoids parsing conflicts at link time.
+% Lexical macro systems like CPP (C preprocessor) simply perform text substitution before compiling, which sometimes lead to ill-formed program structure after transformation. 
 
-\section{Conclusions}
-This paragraph will end the body of this sample document.
-Remember that you might still have Acknowledgments or
-Appendices; brief samples of these
-follow.  There is still the Bibliography to deal with; and
-we will make a disclaimer about that here: with the exception
-of the reference to the \LaTeX\ book, the citations in
-this paper are to articles which have nothing to
-do with the present subject and are used as
-examples only.
+% Syntactic macro systems in Scheme~\cite{Dybvig:1992:SAS:173617.173620}, Lisp, Dylan~\cite{Shalit:1996:DRM:236379} and Nemerle provide users the ability to extend the host language with syntax libraries. These macros are expanded after the parsing of the program, thus can guarantee a well structured program. However, Lisp macro system lacks hygiene mechanism to avoid identifier conflicts, while hygienic macros in Scheme and Dylan are limited in its way of pattern matching and substitution. Nemerle provides a relatively flexible way to define macro syntax rules, but its extension strictly limited to those which can be expressed as a single production extension to its grammar. And all of these macros system does not support type-level syntax sugar for the host language.
+
+% TSMs support language extension with arbitrary syntax forms with user defined parser, and limited them into term-level and type-level macros, TSM stay statically typed before literals elaboration. Besides, with hygiene mechanism and modular design specified, TSMs remains hygienic and composable.
+
+% \paragraph{Syntax Extensions}
+% Another fashion of extending a general purpose language is through syntax extensions.
+
+% ProteaJ~\cite{Ichikawa:2014:CUO:2577080.2577092} describes the {\it ProteaJ} language, which allows users to define operators annotated with named types. And conflicts between {\it ProteaJ} operators require users to disambiguate them manually. By allowing different TSMs to share same return types, different DSL literals can be composed safely without syntax conflicts. 
+
+% SugarJ~\cite{erdweg2011sugarjDONOTUSETHIS} supports direct syntactic extension of Java by adding sugar libraries. And CamlP4 is a preprocessor for OCaml that can be used to extend the concrete syntax of the language with parsers and extensible grammars. TSMs differs from these systems by associating parsing with macros, which avoids parsing conflicts at link time.
+
+% \section{Conclusions}
+% This paragraph will end the body of this sample document.
+% Remember that you might still have Acknowledgments or
+% Appendices; brief samples of these
+% follow.  There is still the Bibliography to deal with; and
+% we will make a disclaimer about that here: with the exception
+% of the reference to the \LaTeX\ book, the citations in
+% this paper are to articles which have nothing to
+% do with the present subject and are used as
+% examples only.
 %\end{document}  % This is where a 'short' article might terminate
 
 %
