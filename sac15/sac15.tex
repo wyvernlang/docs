@@ -635,8 +635,10 @@ The rule (D-syntsm) shows how a synthetic TSM named $s$, synthesizing type $\tau
 Term-level TSM application is captured by the abstract form $\textbf{eaptsm}[s, body]$, where $s$ is the name of the TSM and $body$ is the body of the delimited form, per Sec. \ref{tsms-term}. The rule (T-syn) shows how typing and elaboration for a synthetic TSM proceeds. First, the definition of $s$ is extracted from $\Psi$. Then, a parse stream is constructed on the basis of $body$. We assume the relation $\textsf{parsestream}(body)=i_{ps}$ is defined such that $i_{ps}$ is a closed term of type $\mathtt{ParseStream}$. Then, the $parse$ method of the TSM implementation is invoked with the parse stream. The judgement $i \Downarrow i'$ captures evaluation of $i$ to a value, $i'$. Our internal language is identical to that in \cite{TSLs}, so we omit the rules. As suggested by the declarations in Figure \ref{exp-prelude}, the result is either a parse error or a valid parse, written $OK(i_{exp})$, where $i_{exp}$ is a value of type $\mathtt{Exp}$. Here, we simply leave the error case undefined -- the typing judgement cannot be derived if there is a parse error.% -- though in practice, the compiler would report errors that occurred. 
 
 The \emph{dereification judgement} $i \uparrow \hat{e}$, defined in \cite{TSLs}, takes a value of type \verb|Exp| to a corresponding \emph{translational term}, $\hat{e}$. 
-Translational terms mirror external terms but include an additional form, $\textbf{spliced}[e]$, which captures portions of the parse stream parsed as a spliced term. The case \verb|Spliced| of case type \verb|Exp|, which takes a (portion of) a parse stream, dereifies to this form. This permits us to ensure that only spliced portions of parse streams can refer to variables in the surrounding scope (and no others), ensuring that hygiene is maintained. This is accomplished by the judgements $\Delta_{out}; \Gamma_{out}; \Delta; \Gamma \vdash_{\Theta}^{\Psi} \hat{e} \leadsto i {\Rightarrow}{(\Leftarrow)} \tau$, which can be read ``under outer typing and kinding contexts $\Delta_{out}$ and $\Gamma_{out}$ and inner typing and kinding contexts $\Delta$ and $\Gamma$,  $\hat{e}$ elaborates to internal term $i$ and (synthesizes/analyzes against) type $\tau$''. These judgements behave identically to the corresponding judgements for external terms, using the inner typing and kinding contexts, until a term of the form $\textbf{spliced}[e]$ is encountered. The outer contexts are then used. The relevant rule can be found in \cite{TSLs}, and an analagous type-level rule will be shown below. 
-In the rules for TSLs and TSMs, (T-syn) and (T-ana), the inner contexts begin empty so only variables inside spliced terms can refer to outer variables. A \verb|parse| function that generated, for example, \verb|Var('x')|, would not typecheck, because it captures a variable that it cannot know exists. An occurrence of a variable \verb|x| inside a spliced portion (e.g. between \verb|<{| and \verb|}>| when using the \verb|HTML| TSL) would be checked in the outer context and thus be acceptable. Parse streams cannot be created manually. %The details of this mechanism at the term level are essentially identical (up to the orthogonal addition of parameterized types) to that in \cite{TSLs}, so we omit the rules.
+Translational terms mirror external terms but include an additional form, $\textbf{spliced}[e]$, which captures portions of the parse stream parsed as a spliced term. The case \verb|Spliced| of case type \verb|Exp|, which takes a (portion of) a parse stream, dereifies to this form. This permits us to ensure that only spliced portions of parse streams can refer to variables in the surrounding scope (and no others), ensuring that hygiene is maintained. 
+
+This is technically accomplished by the judgements \[\Delta_{out}; \Gamma_{out}; \Delta; \Gamma \vdash_{\Theta}^{\Psi} \hat{e} \leadsto i {\Rightarrow}{(\Leftarrow)} \tau\]  which can be read ``under outer typing and kinding contexts $\Delta_{out}$ and $\Gamma_{out}$ and inner typing and kinding contexts $\Delta$ and $\Gamma$,  $\hat{e}$ elaborates to internal term $i$ and (synthesizes/analyzes against) type $\tau$''. These judgements behave identically to the corresponding judgements for external terms, using the inner typing and kinding contexts, until a term of the form $\textbf{spliced}[e]$ is encountered. The outer contexts are then used. The relevant rule can be found in \cite{TSLs}, and an analagous type-level rule will be shown below. 
+In the rules for TSLs and TSMs, (T-syn) and (T-ana), the inner contexts begin empty so only variables inside spliced terms can refer to outer variables. A \verb|parse| function that generated, for example, \verb|Var('x')|, would not typecheck, because it captures a variable that it cannot know exists. An occurrence of a variable \verb|x| inside a spliced portion (e.g. between \verb|<{| and \verb|}>| when using the \verb|HTML| TSL) would be checked in the outer context and thus be acceptable. Parse streams cannot be created manually, so this guarantee is strict. %The details of this mechanism at the term level are essentially identical (up to the orthogonal addition of parameterized types) to that in \cite{TSLs}, so we omit the rules.
 
 In the rule (T-syn), the type that $\hat{e}$ is being analyzed against is determined by the definition of the TSM. The rule (T-ana) is essentially identical, but the type is determined by the type that the whole application is being analyzed against instead, consistent with the descriptions in Sec. \ref{tsms-term}. 
 
@@ -696,13 +698,13 @@ We do not formalize mutually recursive types here, though they follow the same p
 
 The final premise of (D-tydecl) synthesizes a type for the metadata. Metadata can use  the type declaration, but not recursively refer to its own metadata yet so we write a dash for a dummy metadata value.
 
-Figure \ref{kinding} shows that named types have the kind of their underlying type-level term after the self-reference has been eliminated. Parameterized types can thus be applied to parameters like type-level functions.
+Figure \ref{kinding} shows that named types have the kind of their underlying type-level term. Parameterized types can thus be applied to parameters like type-level functions.
 
 \subsection{Type-Level TSMs}
 
 \begin{figure}[t]
 \flyingbox{$\Delta;\Delta\vdash_{\Theta}\hat{\tau}\rightsquigarrow \tau::\kappa$}
-\vspace{-6px}
+%\vspace{-6px}
 \begin{center}
 \AXC{$\Delta_{out}\vdash_{\Theta} \tau ::\kappa$}
 \UIC{$\Delta_{out};\Delta\vdash_{\Theta}\mathbf{spliced}[\tau]\rightsquigarrow \tau::\kappa$}
@@ -728,7 +730,7 @@ Rule (D-tytsm) declares a type-level TSM $s$ that generates a type of kind $\kap
 
 Rule (D-aptsm) shows how type-level TSMs are applied. If the result of the \verb|parse| method is $OK((i_{type}, i_{md}))$, then we dereify $i_{type}$ to a \emph{translational type}, $\hat{\tau}$. These are analagous to translational terms, $\hat{e}$, and serve to ensure hygiene at the level of types. The judgement $\Delta_{out}; \Delta \vdash_{\Theta} \hat{\tau} \leadsto \tau :: \kappa$ can be read ``under outer kinding context $\Delta_{out}$, inner kinding context $\Delta$ and named type context $\Theta$, translational type $\hat\tau$ elaborates to type $\tau$ at kind $\kappa$''. The syntax of translational types mirrors that of types, again with the addition of a form capturing spliced type-level terms arising from the parse stream, $\textbf{spliced}[\tau]$. The rules related to type variables and spliced forms are shown in Figure \ref{tr-kinding}. Only spliced types are checked under the outer context. 
 
-As with type declarations, in (D-aptsm) we need that $\hat{\tau}$ has kind $\kappa \rightarrow \kappa$ to support recursive types. In the example in Sec. \ref{tsms-type}, we omitted this because in practice, we would insert it by default for non-recursive types.
+As with type declarations, in (D-aptsm) we need that $\hat{\tau}$ has kind $\kappa \rightarrow \kappa$ to support recursive types. The outer kinding context here is empty because we do not formalize nested type declarations for simplicity, but in practice it would be the kinding context coming from any outer declarations. In the example in Sec. \ref{tsms-type}, we omitted this because in practice, we would insert it by default for non-recursive types.
 
 The remaining two premises of (D-aptsm) check that the metadata transformation is a function of the right type and invoke it to produce the final metadata (per Sec. \ref{tsms-type}). An identity function would be generated automatically when one is not explicitly provided by the user.
 
@@ -840,11 +842,11 @@ We define context well-formedness judgements and prove the new cases of this the
 
 % end the environment with {table*}, NOTE not {table}!
 \section{Related Work}\label{related}
-Unlike other work on library-integrated syntax extension mechanisms, e.g. SugarJ and its subsequent variations \cite{erdweg2013framework}, and language-external mechanisms like Camlp4 \cite{ocaml-manual}, we do not permit the syntax of the base language to be extended directly. Instead, we directly follow \cite{TSLs} in delimiting syntax extensions from the base language. This guarantees composability -- any combination of  libraries can be imported and used together, without ``link-time'' ambiguities, because different extensions can only interact via the host language (using splicing). We retain the layout delimited forward referenced form and we introduce two variations on the delimiters used by \cite{TSLs}, multipart delimited forms and a curly-brace delimited form that allow escape of forward references. 
+Unlike other work on library-integrated syntax extension mechanisms, e.g. SugarJ and its subsequent variations \cite{erdweg2013framework}, and language-external mechanisms like Camlp4 \cite{ocaml-manual}, we do not permit the syntax of the base language to be extended directly. Instead, we build on the same delimited forms used for type-specific languages \cite{TSLs}. This guarantees composability -- any combination of  libraries can be imported and used together, without ``link-time'' ambiguities, because different extensions can only interact via the host language (using splicing). We retain the layout delimited forward referenced form and we introduce two variations on the delimiters used by \cite{TSLs}, multipart delimited forms and a curly-brace delimited form that allow escape of forward references. Ichikawa and Chiba recently described \emph{ProteaJ}, which are similar to TSLs and suffer from the same deficiencies addressed here, as well as the problem of conflicts with the base language because delimiters are not used \cite{Ichikawa:2014:CUO:2577080.2577092}.
 
 Schwerdfeger and Van Wyk have shown a composable analysis for syntax specified using an LR parser generator with a context-aware scanner \cite{conf/pldi/SchwerdfegerW09}. Like our work, they rely on a unique starting token to identify a language, but perform a sophisticated analysis on follow sets of non-terminals to guarantee composability. Our use of fixed delimiters is simpler -- no analysis need to be run at all -- and allows for arbitrary parse functions. A parser generator (in our case, based on Adams grammars \cite{Adams:2013:PPI:2429069.2429129}) is simply a TSL atop this mechanism. Using a synthetic TSM, different parser generator formalisms could be defined (e.g. for regular languages, a simpler mechanism using regular expressions might suffice).
 
-None of these mechanisms supports a typing discipline directly, though Lorenzen and Erdweg have described a mechanism for proving the admissibility of derived typing rules for syntax extensions \cite{conf/icfp/LorenzenE13}. Ichikawa and Chiba recently described \emph{ProteaJ}, which, like TSLs, supports associating new productions with types, maintaining a typing discipline \cite{Ichikawa:2014:CUO:2577080.2577092}. This permits some literal forms, though conflicts between these new forms and the base language can arise because delimiters are not used. Like TSLs, alternative syntax for an existing type cannot be defined, and there is no analog to analytic TSMs or type-level TSMs.
+None of these mechanisms supports a typing discipline directly, though Lorenzen and Erdweg have described a mechanism for proving the admissibility of derived typing rules for syntax extensions \cite{conf/icfp/LorenzenE13}.  
 
 Macro systems have a long history in the LISP family of languages. These typically only permit reinterpretting existing syntax (typically, a variant on S-expressions), rather than introducing arbitrary new syntax, though \emph{reader macros} do allow some syntax extensions as well, albeit without strict composability guarantees \cite{steele1990common}. Nemerle provides a similar facility that does use delimiters \cite{skalski2004meta}. These do not consider issues related to the typing discipline. Macro systems that do consider the typing discipline, e.g. in Scala \cite{ScalaMacros2013}, do not support syntax extension. In Scala, \emph{black box macros} are like synthetic TSMs: they give a type signature. Analytic TSMs do not directly have an analog, but they can be seen as a restriction on the use of \emph{white box macros} (disabled by default) to analytic positions. 
 
@@ -898,7 +900,11 @@ Our formalization of the hygiene mechanism is cleanly specified in terms of acce
 \newpage
 \onecolumn
 \appendix
+The details below are not necessary to understand the main contributions of the paper, but may be useful for readers interested in implementing or expanding upon our work. We also include more complete proofs and proof sketches of the key metatheoretic properties of the language below.
+
 \section{Syntax \& Type Checking}
+In the main body of the paper, we do not descirbe support for mutually recursive type declarations for concision. We also do not show how to access a TSM definition programatically at run-time, which can be useful to explicitly call the same parser as is used by the typechecker for TSM invocations. We describe the full syntax below.
+
 \subsection{Syntax}
 \[
 \begin{array}{rlrlrl}
@@ -906,19 +912,20 @@ Our formalization of the hygiene mechanism is cleanly specified in terms of acce
   {d}   ~::=&~ \emptyset                  & \kappa      ~::=& \star\\
         | ~ &~ {d}; \mathbf{syntsm}(s,\tau,e)     &   | ~ & \kappa\rightarrow\kappa\\
         | ~ &~ {d}; \mathbf{anatsm}(s,e)        \\
-        | ~ &~ {d};\mathbf{tytsm}(s,\kappa,\tau,e)        \\
+        | ~ &~ {d};\mathbf{tytsm}(s,n,\kappa,\tau,e)   & n ~ ::= &1 ~|~ n + 1     \\
 %       | ~ &~ {d};\mathbf{tydecl}(\T,\tau,e)     \\
-        | ~ &~{d};\mathbf{mrectydecl}(\theta_1,...,\theta_n)\\
+        | ~ &~{d};\mathbf{mrectydecl}(\theta)\\
 %       | ~ &~ {d};\mathbf{tyaptsm}(\T,s,body,e)\\
-  \theta  ~::=&\mathbf{tydecl}(\T,\tau,e)       &\mathring\theta~::=&\T[\tau::\kappa,e]\\
-      |~&\mathbf{tyaptsm}(\T,s,body,e)      &|~&\T[\tau::\kappa,i:\tau,i]\\
+  \theta  ~::=& \emptyset \\
+        | ~ & \mathbf{tydecl}(\T,\tau,e)\\
+      |~&\mathbf{tyaptsm}(\T,s,body,e)\\
   \tau    ~::=&~ \T       &\hat{\tau} ~::=&~ \T\\
         |~  & ~ \mathbf{objtype}[\omega]    &|~ &~ \mathbf{objtype}[\omega]       \\
         |~  & ~ \mathbf{casetype}[\chi]     &|~ &~ \mathbf{casetype}[\chi]        \\
         |~  & ~ \tau\rightarrow\tau       &|~ &~ \hat\tau\rightarrow\hat\tau  \\
         |~  & ~ t               &|~ &~ t                  \\
         |~  & ~ \lambda[\kappa](t.\tau)     &|~ &~ \lambda[\kappa](t.\hat{\tau})\\
-        |~  & ~ \forall[\kappa](t.\tau)       &|~ &~ \forall[\kappa](t.\hat{\tau})\\
+        |~  & ~ \forall(t.\tau)       &|~ &~ \forall(t.\hat{\tau})\\
         |~  & ~ \tau(\tau)            &|~ &~ \hat{\tau}(\hat{\tau})\\
         |~  & ~ \tau \times \tau        &|~ &~ \hat{\tau}\times\hat{\tau}\\
             &                 &|~ &~ \mathbf{spliced}[\tau]\\
@@ -931,12 +938,12 @@ Our formalization of the hygiene mechanism is cleanly specified in terms of acce
         | ~ &~ \mathbf{easc}[\tau](e)     &       | ~ &~  \mathbf{hasc}[\hat\tau](\hat{e})    &       | ~ &~  \mathbf{iasc}[\tau](\dot{e})\\
         | ~ &~ \mathbf{elet}(e; x.e)        &       | ~ &~  \mathbf{hlet}(\hat{e}; x.\hat{e})   &       | ~ &~  \mathbf{ilet}(i;x.i)\\
         | ~ &~ \mathbf{elam}(x.e)           &       | ~ &~  \mathbf{hlam}(x.\hat{e})        &       | ~ &~  \mathbf{ilam}(x.i)\\
-        | ~ &~ \mathbf{etylam}[\kappa](t.e)     &       | ~ &~  \mathbf{htylam}[\kappa](t.\hat{e})    &       | ~ &~  \mathbf{itylam}[\kappa](t.i)\\
+%        | ~ &~ \mathbf{etylam}[\kappa](t.e)     &       | ~ &~  \mathbf{htylam}[\kappa](t.\hat{e})    &       | ~ &~  \mathbf{itylam}[\kappa](t.i)\\
         | ~ &~ \mathbf{eap}(e;e)          &       | ~ &~  \mathbf{hap}(\hat{e};\hat{e})     &       | ~ &~  \mathbf{iap}(i;i)\\
         | ~ &~ \mathbf{enew}(m)           &       | ~ &~  \mathbf{hnew}(\hat{m})          &       | ~ &~  \mathbf{inew}(\dot{m})\\
         | ~ &~ \mathbf{eprj}[l](e)          &       | ~ &~  \mathbf{hprj}[l](\hat{e})       &       | ~ &~  \mathbf{iprj}[l](i)\\
         | ~ &~ \mathbf{einj}[C](e)          &       | ~ &~  \mathbf{hinj}[C](\hat{e})       &       | ~ &~  \mathbf{iinj}[C](i)\\
-        | ~ &~ \mathbf{ecase}[e]\{r\}         &       | ~ &~  \mathbf{hcase}[\hat{e}]\{\hat{r}\}    &       | ~ &~  \mathbf{icase}[i]\{\dot{r}\}\\
+        | ~ &~ \mathbf{ecase}(e)\{r\}         &       | ~ &~  \mathbf{hcase}(\hat{e})\{\hat{r}\}    &       | ~ &~  \mathbf{icase}(i)\{\dot{r}\}\\
         | ~ &~ \mathbf{etoast}(e)           &       | ~ &~  \mathbf{htoast}(\hat{e})        &       | ~ &~  \mathbf{itoast}[i]\\
         | ~ &~ \mathbf{emetadata}[\T]         &       | ~ &~  \mathbf{hmetadata}[\T]\\
         | ~ &~ \mathbf{etsmdef}[s]        &       | ~ &~  \mathbf{htsmdef}[s]\\
@@ -949,11 +956,15 @@ Our formalization of the hygiene mechanism is cleanly specified in terms of acce
         | ~ &~ \mathbf{erule}[C](x.e);r     &       | ~ &~ \mathbf{hrule}[C](x.\hat{e});\hat{r}   &     | ~ &~ \mathbf{irule}[C](x.i);\dot{r}
 \end{array}
 \]
-\subsection{Context Definition}
+
+
+In the type checking and elaboration rules, we use certain concrete forms for simplicity and readability consideration. For example, field projection out of an object is written abstractly $\mathbf{iprj}[l](i)$, but we present it in its concrete form $i.l$ in the rules. Function application, written $i(i)$, is abstractly written $\mathbf{iap}(i;i)$. Introducing a value of a case type is written $[C](i)$, but abstractly is written $\mathbf{iinj}[C](i)$ (''injection'', following standard terminology for sum types). Note also that in \cite{TSLs},  named types were written $\mathbf{named}[T]$ but for concision here we simply use typewriter font, $\mathtt{T}$. We also include polymorphic function types in the syntax for completeness, assuming a standard mechanism supporting higher-rank polymorphism so that we do not need explicit type abstraction and application at the term level, though we do not formalize it here.
+
+\subsection{Contexts}
 \[
 \begin{array}{rrl}
-\text{Keyword Context}  & \Psi  ~::=&~  \emptyset\\
-            &     | ~ &~  \Psi;s[\mathbf{ty}(\kappa,\tau,i)]\\
+\text{TSM Context}  & \Psi  ~::=&~  \emptyset\\
+            &     | ~ &~  \Psi;s[\mathbf{ty}(n,\kappa,\tau,i)]\\
             &     | ~ &~  \Psi;s[\mathbf{syn}(\tau,i)]\\
             &     | ~ &~  \Psi;s[\mathbf{ana}(i)]\\
 \text{Type Context}   & \Theta  ~::=&~ \emptyset\\
@@ -964,11 +975,7 @@ Our formalization of the hygiene mechanism is cleanly specified in terms of acce
             &       | ~ &~ \Delta,t::\kappa\\
 \end{array}
 \]
-
 \subsection{Type Checking and Elaboration}
-In the type checking and elaboration rules, we use the expression concrete forms for simplicity and readability consideration. For example, for the internal expression $\mathbf{iprj}[l](i)$, we present it in its concrete form $i.l$ in the rules. Same for other terms: $i(i)$ to represent $\mathbf{iap}(i;i)$, $[C](i)$ to represent $\mathbf{iinj}[C](i)$ etc.
-
-We formalize the mutually recursive types in ocaml style: all mutually recursive types should be declared together with keyword \verb|and| specified. And types declared as mutually recursive types will be checked altogether in the rule D-rec. A  type with self recursion or a type without recursion can be considered as a special case of definition: only one $\theta$ appears in the declaration $\mathbf{mrectydef}(\theta)$.
 \par
 \flyingbox{$\rho \sim (\Psi;\Theta)\rightsquigarrow i:\tau$}
 \begin{center}
@@ -1005,10 +1012,10 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \begin{center}
 \AXC{
 \stackanchor{
-  $d\sim(\Psi;\Theta)$ ~~~~ $s\notin(\Psi)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau::\star$}
-  {$\emptyset;\emptyset\vdash_{\Theta_0\Theta}e_{tsm}\rightsquigarrow i_{tsm}\Leftarrow \mathtt{Parser}(\mathtt{Type}\times\tau_{md})$}
+  $d\sim(\Psi;\Theta)$ ~~~~ $s\notin\text{dom}(\Psi)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau_{md}::\star$}
+  {$\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e_{tsm}\rightsquigarrow i_{tsm}\Leftarrow \mathtt{Parser}(\mathtt{Type}\times\tau_{md})$}
 }\RightLabel{(D-tytsm)}
-\UIC{$d;\mathbf{tytsm}(s,\kappa,\tau_{md},e_{tsm})\sim(\Psi,s[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})];\Theta)$}
+\UIC{$d;\mathbf{tytsm}(s,n,\kappa,\tau_{md},e_{tsm})\sim(\Psi,s[\mathbf{ty}(n,\kappa,\tau_{md},i_{tsm})];\Theta)$}
 \DP
 \end{center}
 
@@ -1041,53 +1048,124 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 
 \begin{center}
 \AXC{
-  \stackanchor{
-  \stackanchor{$d\sim(\Psi;\Theta)$ ~~~~ $\nexists~u,v\in\{1,...,n\}.(u\neq v\land\T_u=\T_v)$ ~~~~ $\forall~k.(\T_k\notin\text{dom}(\Theta))$}
-  {$\forall~k\in\{1,...,n\}.(\vdash_{\Theta_0\Theta}^{\Psi}\theta_k\leadsto \mathring\theta_k\land \mathsf{name}(\mathring\theta_k)=\T_k \land \emptyset\vdash\mathsf{type}(\mathring\theta_k)::\kappa_1\rightarrow...\rightarrow\kappa_n\rightarrow\kappa_k)$}}
-  {$\forall~k.(\vdash_{\Theta_0\Theta,\T_1[\tau_1(\T_1,...,\T_n)::\kappa_1,-],...,\T_n[\tau_n(\T_1,...,\T_n)::\kappa_n,-]}\mathring\theta_k\leadsto \T_k[\tau_k::\kappa_k,i_k:\tau_{mdk}]$)}
+  $d\sim(\Psi;\Theta)$ ~~~~ $\vdash_{\Theta_0\Theta}^{\Psi} \theta \sim \Upsilon$ ~~~~ $\vdash_{\Theta_0\Theta}^{\Psi} \theta \sim_{\Upsilon} \Theta'$ ~~~~ $\vdash_{\Theta_0\Theta}^\Psi \theta \sim_{\Theta'} \Theta''$
   }\RightLabel{(D-rec)}
-\UIC{$d;\mathbf{mrectydecl}(\theta_1,...,\theta_n)\sim(\Psi;\Theta,\T_1[\tau_1::\kappa_1,i_1:\tau_{md1}],...,\T_n[\tau_n::\kappa_n,i_n:\tau_{mdn}])$}
+\UIC{$d;\mathbf{mrectydecl}(\theta)\sim(\Psi;\Theta\Theta'')$}
 \DP
 \end{center}
 
-\flyingbox{$\vdash_{\Theta}^{\Psi}\theta\leadsto\mathring\theta$}
-\begin{center}
-\AXC{
-  {$\T\notin\text{dom}(\Theta_0\Theta)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau::\kappa$}
-}\RightLabel{(D-tydecl-1)}
-\UIC{$\vdash_{\Theta}^{\Psi}\mathbf{typedecl}(\T,\tau,e)\leadsto (\Psi;\Theta,\T[\tau::\kappa,e])$}
-\DP
-\end{center}
+We formalize mutually recursive types with the rule above, following functional languages like Ocaml: all mutually recursive types should be declared together with the keyword \verb|and| separating them. The rule operates in three passes through the list. Type-level TSMs must declare how many types they must be mutually defined against. Each application of a type-level TSM still only generates a single type. \\
+
+\flyingbox{$\vdash_{\Theta}^\Psi \theta \sim \Upsilon$}~~~~$\Upsilon ::= \emptyset ~|~ \Upsilon, \mathtt{T} :: \kappa$\\
+
+First the names and kinds are extracted and placed in a list, $\Upsilon$. 
 
 \begin{center}
-\AXC{
-    \stackanchor{$\mathtt{T}\notin \text{dom}(\Theta_0\Theta)$ ~~~~ $s[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})]\in\Psi$}
-    {
-      \stackanchor{$\mathsf{parsestream}(body)=i_{ps}$ ~~~~ $i_{tsm}.parse(i_{ps}) \Downarrow OK((i_{type},i_{md}))$}{
-        $i_{type}\uparrow\hat\tau$ ~~~~ $\Delta;\emptyset\vdash_{\Theta\Theta'}\hat\tau\rightsquigarrow\tau::\kappa$
-      }
-    }
-}\RightLabel{(D-aptsm-1)}
-\UIC{$\vdash_{\Theta}^{\Psi}\mathbf{tyaptsm}(\mathtt{T},s,body,e_{mdx}) \leadsto (\Psi; \Theta,\mathtt{T}[\tau::\kappa,e_{mdx},i_{md}:\tau_{md}])$}
-\DP
-\end{center}
-
-\flyingbox{$\vdash^{\Psi}_{\Theta}\mathring\theta\leadsto\T[\tau::\kappa,i:\tau]$}
-\begin{center}
-\AXC{
-  $\emptyset;\emptyset\vdash_{\Theta}^{\Psi}e_{md}\rightsquigarrow i_{md}\Rightarrow\tau_{md}$
-}\RightLabel{(D-tydecl-2)}
-\UIC{$\vdash_{\Theta}^{\Psi}\T[\tau::\kappa,e_{md}]\leadsto\T[\tau::\kappa,i_{md}::\tau_{md}])$}
+\AXC{~}
+\UIC{$\vdash_\Theta^\Psi \emptyset \sim \emptyset$}
 \DP
 \end{center}
 
 \begin{center}
 \AXC{
-  {$\emptyset;\emptyset\vdash_{\Theta}^{\Psi}e_{mdx}\rightsquigarrow i_{mdx} \Rightarrow \tau_{md}\rightarrow\tau'_{md}$ ~~~~ $i_{mdx}(i_{md})\Downarrow i'_{md}$}
-}\RightLabel{(D-aptsm-2)}
-\UIC{$\vdash_{\Theta}^{\Psi}\T[\tau::\kappa,e_{mdx},i_{md}:\tau_{md}] \leadsto\mathtt{T}[\tau::\kappa,i'_{md}:\tau'_{md}])$}
+  $\vdash_{\Theta}^\Psi \theta \sim \Upsilon$ ~~~~ $\mathtt{T} \notin \text{dom}(\Upsilon)$ ~~~~ $\mathtt{T} \notin \text{dom}(\Theta)$ ~~~~ $\emptyset \vdash_{\Theta}^\Psi \tau :: \kappa_1 \rightarrow \ldots \rightarrow \kappa_n \rightarrow \kappa$  
+}
+\UIC{$\vdash_\Theta^\Psi \theta, \textbf{tydecl}(\mathtt{T}, \tau, e) \sim \Upsilon, \mathtt{T} :: \kappa$}
 \DP
 \end{center}
+
+\begin{center}
+\AXC{
+  $\vdash_\Theta^\Psi \theta \sim \Upsilon$ ~~~~ $\mathtt{T} \notin \text{dom}(\Upsilon)$ ~~~~ $\mathtt{T} \notin \text{dom}(\Theta)$ ~~~~ $s[\textbf{ty}(n, \kappa,\tau,i)] \in \Psi$
+}
+\UIC{$\vdash_\Theta^\Psi \theta, \textbf{tyaptsm}(\mathtt{T}, s, body, e) \sim \Upsilon, \mathtt{T} :: \kappa$}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_{\Theta}^\Psi \theta \sim_\Upsilon \Theta$}\\
+
+Then, the types themselves are constructed and the type-level TSMs are applied. The metadata is not generated yet (though we save the metadata generated by a type-level TSM so we don't have to re-run it in the next phase.) Each type-level term must have a kind that takes in references to all the others.
+
+\begin{center}
+\AXC{~}
+\UIC{$\vdash_\Theta^\Psi \emptyset \sim_\Upsilon \emptyset$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_\Theta^\Psi \theta \sim_\Upsilon \Theta'$ ~~~~ $\Upsilon = \mathtt{T}_1 :: \kappa_1, \ldots, \mathtt{T}_i :: \kappa_i, \ldots, \mathtt{T}_n :: \kappa_n$ ~~~~ $\emptyset \vdash_\Theta \tau :: \kappa_1 \rightarrow \ldots \rightarrow \kappa_n \rightarrow \kappa_i$}
+\UIC{$\vdash_\Theta^\Psi \theta, \textbf{tydecl}(\mathtt{T}_i, \tau, e) \sim_\Upsilon \Theta', \mathtt{T_i}[\tau(\mathtt{T}_1)\ldots(\mathtt{T}_n) :: \kappa_i, -]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{\stackanchor{$\vdash_\Theta^\Psi \theta \sim_\Upsilon \Theta'$ ~~~~ $\Upsilon = \mathtt{T}_1 :: \kappa_1, \ldots, \mathtt{T}_i :: \kappa_i, \ldots, \mathtt{T}_n :: \kappa_n$ ~~~~ $s[\textbf{ty}(n, \kappa, \tau_{md}, i_{tsm})] \in \Psi$}{
+  $\mathsf{parsestream}(body)=i_{ps}$ ~~~~ $i_{tsm}.parse(i_{ps}) \Downarrow OK((i_{type},i_{md}))$ ~~~~ $i_{type}\uparrow\hat\tau$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta\Theta'}\hat\tau\rightsquigarrow\tau::\kappa_1 \rightarrow \ldots \rightarrow \kappa_n \rightarrow \kappa_i$
+  }}
+\UIC{$\vdash_\Theta^\Psi \theta, \textbf{tyaptsm}(\mathtt{T}_i, s, body, e) \sim_\Upsilon \Theta', \mathtt{T}_i[\tau(\mathtt{T}_i)...(\mathtt{T}_n) :: \kappa_i, i_{md} : \tau_{md}]$}
+\DP
+\end{center}
+
+\flyingbox{$\vdash_\Theta^\Psi \theta \sim_\Theta \Theta$}\\
+
+Finally, the metadata and metadata transformations are processed.
+
+\begin{center}
+\AXC{~}
+\UIC{$\vdash_\Theta^\Psi \emptyset \sim_{\Theta'} \emptyset$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_\Theta^\Psi \theta \sim_{\Theta',\mathtt{T}[\tau :: \kappa, -]} \Theta''$ ~~~~ $\emptyset; \emptyset \empty \vdash_{\Theta\Theta',\mathtt{T}[\tau :: \kappa, -]}^\Psi e_{md} \leadsto i_{md} \Rightarrow \tau_{md}$}
+\UIC{$\vdash_\Theta^\Psi \theta, \textbf{tydecl}(\mathtt{T}, \tau, e_{md}) \sim_{\Theta'', \mathtt{T}[\tau :: \kappa, -]} \Theta', \mathtt{T}[\tau :: \kappa, i_{md} : \tau_{md}]$}
+\DP
+\end{center}
+
+\begin{center}
+\AXC{$\vdash_\Theta^\Psi \theta \sim_{\Theta',\mathtt{T}[\tau::\kappa,i_{md}:\tau_{md}]} \Theta''$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta\Theta',\mathtt{T}[\tau :: \kappa,i_{md}:\tau_{md}]}^{\Psi}e_{mdx}\rightsquigarrow i_{mdx} \Rightarrow \tau_{md}\rightarrow\tau'_{md}$ ~~~~ $i_{mdx}(i_{md})\Downarrow i'_{md}$}
+\UIC{$\vdash_\Theta^\Psi \theta, \textbf{tyaptsm}(\mathtt{T}, s, body, e_{mdx}) \sim_{\Theta',\mathtt{T}[\tau :: \kappa, i_{md} : \tau_{md}]} \Theta'', \mathtt{T}[\tau :: \kappa_i, i_{md}' : \tau_{md}']$}
+\DP
+\end{center}
+
+% \flyingbox{$\vdash_{\Theta}^{\Psi}\theta\leadsto\mathring\theta$}
+% \begin{center}
+% \AXC{
+%   {$\T\notin\text{dom}(\Theta_0\Theta)$ ~~~~ $\emptyset\vdash_{\Theta_0\Theta}\tau::\kappa$}
+% }\RightLabel{(D-tydecl-1)}
+% \UIC{$\vdash_{\Theta}^{\Psi}\mathbf{typedecl}(\T,\tau,e)\leadsto (\Psi;\Theta,\T[\tau::\kappa,e])$}
+% \DP
+% \end{center}
+
+% \begin{center}
+% \AXC{
+%     \stackanchor{$\mathtt{T}\notin \text{dom}(\Theta_0\Theta)$ ~~~~ $s[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})]\in\Psi$}
+%     {
+%       \stackanchor{$\mathsf{parsestream}(body)=i_{ps}$ ~~~~ $i_{tsm}.parse(i_{ps}) \Downarrow OK((i_{type},i_{md}))$}{
+%         $i_{type}\uparrow\hat\tau$ ~~~~ $\Delta;\emptyset\vdash_{\Theta\Theta'}\hat\tau\rightsquigarrow\tau::\kappa$
+%       }
+%     }
+% }\RightLabel{(D-aptsm-1)}
+% \UIC{$\vdash_{\Theta}^{\Psi}\mathbf{tyaptsm}(\mathtt{T},s,body,e_{mdx}) \leadsto (\Psi; \Theta,\mathtt{T}[\tau::\kappa,e_{mdx},i_{md}:\tau_{md}])$}
+% \DP
+% \end{center}
+
+% \flyingbox{$\vdash^{\Psi}_{\Theta}\mathring\theta\leadsto\T[\tau::\kappa,i:\tau]$}
+% \begin{center}
+% \AXC{
+%   $\emptyset;\emptyset\vdash_{\Theta}^{\Psi}e_{md}\rightsquigarrow i_{md}\Rightarrow\tau_{md}$
+% }\RightLabel{(D-tydecl-2)}
+% \UIC{$\vdash_{\Theta}^{\Psi}\T[\tau::\kappa,e_{md}]\leadsto\T[\tau::\kappa,i_{md}::\tau_{md}])$}
+% \DP
+% \end{center}
+
+% \begin{center}
+% \AXC{
+%   {$\emptyset;\emptyset\vdash_{\Theta}^{\Psi}e_{mdx}\rightsquigarrow i_{mdx} \Rightarrow \tau_{md}\rightarrow\tau'_{md}$ ~~~~ $i_{mdx}(i_{md})\Downarrow i'_{md}$}
+% }\RightLabel{(D-aptsm-2)}
+% \UIC{$\vdash_{\Theta}^{\Psi}\T[\tau::\kappa,e_{mdx},i_{md}:\tau_{md}] \leadsto\mathtt{T}[\tau::\kappa,i'_{md}:\tau'_{md}])$}
+% \DP
+% \end{center}
 
 \flyingbox{$\Delta\vdash_{\Theta}{\tau}::\kappa$}
 \begin{center}
@@ -1130,8 +1208,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \AXC{$\Delta,t:\kappa_1\vdash_{\Theta}\tau::\kappa_1$}
 \UIC{$\Delta\vdash_{\Theta}\lambda[\kappa_1](t.\tau)::\kappa\rightarrow \kappa_2$}
 %%
-\AXC{$\Delta,t::\kappa_1\vdash_{\Theta}\tau::\star$}
-\UIC{$\Delta\vdash_{\Theta}\forall[\kappa_1](t.\tau)::\star$}
+\AXC{$\Delta,t::\star\vdash_{\Theta}\tau::\star$}
+\UIC{$\Delta\vdash_{\Theta}\forall(t.\tau)::\star$}
 \noLine
 \TIC{}
 \DP
@@ -1185,8 +1263,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\Delta_{out};\Delta,t::\kappa_1\vdash_{\Theta}\hat{\tau}\rightsquigarrow\tau::\star$}
-\UIC{$\Delta_{out};\Delta\vdash_{\Theta}\forall[\kappa_1](t.\hat{\tau})\rightsquigarrow\forall[\kappa_1](t.{\tau})::\star$}
+\AXC{$\Delta_{out};\Delta,t::\star\vdash_{\Theta}\hat{\tau}\rightsquigarrow\tau::\star$}
+\UIC{$\Delta_{out};\Delta\vdash_{\Theta}\forall(t.\hat{\tau})\rightsquigarrow\forall(t.{\tau})::\star$}
 \DP
 \end{center}
 
@@ -1198,8 +1276,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 
 \doublebox{$\vdash_{\Theta} i\uparrow \tau$}{$\vdash_{\Theta}\tau\downarrow i$}
 \begin{center}
-\AXC{$\vdash_{\Theta} i\uparrow \T$}
-\UIC{$\vdash_{\Theta} \mathbf{iinj}[Named](i)\uparrow \T$}
+\AXC{$ i\uparrow \T$}
+\UIC{$ \mathbf{iinj}[Named](i)\uparrow \T$}
 %%% the next rule
 \AXC{$\T\downarrow i_{id}$}
 \UIC{$\T\downarrow \mathbf{iinj}[Named](i_{id})$}
@@ -1209,8 +1287,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\vdash_{\Theta} i\uparrow \omega$}
-\UIC{$\vdash_{\Theta} \mathbf{iinj}[Objtype](i)\uparrow \mathbf{objtype}[\omega]$}
+\AXC{$ i\uparrow \omega$}
+\UIC{$ \mathbf{iinj}[Objtype](i)\uparrow \mathbf{objtype}[\omega]$}
 %%% the next rule
 \AXC{$\omega\downarrow i$}
 \UIC{$\mathbf{objtype}[\omega]\downarrow\mathbf{iinj}[Objtype](i)$}
@@ -1220,8 +1298,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\vdash_{\Theta} i\uparrow \chi$}
-\UIC{$\vdash_{\Theta} \mathbf{iinj}[Casetype](i)\uparrow \mathbf{casetype}[\chi]$}
+\AXC{$ i\uparrow \chi$}
+\UIC{$ \mathbf{iinj}[Casetype](i)\uparrow \mathbf{casetype}[\chi]$}
 %%% the next rule
 \AXC{$\chi\downarrow i$}
 \UIC{$\mathbf{casetype}[\omega]\downarrow\mathbf{iinj}[Casetype](i)$}
@@ -1231,8 +1309,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\vdash_{\Theta} i_1\uparrow \tau_1$ ~~~~ $\vdash_{\Theta} i_2\uparrow \tau_2$}
-\UIC{$\vdash_{\Theta} \mathbf{iinj}[Arrow]((i_1, i_2))\uparrow \tau_1\rightarrow\tau_2$}
+\AXC{$ i_1\uparrow \tau_1$ ~~~~ $ i_2\uparrow \tau_2$}
+\UIC{$ \mathbf{iinj}[Arrow]((i_1, i_2))\uparrow \tau_1\rightarrow\tau_2$}
 %%%
 \AXC{$\tau_1\downarrow i_1$ ~~~~ $\tau_2\downarrow i_2$}
 \UIC{$\tau_1\rightarrow\tau_2 \downarrow\mathbf{iinj}[Arrow]((i_1, i_2))$}
@@ -1242,8 +1320,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\vdash_{\Theta} i\Leftarrow MemberList$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Nil](i)\uparrow \emptyset$}
+\AXC{ }
+\UIC{$\mathbf{iinj}[Nil](i)\uparrow \emptyset$}
 %%%
 \AXC{}
 \UIC{$\emptyset \downarrow\mathbf{iinj}[Nil](i)$}
@@ -1255,10 +1333,10 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \begin{center}
 \AXC{
   \stackanchor
-  {$\vdash_{\Theta} i\Leftarrow MemberList$ ~~~~ $i_l\uparrow l$}
-  {$\vdash_{\Theta} i_t\uparrow \tau$ ~~~~ $\vdash_{\Theta} i_c\uparrow \omega$}
+  {$i_l\uparrow l$}
+  {$ i_t\uparrow \tau$ ~~~~ $ i_c\uparrow \omega$}
 }
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Cons]((i_l, i_t, i_c))\uparrow l[\tau],\omega$}
+\UIC{$\mathbf{iinj}[Cons]((i_l, i_t, i_c))\uparrow l[\tau],\omega$}
 %%%
 \AXC{$l\downarrow i_l$ ~~~~ $\tau\downarrow i_t$ ~~~~ $\omega\downarrow i_c$}
 \UIC{$l[\tau],\omega \downarrow \mathbf{iinj}[Cons]((i_l,i_t,i_c))$}
@@ -1268,8 +1346,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\vdash_{\Theta} i\Leftarrow CaseList$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Nil](i)\uparrow \emptyset$}
+\AXC{}
+\UIC{$\mathbf{iinj}[Nil](i)\uparrow \emptyset$}
 %%%
 \AXC{}
 \UIC{$\emptyset \downarrow\mathbf{iinj}[Nil](i)$}
@@ -1281,10 +1359,10 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \begin{center}
 \AXC{
   \stackanchor
-  {$\vdash_{\Theta} i\Leftarrow CaseList$ ~~~~ $i_l\uparrow C$}
-  {$\vdash_{\Theta} i_t\uparrow \tau$ ~~~~ $\vdash_{\Theta} i_c\uparrow \chi$}
+  {$i_l\uparrow C$}
+  {$ i_t\uparrow \tau$ ~~~~ $ i_c\uparrow \chi$}
  }
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Cons]((i_l, i_t, i_c))\uparrow C[\tau],\chi$}
+\UIC{$\mathbf{iinj}[Cons]((i_l, i_t, i_c))\uparrow C[\tau],\chi$}
 %%%
 \AXC{$C\downarrow i_l$ ~~~~ $\tau\downarrow i_t$ ~~~~ $\chi\downarrow i_c$}
 \UIC{$C[\tau],\chi \downarrow \mathbf{iinj}[Cons]((i_l,i_t,i_c))$}
@@ -1299,14 +1377,14 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 
 \begin{center}
 \AXC{$\mathsf{body}(i_{ps})=body$ ~~~~ $\mathsf{tparse}(body)=\tau$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Spliced](i_{ps})\uparrow \mathbf{spliced}[\tau]$}
+\UIC{$\mathbf{iinj}[Spliced](i_{ps})\uparrow \mathbf{spliced}[\tau]$}
 \DP
 \end{center}
 
-\doublebox{$\vdash_{\Theta}i\uparrow\hat{e}$}{$i\downarrow i$}
+\doublebox{$i\uparrow\hat{e}$}{$i\downarrow i$}
 \begin{center}
 \AXC{$i_{id}\uparrow x$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Var](i_{id})\uparrow x$}
+\UIC{$\mathbf{iinj}[Var](i_{id})\uparrow x$}
 %%%
 \AXC{$x\downarrow i_{id}$}
 \UIC{$x\downarrow \mathbf{iinj}[Var](i_{id})$}
@@ -1316,8 +1394,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\vdash_{\Theta} i_{1}\uparrow \tau$ ~~~~ $\vdash_{\Theta} i_2\uparrow\hat{e}$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Asc]((i_1,i_2))\uparrow \mathbf{hasc}[\tau](\hat{e})$}
+\AXC{$ i_{1}\uparrow \tau$ ~~~~ $ i_2\uparrow\hat{e}$}
+\UIC{$\mathbf{iinj}[Asc]((i_1,i_2))\uparrow \mathbf{hasc}[\tau](\hat{e})$}
 %%%%
 \AXC{$\tau\downarrow i_1$ ~~~~ $i\downarrow i_2$}
 \UIC{$\mathbf{iasc}[\tau](i)\downarrow \mathbf{iinj}{Asc}((i_1,i_2))$}
@@ -1327,8 +1405,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$i_{id}\uparrow x$ ~~~~ $\vdash_{\Theta}i\uparrow \hat{e}$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Lam]((i_{id},i))\uparrow \mathbf{hlam}(x.\hat{e})$}
+\AXC{$i_{id}\uparrow x$ ~~~~ $i\uparrow \hat{e}$}
+\UIC{$\mathbf{iinj}[Lam]((i_{id},i))\uparrow \mathbf{hlam}(x.\hat{e})$}
 %%%
 \AXC{$x\downarrow i_{id}$ ~~~~ $i\downarrow i'$}
 \UIC{$\mathbf{ilam}(x.i)\downarrow \mathbf{iinj}[Lam]((i_{id},i'))$}
@@ -1338,8 +1416,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \end{center}
 
 \begin{center}
-\AXC{$\vdash_{\Theta}i_1\uparrow\hat{e}_1$ ~~~~ $\vdash_{\Theta}i_2\uparrow\hat{e}_2$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Ap]((i_1,i_2))\uparrow \mathbf{hap}(\hat{e}_1,\hat{e}_2)$}
+\AXC{$i_1\uparrow\hat{e}_1$ ~~~~ $i_2\uparrow\hat{e}_2$}
+\UIC{$\mathbf{iinj}[Ap]((i_1,i_2))\uparrow \mathbf{hap}(\hat{e}_1,\hat{e}_2)$}
 %%%
 \AXC{$i_1\downarrow i'_1$ ~~~~ $i_2\downarrow i'_2$}
 \UIC{$\mathbf{iap}(i_1;i_2)\downarrow \mathbf{iinj}[Ap]((i'_1,i'_2))$}
@@ -1354,7 +1432,7 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 
 \begin{center}
 \AXC{$\mathsf{body}(i_{ps})=body$ ~~~~ $\mathsf{eparse}(body)=e$}
-\UIC{$\vdash_{\Theta}\mathbf{iinj}[Spliced](i_{ps})\uparrow \mathbf{spliced}[e]$}
+\UIC{$\mathbf{iinj}[Spliced](i_{ps})\uparrow \mathbf{spliced}[e]$}
 \DP
 \end{center}
 
@@ -1367,7 +1445,7 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \UIC{$\vdash_{\Theta} \emptyset$}
 %%% the next rule
 \AXC{\stackanchor{$\Theta_{0}\subset\Theta$ ~~~~ $\vdash_{\Theta} \Psi$ ~~~~ $\nexists~s.(s=s_0\land s[\mathbf{ty}(\_,\_,\_)]\in\Psi)$}{$\vdash_{\Theta}\tau_{md}::\star$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta}i:\mathtt{Parser}(\mathtt{Type}\times\tau_{md})$}}
-\UIC{$\vdash_{\Theta}\Psi;s_0[\mathbf{ty}(\kappa,\tau_{md},i_{tsm})]$}
+\UIC{$\vdash_{\Theta}\Psi;s_0[\mathbf{ty}(n, \kappa,\tau_{md},i_{tsm})]$}
 \noLine
 \BIC{}
 \DP
@@ -1456,8 +1534,8 @@ We formalize the mutually recursive types in ocaml style: all mutually recursive
 \DP
 \end{center}
 
-\subsection{Statics for externel terms}
-Statics for core lambda calculus can be referred to \cite{TSLs}. And here we present elaboration rules for TSM and TSL extensions on Wyvern language: including the rule for TSL literals elaboration $\mathbf{lit}[body]$, rules for TSM parser access $\mathbf{etsmdef}[s]$, and TSM application $\mathbf{eaptsm}[s,body]$.
+\subsection{Statics for external terms}
+Statics for core lambda calculus can be referred to in \cite{TSLs}. And here we present elaboration rules for TSM and TSL extensions on Wyvern language: including the rule for TSL literals elaboration $\mathbf{lit}[body]$, rules for TSM parser access $\mathbf{etsmdef}[s]$, and TSM application $\mathbf{eaptsm}[s,body]$.
 \begin{center}
 \AXC{
   \stackanchor{
