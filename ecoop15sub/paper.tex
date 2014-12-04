@@ -16,17 +16,9 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-TODO
 \end{abstract}
+
 \section{Introduction}
-Most major modern programming languages combine higher-rank polymorphism with subtyping in what has now become a natural combination. The two features work well in an object oriented setting, enabling code reuse and improving developer performance, providing substantial software engineering advantages. However, this combination of features creates problems in the context of type inference, as existing approaches are either extremely complex or incomplete. Up to this point, the major languages were not effected by this issue, as they required type parameters for every usage of a higher-kinded type. This situation is changing, however, as many languages solve their issues with long type arguments through inference, making the issues with existing inference systems more obvious.
-
-The most common issue can be seen in TODO, showing a simple invocation of Scala's fold method. Intuitively, one would expect the result type to be Optional, as both arguments (None and Some) are subtypes of Optional, and satisfy all the constraints of the method. However, Scala's type inference system is unable to infer that there exists a valid type that satisfies both None and Some, and therefore produces a type error when it encounters Some.
-
-This problem is an issue for the vast majority of prior inference systems. The fundamental failure point is in instantiating a type parameter too early, as seen in TODO by assuming that V is of type Optional.None. Avoiding this has been traditionally extremely complex, as seen in Pierce and Turner, who use sets of constraints to infer the valid types.
-
-Our approach extends the work of Dunfield with an approach similar to that of Pierce and Turner to provide sound, complete, and simple type inference for typesystems with higher-rank polymorphism and subtyping. We extend the core proof-theoretic algorithmic type inference system of Dunfield with constraint sets, providing an understandable system for bidirectional type inference.
-
 \section{Prior Work}
 
 \begin{figure}
@@ -35,50 +27,23 @@ Our approach extends the work of Dunfield with an approach similar to that of Pi
 \caption{Failing cases of existing type inference systems}
 \end{figure}
 
-The seminal work in this area is that by Pierce and Turner~\cite{Pierce:2000:LTI:345099.345100}. Their approach is built around subtyping for higher-order functions, and introduced the idea of using type argument synthesis. In their system, they develop a set of constraints for each type parameter, then refine and reduce these sets to find a consistent argument type. This approach handles subtyping, as their sets of constraints will contain the subtyping relation, but the system is complex in the extreme, and is difficult to understand and implement.
-
-Odersky's 2001 paper~\cite{odersky2001colored} simplifies the issue, but raises problems of its own. His approach does use a bidirectional type system, extending the idea behind bidirectionality to the types themselves. The system colors types to indicate if they are synthetic or analytic, and then uses this information to inform type argument instantiation. However, this system does not handle subtyping well, making it unsuitable for our purposes.
-
-Dunfield, in his original 2009 paper on this problem~\cite{Dunfield09:polymorphism}, introduces the use of existential variables for type arguments, in the context of bidirectional subtyping. This work has a number of drawbacks, however, as it is incomplete and does not handle subtyping.
-
-We use Dunfield's later 2013 paper~\cite{Dunfield:2013:CEB:2544174.2500582} as a basis for our work. This is a development of the 2009 effort, fixing the completness issues as well as simplifying the system substantially through the introduction of new judgments. The system uses existentials to replace type parameters in parameterized types, then resolves them using relations discovered during subtyping. In this system, the type of existential variables is inferred through context, then later references to those variables are replaced with the new type.
-
-This approach is quite simple and elegant in construction, but has a major drawback for our application, namely that the system fails for type systems with subtyping. As seen in figure~\ref{fig:intro-examples}, this ``greedy'' approach to instantiating variables fails in cases where the first constraint is tighter than (or disjoint from) the second, making it hard to apply in many modern languages. 
-
-
-\section{System}
-Our system is built off of that of Dunfield and Kristanswami, and follows the same structure. Both our system and Dunfields combine a declarative and an algorithmic type system, which both describe the same semantics but use different methodologies for describing them. Within this overall construction, the declarative system provides the ground truth, serving as the point of verification to prove correctness of the second system, the algorithmic system. The divide is nessecary as the declarative system cannot be easily implemented, having rules (TODO) which requires a type variable that satisfies all constraints to be chosen. To fix this problem, the declarative system provides a technique for coming up with the value for this type variable, but is more complex and less obviously sound.
-
-At the most fundamental level, both ours and Dunfield et als systems work by introducing existential variables into the context, then inferring the types that they must be based on the type constraints placed on them. This approach is elegant, leveraging existing features of contexts for simplicity, and understandable. However, the most naive approach to this runs into a number of issues, which Dunfield solves in a number of ways.
-
-Dunfield et al introduces two new ideas: \emph{ordered contexts} for type inference, and \emph{instantiation judgments}. The first allows scope to work correctly, while the second prevents a combinatorial explosion of rules. 
-
-We further combine this with the approach taken by Pierce et al, who use a set mechanism to describe the bounds on an existential variable. However, the Pierce approach is incomplete over our language, as it cannot handle double-sided unification, where one existential is bounded by another. To solve this problem, we move the bounds into the context, and allow the existential themselves to bound one another.
-
+\section{Approach}
 \paragraph{Ordered Contexts}
-Dunfield et al introduced the idea of ordered contexts for type inference, providing their system with a number of advantages. In particular, the idea prevents problems of scope as contexts are propagated through the system - in their approach, a context is modified as subtyping is checked, then passed back to the calling judgement. This creates problems when considering the forall case, when a existential variable is added to the context and then removed. The naive technique for removing the variable, restoring the old context, would also lose all information about ``higher'' existential variables gained while checking the body of the forall statement.
-
-Dunfield fixes this problem using ordered contexts. In the binding case, a marker is added to the context before the new existential is added, and when the resulting context is returned, the context following the marker is removed and returned. This prevents the existential variable introduced by the binding from leaking, but also allows the new subtyping information gained to be retained.
-
 \paragraph{Instantiation Judgements}
-In Pierce and Turner's work, every constraint on an existential variable was placed on it in the actual subtyping judgement. This approach, while simple, creates substantial difficulty as the number of judgements needed for different bounds on existentials increases combinatorially. As such, Dunfield introduced a new judgement form, representing the addition of a type constraint on an existential variable.
-
 \paragraph{Variable Bounds}
-Our approach extends that of Dunfield by replacing existential equality relationships in the context with bounds on an existential. This enables our system to represent the looser constraints caused by subtyping in the language. This system differs from that of Pierce and Turner as our underlying type system is more complex, and forces us to consider what Pierce and Turner refer to as a unification-modulo-subtyping problem, where existential variables refer to each other in their bounds.
 
-The solution we have to this issue is based on the ordered property of the context. We can insert the existential variable $\hat{\alpha}$ into a special field of the bound on another existential variable $\hat{\beta}$ if $\hat{\alpha}$ is ``above'' $\hat{\beta}$ in the context. New constraints on $\hat{\beta}$ are then propagated up to $\hat{\alpha}$, maintaining soundness.
-
-This mechanism ensures that bounds never become invalid, as the ordered property ensures that the bounded variable is only in-scope if the bound variable is as well. Additionally, this system is complete as the naming of variables above is without loss of generality, and any pair of existential variables can be chosen so that the property is maintained.
 
 \section{Construction}
+\subsection{Grammar}
+\subsection{Bounding}
+\subsection{Subtyping}
+\subsection{Instantiating}
+
 \begin{figure}
 \subfile{construction}
 \label{fig:cons}
-\caption{Construction of our system}
+\caption{Structure of our system}
 \end{figure}
-
-The construction of our system is similar to that of Dunfield, with the same fundamental constructs.
-
 \begin{figure}
 \subfile{instantiation}
 \end{figure}
@@ -91,4 +56,9 @@ The construction of our system is similar to that of Dunfield, with the same fun
 \begin{figure}
 \subfile{subtyping}
 \end{figure}
+
+
+\section{Verification}
+\subsection{Soundness}
+\subsection{Completeness}
 \end{document}
