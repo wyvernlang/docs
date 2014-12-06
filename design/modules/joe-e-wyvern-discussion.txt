@@ -1,0 +1,90 @@
+====================== Discussion from 11/5/2014 meeting ====================
+
+Discussion of Joe-E and Wyvern
+
+Problems we could solve in Wyvern
+	What theorems we can prove, esp. that couldn't be proved for regular Java?
+	What forms of reasoning does this enhance?
+	Can we make finally safe?
+	Can we make finalize() safe?
+	Can we tame the Java reflection API in a more flexible way?
+	Can we come up with a scheme allowing native methods in a controlled way?
+		Wyvern: build up pice by piece and check it all as you go
+		vs. Joe-E: tame the whole Java library
+	What are the benefits of taming casts?
+	What are the benefits of allowing modules to import resources in a controlled way?
+	Can we provide some kind of reasoning about authority?
+		e.g. I want to give you authority to access I/O, but only via the logger
+			this is a kind of policy, and a kind of architecture
+			the architectural constraint can be enforced automatically
+			we probably need to do a manual inspection of the logger interface (and changes to it)
+				can we bring in human
+		effect systems are about authority
+			but they are too heaviweight
+			capabilities + architecture + policies give you some reasoning
+				and it's less heaviweight
+
+Questions for next time
+	what kinds of reasoning does Wyvern permit?
+	how do we write policies such as module X only has authority to access the file system via the logger interface?
+	how can we formalize this?
+	what theorems can we prove about Wyvern's design?
+				
+Discussion
+	what is the safe subset of the Java libraries?  Can we learn about it?
+		Alex: looks like it is only in the implementation, not in the spec
+		Alex: making things immutable could hurt performance - see his ownership/collection study
+			one example would be the immutable arrays
+	any results from Sophia/James collaboration?  e.g. say FTfJP 2013/2014 paper
+
+====================== Prep for 11/7/2014 meeting ====================
+	
+Reasoning about Authority in Wyvern
+	Policies we would like to verify
+		What is the authority of this code?  Does it depend on (type,value) parameters?
+		What is one authority based on?
+	How is authority identified?
+		- there is an initial "native method" authority
+		- new authority names can be declared in any module
+			(in expressions too?)
+	Where does authority originate?
+		- creation of a reference cell
+			- if associated with a named authority explicitly
+			- if module-global, the module must be a resource, and the module name is an authority
+				(or do we use a locally-declared name?)
+		- the native method authority
+	How is authority delegated
+		- when an authority is declared, it can be a specialization of some other authority
+		- within a defined scope, can strengthen authority from specialized authority to more general authority
+			from outside that scope, one has only the specialized authority
+		- system checks that strengthened authority does not escape
+		- must inspect to see if delegation is reasonable (no real alternative to trust)
+			but this inspection is bounded by the scope of delegation
+	How can we analyze the authority of code?
+		- what imports are in scope?
+		- more heaviweight: annotate all objects (or functions) with their authority
+			likely want an anonymous or bounded or parameterized authority
+		- assert authority and then check at run time?
+		- more important to track capabilities that are part of the state?
+
+====================== Discussion in 11/7/2014 meeting ====================
+
+Properties to enforce
+	a capability to the FileSystem does not escape the log
+	a client of the log can only append to the log file
+	
+Policies
+	disallow accessing FileSystem (FS) from A
+		except via Log (L)
+
+Ways of formalizing capability safety
+	forall policies p of the form referece or call A only via B
+		if I don't import A
+		and all my imports and parameters obey P
+		then I obey P
+	my effects are bounded by the effects of my imports and parameters
+
+Ways of moving forward
+	read an effect system paper?
+	>> we are going to read Stephen Chong's paper:
+		http://people.seas.harvard.edu/~chong/pubs/csf14_capflow.pdf
