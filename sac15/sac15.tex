@@ -103,6 +103,11 @@ tabsize=4, % Number of spaces per tab in the code
 \newcommand{\tsm}{s}
 \newcommand{\T}{\mathtt{T}}
 
+\newfont{\mycrnotice}{ptmr8t at 7pt}
+\newfont{\myconfname}{ptmri8t at 7pt}
+\let\crnotice\mycrnotice%
+\let\confname\myconfname%
+
 
 \newcommand{\subparagraph}{}
 \usepackage[compact]{titlesec}
@@ -121,12 +126,27 @@ tabsize=4, % Number of spaces per tab in the code
 \newtheorem{property}{Property}
 %
 % --- Author Metadata here ---
-\conferenceinfo{XXX}{XXX}
-\CopyrightYear{XXXX} % Allows default copyright year (2002) to be over-ridden - IF NEED BE.
-\crdata{X-XXXXX-XX-X/XX/XX}  % Allows default copyright data (X-XXXXX-XX-X/XX/XX) to be over-ridden.
+\toappear{\the\boilerplate\par
+{\confname{\the\conf}} \the\confinfo\par \the\copyrightetc}
+\permission{Permission to make digital or hard copies of all or part of
+this work for personal or classroom use is granted without fee provided 
+that copies are not made or distributed for profit or commercial advantage 
+and that copies bear this notice and the full citation on the first page. 
+Copyrights for components of this work owned by others than the author(s) 
+must be honored. Abstracting with credit is permitted. To copy otherwise, 
+or republish, to post on servers or to redistribute to lists, requires 
+prior specific permission and/or a fee. Request permissions from 
+Permissions@acm.org.}
+\conferenceinfo{SAC 2015}{April 13 - 17 2015, Salamanca, Spain\\
+{\mycrnotice{Copyright is held by the owner/author(s). Publication rights 
+licensed to ACM.}}}
+\copyrightetc{ACM \the\acmcopyr}
+\CopyrightYear{2015} % Allows default copyright year (2002) to be over-ridden - IF NEED BE.
+\crdata{978-1-4503-3196-8/15/04 \$15.00.\\
+http://dx.doi.org/10.1145/2695664.2695936}  % Allows default copyright data (X-XXXXX-XX-X/XX/XX) to be over-ridden.
 % --- End of Author Metadata ---
 
-\title{Composable and Hygienic Typed Syntax Macros\titlenote{Color is used for expository purposes in this paper.}}
+\title{Composable and Hygienic Typed Syntax Macros\titlenote{This paper uses {\color{red} color} for clarity of exposition.}}
 %
 % You need the command \numberofauthors to handle the 'placement
 % and alignment' of the authors beneath the title.
@@ -185,7 +205,7 @@ Cyrus Omar ~~~~~~~~ Chenglong Wang ~~~~~~~~ Jonathan Aldrich \\ Carnegie Mellon 
 
 \maketitle
 \begin{abstract}
-\noindent Syntax extension mechanisms are powerful, but reasoning about syntax extensions can be difficult. Recent work on \emph{type-specific languages (TSLs)} addressed reasoning about composition, hygiene and typing for extensions introducing new  literal forms. We supplement TSLs with \emph{typed syntax macros (TSMs)}, which, unlike TSLs, are explicitly invoked to give meaning to  delimited segments of arbitrary syntax. To maintain a typing discipline, we describe two flavors of term-level TSMs: synthetic TSMs specify the type of term that they generate, while analytic TSMs can generate terms of arbitrary type, but can only be used in positions where the type is otherwise known. At the level of types, we describe a third flavor of TSM that generates a type of a pre-specified kind along with its TSL.  We specify these mechanisms by building on  the bidirectionally typed elaboration semantics previously given for TSLs. %Taken together, TSLs and TSMs provide significant expressive power and strong reasoning principles.
+\noindent Syntax extension mechanisms are powerful, but reasoning about syntax extensions can be difficult. Recent work on \emph{type-specific languages (TSLs)} addressed reasoning about composition, hygiene and typing for extensions introducing new  literal forms. We supplement TSLs with \emph{typed syntax macros (TSMs)}, which, unlike TSLs, are explicitly invoked to give meaning to  delimited segments of arbitrary syntax. To maintain a typing discipline, we describe two flavors of term-level TSMs: synthetic TSMs specify the type of term that they generate, while analytic TSMs can generate terms of arbitrary type, but can only be used in positions where the type is otherwise known. At the level of types, we describe a third flavor of TSM that generates a type of a specified kind along with its TSL and show interesting use cases where the two mechanisms operate in concert. % We specify these mechanisms by building on  the bidirectionally typed elaboration semantics previously given for TSLs. %Taken together, TSLs and TSMs provide significant expressive power and strong reasoning principles.
 \end{abstract}
 % A category with the (minimum) three required fields
 \vspace{-5px}\category{\noindent D.3.2}{Programming Languages}{Language Classifications}[Extensible languages]
@@ -210,29 +230,37 @@ Designing a useful syntax extension mechanism is non-trivial because the designe
 \textbf{Hygiene} The desugaring logic associated with new forms must be constrained to ensure that the meaning of a valid program cannot change simply because some of the variables have been uniformly renamed (manually, or by a refactoring tool). It should also be straightforward to identify the binding site of a variable, even with intervening uses of sugar. These two situations correspond to inadvertent variable capture and shadowing by the desugaring. 
 
 
-\textbf{Typing Discipline} In a statically typed language, which will be our focus in this work, maintaining a \emph{typing discipline} is also desirable: determining the type a sugared term will have, and analagously the \emph{kind} a type will have (discussed further below), should be possible without requiring that the desugaring be performed, to aid both the programmer and tools like type-aware code editors. 
+\textbf{Typing Discipline} In a rich statically typed language, which will be our focus in this work,  determining the type a sugared term will have, and analagously the \emph{kind} a type will have (discussed further below), should be possible without requiring that the desugaring be performed, to aid both the programmer and tools like type-aware code editors. 
 
-Most prior approaches to syntax extension, discussed in Sec. \ref{related}, fail to simultaneously provide all of these guarantees. Recent work on \emph{type-specific languages  (TSLs)} makes these guarantees, but in a limited setting: library providers can define new literal syntax by associating parsing and desugaring logic with type declarations \cite{TSLs}. Local type inference, specified as a bidirectional type system \cite{Pierce:2000:LTI:345099.345100}, controls which such TSL is used on the  body of a delimited literal form. The bodies of literal forms can be arbitrary, so TSLs are flexible, and this approach guarantees composability and maintains the typing discipline by construction. The semantics given also guarantees hygiene. We will review in Sec. \ref{background}. 
+Most prior approaches to syntax extension, discussed in Sec. \ref{related}, fail to simultaneously provide all of these guarantees. Recent work on \emph{type-specific languages  (TSLs)} makes these guarantees, but in a limited setting: library providers can define new literal syntax by associating parsing and desugaring logic with type declarations \cite{TSLs}. Local type inference, specified as a bidirectional type system \cite{Pierce:2000:LTI:345099.345100}, controls which such TSL is used to parse  the  bodies of literal forms. The available delimiters are fixed by the language, but the bodies of literal forms can be arbitrary, so TSLs are flexible, and this approach guarantees composability and maintains the typing discipline by construction. The semantics given also guarantees hygiene. We will review in Sec. \ref{background}. 
 
-While many forms of syntactic sugar can be realized as TSLs, there remain situations where TSLs do not suffice: (i) only a single TSL can be associated with a type, and only when it is declared, so alternative syntactic choices, or syntax for a type not under a user's control, cannot be defined; (ii) syntax cannot be associated with types that are not identified nominally (e.g. arrow types); (iii) idioms other than those that arise when introducing a value of a type (e.g. those related to control flow or API protocols) cannot be captured; and (iv) types cannot themselves be declared using specialized syntax. 
+While many forms of syntactic sugar can be realized as TSLs, there remain situations where TSLs do not suffice: 
+\begin{enumerate}[noitemsep]
+\item[(i)] Only a single TSL can be associated with a type, and only when it is declared, so alternate syntactic choices, or syntax for a type not under a user's control, cannot be defined.
+\item[(ii)] Syntax cannot be associated with types that are not identified nominally (e.g. arrow types).
+\item[(iii)] Idioms other than those that arise when introducing a value of a type (e.g. those related to control flow or API protocols) cannot be captured
+\item[(iv)] Types cannot themselves be declared using specialized syntax. 
+\end{enumerate}
 
-\vspace{3px}
-\noindent\textbf{\textit{Contributions}} In this paper, we introduce \emph{typed syntax macros (TSMs)}, which supplement TSLs to support these scenarios while maintaining the strong, and we argue crucial, guarantees described above. Our specific contributions are as follows:% A TSM is invoked explicitly but otherwise benefits from the same mechanisms developed for TSLs. 
+%\vspace{5px}
+\noindent\textbf{\textit{Contributions}} In this paper, we introduce \emph{typed syntax macros (TSMs)}, which supplement TSLs to handle these scenarios while maintaining the crucial guarantees above. 
+
+Our specific contributions are as follows:% A TSM is invoked explicitly but otherwise benefits from the same mechanisms developed for TSLs. 
 \begin{enumerate}[noitemsep]
 \item We introduce TSMs first at the term level in Sec. \ref{tsms-term}.  To maintain a typing discipline, there are two flavors of term-level TSMs: \emph{synthetic TSMs} can be used anywhere, while \emph{analytic TSMs} can only be used where the expected type of the term is otherwise known. 
 \item Both TSLs and TSMs leverage the same basic set of  lightweight delimiters to separate syntax extensions from the host language. We supplement the forms previously defined with \emph{multipart delimited forms} to support additional syntactic idioms.
-\item We next turn to type declarations  in Sec. \ref{tsms-type}. Type-level TSMs generate both a type of a specified \emph{kind}, maintaining the \emph{kinding discipline} that governs type parameter application, and also the TSL associated with it, so TSLs and TSMs can operate in concert. In doing so, we also extend the work on TSLs to handle parameterized types. % as we will demonstrate. 
-\item In Sec. \ref{theory}, we outline a type-theoretic account of TSMs by extending the bidirectionally typed elaboration semantics for TSLs given previously by Omar et al. \cite{TSLs}, leveraging essentially the same underlying language and hygiene mechanism at the term level and introducing an analagous type-level hygiene mechanism. A more complete type-theoretic treatment is available in an accompanying technical report \cite{sac15tr}.% (emphasizing the cohesion of these mechanisms). %   mechanism to support efforts to  decentralize control over the concrete syntax of a typed programming language. 
+\item We next turn to type declarations  in Sec. \ref{tsms-type}. Type-level TSMs generate both a type of a specified \emph{kind}, maintaining the \emph{kinding discipline} that governs type parameter application, and also the TSL associated with it, so TSLs and TSMs can operate in concert. %In doing so, we also extend the work on TSLs to handle parameterized types. % as we will demonstrate. 
+%\item In Sec. \ref{theory}, we very briefly outline a type-theoretic account of TSMs by extending the bidirectionally typed elaboration semantics for TSLs given previously by Omar et al. \cite{TSLs}, leveraging essentially the same underlying language and hygiene mechanism at the term level and introducing an analagous type-level hygiene mechanism. % (emphasizing the cohesion of these mechanisms). %   mechanism to support efforts to  decentralize control over the concrete syntax of a typed programming language. 
 \end{enumerate}
 
-We more specifically compare our work to related work in Sec. \ref{related} and conclude in Sec. \ref{conclusion}.
+We more specifically compare our work to related work in Sec. \ref{related} and conclude in Sec. \ref{conclusion}. A more detailed type-theoretic treatment of these mechanisms is available in an accompanying technical report \cite{sac15tr}.
 
 \section{Background}\label{background}
 \subsection{Wyvern}
 
 \begin{figure}[t!]
 \begin{lstlisting}[style=wyvern]
-type @\htmlcolor{HTML}@ = casetype 
+casetype @\htmlcolor{HTML}@
   Empty
   Seq of HTML * HTML 
   Text of String
@@ -262,22 +290,24 @@ We will present TSMs in the context of the simple variant of the Wyvern programm
 An example of a type encoding the tree structure of HTML is declared in Figure \ref{f-htmltype}. The type \lstinlinew{HTML} is a \emph{case type}, with cases for each HTML tag and additional cases for an empty document, a sequence of nodes and a text node. Case types are similar to datatypes in an ML-like language (in type-theoretic terms, recursive labeled sum types). 
 We introduce a value of type \lstinlinew{HTML} on line 17 by naming a case and providing an argument of the type the case declares.
 
-Wyvern also supports tuple types, e.g., \lstinlinew{HTML * HTML}, function types, e.g., \lstinlinew{HTML -> Unit}, and object types, an examples of which is shown in Figure \ref{exp-prelude}. Object types declare fields and methods via \texttt{val} and \texttt{def}, respectively. Values of object type are introduced with \lstinlinew{new}, which  is a  \emph{syntactic forward reference}: it can appear once per line, at the term position where an object is needed. The next indented block gives the field values and method implementations. %We will see an example below.
+Wyvern also supports declaring object types, e.g. \lstinlinew{Parser} in Figure \ref{exp-prelude} (discussed below). Object types declare fields and methods via \texttt{val} and \texttt{def}, respectively. Values of object type are introduced with \lstinlinew{new}, which  is a  \emph{syntactic forward reference}: it can appear once per line, at the term position where an object is needed. The next indented block gives the field values and method implementations (Figure \ref{typekw-example-2} shows some examples). Objects are similar to functional records. %We will see an example below.
 
-Types declarations are \emph{generative}, i.e. declared types are identified by name (like datatypes in ML, or classes in Java), whereas types written without a declaration are identified structurally. We can also declare parameterized type constructors, e.g. \lstinlinew{List} is parameterized by one type. Applying it to a type produces a particular list type, e.g. \lstinlinew{List(String)}. Types have \emph{kind} \lstinlinew{*}, while {type constructors} have arrow kind, e.g. \lstinlinew{List} has kind \lstinlinew{* -> *}. For concision, we will use the phrase \emph{declared type} for names having any kind. 
-We assume that the definitions of standard named types like \lstinlinew{String}, \lstinlinew{List} and \lstinlinew{Option} are ambiently available via the \emph{prelude}. 
+Types declarations are \emph{generative}, i.e. declared types are identified nominally (like datatypes in ML, or classes in Java). They can also declare type parameters, e.g. \lstinlinew{List} declares one type parameter. To be more precise, we say that \lstinlinew{List} is a \emph{type constructor}, in that applying \lstinlinew{List} to a type produces a particular list type, e.g. \lstinlinew{List(String)}. Types have \emph{kind} \lstinlinew{*}, while {type constructors} have arrow kind, e.g. \lstinlinew{List} has kind \lstinlinew{* -> *}. For concision, we use the phrase \emph{declared type} for names having any kind. 
+We assume that standard types like \lstinlinew{String}, \lstinlinew{List} and \lstinlinew{Option} are ambiently available (i.e. they are declared in the \emph{prelude}). 
+
+Some types are identified structurally, e.g. tuple types like \lstinlinew{HTML * HTML} and function types like \lstinlinew{HTML -> Unit}. Object and case types written anonymously, rather than via a declaration, are also identified structurally. %Only declared types can be recursive.
 
 \begin{figure}[t!]
 \begin{lstlisting}[style=wyvern]
-type @\expkwparsercolor{Parser}@(T) = objtype
+objtype @\expkwparsercolor{Parser}@(T)
   def parse(ParseStream) : Result(T)
   syntax = (* ... parser generator syntax ... *)
 
-type Result(T) = casetype
+casetype Result(T)
   OK of T
   Error of String * Location
 
-type @\expcolor{Exp}@ = casetype
+casetype @\expcolor{Exp}@
   Var of ID
   Fn of ID * Exp
   Ap of Exp * Exp
@@ -287,7 +317,7 @@ type @\expcolor{Exp}@ = casetype
   Spliced of ParseStream (* see Sec. 5 *)
   syntax = (* ... exp quasiquotes ... *)
 
-type @\typecolor{Type}@ = casetype
+casetype @\typecolor{Type}@
   Declared of ID
   Objtype of List(MemberDecl)
   Casetype of List(CaseDecl)
@@ -301,20 +331,21 @@ type @\typecolor{Type}@ = casetype
 \end{figure}
 
 
-Declared types can also be equipped with \emph{metadata}, which is a value constructed at compile time and available for use by the language itself (in particular, the TSL mechanism) as well as tools. Metadata is analagous to class annotations in Java, but in Wyvern, it can be any value. % Here, we will use metadata to associate a TSL with \lstinlinew{HTML}. 
+%Declared types can also be equipped with \emph{metadata}, which is a value constructed at compile time and available for use by the language itself (in particular, the TSL mechanism) as well as tools. Metadata is analagous to class annotations in Java, but in Wyvern, it can be any value. % Here, we will use metadata to associate a TSL with \lstinlinew{HTML}. 
 
 \subsection{Type-Specific Languages (TSLs)}
 
 
 
-Introducing a value of a type like \lstinlinew{HTML} using general-purpose syntax like that shown on line 17 of Figure \ref{f-htmltype} can be tedious. Moreover, there is standard concrete syntax for HTML that might be preferable for reasons of familiarity or compatibility. To allow for this, we associate a \emph{type-specific language} with the \lstinlinew{HTML} type. %Both are declared  in Figure \ref{exp-prelude}.
+Introducing a value of type \lstinlinew{HTML} using general-purpose syntax like that shown on line 17 of Figure \ref{f-htmltype} can be tedious. Moreover, there is standard concrete syntax for HTML that might be preferable for reasons of familiarity or backwards compatibility. To allow for this, we associate a \emph{type-specific language} with the \lstinlinew{HTML} type. %Both are declared  in Figure \ref{exp-prelude}.
  %We omit the implementation of the \lstinlinew{HTML} type's TSL \lstinlinew{parse} method here for concision. 
-We see this TSL being used on lines 18-22 of Figure \ref{f-htmltype}. On line 18, we wish to call the function \lstinlinew{serve}, which we assume has type \lstinlinew{HTML -> Unit}. Rather than explicitly constructing a term of type \lstinlinew{HTML} as the argument, we use the \emph{forward referenced literal form} \lstinline[style=wyvern]{~}. The \emph{body} of the literal consists of the text in the indented block beginning on the next line, stripped of the leading indentation. In effect, whitespace is serving as a delimiter. 
+We see this TSL being used on lines 18-22 of Figure \ref{f-htmltype}. On line 18, we  call the function \lstinlinew{serve}, which we assume has type \lstinlinew{HTML -> Unit}. Rather than explicitly constructing a term of type \lstinlinew{HTML} as the argument, we use the \emph{forward referenced literal form} \lstinline[style=wyvern]{~}. The \emph{body} of the literal consists of the text in the indented block beginning on the next line, stripped of the leading indentation. In effect, whitespace is serving as a delimiter. 
 
-We could equivalently have used other \emph{inline delimiters}, e.g. curly braces or single quotes, which restrict what can appear inside them, as described in Figure \ref{f-delimited}. For example, we could have written line 17 equivalently as:
+We could equivalently have used other \emph{inline delimiters}, e.g. curly braces or single quotes, though we would then need to follow the restrictions described in Figure \ref{f-delimited}. For example, we could have written line 17 equivalently as:
 \vspace{-3px}\begin{lstlisting}[style=wyvern, numbers=none, frame=none]
   val heading : HTML = '@\htmlcolor{<h1>My Heading</h1>}@'
 \end{lstlisting}\vspace{-4px}
+When the semantics encounters any such literal form, the syntax associated with the declared type that the literal is being analyzed against, here \lstinlinew{HTML}, is used to desugar it.
 
 \begin{figure}[t]
 \begin{lstlisting}[style=tempwyvern]
@@ -328,22 +359,21 @@ this is useful because forward references propagate out)
 [@\htmlcolor{adjacent}@] {@\htmlcolor{delimited forms}@} @\htmlcolor{or}@ [@\htmlcolor{those}@] @\htmlcolor{separated}@ ~ @\htmlcolor{form}@
   @\htmlcolor{by identifiers create a single multipart delimited}@
 \end{lstlisting}
-\mycaption{Available delimited forms in Wyvern. The parentheses and multipart delimited forms are novel and are shown being used in Sec. \ref{tsms-term}. }
+\mycaption{Available delimited forms in Wyvern. The parentheses and multipart delimited forms are novel, discussed in Sec. \ref{tsms-term}.}
 \label{f-delimited}
 \end{figure}
-When the semantics encounters a literal form, the syntax associated with the declared type that the literal is being analyzed against, here \lstinlinew{HTML}, is used. 
 
-Such syntax is associated with a declared type as seen on lines 9-14 of Figure \ref{f-htmltype} by writing \lstinline[style=wyvern]{syntax = e}, where \lstinlinew{e} is a parser of type \lstinlinew{Parser(Exp)}.\footnote{\scriptsize In \cite{TSLs}, we showed a more general \emph{metadata}-based mechanism, but we give a simpler TSL-specific mechanism here.}\textsuperscript{,}\footnote{\scriptsize For expository purposes, we include type ascriptions that are not strictly needed in comments throughout the paper.} Per  Figure \ref{exp-prelude}, a parser defines a \lstinlinew{parse} function that transforms a \lstinlinew{ParseStream} based on the body to a \lstinlinew{Result(Exp)}, which is either a desugaring, encoded as a value of type \lstinlinew{Exp}, or an indication of a parse error. Rather than writing a \lstinlinew{parse} function explicitly, we make use of the fact that \lstinlinew{Parser} itself has a TSL associated with it providing a static \emph{grammar-based parser generator}. This allows us to create a \lstinlinew{Parser(Exp)} by specifying a number of productions each of which is followed by a Wyvern function taking in the elaborations of each constituent non-terminal and producing the final desugaring of type \lstinlinew{Exp}. The non-terminal \lstinlinew{start} serves as the starting non-terminal. 
+Such syntax is associated with a declared type as seen on lines 9-14 of Figure \ref{f-htmltype} by writing \lstinline[style=wyvern]{syntax = e}, where \lstinlinew{e} is a parser of type \lstinlinew{Parser(Exp)}.\footnote{\scriptsize In \cite{TSLs}, we showed a more general \emph{metadata}-based mechanism, but we give a simpler TSL-specific mechanism here.}\textsuperscript{,}\footnote{\scriptsize For expository purposes, we include type ascriptions that are not strictly needed in comments throughout the paper.} Per  Figure \ref{exp-prelude}, a parser defines a \lstinlinew{parse} function that transforms a \lstinlinew{ParseStream} based on the body to a \lstinlinew{Result(Exp)}, which is either a desugaring, encoded as a value of type \lstinlinew{Exp}, or an indication of a parse error. Rather than writing a \lstinlinew{parse} function explicitly, we make use of the fact that \lstinlinew{Parser} itself has a TSL associated with it providing a static \emph{grammar-based parser generator}. This allows us to create a \lstinlinew{Parser(Exp)} by specifying a number of productions each of which is followed by a Wyvern function taking in the elaborations of each constituent non-terminal and producing the final elaboration of type \lstinlinew{Exp}. The non-terminal \lstinlinew{start} serves as the starting non-terminal. 
 
-The types \lstinlinew{Exp} and \lstinline{Type} encode the abstract syntax of Wyvern terms and types, respectively. To make code generation more straightforward, these types are equipped with TSLs that provide \emph{quasiquotation}  \cite{quine40book,Bawd99a,ScalaMacros2013}: terms of these types  can be written using Wyvern's usual concrete syntax, extended with unquote forms \lstinlinew{\$x} and \lstinlinew{\$(e)}, which splice in the value of  variable \lstinlinew{x} and  term \lstinlinew{e}, respectively. %We refer to \cite{TSLs} for further details on these two modes of use.
+The types \lstinlinew{Exp} and \lstinlinew{Type} encode the abstract syntax of Wyvern terms and types, respectively. To make code generation more straightforward, these types are equipped with TSLs that provide \emph{quasiquotation}  \cite{quine40book,Bawd99a,ScalaMacros2013}: terms of these types  can be written using Wyvern's usual concrete syntax, extended with unquote forms \lstinlinew{\$x} and \lstinlinew{\$(e)}, which splice in variable \lstinlinew{x} and  term \lstinlinew{e}, respectively. %We refer to \cite{TSLs} for further details on these two modes of use.
 
 
 Splicing can be supported by any TSL. For example, the TSL for \lstinlinew{HTML} uses the delimiters \lstinlinew{<(} and \lstinlinew{)>} to mean ``splice in the enclosed term  of type \lstinlinew{HTML} here'', as seen on line 19 of Figure \ref{f-htmltype}. This is supported because a parser can request that some portion of the parse stream be treated as a host language term, type or variable. The cases \lstinlinew{Spliced} in \lstinlinew{Exp}and \lstinlinew{Type} track these spliced portions of the parse stream. This is the basis of the hygiene mechanism in \cite{TSLs}. The parser generator provides the non-terminals \lstinlinew{EXP}, \lstinlinew{ID} and \lstinlinew{TYPE}, which generate these spliced forms internally. For example, \lstinlinew{EXP} is used on line 13 of Figure \ref{f-htmltype} to implement HTML splicing.%The hygiene mechanism for TSLs ensures that only spliced terms can refer to variables in the surrounding scope. New variables cannot be introduced into their scope (functions must be used to communicate between TSLs and the host language), so that binding sites are easy to determine. We will return to splicing in Sec. \ref{theory}. 
 
-For expository purposes, we identify upon declaration each TSL or TSM with a unique color, used to color portions of syntactic bodies it parses. Host terms, including spliced host terms, are colored black. 
+For expository purposes, we color the bodies of delimited forms a color corresponding to the TSL or TSM being used, identified when declared. Base language terms, including spliced base terms, are colored black. 
 
 \section{Term-Level TSM\lowercase{s}}\label{tsms-term}
-Having introduced the necessary background, we will now give describe term-level typed syntax macros in Wyvern and illustrate their use in situations where TSLs are not suitable. %We follow up with a more formal treatment in Sec. \ref{theory}. 
+Having introduced the necessary background, we will now describe term-level typed syntax macros  and illustrate their use in situations where TSLs are not suitable. %We follow up with a more formal treatment in Sec. \ref{theory}. 
 
 %Term-level TSMs come in two flavors: \emph{synthetic TSMs} specify the type of term they will elaborate to, meaning they can be used anywhere, while \emph{analytic TSMs} can elaborate to a term of any type, but to maintain the typing discipline, they can only be used in positions where the type can otherwise be determined. 
 
@@ -363,7 +393,7 @@ serve(simpleHTML ~)
     @\simpleHTMLcolor{<}@ heading
     @\simpleHTMLcolor{>p My first paragraph}@
 \end{lstlisting}
-\mycaption{A synthetic TSM providing alternative syntax for the \texttt{HTML} type in Figure \ref{f-htmltype}. The programs are semantically identical.}
+\mycaption{A synthetic TSM providing alternative syntax for the \texttt{HTML} type in Figure \ref{f-htmltype}.}
 \label{f-simplehtml}
 \end{figure}
 TSMs are defined using the \lstinlinew{syntax} keyword. Figure \ref{f-simplehtml} shows a synthetic TSM, \lstinlinew{simpleHTML}, being defined and used. This TSM defines an alternative layout-sensitive syntax for HTML. The clause \lstinlinew{for HTML} indicates that valid invocations of the TSM will necessarily elaborate to a term of type \lstinlinew{HTML}. 
@@ -376,7 +406,7 @@ For example, we use single quotes on line 7 of Figure \ref{f-simplehtml}. Notice
 
  Synthetic TSMs address issue (i) from Sec. \ref{sec-intro}: modularly and composably defining more than one choice of syntax for a type that either has a TSL  already, or a type which a user cannot modify. Compared to the alternative solution of defining a type \lstinlinew{HTML2} with a TSL that has the desired syntax, and a function mapping from \lstinlinew{HTML2} to \lstinlinew{HTML},  TSMs avoid declaration duplication and  the $\mathcal{O}(n)$ runtime overhead of applying the mapping. %TSMs, like TSLs, perform their desugaring at compile-time.
 
-Synthetic TSMs also address issue (ii) because they can define syntax for types identified structurally (e.g. functions, pairs or objects), not just nominally.
+Synthetic TSMs also address issue (ii) because they can define syntax for types identified structurally (e.g. functions, pairs and anonymous objects), not just nominally.
 
 % (because it appears in an external library). 
 
@@ -387,14 +417,14 @@ Synthetic TSMs also address issue (ii) because they can define syntax for types 
 \subsection{Analytic TSMs}
 TSLs and synthetic TSMs are not suitable for expressing idioms that are valid at many types, i.e. issue (iii) from Sec. \ref{sec-intro}. As perhaps the simplest example, consider the case type encoding booleans declared in Figure \ref{if-example}. Explicit case analysis on booleans is considered unnecessarily verbose, so many languages defining booleans in this manner build in an \lstinlinew{if} construct as a desugaring. Rather than having to build this in to Wyvern, however, we can express it as an analytic TSM, on lines 4-9. These are distinguished from synthetic TSMs in that they don't declare a type, here because the type of an \lstinlinew{if} expression is determined by its branches. 
 
-We see \lstinlinew{if} being used on lines 10-12 of Figure \ref{if-example} with a \emph{multipart delimited form}. Each \emph{part} can be either a single delimited form (e.g. the guard and the two branches) or one or more intervening identifier (e.g. \lstinlinew{else}). The body is generated by concatenating the bodies of the parts and inserting a special boundary character outside the normal character set between them. We call this character \lstinlinew{BOUNDARY} in our parser generator (line 5). Intervening identifiers can be thought of as having implicit delimiters around them, e.g. \lstinlinew{if [e1] else [e2]} and \lstinlinew{if [e1] [else] [e2]} express the same body, \texttt{e1}$\cdot$\lstinlinew{else}$\cdot$\lstinlinew{e2}, where $\cdot$ is the boundary character.
+We see \lstinlinew{if} being used on lines 10-12 of Figure \ref{if-example} with a \emph{multipart delimited form}. Each \emph{part} can be either a single delimited form (e.g. the guard and the two branches) or one or more intervening identifiers (e.g. \lstinlinew{else}). The body is generated by concatenating the bodies of the parts and inserting between them a special boundary character outside the normal character set. We call this character \lstinlinew{BOUNDARY} in our parser generator (line 5). Intervening identifiers can be thought of as having implicit delimiters around them, e.g. \lstinlinew{if [e1] else [e2]} and \lstinlinew{if [e1] [else] [e2]} express the same body, \texttt{e1}$\cdot$\lstinlinew{else}$\cdot$\lstinlinew{e2}, where $\cdot$ is the boundary character.
 
-For the branches in our example, we chose parentheses as delimiters, which  differ slightly from the previous work on TSLs so as to be specialized for situations where the body consists of a single spliced term and no other syntax. Because the parser can assume this, forward references can be identified prior to typechecking and thus be allowed to escape, as we see in the ``then'' branch in our example: the body is on the next line. Were, for example, square brackets used, then we would need to write the example as follows:
+For the branches in our example, we chose parentheses as delimiters, which  when used for a part in a TSM application mean that the part consists of a single spliced term and no other syntax. Because the parser can assume this, forward references can be identified prior to typechecking and thus be allowed to escape, as we see in the ``then'' branch in our example: the body is on the next line. Had we used, for example, square brackets, then we would need to write the example as follows:
 
 
 \begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
-type Bool = casetype 
+casetype Bool
   True
   False
 syntax @\boolIfcolor{if}@ = ~ (* : Parser(Exp) *)
@@ -417,7 +447,7 @@ def testIf2(ok : Bool) : HTML
   ] @\boolIfcolor{else}@ [simpleHTML '@\simpleHTMLcolor{>h1 Not OK!}@']
 \end{lstlisting}
 
-An analytic TSM can only be used in a position where the type is otherwise known, e.g. due to the return type annotation on line 10. This is to maintain the typing discipline: we do not need to expand the TSM to know what type it will have, just as with synthetic TSMs and TSLs. 
+An analytic TSM can only be used in a position where the type is otherwise known, e.g. on line 10 due to the return type annotation. This is to maintain the typing discipline: we do not need to expand the TSM to know what type it will have, just as with synthetic TSMs and TSLs. 
 
 Although we believe this trade-off is worthwhile, another point in the design space is to permit a special signifier that can be used to explicitly allow analytic TSMs to be used in synthetic positions. For example, we might permit a post-fix asterisk, \lstinlinew{if*}. The type the term will have then requires a deeper understanding of the TSM in question (e.g. by knowing how it elaborates, or based on a ``derived'' typing rule that the providers of \lstinlinew{if} assert or prove \cite{conf/icfp/LorenzenE13}).
 
@@ -436,7 +466,7 @@ As discussed in Section \ref{background}, declared types in Wyvern can define a 
 
 \begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
-type @\dbcolor{EmployeesDB}@ = schema ~
+schema @\dbcolor{EmployeesDB}@
   @\dbshcemacolor{*ID   int}@
   @\dbshcemacolor{Name  varchar}@
 
@@ -451,8 +481,12 @@ db.getByID(758) (* : Option(EmployeeDB.Entry) *)
 \mycaption{The usage of a type-level TSM and the TSL it generates to enable a simple ORM scheme.}
 \label{f-tykwexample}
 \end{figure}
+  
 
 The definition of \lstinlinew{schema} is shown in Figure \ref{typekw-example-1}. To define a type-level TSM, there must be a specification of the \emph{kind} of type-level term that will be generated, here \lstinlinew{*} because the type takes no parameters. Elaboration is then defined by a parser of type \lstinlinew{Parser(Type * Parser(Exp))}, i.e. it must produce a pair consisting of a reified type-level term and the TSL parser. Here, we generate the type using type quasiquotation by mapping over the column specifications in the parsed schema (we use the same color for \lstinlinew{Type} and \lstinlinew{MemberDecl} for simplicity). We assume a mapping from SQL types to Wyvern types, \lstinlinew{ty_from_sqlty}, not shown. Starting on line 21, we then generate the TSL as described in Section \ref{background}. Note  that the TSL implements the \lstinlinew{getByC} methods by mapping over the column specification provided to the type-level TSM. In other words, the implementation of the type generated on lines 4-19 is filled in by the TSL generated on lines 20-35.
+
+\subsection{Recursive and Parameterized Types}
+For example, a parser generator that also generates the abstract syntax representation. Need tyfn's to represent them. Mutually recursive types taken n arguments. Then type parameters for each decalaration. For example, .... 
 
 % The metadata mechanism in Wyvern supports more than just TSLs. For example, a documentation generator might look for a \lstinlinew{doc} field in the metadata. Our type-level TSM only generates the TSL definition. To support extending the metadata generated by a type-level TSM further after it is invoked, the mechanism supports a \emph{metadata transformation} when a type is declared using a type-level TSM:
 
@@ -571,268 +605,268 @@ syntax @\dbshcemacolor{schema}@ :: * = ~ (* : Parser(Type * Parser(Exp)) *)
 \label{typekw-example-1}
 \end{figure}
 
-\section{Formal Syntax and Semantics}\label{theory}
-We will now give a formal type theoretic treatment of the mechanisms described thusfar, building directly upon the calculus for TSLs in Wyvern presented previously by Omar et al. \cite{TSLs}. 
-The abstract syntax corresponding to the concrete syntax we introduced above is shown in Figures \ref{formal-syntax} and \ref{syntax-types}. A \emph{program}, $\rho$, consists of a series of declarations, $ d$, followed by a single external term, $e$. In practice, the declarations would be imported from separate packages, but we omit details of the package system here for simplicity. The top-level judgement in the system is the compilation judgement:
-$$\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
-\UIC{$ d;e\sim(\Psi;\Theta)\rightsquigarrow i:\tau$}
-\DP$$
-
-%The syntax for the contexts used in these judgements is shown in Figure \ref{typechecking-environment}. The main rules defining these judgements  are shown in Figures \ref{typechecking-elaboration} through \ref{expkw-kwstatics}. %For simplicity, we do not formalize Wyvern's mechanisms for parameterized types and type members here. 
-
-A series of declarations, $d$, consists of TSM declarations and named type declarations. The judgement $d \sim (\Psi, \Theta)$, defined in Figure \ref{typechecking-elaboration}, generates a corresponding TSM context, $\Psi$, and named type context, $\Theta$, from $d$. The syntax for these contexts is given in Figure \ref{typechecking-environment}. We refer to the type declarations in the prelude, some of which were shown in Fig. \ref{exp-prelude}, by using the named type context $\Theta_0$ in our rules.
-
-
-Judgements $\Delta; \Gamma \vdash_\Theta^\Phi e \leadsto i \Rightarrow \tau$ and  $\Delta; \Gamma \vdash_\Theta^\Phi e \leadsto i \Leftarrow \tau$ can be read ``under kinding context $\Delta$, typing context $\Gamma$, named type context $\Theta$ and TSM context $\Phi$, external term $e$ elaborates to internal term $i$ and (synthesizes / analyzes against) type $\tau$''. This is a \emph{bidirectionally typed elaboration semantics}, used to elaborate TSL literals and TSM applications, which appear only in the external language, to an internal language, which includes only the core operations in the language. The semantics follows that given in \cite{TSLs}, so we do not repeat the rules for the core operations or TSL literals. The rules for the only new form, $\textbf{eaptsm}[s, body]$, are given in Figure \ref{expkw-kwstatics} and described below.
-
-\subsection{Term-Level TSMs}
-
-\begin{figure}[t]
-\hspace{-5px}$\begin{array}{ll}
-      \textbf{Abstract Forms}   & \textbf{Concrete Forms}\\
-      \textsf{Programs} ~ \rho~::=~ d;e\\
-      \textsf{Declarations}~d~::= \\
-      \tabularspace \emptyset\\
-      \tabularspace d;\mathbf{syntsm}(\tsm,\tau,e)    & \textcd{syntax}~\tsm : \tau~\textcd{=}~e\\
-      \tabularspace d;\mathbf{anatsm}(\tsm,e)          & \textcd{syntax}~\tsm~\textcd{=}~e\\
-      \tabularspace d;\mathbf{tytsm}(\tsm,\kappa, \tau, e) & \textcd{syntax}~\tsm::\kappa~\textcd{with metadata:}\tau\,\textcd{=}\,e\\
-      \tabularspace d; \mathbf{tydecl}(\mathtt{T}, \tau, e)  & \textcd{type}~\mathtt{T}~\textcd{=}~\tau\\
-                                                            & ~~~\textcd{metadata = }e\\
-      \tabularspace d; \mathbf{tyaptsm}(\mathtt{T}, \tsm, body, e)   & \textcd{type}~\mathtt{T}~\textcd{=}~\tsm~dform\\
-                                                            & ~~~\textcd{metadata }e\\
-%      \text{Object Fields}\\
-%      \omega~::=~\emptyset                      \\
-%      \tabularspace l[\mathbf{val},\tau];\omega                 & \textcd{val}~l : \tau\\
-%      \tabularspace l[\mathbf{def},\tau];\omega                 & \textcd{def}~l : \tau\\
-%      \text{Casetype Cases}\\
-%      \chi~::=~\emptyset                      \\                 
-%      \tabularspace C[\tau];\chi                   & C~\textcd{of}~\tau\\
-      \textsf{External Terms}~ e~::= ...                              & \\
-      \tabularspace\mathbf{lit}[body]             & dform\\
-      \tabularspace\mathbf{eaptsm}[\tsm,body]       & \tsm~dform\\
-      ~\\
-      \multicolumn{2}{l}{\textsf{Translational Terms} ~ \hat{e}~::= ... ~|~ \mathbf{spliced}[e]} \\
-      \multicolumn{2}{l}{\textsf{Internal Terms}~i~::= ...}
-  \end{array}$
-\mycaption{Abstract and concrete forms for declarations and terms. Metavariable $\tsm$ ranges over TSM names, $\mathtt{T}$ over type names, $dform$ over delimited forms, per Figure \ref{f-delimited}, and $body$ over their bodies. Translational and internal terms are used in the semantics only. Elided forms are given in \cite{TSLs}.}
-\label{formal-syntax}
-\end{figure}
-
-\begin{figure}[t]
-\hspace{-5px}$\begin{array}{llcl}
-      \mathsf{Kinds} &  \kappa &::= & \star  ~|~ \kappa \rightarrow \kappa\\
-      \textsf{Types} & \tau & ::= & \mathtt{T} ~|~ \tau \rightarrow \tau ~|~ \mathbf{objtype}[\omega] ~|~ \mathbf{casetype}[\chi] \\
-      & & | & t ~|~ \lambda[\kappa](t.\tau) ~|~ \tau(\tau) \\
-      \multicolumn{4}{l}{\textsf{Translational Types} ~ \hat{\tau} ~ ::= ... ~|~ \mathbf{spliced}[\tau]}
-  \end{array}$
-\mycaption{Syntax for types and kinds. Metavariable $t$ ranges over type variables. Object type and case type declarations $\omega$ and $\chi$ are taken from \cite{TSLs}.
-%Metavariable $T$ ranges over type names, $l$ over member labels, $C$ over case names, $x$ over term variables, $X$ over type variables.
-}\label{syntax-types}
-\end{figure}
-\begin{figure}[t]
-$\begin{array}{l}
-      \textsf{TSM Contexts}\\
-      \Psi ::= \emptyset ~|~ \Psi, s[\mathbf{ty}(\kappa,\tau, i)] ~|~ \Psi, s[\mathbf{syn}(\tau,i)] ~|~ \Psi, s[\mathbf{ana}(i)]\\
-      \textsf{Named Type Contexts} ~\Theta ::= \emptyset~|~\Theta, \mathtt{T}[\tau :: \kappa,i : \tau]\\
-      \textsf{Typing Contexts}~\Gamma ::= \emptyset ~|~ \Gamma, x : \tau\\
-      \textsf{Kinding Contexts}
-      ~~\Delta ::= \emptyset ~|~ \Delta,t::\kappa
-\end{array}$
-\mycaption{Syntax for contexts.}
-\label{typechecking-environment}
-\end{figure}
-The rule (D-syntsm) shows how a synthetic TSM named $s$, synthesizing type $\tau$ and implemented by $e_{tsm}$ is declared. The rule first recursively checks the preceding declarations, then ensures that no other TSM named $s$ was declared  (we treat contexts as finite mappings and write, e.g., $\text{dom}(\Psi)$ to be the domain of $\Psi$). Then, it checks that $\tau$ is a closed type by checking that it's kind is $\star$ in an empty kinding context. Kinding contexts are simply mappings from type variables to kinds and the key kinding rules are shown in Figure \ref{kinding}. We will return to them when discussing type declarations below. Finally, $e_{tsm}$ is analyzed against  $\mathtt{Parser}(\mathtt{Exp})$, defined in the prelude. It must be a closed term, so the kinding and typing contexts are empty (it can use the named types and TSMs declared previously, however). Once these checks are complete, the definition of $s$ is added to $\Psi$. The rule for analytic TSM declarations, (D-anatsm), is nearly identical, differing only in that no kind check is needed.
-
-Term-level TSM application is captured by the abstract form $\textbf{eaptsm}[s, body]$, where $s$ is the name of the TSM and $body$ is the body of the delimited form, per Sec. \ref{tsms-term}. The rule (T-syn) shows how typing and elaboration for a synthetic TSM proceeds. First, the definition of $s$ is extracted from $\Psi$. Then, a parse stream is constructed on the basis of $body$. We assume the relation $\textsf{parsestream}(body)=i_{ps}$ is defined such that $i_{ps}$ is a closed term of type $\mathtt{ParseStream}$. Then, the $parse$ method of the TSM implementation is invoked with the parse stream. The judgement $i \Downarrow i'$ captures evaluation of $i$ to a value, $i'$. Our internal language is identical to that in \cite{TSLs}, so we omit the rules. As suggested by the declarations in Figure \ref{exp-prelude}, the result is either a parse error or a valid parse, written $OK(i_{exp})$, where $i_{exp}$ is a value of type $\mathtt{Exp}$. Here, we simply leave the error case undefined -- the typing judgement cannot be derived if there is a parse error.% -- though in practice, the compiler would report errors that occurred. 
-
-The \emph{dereification judgement} $i \uparrow \hat{e}$, defined in \cite{TSLs}, takes a value of type \lstinlinew{Exp} to a corresponding \emph{translational term}, $\hat{e}$. 
-Translational terms mirror external terms but include an additional form, $\textbf{spliced}[e]$, which captures portions of the parse stream parsed as a spliced term. The case \lstinlinew{Spliced} of case type \lstinlinew{Exp}, which takes a (portion of) a parse stream, dereifies to this form. This permits us to ensure that only spliced portions of parse streams can refer to variables in the surrounding scope (and no others), ensuring that hygiene is maintained. 
-
-This is technically accomplished by the judgements \[\Delta_{out}; \Gamma_{out}; \Delta; \Gamma \vdash_{\Theta}^{\Psi} \hat{e} \leadsto i {\Rightarrow}{(\Leftarrow)} \tau\]  which can be read ``under outer typing and kinding contexts $\Delta_{out}$ and $\Gamma_{out}$ and inner typing and kinding contexts $\Delta$ and $\Gamma$,  $\hat{e}$ elaborates to internal term $i$ and (synthesizes/analyzes against) type $\tau$''. These judgements behave identically to the corresponding judgements for external terms, using the inner typing and kinding contexts, until a term of the form $\textbf{spliced}[e]$ is encountered. The outer contexts are then used. The relevant rule can be found in \cite{TSLs}, and an analagous type-level rule will be shown below. 
-In the rules for TSLs and TSMs, (T-syn) and (T-ana), the inner contexts begin empty so only variables inside spliced terms can refer to outer variables. A \lstinlinew{parse} function that generated, for example, \lstinlinew{Var('x')}, would not typecheck, because it captures a variable that it cannot know exists. An occurrence of a variable \lstinlinew{x} inside a spliced portion (e.g. between \lstinlinew{<ANDASDSAD} and \lstinlinew{ASDNSAD>} when using the \lstinlinew{HTML} TSL) would be checked in the outer context and thus be acceptable. Parse streams cannot be created manually, so this guarantee is strict. %The details of this mechanism at the term level are essentially identical (up to the orthogonal addition of parameterized types) to that in \cite{TSLs}, so we omit the rules.
-
-In the rule (T-syn), the type that $\hat{e}$ is being analyzed against is determined by the definition of the TSM. The rule (T-ana) is essentially identical, but the type is determined by the type that the whole application is being analyzed against instead, consistent with the descriptions in Sec. \ref{tsms-term}. 
-
-
-\subsection{Type Declarations}\label{declarations}
-\input{kw-elaboration.tex}
-
-\input{kw-statics.tex}
-
-\begin{figure}[ht]
-\flyingbox{$\Delta\vdash_{\Theta}\tau::\kappa$}
-\begin{center}
-\AXC{$t::\kappa\in\Delta$}
-\UIC{$\Delta\vdash_{\Theta} t::\kappa$}
-%%
-\AXC{$\Delta\vdash_{\Theta}\tau_1::\kappa \rightarrow \kappa'$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::\kappa$}
-\UIC{$\Delta\vdash_{\Theta}\tau_1(\tau_2)::\kappa'$}
-\noLine
-\BIC{}
-\DP
-\end{center}
-
-\begin{center}
-\AXC{$\Delta,t::\kappa\vdash_{\Theta}\tau::\kappa'$}
-\UIC{$\Delta\vdash_{\Theta}\lambda[\kappa](t.\tau)::\kappa\rightarrow \kappa'$}
-%%
-\AXC{$T[\tau :: \kappa, i_{md} : \tau_{md}]\in\Theta$}
-\UIC{$\Delta\vdash_{\Theta} \mathtt{T}::\kappa$}
-\noLine
-\BIC{}
-\DP
-\end{center}
-\mycaption{Kinding (object and case types follow \cite{TSLs})}
-\label{kinding}
-\end{figure}
+% \section{Formal Syntax and Semantics}\label{theory}
+% We will now give a formal type theoretic treatment of the mechanisms described thusfar, building directly upon the calculus for TSLs in Wyvern presented previously by Omar et al. \cite{TSLs}. 
+% The abstract syntax corresponding to the concrete syntax we introduced above is shown in Figures \ref{formal-syntax} and \ref{syntax-types}. A \emph{program}, $\rho$, consists of a series of declarations, $ d$, followed by a single external term, $e$. In practice, the declarations would be imported from separate packages, but we omit details of the package system here for simplicity. The top-level judgement in the system is the compilation judgement:
+% $$\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$}      \RightLabel{(compile)}
+% \UIC{$ d;e\sim(\Psi;\Theta)\rightsquigarrow i:\tau$}
+% \DP$$
+
+% %The syntax for the contexts used in these judgements is shown in Figure \ref{typechecking-environment}. The main rules defining these judgements  are shown in Figures \ref{typechecking-elaboration} through \ref{expkw-kwstatics}. %For simplicity, we do not formalize Wyvern's mechanisms for parameterized types and type members here. 
+
+% A series of declarations, $d$, consists of TSM declarations and named type declarations. The judgement $d \sim (\Psi, \Theta)$, defined in Figure \ref{typechecking-elaboration}, generates a corresponding TSM context, $\Psi$, and named type context, $\Theta$, from $d$. The syntax for these contexts is given in Figure \ref{typechecking-environment}. We refer to the type declarations in the prelude, some of which were shown in Fig. \ref{exp-prelude}, by using the named type context $\Theta_0$ in our rules.
+
+
+% Judgements $\Delta; \Gamma \vdash_\Theta^\Phi e \leadsto i \Rightarrow \tau$ and  $\Delta; \Gamma \vdash_\Theta^\Phi e \leadsto i \Leftarrow \tau$ can be read ``under kinding context $\Delta$, typing context $\Gamma$, named type context $\Theta$ and TSM context $\Phi$, external term $e$ elaborates to internal term $i$ and (synthesizes / analyzes against) type $\tau$''. This is a \emph{bidirectionally typed elaboration semantics}, used to elaborate TSL literals and TSM applications, which appear only in the external language, to an internal language, which includes only the core operations in the language. The semantics follows that given in \cite{TSLs}, so we do not repeat the rules for the core operations or TSL literals. The rules for the only new form, $\textbf{eaptsm}[s, body]$, are given in Figure \ref{expkw-kwstatics} and described below.
+
+% \subsection{Term-Level TSMs}
+
+% \begin{figure}[t]
+% \hspace{-5px}$\begin{array}{ll}
+%       \textbf{Abstract Forms}   & \textbf{Concrete Forms}\\
+%       \textsf{Programs} ~ \rho~::=~ d;e\\
+%       \textsf{Declarations}~d~::= \\
+%       \tabularspace \emptyset\\
+%       \tabularspace d;\mathbf{syntsm}(\tsm,\tau,e)    & \textcd{syntax}~\tsm : \tau~\textcd{=}~e\\
+%       \tabularspace d;\mathbf{anatsm}(\tsm,e)          & \textcd{syntax}~\tsm~\textcd{=}~e\\
+%       \tabularspace d;\mathbf{tytsm}(\tsm,\kappa, \tau, e) & \textcd{syntax}~\tsm::\kappa~\textcd{with metadata:}\tau\,\textcd{=}\,e\\
+%       \tabularspace d; \mathbf{tydecl}(\mathtt{T}, \tau, e)  & \textcd{type}~\mathtt{T}~\textcd{=}~\tau\\
+%                                                             & ~~~\textcd{metadata = }e\\
+%       \tabularspace d; \mathbf{tyaptsm}(\mathtt{T}, \tsm, body, e)   & \textcd{type}~\mathtt{T}~\textcd{=}~\tsm~dform\\
+%                                                             & ~~~\textcd{metadata }e\\
+% %      \text{Object Fields}\\
+% %      \omega~::=~\emptyset                      \\
+% %      \tabularspace l[\mathbf{val},\tau];\omega                 & \textcd{val}~l : \tau\\
+% %      \tabularspace l[\mathbf{def},\tau];\omega                 & \textcd{def}~l : \tau\\
+% %      \text{Casetype Cases}\\
+% %      \chi~::=~\emptyset                      \\                 
+% %      \tabularspace C[\tau];\chi                   & C~\textcd{of}~\tau\\
+%       \textsf{External Terms}~ e~::= ...                              & \\
+%       \tabularspace\mathbf{lit}[body]             & dform\\
+%       \tabularspace\mathbf{eaptsm}[\tsm,body]       & \tsm~dform\\
+%       ~\\
+%       \multicolumn{2}{l}{\textsf{Translational Terms} ~ \hat{e}~::= ... ~|~ \mathbf{spliced}[e]} \\
+%       \multicolumn{2}{l}{\textsf{Internal Terms}~i~::= ...}
+%   \end{array}$
+% \mycaption{Abstract and concrete forms for declarations and terms. Metavariable $\tsm$ ranges over TSM names, $\mathtt{T}$ over type names, $dform$ over delimited forms, per Figure \ref{f-delimited}, and $body$ over their bodies. Translational and internal terms are used in the semantics only. Elided forms are given in \cite{TSLs}.}
+% \label{formal-syntax}
+% \end{figure}
+
+% \begin{figure}[t]
+% \hspace{-5px}$\begin{array}{llcl}
+%       \mathsf{Kinds} &  \kappa &::= & \star  ~|~ \kappa \rightarrow \kappa\\
+%       \textsf{Types} & \tau & ::= & \mathtt{T} ~|~ \tau \rightarrow \tau ~|~ \mathbf{objtype}[\omega] ~|~ \mathbf{casetype}[\chi] \\
+%       & & | & t ~|~ \lambda[\kappa](t.\tau) ~|~ \tau(\tau) \\
+%       \multicolumn{4}{l}{\textsf{Translational Types} ~ \hat{\tau} ~ ::= ... ~|~ \mathbf{spliced}[\tau]}
+%   \end{array}$
+% \mycaption{Syntax for types and kinds. Metavariable $t$ ranges over type variables. Object type and case type declarations $\omega$ and $\chi$ are taken from \cite{TSLs}.
+% %Metavariable $T$ ranges over type names, $l$ over member labels, $C$ over case names, $x$ over term variables, $X$ over type variables.
+% }\label{syntax-types}
+% \end{figure}
+% \begin{figure}[t]
+% $\begin{array}{l}
+%       \textsf{TSM Contexts}\\
+%       \Psi ::= \emptyset ~|~ \Psi, s[\mathbf{ty}(\kappa,\tau, i)] ~|~ \Psi, s[\mathbf{syn}(\tau,i)] ~|~ \Psi, s[\mathbf{ana}(i)]\\
+%       \textsf{Named Type Contexts} ~\Theta ::= \emptyset~|~\Theta, \mathtt{T}[\tau :: \kappa,i : \tau]\\
+%       \textsf{Typing Contexts}~\Gamma ::= \emptyset ~|~ \Gamma, x : \tau\\
+%       \textsf{Kinding Contexts}
+%       ~~\Delta ::= \emptyset ~|~ \Delta,t::\kappa
+% \end{array}$
+% \mycaption{Syntax for contexts.}
+% \label{typechecking-environment}
+% \end{figure}
+% The rule (D-syntsm) shows how a synthetic TSM named $s$, synthesizing type $\tau$ and implemented by $e_{tsm}$ is declared. The rule first recursively checks the preceding declarations, then ensures that no other TSM named $s$ was declared  (we treat contexts as finite mappings and write, e.g., $\text{dom}(\Psi)$ to be the domain of $\Psi$). Then, it checks that $\tau$ is a closed type by checking that it's kind is $\star$ in an empty kinding context. Kinding contexts are simply mappings from type variables to kinds and the key kinding rules are shown in Figure \ref{kinding}. We will return to them when discussing type declarations below. Finally, $e_{tsm}$ is analyzed against  $\mathtt{Parser}(\mathtt{Exp})$, defined in the prelude. It must be a closed term, so the kinding and typing contexts are empty (it can use the named types and TSMs declared previously, however). Once these checks are complete, the definition of $s$ is added to $\Psi$. The rule for analytic TSM declarations, (D-anatsm), is nearly identical, differing only in that no kind check is needed.
+
+% Term-level TSM application is captured by the abstract form $\textbf{eaptsm}[s, body]$, where $s$ is the name of the TSM and $body$ is the body of the delimited form, per Sec. \ref{tsms-term}. The rule (T-syn) shows how typing and elaboration for a synthetic TSM proceeds. First, the definition of $s$ is extracted from $\Psi$. Then, a parse stream is constructed on the basis of $body$. We assume the relation $\textsf{parsestream}(body)=i_{ps}$ is defined such that $i_{ps}$ is a closed term of type $\mathtt{ParseStream}$. Then, the $parse$ method of the TSM implementation is invoked with the parse stream. The judgement $i \Downarrow i'$ captures evaluation of $i$ to a value, $i'$. Our internal language is identical to that in \cite{TSLs}, so we omit the rules. As suggested by the declarations in Figure \ref{exp-prelude}, the result is either a parse error or a valid parse, written $OK(i_{exp})$, where $i_{exp}$ is a value of type $\mathtt{Exp}$. Here, we simply leave the error case undefined -- the typing judgement cannot be derived if there is a parse error.% -- though in practice, the compiler would report errors that occurred. 
+
+% The \emph{dereification judgement} $i \uparrow \hat{e}$, defined in \cite{TSLs}, takes a value of type \lstinlinew{Exp} to a corresponding \emph{translational term}, $\hat{e}$. 
+% Translational terms mirror external terms but include an additional form, $\textbf{spliced}[e]$, which captures portions of the parse stream parsed as a spliced term. The case \lstinlinew{Spliced} of case type \lstinlinew{Exp}, which takes a (portion of) a parse stream, dereifies to this form. This permits us to ensure that only spliced portions of parse streams can refer to variables in the surrounding scope (and no others), ensuring that hygiene is maintained. 
+
+% This is technically accomplished by the judgements \[\Delta_{out}; \Gamma_{out}; \Delta; \Gamma \vdash_{\Theta}^{\Psi} \hat{e} \leadsto i {\Rightarrow}{(\Leftarrow)} \tau\]  which can be read ``under outer typing and kinding contexts $\Delta_{out}$ and $\Gamma_{out}$ and inner typing and kinding contexts $\Delta$ and $\Gamma$,  $\hat{e}$ elaborates to internal term $i$ and (synthesizes/analyzes against) type $\tau$''. These judgements behave identically to the corresponding judgements for external terms, using the inner typing and kinding contexts, until a term of the form $\textbf{spliced}[e]$ is encountered. The outer contexts are then used. The relevant rule can be found in \cite{TSLs}, and an analagous type-level rule will be shown below. 
+% In the rules for TSLs and TSMs, (T-syn) and (T-ana), the inner contexts begin empty so only variables inside spliced terms can refer to outer variables. A \lstinlinew{parse} function that generated, for example, \lstinlinew{Var('x')}, would not typecheck, because it captures a variable that it cannot know exists. An occurrence of a variable \lstinlinew{x} inside a spliced portion (e.g. between \lstinlinew{<ANDASDSAD} and \lstinlinew{ASDNSAD>} when using the \lstinlinew{HTML} TSL) would be checked in the outer context and thus be acceptable. Parse streams cannot be created manually, so this guarantee is strict. %The details of this mechanism at the term level are essentially identical (up to the orthogonal addition of parameterized types) to that in \cite{TSLs}, so we omit the rules.
+
+% In the rule (T-syn), the type that $\hat{e}$ is being analyzed against is determined by the definition of the TSM. The rule (T-ana) is essentially identical, but the type is determined by the type that the whole application is being analyzed against instead, consistent with the descriptions in Sec. \ref{tsms-term}. 
+
+
+% \subsection{Type Declarations}\label{declarations}
+% \input{kw-elaboration.tex}
+
+% \input{kw-statics.tex}
+
+% \begin{figure}[ht]
+% \flyingbox{$\Delta\vdash_{\Theta}\tau::\kappa$}
+% \begin{center}
+% \AXC{$t::\kappa\in\Delta$}
+% \UIC{$\Delta\vdash_{\Theta} t::\kappa$}
+% %%
+% \AXC{$\Delta\vdash_{\Theta}\tau_1::\kappa \rightarrow \kappa'$ ~~~~ $\Delta\vdash_{\Theta}\tau_2::\kappa$}
+% \UIC{$\Delta\vdash_{\Theta}\tau_1(\tau_2)::\kappa'$}
+% \noLine
+% \BIC{}
+% \DP
+% \end{center}
+
+% \begin{center}
+% \AXC{$\Delta,t::\kappa\vdash_{\Theta}\tau::\kappa'$}
+% \UIC{$\Delta\vdash_{\Theta}\lambda[\kappa](t.\tau)::\kappa\rightarrow \kappa'$}
+% %%
+% \AXC{$T[\tau :: \kappa, i_{md} : \tau_{md}]\in\Theta$}
+% \UIC{$\Delta\vdash_{\Theta} \mathtt{T}::\kappa$}
+% \noLine
+% \BIC{}
+% \DP
+% \end{center}
+% \mycaption{Kinding (object and case types follow \cite{TSLs})}
+% \label{kinding}
+% \end{figure}
 
 
-The rule (D-tydecl) shows how explicit named type declarations (those which do not apply a type-level TSM) work. First, the preceding declarations are processed and we ensure that no other type named $T$ was declared. Then, we need that the type $\tau$ has arrow kind $\kappa \rightarrow \kappa$ where $\kappa$ is the kind of type being declared, e.g. $\kappa = \star \rightarrow \star$ for \lstinlinew{List}. The reason for this is to support recursive named types, e.g. 
+% The rule (D-tydecl) shows how explicit named type declarations (those which do not apply a type-level TSM) work. First, the preceding declarations are processed and we ensure that no other type named $T$ was declared. Then, we need that the type $\tau$ has arrow kind $\kappa \rightarrow \kappa$ where $\kappa$ is the kind of type being declared, e.g. $\kappa = \star \rightarrow \star$ for \lstinlinew{List}. The reason for this is to support recursive named types, e.g. 
 
-\begin{lstlisting}[style=wyvern]
-type List(T) = casetype
-  Nil
-  Cons of T * List(T)
-\end{lstlisting}
-\noindent
-desugars to a type-level function taking in a self reference before returning a type-level function accepting the type parameter and returning the case type being declared:
+% \begin{lstlisting}[style=wyvern]
+% type List(T) = casetype
+%   Nil
+%   Cons of T * List(T)
+% \end{lstlisting}
+% \noindent
+% desugars to a type-level function taking in a self reference before returning a type-level function accepting the type parameter and returning the case type being declared:
 
-\begin{lstlisting}[style=wyvern]
-type List = tyfn(List::* -> *) => tyfn(T::*) => casetype 
-  Nil 
-  Cons of T * List(T)
-\end{lstlisting}
+% \begin{lstlisting}[style=wyvern]
+% type List = tyfn(List::* -> *) => tyfn(T::*) => casetype 
+%   Nil 
+%   Cons of T * List(T)
+% \end{lstlisting}
 
-Before being added to the named type context, the named type constructor $\mathtt{List}$ is substituted for the type variable $List$ via type-level function application, $\tau(\mathtt{T})$, as can be seen in the conclusion of the rule. Non-recursive types can simply ignore the ``self reference'' argument.
+% Before being added to the named type context, the named type constructor $\mathtt{List}$ is substituted for the type variable $List$ via type-level function application, $\tau(\mathtt{T})$, as can be seen in the conclusion of the rule. Non-recursive types can simply ignore the ``self reference'' argument.
 
-We do not formalize mutually recursive types here, though they follow the same pattern (taking $n$ arguments rather than just one). The full rules can be found in the appendix. Note also that we do not explicitly check for cyclic type definitions. Standard syntactic constraints can be imposed to rule these out. 
+% We do not formalize mutually recursive types here, though they follow the same pattern (taking $n$ arguments rather than just one). The full rules can be found in the appendix. Note also that we do not explicitly check for cyclic type definitions. Standard syntactic constraints can be imposed to rule these out. 
 
-The final premise of (D-tydecl) synthesizes a type for the metadata. Metadata can use  the type declaration, but not recursively refer to its own metadata yet so we write a dash for a dummy metadata value.
+% The final premise of (D-tydecl) synthesizes a type for the metadata. Metadata can use  the type declaration, but not recursively refer to its own metadata yet so we write a dash for a dummy metadata value.
 
-Figure \ref{kinding} shows that named types have the kind of their underlying type-level term. Parameterized types can thus be applied to parameters like type-level functions.
+% Figure \ref{kinding} shows that named types have the kind of their underlying type-level term. Parameterized types can thus be applied to parameters like type-level functions.
 
-\subsection{Type-Level TSMs}
+% \subsection{Type-Level TSMs}
 
-\begin{figure}[t]
-\flyingbox{$\Delta;\Delta\vdash_{\Theta}\hat{\tau}\rightsquigarrow \tau::\kappa$}
-%\vspace{-6px}
-\begin{center}
-\AXC{$\Delta_{out}\vdash_{\Theta} \tau ::\kappa$}
-\UIC{$\Delta_{out};\Delta\vdash_{\Theta}\mathbf{spliced}[\tau]\rightsquigarrow \tau::\kappa$}
-%%%
-\AXC{$t::\kappa\in\Delta$}
-\UIC{$\Delta_{out}; \Delta\vdash_{\Theta} t::\kappa$}
-%%%
+% \begin{figure}[t]
+% \flyingbox{$\Delta;\Delta\vdash_{\Theta}\hat{\tau}\rightsquigarrow \tau::\kappa$}
+% %\vspace{-6px}
+% \begin{center}
+% \AXC{$\Delta_{out}\vdash_{\Theta} \tau ::\kappa$}
+% \UIC{$\Delta_{out};\Delta\vdash_{\Theta}\mathbf{spliced}[\tau]\rightsquigarrow \tau::\kappa$}
+% %%%
+% \AXC{$t::\kappa\in\Delta$}
+% \UIC{$\Delta_{out}; \Delta\vdash_{\Theta} t::\kappa$}
+% %%%
 
-\noLine
-\BIC{}
-\DP
-\end{center}
-\begin{center}
+% \noLine
+% \BIC{}
+% \DP
+% \end{center}
+% \begin{center}
 
-\AXC{$\Delta_{out}; \Delta,t::\kappa\vdash_{\Theta}\hat\tau\rightsquigarrow\tau::\kappa'$}
-\UIC{$\Delta_{out}; \Delta\vdash_{\Theta}\lambda[\kappa](t.\hat\tau)\rightsquigarrow\lambda[\kappa](t.\tau)::\kappa\rightarrow \kappa'$}
-\DP
-\end{center}
-\mycaption{Translational Kinding. Remaining rules are directly analagous to those for $\tau$ in Figure \ref{kinding}.}
-\label{tr-kinding}
-\end{figure}
-Rule (D-tytsm) declares a type-level TSM $s$ that generates a type of kind $\kappa$ with metadata of type $\tau_{md}$ and an implementation $e_{tsm}$. The metadata type is checked to ensure that it is a type and the implementation is checked against type $\mathtt{Parser}(\mathtt{Type} \times \tau_{md})$, consistent with the explanation in Section \ref{tsms-type}. Note that we assume product types can be encoded as object types for simplicity in our calculus. This information is recorded in the TSM context, $\Psi$.
+% \AXC{$\Delta_{out}; \Delta,t::\kappa\vdash_{\Theta}\hat\tau\rightsquigarrow\tau::\kappa'$}
+% \UIC{$\Delta_{out}; \Delta\vdash_{\Theta}\lambda[\kappa](t.\hat\tau)\rightsquigarrow\lambda[\kappa](t.\tau)::\kappa\rightarrow \kappa'$}
+% \DP
+% \end{center}
+% \mycaption{Translational Kinding. Remaining rules are directly analagous to those for $\tau$ in Figure \ref{kinding}.}
+% \label{tr-kinding}
+% \end{figure}
+% Rule (D-tytsm) declares a type-level TSM $s$ that generates a type of kind $\kappa$ with metadata of type $\tau_{md}$ and an implementation $e_{tsm}$. The metadata type is checked to ensure that it is a type and the implementation is checked against type $\mathtt{Parser}(\mathtt{Type} \times \tau_{md})$, consistent with the explanation in Section \ref{tsms-type}. Note that we assume product types can be encoded as object types for simplicity in our calculus. This information is recorded in the TSM context, $\Psi$.
 
-Rule (D-aptsm) shows how type-level TSMs are applied. If the result of the \lstinlinew{parse} method is $OK((i_{type}, i_{md}))$, then we dereify $i_{type}$ to a \emph{translational type}, $\hat{\tau}$. These are analagous to translational terms, $\hat{e}$, and serve to ensure hygiene at the level of types. The judgement $\Delta_{out}; \Delta \vdash_{\Theta} \hat{\tau} \leadsto \tau :: \kappa$ can be read ``under outer kinding context $\Delta_{out}$, inner kinding context $\Delta$ and named type context $\Theta$, translational type $\hat\tau$ elaborates to type $\tau$ at kind $\kappa$''. The syntax of translational types mirrors that of types, again with the addition of a form capturing spliced type-level terms arising from the parse stream, $\textbf{spliced}[\tau]$. The rules related to type variables and spliced forms are shown in Figure \ref{tr-kinding}. Only spliced types are checked under the outer context. 
+% Rule (D-aptsm) shows how type-level TSMs are applied. If the result of the \lstinlinew{parse} method is $OK((i_{type}, i_{md}))$, then we dereify $i_{type}$ to a \emph{translational type}, $\hat{\tau}$. These are analagous to translational terms, $\hat{e}$, and serve to ensure hygiene at the level of types. The judgement $\Delta_{out}; \Delta \vdash_{\Theta} \hat{\tau} \leadsto \tau :: \kappa$ can be read ``under outer kinding context $\Delta_{out}$, inner kinding context $\Delta$ and named type context $\Theta$, translational type $\hat\tau$ elaborates to type $\tau$ at kind $\kappa$''. The syntax of translational types mirrors that of types, again with the addition of a form capturing spliced type-level terms arising from the parse stream, $\textbf{spliced}[\tau]$. The rules related to type variables and spliced forms are shown in Figure \ref{tr-kinding}. Only spliced types are checked under the outer context. 
 
-As with type declarations, in (D-aptsm) we need that $\hat{\tau}$ has kind $\kappa \rightarrow \kappa$ to support recursive types (in the example in Sec. \ref{tsms-type}, we omitted this because in practice, the mechanism inserts it by default for non-recursive types). The outer kinding context here is initially empty because we do not formalize nested type declarations for simplicity, but in practice it would be the kinding context coming from any outer declarations. 
+% As with type declarations, in (D-aptsm) we need that $\hat{\tau}$ has kind $\kappa \rightarrow \kappa$ to support recursive types (in the example in Sec. \ref{tsms-type}, we omitted this because in practice, the mechanism inserts it by default for non-recursive types). The outer kinding context here is initially empty because we do not formalize nested type declarations for simplicity, but in practice it would be the kinding context coming from any outer declarations. 
 
-The remaining two premises of (D-aptsm) check that the metadata transformation is a function of the right type and invoke it to produce the final metadata (per Sec. \ref{tsms-type}). An identity function would be generated automatically when one is not explicitly provided by the user.
+% The remaining two premises of (D-aptsm) check that the metadata transformation is a function of the right type and invoke it to produce the final metadata (per Sec. \ref{tsms-type}). An identity function would be generated automatically when one is not explicitly provided by the user.
 
-% \subsection{Bidirectional Typechecking and Elaboration of External Terms}\label{elaboration}
+% % \subsection{Bidirectional Typechecking and Elaboration of External Terms}\label{elaboration}
 
 
-% \paragraph{Declarations}
+% % \paragraph{Declarations}
 
-% An element in the declaration section can be one of type-level TSM, term-level synthetic TSM, analytical TSM or named type. By allowing different kinds of declarations appearing in the same section, a declaration can refer to any kind of declarations appeared in the previous context, which enhance the flexibility of the TSM usage.
+% % An element in the declaration section can be one of type-level TSM, term-level synthetic TSM, analytical TSM or named type. By allowing different kinds of declarations appearing in the same section, a declaration can refer to any kind of declarations appeared in the previous context, which enhance the flexibility of the TSM usage.
 
-% For a type level TSM $s[\mathbf{tytsm}(e,\tau)]$, its declaration contains a term $e$ and a type $\tau$: the term $e$ is the parser for DSL literal parsing, and the type $\tau$ is the type of the generated metadata.
+% % For a type level TSM $s[\mathbf{tytsm}(e,\tau)]$, its declaration contains a term $e$ and a type $\tau$: the term $e$ is the parser for DSL literal parsing, and the type $\tau$ is the type of the generated metadata.
 
-% Similar to type-level TSMs, a term-level TSM can be one of $s[\mathbf{syn}(\tau,e)]$ or $s[\mathbf{ana}(e)]$. As we presented in section \ref{tsms-term}, synthetic TSMs are defined with its return type $\tau$ while analytic TSMs are not. The expression ($e$) in both cases represents the parser, which is supposed to be of type $ExpParser$.
+% % Similar to type-level TSMs, a term-level TSM can be one of $s[\mathbf{syn}(\tau,e)]$ or $s[\mathbf{ana}(e)]$. As we presented in section \ref{tsms-term}, synthetic TSMs are defined with its return type $\tau$ while analytic TSMs are not. The expression ($e$) in both cases represents the parser, which is supposed to be of type $ExpParser$.
 
-% Named type declarations are the type declarations associated with a name $T$. Depending on the its definition method, there are two kinds of type declarations: an explicit type declaration with its structure and metadata explicitly declared, or a type defined by applying a TSM to DSL literals, whose structure and metadata will be generated by the elaborated DSL literals presented in the keyword invocation body. An explicit type declaration ($T[\mathbf{explicit}(\tau,e)]$) consists of three parts: $T$ is the type name, $\tau$ is the type structure, which can be one of $\mathbf{objtype}$, $\mathbf{casetype}$, $\mathbf{arrowtype}$ or named type $\mathbf{named}[T']$,  and $e$ is the metadata associated with the type. And the second kind of type declaration ($T[\mathbf{aptsm}(k,body,e)]$) is a type declared using DSL syntax specified in a type TSM $k$. DSL literals are presented as $body$ in the declaration and the type metadata as $e$. Different from those in the first kind, metadata $e$ here serve as a metadata extender to extend the metadata generated by the keyword parser.
+% % Named type declarations are the type declarations associated with a name $T$. Depending on the its definition method, there are two kinds of type declarations: an explicit type declaration with its structure and metadata explicitly declared, or a type defined by applying a TSM to DSL literals, whose structure and metadata will be generated by the elaborated DSL literals presented in the keyword invocation body. An explicit type declaration ($T[\mathbf{explicit}(\tau,e)]$) consists of three parts: $T$ is the type name, $\tau$ is the type structure, which can be one of $\mathbf{objtype}$, $\mathbf{casetype}$, $\mathbf{arrowtype}$ or named type $\mathbf{named}[T']$,  and $e$ is the metadata associated with the type. And the second kind of type declaration ($T[\mathbf{aptsm}(k,body,e)]$) is a type declared using DSL syntax specified in a type TSM $k$. DSL literals are presented as $body$ in the declaration and the type metadata as $e$. Different from those in the first kind, metadata $e$ here serve as a metadata extender to extend the metadata generated by the keyword parser.
 
-% \paragraph{External Terms}
-% By naming terms in a Wyvern program ``external terms'' ($e$), we distinguish them from ``internal terms'' ($i$), which are pure Wyvern terms without DSL literals. 
+% % \paragraph{External Terms}
+% % By naming terms in a Wyvern program ``external terms'' ($e$), we distinguish them from ``internal terms'' ($i$), which are pure Wyvern terms without DSL literals. 
 
-% To support term-level TSMs, the syntax for external terms is extended with a TSM application term and several terms for run-time parser access (omitted here, can be referred to TR). The term-level TSM application term $\mathbf{eaptsm}[k,body]$ specifies the application of the TSM $k$ to DSLs presented in delimited forms as $body$. Its concrete form can be referred to figure \ref{formal-syntax}.
+% % To support term-level TSMs, the syntax for external terms is extended with a TSM application term and several terms for run-time parser access (omitted here, can be referred to TR). The term-level TSM application term $\mathbf{eaptsm}[k,body]$ specifies the application of the TSM $k$ to DSLs presented in delimited forms as $body$. Its concrete form can be referred to figure \ref{formal-syntax}.
 
-% An external term with DSL literals will elaborate to internal Wyvern terms with the help of the DSL parsers. During elaboration, translational expressions  
-% are defined to support ``spliced terms'', allowing external terms co-exist with internal terms: its syntax mirrors that of external terms, except that literal forms are removed and and translational state $\mathbf{spliced}[e]$ is added, which represents an external term $e$ spliced into a literal body.
+% % An external term with DSL literals will elaborate to internal Wyvern terms with the help of the DSL parsers. During elaboration, translational expressions  
+% % are defined to support ``spliced terms'', allowing external terms co-exist with internal terms: its syntax mirrors that of external terms, except that literal forms are removed and and translational state $\mathbf{spliced}[e]$ is added, which represents an external term $e$ spliced into a literal body.
 
-% \subsection{Bidirectional Typechecking and Elaboration}
+% % \subsection{Bidirectional Typechecking and Elaboration}
 
 
 
-% Bidirectional typechecking is used here as type can be clearly specified as input or output during typechecking process. In bidirectional type system, a type judgment is written as $\Gamma\vdash_{\Theta} e\Leftarrow(\Rightarrow)\tau$ instead of $\Gamma\vdash_{\Theta} e:\tau$ in a traditional type system, where $\Gamma$ is the typing context, $\Theta$ is the declaration context, and the type $\tau$ is specified as input ($\Leftarrow$) or output ($\Rightarrow$) according to the arrow direction. 
+% % Bidirectional typechecking is used here as type can be clearly specified as input or output during typechecking process. In bidirectional type system, a type judgment is written as $\Gamma\vdash_{\Theta} e\Leftarrow(\Rightarrow)\tau$ instead of $\Gamma\vdash_{\Theta} e:\tau$ in a traditional type system, where $\Gamma$ is the typing context, $\Theta$ is the declaration context, and the type $\tau$ is specified as input ($\Leftarrow$) or output ($\Rightarrow$) according to the arrow direction. 
 
-% A term-TSM application contains DSL literals in its body, so it belongs to external Wyvern language, and an elaboration phase is required to transform them into internal Wyvern terms before execution. The elaboration of external terms is part of type checking process, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external term elaborates to an internal term and synthesize to (or analyze against) the type $\tau$. The arrow $\rightsquigarrow$ is used to represent the elaboration process, including literal elimination and hygiene process.
+% % A term-TSM application contains DSL literals in its body, so it belongs to external Wyvern language, and an elaboration phase is required to transform them into internal Wyvern terms before execution. The elaboration of external terms is part of type checking process, written as $\Gamma\vdash_{\Theta} e\rightsquigarrow i \Leftarrow(\Rightarrow) \tau$. It indicates that an external term elaborates to an internal term and synthesize to (or analyze against) the type $\tau$. The arrow $\rightsquigarrow$ is used to represent the elaboration process, including literal elimination and hygiene process.
 
-% \subsection{Contexts}
-% The program contexts (figure \ref{typechecking-environment}) contains TSM context $\Psi$, declaration context $\Theta$ and typing context $\Gamma$. 
+% % \subsection{Contexts}
+% % The program contexts (figure \ref{typechecking-environment}) contains TSM context $\Psi$, declaration context $\Theta$ and typing context $\Gamma$. 
 
 
 
-% TSM context $\Psi$ is the environment for user defined TSMs. Type-level TSMs defined in a Wyvern program goes into context in the form of $s[\mathbf{ty}(i,\tau)]$: the macro $k$ is a type-level TSM with parser $i$ and metadata type $\tau$. Besides type-level TSMs, term-level TSMs are also defined in $\Psi$: synthetic TSMs goes into context in the form of $s[\mathbf{bk}(\tau,i)]$, representing a macro $k$ with parser $i$ and return type $\tau$, while an analytic TSM in the context is represented as $s[\mathbf{wk}(i)]$, which is a macro $k$ with parser $i$.
+% % TSM context $\Psi$ is the environment for user defined TSMs. Type-level TSMs defined in a Wyvern program goes into context in the form of $s[\mathbf{ty}(i,\tau)]$: the macro $k$ is a type-level TSM with parser $i$ and metadata type $\tau$. Besides type-level TSMs, term-level TSMs are also defined in $\Psi$: synthetic TSMs goes into context in the form of $s[\mathbf{bk}(\tau,i)]$, representing a macro $k$ with parser $i$ and return type $\tau$, while an analytic TSM in the context is represented as $s[\mathbf{wk}(i)]$, which is a macro $k$ with parser $i$.
 
-% Named typed context ($\Theta$) is the context to keep elaborated type declarations. A declared type (either explicitly declared or type keyword defined) has the form of $T[\delta,\mu]$, which is interpreted as a type of name $T$ with structure $\delta$ and metadata $\mu$. We wrap the type structure $\tau$ in $\delta$ and the metadata $i:\tau$ in $\mu$ in order to represent their ``unknown state'' using ``$?$'' in type checking.
+% % Named typed context ($\Theta$) is the context to keep elaborated type declarations. A declared type (either explicitly declared or type keyword defined) has the form of $T[\delta,\mu]$, which is interpreted as a type of name $T$ with structure $\delta$ and metadata $\mu$. We wrap the type structure $\tau$ in $\delta$ and the metadata $i:\tau$ in $\mu$ in order to represent their ``unknown state'' using ``$?$'' in type checking.
 
-% Besides, $\Gamma$ is the typing context, and elements in $\Gamma$ are bindings of variables and their types ($x:\tau$).
+% % Besides, $\Gamma$ is the typing context, and elements in $\Gamma$ are bindings of variables and their types ($x:\tau$).
 
-% \subsection{Checking rules for keywords}
-% The rules ctx-tytsm, ctx-syntsm and ctx-anatsm in Fig~\ref{typechecking-elaboration} present the type checking process for TSMs.
+% % \subsection{Checking rules for keywords}
+% % The rules ctx-tytsm, ctx-syntsm and ctx-anatsm in Fig~\ref{typechecking-elaboration} present the type checking process for TSMs.
 
-% According to the rule ctx-tytsm, a type TSM declaration $s[\mathbf{ty}(e,\tau)]$ is well typed iff 1) the macro has no name conflicts with those defined in the previous context, 2) the parser $e$ elaborates to an internal term $i$ of type $\mathbf{named}[TypeKw]$ and 3) the metadata type $\tau$ is well formed within the given named type context $\Theta$.
+% % According to the rule ctx-tytsm, a type TSM declaration $s[\mathbf{ty}(e,\tau)]$ is well typed iff 1) the macro has no name conflicts with those defined in the previous context, 2) the parser $e$ elaborates to an internal term $i$ of type $\mathbf{named}[TypeKw]$ and 3) the metadata type $\tau$ is well formed within the given named type context $\Theta$.
 
-% For term level TSMs, the checking rules are similar to that for the type TSM: it checks that no name conflicts exists in TSM declarations, the parser elaborate to an internal term $i$ of type $\mathbf{named}[ExpKw]$, and the type defined in a synthetic TSM is well formed under named type context $\Theta$.
+% % For term level TSMs, the checking rules are similar to that for the type TSM: it checks that no name conflicts exists in TSM declarations, the parser elaborate to an internal term $i$ of type $\mathbf{named}[ExpKw]$, and the type defined in a synthetic TSM is well formed under named type context $\Theta$.
 
-% By allowing both TSMs and types declared in the same part of the program (i.e. $ d$), we allow the definition of a named type or a TSM referred to declarations appeared in its previous context, which provides a flexible way to define macros and types. For simplicity consideration, we only present rules to support recursive declaration here, and the rules for mutually recursive type and macro declarations can be referred to TR \todo{cite TR}.
+% % By allowing both TSMs and types declared in the same part of the program (i.e. $ d$), we allow the definition of a named type or a TSM referred to declarations appeared in its previous context, which provides a flexible way to define macros and types. For simplicity consideration, we only present rules to support recursive declaration here, and the rules for mutually recursive type and macro declarations can be referred to TR \todo{cite TR}.
 
-% \subsection{External Type Literals}
-% Declaring a type using a type-level TSM involves application of a macro parser to external DSL literals, and the rule ctx-aptsm-type is used to transform it into internal Wyvern type representations with concrete type structure and metadata.
+% % \subsection{External Type Literals}
+% % Declaring a type using a type-level TSM involves application of a macro parser to external DSL literals, and the rule ctx-aptsm-type is used to transform it into internal Wyvern type representations with concrete type structure and metadata.
 
-% The elaboration process of a type $T[\mathbf{aptsm}(s,body,e_m)]$ under context $\Theta,\Psi$ contains the following steps:
-% \begin{enumerate}\setlength{\itemsep}{0pt}
-% \item Check that the Wyvern prelude is contained in the named type context, as parser types are defined in Wyvern preludes. ($\Theta_0\subset \Theta$)
-% \item Elaborate previous declarations ($ d'\sim(\Theta';\Psi')$), and check that the type name $T$ has no name conflicts with those in previous context ($T\notin dom(\Theta\Theta')$).
-% \item Look up the keyword $k$ in $\Psi\Psi'$. ($s[\mathbf{ty}(i_k,\tau_m)]\in\Psi\Psi'$)
-% \item Read in the literals ($body$) as an expression $i$, and apply the parser $i_k$ to the DSL body. A tuple $(i_{type}, i_m)$ is return by the parser: $i_{type}$ is an expression of type $\mathbf{named}[Type]$ and $i_m$ is the generated metadata term. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k);i_{ps})\Downarrow(i_{type},i_{m})$)
-% \item Dereificate the term $i_{type}$ to an Wyvern type $\tau$, and check the formation of the type $\tau$ under the context $\Theta\Theta',T[?,?]$. ($i_{type}\uparrow\tau$ and $\vdash_{\Theta\Theta',T[?,?]}\tau$) Dereification rules for types can be referred to \todo{cite TR}.
-% \item Elaborate the metadata $e_m$ defined in the type to an internal term $i'_m$ of type $\mathbf{arrow}[\tau_m,\tau'_m]$, which serves as an metadata extender to extend the metadata generated by the type keyword. ($\emptyset\vdash_{\Theta\Theta',T[\tau,?]}e_m\rightsquigarrow i_m' \Rightarrow \mathbf{arrow}[\tau_m, \tau'_m]$)
-% \item Apply the keyword extender ($i'_m$) to the generated metadata ($i_m$) and generate the metadata of the type $T$. ($\mathbf{iap}(i'_m,i_m)\Downarrow i''_m$)  
-% \end{enumerate}
-% After these steps, the declaration $T[\mathbf{aptsm}(k,body,e_m)]$ elaborates to $T[\tau,i''_m:\tau'_m]$ and is added into environment for further reference.
+% % The elaboration process of a type $T[\mathbf{aptsm}(s,body,e_m)]$ under context $\Theta,\Psi$ contains the following steps:
+% % \begin{enumerate}\setlength{\itemsep}{0pt}
+% % \item Check that the Wyvern prelude is contained in the named type context, as parser types are defined in Wyvern preludes. ($\Theta_0\subset \Theta$)
+% % \item Elaborate previous declarations ($ d'\sim(\Theta';\Psi')$), and check that the type name $T$ has no name conflicts with those in previous context ($T\notin dom(\Theta\Theta')$).
+% % \item Look up the keyword $k$ in $\Psi\Psi'$. ($s[\mathbf{ty}(i_k,\tau_m)]\in\Psi\Psi'$)
+% % \item Read in the literals ($body$) as an expression $i$, and apply the parser $i_k$ to the DSL body. A tuple $(i_{type}, i_m)$ is return by the parser: $i_{type}$ is an expression of type $\mathbf{named}[Type]$ and $i_m$ is the generated metadata term. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k);i_{ps})\Downarrow(i_{type},i_{m})$)
+% % \item Dereificate the term $i_{type}$ to an Wyvern type $\tau$, and check the formation of the type $\tau$ under the context $\Theta\Theta',T[?,?]$. ($i_{type}\uparrow\tau$ and $\vdash_{\Theta\Theta',T[?,?]}\tau$) Dereification rules for types can be referred to \todo{cite TR}.
+% % \item Elaborate the metadata $e_m$ defined in the type to an internal term $i'_m$ of type $\mathbf{arrow}[\tau_m,\tau'_m]$, which serves as an metadata extender to extend the metadata generated by the type keyword. ($\emptyset\vdash_{\Theta\Theta',T[\tau,?]}e_m\rightsquigarrow i_m' \Rightarrow \mathbf{arrow}[\tau_m, \tau'_m]$)
+% % \item Apply the keyword extender ($i'_m$) to the generated metadata ($i_m$) and generate the metadata of the type $T$. ($\mathbf{iap}(i'_m,i_m)\Downarrow i''_m$)  
+% % \end{enumerate}
+% % After these steps, the declaration $T[\mathbf{aptsm}(k,body,e_m)]$ elaborates to $T[\tau,i''_m:\tau'_m]$ and is added into environment for further reference.
 
-% \subsection{Literals in TSM applications}
-% DSL literals are used in a TSM application term $\mathbf{eaptsm}$ and these DSLs will be transformed to internal terms. Elaboration rules for both kinds of TSMs are presented in figure~\ref{expkw-kwstatics}.
+% % \subsection{Literals in TSM applications}
+% % DSL literals are used in a TSM application term $\mathbf{eaptsm}$ and these DSLs will be transformed to internal terms. Elaboration rules for both kinds of TSMs are presented in figure~\ref{expkw-kwstatics}.
 
-% For analytic TSMs, we have the following steps to transform them into internal terms:
-% \begin{enumerate}\setlength{\itemsep}{0pt}
-% \item Check that the prelude is in the named type context. ($\Theta_0\subset\Theta$)
-% \item Look up the TSM is defined in $\Psi$. ($s[\mathbf{ana}(i_k)]\in\Psi$)
-% \item Read in the DSL literals into an expression $i_{ps}$ of type $\mathbf{named}[ParseStream]$ and parse them by invoking the parser $i_k$. The parsing result is a term of type $\mathbf{named}[Result]$, and an AST term $i_{ast}$ is provided. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps});\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$)
-% \item Dereificate the term $i_{ast}$ to an translational term $\hat{e}$ with spliced DSL body, then elaborate the translational term $\hat{e}$ to an internal Wyvern term and check it against the type $\tau$. ($i_{ast}\uparrow \hat{e}$ and $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$)
-% \end{enumerate}
-% The term $\mathbf{ekey}[k,body]$ is then transformed into $i$ of type $\tau$, which is an internal term that can be used for evaluation. The process for synthetic TSMs is similar, except that the type of the elaborated expression comes from its definition. 
+% % For analytic TSMs, we have the following steps to transform them into internal terms:
+% % \begin{enumerate}\setlength{\itemsep}{0pt}
+% % \item Check that the prelude is in the named type context. ($\Theta_0\subset\Theta$)
+% % \item Look up the TSM is defined in $\Psi$. ($s[\mathbf{ana}(i_k)]\in\Psi$)
+% % \item Read in the DSL literals into an expression $i_{ps}$ of type $\mathbf{named}[ParseStream]$ and parse them by invoking the parser $i_k$. The parsing result is a term of type $\mathbf{named}[Result]$, and an AST term $i_{ast}$ is provided. ($\mathbf{iap}(\mathbf{iprj}[parse](i_k); i_{ps});\Downarrow \mathbf{iinj}[OK]((i_{ast}, i'_{ps}))$)
+% % \item Dereificate the term $i_{ast}$ to an translational term $\hat{e}$ with spliced DSL body, then elaborate the translational term $\hat{e}$ to an internal Wyvern term and check it against the type $\tau$. ($i_{ast}\uparrow \hat{e}$ and $\Gamma;\emptyset\myvdash \hat{e} \rightsquigarrow i \Leftarrow \tau$)
+% % \end{enumerate}
+% % The term $\mathbf{ekey}[k,body]$ is then transformed into $i$ of type $\tau$, which is an internal term that can be used for evaluation. The process for synthetic TSMs is similar, except that the type of the elaborated expression comes from its definition. 
 
 
-% \subsection{Hygiene}
-% \todo{Where are we supposed to discuss Hygiene?}
+% % \subsection{Hygiene}
+% % \todo{Where are we supposed to discuss Hygiene?}
 
-\subsection{Metatheory}
-The main theorems guaranteeing that the language is well-behaved are essentially identical to those in \cite{TSLs}. The key theorem states that well-typed external terms translate to internal terms of the same type. Combined with type safety of the IL, this constitutes type safety for the language.
+% \subsection{Metatheory}
+% The main theorems guaranteeing that the language is well-behaved are essentially identical to those in \cite{TSLs}. The key theorem states that well-typed external terms translate to internal terms of the same type. Combined with type safety of the IL, this constitutes type safety for the language.
 
-\begin{theorem}[External Type Preservation]
-If $\vdash\Theta$ and $\vdash_{\Theta}\Psi$ and $\vdash_{\Theta}\Gamma$ and $\Gamma\vdash_{\Theta}^{\Psi} e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\vdash_{\Theta}^{\Psi} e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\vdash_{\Theta} i\Leftarrow\tau$.
-\end{theorem}
+% \begin{theorem}[External Type Preservation]
+% If $\vdash\Theta$ and $\vdash_{\Theta}\Psi$ and $\vdash_{\Theta}\Gamma$ and $\Gamma\vdash_{\Theta}^{\Psi} e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\vdash_{\Theta}^{\Psi} e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\vdash_{\Theta} i\Leftarrow\tau$.
+% \end{theorem}
 
-We define context well-formedness judgements and prove the new cases of this theorem in the accompanying appendix, along with several other lemmas and theorems.%\todo{appendix}
+% We define context well-formedness judgements and prove the new cases of this theorem in the accompanying appendix, along with several other lemmas and theorems.%\todo{appendix}
 
 % \paragraph{Type Safety and Preservation}
 % Extending Wyvern semantics with TSMs still constitutes a type safe language. We will outline the key theorems here presenting the properties a type safe language has: 1) internal type sfaety and 2) type preservation. 
@@ -868,7 +902,7 @@ Our formalization of the hygiene mechanism is cleanly specified in terms of acce
 Taken together, TSLs and TSMs represent what we see as a new ``high water mark'' in expressive power, particularly within the space of systems that 1) provide the strong  guarantees described above; and 2) are rigorously specified in type theoretic terms.
 
 \section*{Acknowledgements}
-ABC
+We thank the anonymous referees for helpful suggestions, and acknowledge the support of the National Security Agency lablet contract \#H98230-14-C-0140.
 
 % Existing mechanisms to support DSL language extension atop a general purpose language includes 1) extensible macro systems and 2) syntax libraries.
 % \paragraph{Macro Systems}
