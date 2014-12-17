@@ -243,7 +243,7 @@ Most prior approaches to syntax extension, discussed in Sec. \ref{related}, fail
 
 While many forms of syntactic sugar can be realized as TSLs, there remain situations where TSLs do not suffice: 
 \begin{enumerate}[noitemsep]
-\item[(i)] Only a single TSL can be associated with a type, and only when it is declared, so alternate syntactic choices, or syntax for a type not under a user's control, cannot be defined.
+\item[(i)] Only a single TSL can be associated with a type, and only when it is declared, so alternate syntactic choices (which are common \cite{scaffidi2008using}), or syntax for a type that is not under a programmer's control, cannot be defined.
 \item[(ii)] Syntax cannot be associated with types that are not identified nominally (e.g. arrow types).
 \item[(iii)] Idioms other than those that arise when introducing a value of a type (e.g. those related to control flow or API protocols) cannot be captured
 \item[(iv)] Types cannot themselves be declared using specialized syntax. 
@@ -365,7 +365,7 @@ The first phase of parsing leaves the bodies of such delimited forms unparsed. T
 {@\htmlcolor{body here, \{inner curly braces\} must be balanced}@}
 ~ (* can appear at any expression position *)
   @\htmlcolor{forward referenced body here, leading indent stripped}@
-(parentheses_delimit_spliced_terms_in_TSM_arguments(~)) 
+(parentheses_delimitv_spliced_terms_in_TSM_arguments(~)) 
   @\htmlcolor{so forward references can propagate out}@
 [@\htmlcolor{adjacent}@] {@\htmlcolor{delimited forms}@} @\htmlcolor{or}@ [@\htmlcolor{those}@] @\htmlcolor{separated}@ ~ @\htmlcolor{form}@
   @\htmlcolor{by identifiers create a single multipart delimited}@
@@ -415,7 +415,7 @@ Whereas TSLs are invoked implicitly based on local type inference, invoking a TS
 For example, we use single quotes on line 7 of Figure \ref{f-simplehtml}. Notice that we did not need a type annotation on \lstinlinew{heading}. %% because \lstinlinew{simpleHTML}  is synthetic, i.e. it declares a type.
  On lines 8-11, we again invoke \lstinlinew{simpleHTML}, this time using the same forward referenced delimited form described above. Lines 16-21 of Figure \ref{f-htmltype} are semantically equivalent to lines 7-11 of Figure \ref{f-simplehtml}, differing only syntactically.
 
- Synthetic TSMs address issue (i) from Sec. \ref{sec-intro}: modularly and composably defining more than one choice of syntax for a type that either has a TSL  already, or a type which a user cannot modify. Compared to the alternative solution of defining a type \lstinlinew{HTML2} with a TSL that has the desired syntax, and a function mapping from \lstinlinew{HTML2} to \lstinlinew{HTML},  TSMs avoid declaration duplication and  the $\mathcal{O}(n)$ runtime overhead of applying the mapping. %TSMs, like TSLs, perform their desugaring at compile-time.
+ Synthetic TSMs address issue (i) from Sec. \ref{sec-intro}: modularly and composably defining more than one choice of syntax for a type that either has a TSL  already, or a type which a user cannot modify. Compared to the alternative solution of defining a type \lstinlinew{HTML2} with a TSL that has the desired syntax, and a function mapping from \lstinlinew{HTML2} to \lstinlinew{HTML},  TSMs avoid declaration duplication and  the $\mathcal{O}(n)$ runtime overhead. %TSMs, like TSLs, perform their desugaring at compile-time.
 
 Synthetic TSMs also address issue (ii) because they can define syntax for types identified structurally (e.g. functions, pairs and anonymous objects), not just nominally.
 
@@ -480,7 +480,7 @@ As discussed in Section \ref{background}, declared types in Wyvern can define a 
 
 \begin{figure}[t]
 \begin{lstlisting}[style=wyvern]
-decl schema @\dbcolor{EmployeesDB}@
+decltype @\dbcolor{EmployeesDB}@ = schema ~
   @\dbshcemacolor{*ID   int}@
   @\dbshcemacolor{Name  varchar}@
 
@@ -497,7 +497,7 @@ db.getByID(758) (* : Option(EmployeeDB.Entry) *)
 \end{figure}
   
 
-The definition of \lstinlinew{schema} is shown in Figure \ref{typekw-example-1}. Type-level TSMs must specify the \emph{kind} of type-level term that will be generated, here \lstinlinew{*} because the type takes no parameters. This is to maintain a \emph{kinding discipline}: knowing how many type parameters a type takes does not require desugaring its declaration. Elaboration is then defined by a parser of type \lstinlinew{Parser(Type*Parser(Exp))}, i.e. it must map the body, which is always forward referenced, to a pair consisting of a reified type-level term and the TSL parser. 
+The definition of \lstinlinew{schema} is shown in Figure \ref{typekw-example-1}. Type-level TSMs must specify the \emph{kind} of type-level term that will be generated, here \lstinlinew{*} because the type takes no parameters. This is to maintain a \emph{kinding discipline}: knowing how many type parameters a type takes does not require desugaring its declaration. Elaboration is then defined by a parser of type \lstinlinew{Parser(Type*Parser(Exp))}, i.e. it must map the body to a reified type-level term and the TSL parser. 
 
 Here, we generate the type using type quasiquotation by mapping over the column specifications parsed out of the body on lines 37-43 (using the same color for both \lstinlinew{Type} and \lstinlinew{MemberDecl} for simplicity). We assume a mapping from SQL types to Wyvern types, \lstinlinew{ty\_from\_sqlty}, not shown. Starting on line 20, we then generate the TSL as described in Sec. \ref{background}. Note  that the implementations of the methods generated on lines 4-19 are filled in by the TSL generated on lines 20-35.
 
@@ -928,20 +928,20 @@ Macro systems that do consider the typing discipline, e.g. in Scala \cite{ScalaM
 
 Concerns about hygiene have been well-studied in the macros communities, e.g. in Scheme \cite{Dybvig:1992:SAS:173617.173620}. Because we defer parsing of delimited forms to typechecking time, our formalization of the hygiene mechanism can be cleanly specified in terms of access to typing contexts and, uniquely, we track portions of the parse stream that correspond to spliced terms implicitly. We also considered hygiene at the type level here.
 
-Standard ML of New Jersey supports quotation and antiquotation using the concept of \emph{fragment lists} \cite{SML/Quote}. Terms delimited by backticks have type \lstinlinew{'a SMLofNJ.frag list}. A fragment, of type \lstinlinew{'a frag}, is either a string or an \emph{antiquoted} term of type \lstinlinew{'a}. Antiquotation is indicated syntactically within the backticks by a caret followed by an identifier or a parenthesized expression. This is composable and obeys a typing discipline, but has three main problems:
+Standard ML of New Jersey supports quotation and antiquotation using the concept of \emph{fragment lists} \cite{SML/Quote}. %Terms delimited by backticks have type \lstinlinew{'a SMLofNJ.frag list}. A fragment, of type \lstinlinew{'a frag}, is either a string or an \emph{antiquoted} term of type \lstinlinew{'a}. Antiquotation is indicated syntactically within the backticks by a caret followed by an identifier or a parenthesized expression. T
+This is composable and obeys a typing discipline, but has three main problems:
 \vspace{-5px}\begin{enumerate}[noitemsep]
 \item Parsing of fragment lists must still occur at run-time. This is perhaps the biggest difference relative to our mechanism, which introduces new static desugarings. %The only partial workaround is to attempt to refactor uses of specialized syntax to the top level of a program. This is not always possible, and even if possible, it can make programs more difficult to read (defeating part of the purpose of specialized syntax). 
-\item Syntax that uses backticks or carets for different purposes is difficult to introduce in this way. In our mechanism, a variety of delimiters, notably including layout, can be used, and the extension itself determines how antiquotation (i.e. splicing) is initiated, so such difficulties can be avoided.
+\item Syntax that uses backticks or carets is difficult to introduce in this way. In our mechanism, a variety of delimiters, notably including layout, can be used, and the extension itself determines how antiquotation (i.e. splicing) is initiated, so such difficulties can be avoided.
 \item Only one type of subterm can occur inside antiquotes. One must define and use a datatype if there may be different types of subterms (e.g. our HTML example above). This can again defeat part of the purpose of introducing concrete syntax.
 \end{enumerate}
 \section{Conclusion and Future Work}\label{conclusion}
 Taken together, TSLs and TSMs represent what we see as a new ``high water mark'' in expressive power, especially within the space of systems that guarantee \emph{composability}, \emph{hygiene} and \emph{typing discipline} described in Sec. \ref{sec-intro} and are rigorously specified in type theoretic terms, as we show in the accompanying technical report \cite{sac15tr}.
 
-There remain several promising avenues for future work. While synthetic TSMs as shown allow specifying syntax for any particular type, we did not show any way to specify syntax for all types having a common type constructor (e.g. syntax for all lists). Similarly, we do not show how to specify syntax for abstract types. Both of these require \emph{parameterized} TSMs, which we plan to specify in subsequent work. Another promising avenue for future work is to strengthen splicing so that a single delimiter can support multiple types of spliced terms (e.g. allowing both strings and HTML to be spliced into HTML). Enabling editor support is also an important direction for future work.
+There remain several promising avenues for future work. While synthetic TSMs as shown allow specifying syntax for any particular type, we did not show any way to specify syntax for all types having a common type constructor (e.g. syntax for all lists). Similarly, we do not show how to specify syntax for abstract types. Another promising avenue for future work is to strengthen splicing so that a single delimiter can support multiple types of spliced terms (e.g. allowing both strings and HTML to be spliced into HTML). Enabling editor support is also an important direction for future work.
 
 \section*{Acknowledgements}
-We thank the anonymous referees for helpful suggestions, and acknowledge the support of the National Security Agency lablet contract \#H98230-14-C-0140.
-
+We thank the anonymous referees for helpful suggestions, and acknowledge the support of the National Security Agency lablet contract \#H98230-14-C-0140 and National Science Foundation grant \#CCF-1116907.
 % Existing mechanisms to support DSL language extension atop a general purpose language includes 1) extensible macro systems and 2) syntax libraries.
 % \paragraph{Macro Systems}
 % Macro systems are either lexical or syntactic. 
