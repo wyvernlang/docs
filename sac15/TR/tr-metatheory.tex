@@ -1,0 +1,86 @@
+%!TEX root=sac15-tr.tex
+\section{Metatheory}
+
+\begin{theorem}[Internal Type Safety]
+If $\vdash\Theta$, and $\emptyset;\emptyset\vdash_{\Theta}i\Leftarrow\tau$ or $\emptyset;\emptyset\vdash_{\Theta}i\Rightarrow\tau$, then either $i~\texttt{val}$ or $i\mapsto i'$ such that $\emptyset;\emptyset\vdash_{\Theta}i'\Leftarrow\tau$.
+\end{theorem}
+\begin{proof}
+The dynamics are standard, so the proof is by a standard preservation and progress argument. One exception is the proof for the term reification expression $\mathbf{etoast}(e)$:
+\begin{itemize}
+\item {case $\mathbf{etoast}[e]$: If $\Theta_0\subset\Theta$ and $\emptyset;\emptyset\vdash_{\Theta}i\Leftarrow\tau$ then $i\downarrow i'$ and $\emptyset\vdash_{\Theta}i'\Leftarrow\mathtt{Exp}$.}
+\\
+The proof of the case can be referred to the rules $i\downarrow i$: for each interanl expression, there exists a rule to transform the expression into an AST presentation. And by induction on the derivation of the terms, the proof can be easily achieved.
+\end{itemize}
+\end{proof}
+
+\begin{theorem}[External Type Preservation]
+If $\vdash\Theta$, $\vdash_{\Theta_0\Theta}\Psi$, $\vdash_{\Theta_0\Theta}\Gamma$, $\vdash\Delta$ and $\Delta;\Gamma\vdash_{\Theta_0\Theta}^{\Psi} e\rightsquigarrow i\Leftarrow\tau$ or $\Gamma\vdash_{\Theta_0\Theta}^{\Psi} e\rightsquigarrow i\Rightarrow\tau$ then $\Gamma\vdash_{\Theta_0\Theta} i\Leftarrow\tau$.
+\end{theorem}
+\begin{proof}
+Base on the proof of core Wyvern external terms in TSL, we only need to present the proofs for the new cases extended in external Wyvern:
+\begin{itemize}
+\item $\mathbf{eaptsm}[s,body]$, in this case, according to the rule T-syn, there exists a translational term $\hat{e}$, s.t. $\Delta;\emptyset;\Gamma;\emptyset\vdash_{\Theta}^{\Psi}\hat{e}\rightsquigarrow i\Leftarrow \tau$. For the typing context, we have $\vdash\emptyset$ (which is $\Gamma_{out}$) and $\vdash\emptyset$ (empty $\Delta_{out}$). And by the conditions in the theorem $\vdash_{\Theta}\Gamma$, $\vdash\Theta$ and $\vdash_{\Theta_0\Theta}\Psi$, by Lemma~1, we have $\emptyset;\Gamma\vdash_{\Theta_0\Theta}i\Leftarrow\tau$. 
+\item $\mathbf{etsmdef}[s]$. There are three subcases depends on the property of $s$: type-level TSM, synthetic TSM or analytic TSM. For synthetic TSM, by induction, we have the formation of the internal term $i$ in $s[\mathbf{syn}(\tau,i)]$, i.e. $\vdash_{\Theta_0\Theta}i\Leftarrow \mathtt{Parser(Exp)}$ as $\Theta_0\Theta$ is well formed. The subcase for analytic TSM and type level TSM are similar, as the formation of the term $i$ in $s[\mathbf{ana}(i)]$ and the term $i$ in $s[\mathbf{ty}(\kappa,i)]$ are checked in declarations elaboration. Thus the case is proved.
+\end{itemize}
+With all these cases proved, we have the property holds for all external terms.
+\end{proof}
+
+\begin{lemma}[Translational Type Preservation]
+If $\vdash\Theta$, $\vdash_{\Theta_0\Theta} \Psi$, $\vdash_{\Theta_0\Theta}\Gamma_{out}$, $\vdash_{\Theta_0\Theta}\Gamma$, $\text{dom}(\Gamma_{out})\cap \text{dom}(\Gamma)=\emptyset$, $\vdash\Delta$, $\vdash\Delta_{out}$, $\text{dom}(\Delta)\cap\text{dom}(\Delta_{out})=\emptyset$ and $\Delta_{out};\Delta;\Gamma_{out};\Gamma\vdash_{\Theta\Theta_0}^{\Psi}\hat{e}\rightsquigarrow i\Leftarrow\tau$ or $\Delta_{out};\Delta;\Gamma_{out};\Gamma\vdash_{\Theta\Theta_0}^{\Psi}\hat{e}\rightsquigarrow i\Rightarrow \tau$ then $(\Delta_{out}\Delta);(\Gamma_{out}\Gamma)\vdash_{\Theta_0\Theta}i\Leftarrow \tau$.
+\end{lemma}
+\begin{proof}
+The proof by induction over the typing derivation for all the shared cases. The outer context is threaded through opaquely when applying the inductive hypothesis. By induction on all translational terms, we can easily prove them based on their derivation rules.
+
+The only rules of note are the rules for the spliced external terms, which require applying the external type preservation theorem recursively.
+This is well-founded by a metric measuring the size of the spliced external term, written
+in concrete syntax, since we know it was derived from a portion of the literal body.
+\end{proof}
+
+\begin{lemma}[Translational Type Elaboration]
+If $\vdash\Theta$, $\vdash_{\Theta_0\Theta} \Psi$, $\vdash\Delta$, $\vdash\Delta_{out}$, $\text{dom}(\Delta)\cap\text{dom}(\Delta_{out})=\emptyset$ and $\Delta_{out};\Delta\vdash_{\Theta_0\Theta}\hat\tau\rightsquigarrow\tau::\kappa$, then we have $\Delta_{out}\Delta\vdash_{\Theta_0\Theta}\tau::\kappa$.
+\end{lemma}
+\begin{proof}
+By induction on the derivation of the translational types, we can easily proof the cases in by checking the properties on the derivation rules:
+\begin{itemize}
+\item For the type $\mathbf{spliced}[\tau]$, the well-formedness is checked under the context $\Delta_{out}$, i.e. $\Delta_{out}\tau$, thus in the check rule for internal types, we have $\Delta_{out}\Delta\vdash_{\Theta}\tau$. And the case is proved.
+\item For other terms, by induction, the proof is standard, as they are checked in $\Delta$. For example, the formation of the arrow type $\tau_1\rightarrow\tau_2$ is proved by its subterms $\tau_1$ and $\tau_2$. Thus the case is proved.
+\end{itemize}
+With these cases proved, the lemma is proved.
+\end{proof}
+
+
+\begin{theorem}[Compilation]
+If ~$\rho\sim(\Psi;\Theta)\rightsquigarrow i:\tau$ then $\vdash\Theta$, $\vdash_{\Theta_0\Theta}\Psi$ and $\emptyset;\emptyset\vdash_{\Theta_0\Theta} i\Leftarrow\tau$.
+\end{theorem}
+\begin{proof}
+The proof contains two parts: the formation of the contexts ($\Theta$, $\Psi$) and the formation of the term $i$.
+
+The proof for the contexts formation requires the following lemma. And the proof for the term $i$ is obvious: According to the rule `compile', we have that $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow \tau$, and for the context: $\vdash\emptyset$ by the checking rule for $\Gamma$, $\vdash\emptyset$ for context $\Delta$, $\vdash_{\Theta_0\Theta}\Psi$, $\vdash\Theta_0\Theta$ by the proof of the first part. Then by Theorem~1, we have $\emptyset;\emptyset\vdash_{\Theta_0\Theta}i\Leftarrow\tau$, which completes the proof.
+\end{proof}
+
+\begin{lemma} If $d\sim(\Psi';\Theta')$, then we have $\vdash\Theta\Theta'$ and $\vdash_{\Theta\Theta'}\Psi\Psi'$.
+\end{lemma}
+\begin{proof}
+By induction on the length of the derivation steps the declarations $d$. Check the last step of derivation, we have the following four cases to proof:
+\begin{itemize}
+\item $d=d_1;\mathbf{syntsm}(s,\tau,e_{tsm})$. To prove the well-formedness of the declaration, we need to prove that no name conflicts exists and the parser $i$ is of type $\mathtt{Parser}(\mathtt{Exp})$. 
+
+Firstly, by induction, we have the well-formedness of the previous contexts: $d_1\sim(\Theta_1;\Psi_1)$ imply that $\Theta_1$ and $\Psi_1$ is well formed. Secondly, in the rule \text{D-syntsm}, we check that its name does not appear in the previous context $\Psi_1$, thus we have $s[\mathbf{syn}(\_,\_)]\notin\text{dom}(\Psi_1)\lor s[\mathbf{ana}(\_)]\notin\text{dom}(\Psi_1)$, thirdly, by theorem~2 and the premise $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e_{tsm}\rightsquigarrow i_{tsm} \Leftarrow \mathtt{Parser(Exp)}$, we have $\emptyset;\emptyset\vdash_{\Theta}i\Leftarrow\mathtt{Parser}(\mathtt{Exp})$. And these three rules prove the well-formedness of the environment $\Psi_1,s[\mathbf{syn}(\tau,i)]$. Also by induction, we have $\vdash\Theta_1$. Combining these two conditions, the case is proved.
+\item $d=d_1;\mathbf{anatsm}(s,e_{tsm})$, this case is exactly the same with the previous case, expect that the type $\tau$ is omitted.
+\item $d=d_1;\mathbf{tytsm}(s,\kappa,\tau,e)$. To check the well-formedness of the type-level TSM, we need to check 1) No name conflicts exists in the previous context, 2) the type should be of kind $\mathtt{Ty}$, 3) the type of the parser $i$ should be $\mathtt{Parser}(\mathtt{Type}\times\tau)$.
+
+The proof can be done with the following conditions in the derivation rules \text{(D-tytsm)}: 1) The name is checked to be free of conflicts in the previous context. 2) The type $\tau$ is checked to be well formed and of kind $\mathtt{Ty}$. 3) By Theorem~2, and the premise $\emptyset;\emptyset\vdash_{\Theta_0\Theta}e_{tsm}\rightsquigarrow i_{tsm}\Leftarrow \mathtt{Parser}(\mathtt{Type}\times\tau)$, we have  $\emptyset;\emptyset\vdash_{\Theta_0\Theta} i_{tsm}\Leftarrow \mathtt{Parser}(\mathtt{Type}\times\tau)$. And by induction, we have the formation of the previous context $\Theta_1$ and $\Psi_1$. Thus the case is proved.
+\item $d=d;\mathbf{mrectydecl}(\theta_1,...,\theta_n)$. The formation of a type declaration in $\Theta$ includes 1) no name conflicts in the previous context, 2) the type structure is well formed, 3) the metadata expression is well formed.
+
+Firstly, the names are check by the premise $\nexists~u,v\in\{1,...,n\}.(u\neq v\land\T_u=\T_v)$ and $\forall~k.(\T_k\notin\text{dom}(\Theta))$. Thus no name conflicts exists in the previous context.
+
+Secondly, by the rule (D-tydecl-1), we have $\emptyset\vdash_{\Theta\Theta_0}\tau::\kappa$. By the rule (D-aptsm-1), we have $\emptyset\vdash_{\Theta\Theta_0}\hat{\tau}\rightsquigarrow\tau::\kappa$, then by Lemma~2, we have $\emptyset\vdash_{\Theta\Theta_0}\tau::\kappa$. Then by the type checking condition $\emptyset\vdash\mathsf{type}(\mathring\theta_k)::\kappa_1\rightarrow...\rightarrow\kappa_n\rightarrow\kappa_k$, all types are of kind $\tau_1\rightarrow...\rightarrow\tau_n\rightarrow\tau_k$ and are well formed. Then by the named type substitution, we have the formation of the type $\tau_k(\T_1,...,T_n)::\kappa_k$, which proves the well-formedness of each type structure.
+
+Thirdly, by the rule \text{(D-tydecl-2)}, the metadata is checked by the condition $\emptyset;\emptyset\vdash_{\Theta}^{\Psi}e\rightsquigarrow i\Rightarrow\tau$, then by Theorem~2, we have $\emptyset;\emptyset\vdash_{\Theta}i\Leftarrow\tau$. And by \text{(D-aptsm-2)}, the metadata $i$ is well formed by applying a well formed term $i_{mdx}$ to another well formed term $i_{md}$, thus the result should be well formed.
+
+Then by induction, we have the TSM context $\Psi_1$ untouched and thus it is well formed.
+
+With these three conditions proved, the case is proved.
+\end{itemize}
+With these four cases proved, the lemma is proved: compilation always produce well formed contexts.
+\end{proof}
