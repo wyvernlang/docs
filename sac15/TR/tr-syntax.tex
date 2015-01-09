@@ -7,13 +7,14 @@
       &\multicolumn{3}{l}{\textbf{Abstract Forms}}   & \textbf{Concrete Forms}\\
       \text{Programs}		&	\rho & ::= & d;e\\
       \text{Declarations}	&	d &::=&\emptyset\\
-                          &&    | & {d}; \mathbf{syntsm}(s,\tau,e) & \textcd{syntax}~s : \tau~\textcd{=}~e\\
+                          &&    | & {d}; \mathbf{syntsm}(s,\tau,e) & \textcd{syntax}~s~\textcd{for}~\tau~\textcd{=}~e\\
                           &&    | & {d}; \mathbf{anatsm}(s,e) & \textcd{syntax}~s~\textcd{=}~e\\
-                          &&    | & {d}; \mathbf{tytsm}(s,\kappa,\tau,e) & \textcd{syntax}~s::\kappa~\textcd{=}\,e\\
-                          &&    | & {d};\mathbf{mrectydecl}(\theta_1,...,\theta_n) & \theta_1~\textcd{and}~...~\textcd{and}~\theta_n\\
-      \text{Type Declaration}&\theta  &::=&\mathbf{tydecl}(\T,\tau,e) & \textcd{type}~\mathtt{T}~\textcd{=}~\tau\\
+                          &&    | & {d}; \mathbf{tytsm}(s,\kappa,e) & \textcd{syntax}~s::\kappa~\textcd{=}\,e\\
+                          &&    | & {d}; \theta \\
+      \text{Type Declaration}&\theta  &::=& \theta_1~\mathbf{and}~\theta_2 & \theta_1~\textcd{and}~\theta_2\\
+                          &&| & \mathbf{tydecl}(\T,\tau,\kappa,e) & \textcd{type}~\mathtt{T}~\textcd{=}~\tau::\kappa\\
                           && &&~~~~~~\textcd{syntax = }e\\
-               &&|&\mathbf{tyaptsm}(\T,s,body,e) & \textcd{type}~\mathtt{T}~\textcd{=}~\mathit{s~dform}\\
+               &&|&\mathbf{tyaptsm}(\T,s,body) & \textcd{type}~\mathtt{T}~\textcd{=}~\mathit{s~dform}\\
 %      \text{Object Fields}\\
 %      \omega~::=~\emptyset                      \\
 %      \tabularspace l[\mathbf{val},\tau];\omega                 & \textcd{val}~l : \tau\\
@@ -51,27 +52,33 @@
 In the pure functional Wyvern definition, a Wyvern program consists two parts: 1) declarations $d$, consisting of both TSM declarations and type declarations and 2) an external term $e$ representing the program body.
 
 \paragraph{Declarations}
-The declarations for analytical TSM has the abstract form $\mathbf{anatsm}(s,e)$, consisting of the macro name $s$ and the parser associated with the macro $e$. A synthetic TSM declaration is different in the sense that the type $\tau$ of the TSM is explicitly declared, and a type-level TSM contains the kind information $\kappa$ for the type along with its macro name $s$ and parser $e$.
+The first part of the declarations $d$ is TSM declarations, containing analytical term-level TSM $\mathbf{anatsm}(s,e)$, synthetic term-level TSM $\mathbf{syntsm}(s,\tau,e)$ and type-level TSM $\mathbf{tytsm}(s,\kappa,e)$. The analytical TSM declaration $\mathbf{anatsm}(s,e)$, contains its name $s$ and parser associated with the macro $e$. A synthetic TSM declaration is similar, except that the type $\tau$ of the TSM is explicitly declared, and a type-level TSM contains the kind information $\kappa$ for the type along with its macro name $s$ and parser $e$.
 
-To support mutually recursive type declarations, we use the Ocaml style type declarations: mutually recursive types are declared by connecting type declarations with the keyword $\textcd{and}$. A type declarations $\theta$ can be one of the two forms, namely explicit type declaration and type-level TSM application. An explicit type declaration $\mathbf{tydecl}(\mathtt{T},\tau,e)$ contains the type name $\mathtt{T}$, the type structure $\tau$ and the optional associate TSL parser $e$. To define a type using a type-level TSM, one should replace the type structure $\tau$, defined in Fig.~\ref{syntax-types}, with a TSM application term: $s~\mathit{dform}$, by applying the type level TSM $s$ to the literals in delimited forms $\mathit{dform}$, the type structure will then be generated at the elaboration phase, which will be presented in the Sec.~\ref{tr-semantics}.
+To support mutually recursive type declarations, we use the Ocaml style type declarations: mutually recursive types are declared by connecting to each other using the keyword $\textcd{and}$. The atomic forms of type declaration can be one of the namely explicit type declaration $\mathbf{tydecl}(\mathtt{T},\tau,\kappa,e)$ and type-level TSM application $\mathbf{tyaptsm}(\T,s,body)$. An explicit type declaration $\mathbf{tydecl}(\mathtt{T},\tau,e)$ contains the type name $\mathtt{T}$, the type structure $\tau$ together with its kind $\kappa$, and the optional associated TSL syntax parser $e$. To define a type using a type-level TSM, one should replace the type structure $\tau$, defined in Fig.~\ref{syntax-types}, with a TSM application term: $s~\mathit{dform}$, by applying the type level TSM $s$ to the literals in delimited forms $\mathit{dform}$, the type structure will then be generated in the elaboration phase, which will be presented in the Sec.~\ref{tr-semantics}.
 
-\paragraph{Terms} Together with TSL external term forms, we supplement an expression $\mathbf{eaptsm}[s,body]$, which allows users to directly access the parser inside a TSM declaration. The external terms will elaborate to internal Wyvern terms, which contain neither literals nor the form for accessing the TSM or TSL parsers of a named type or macro explicitly, during the elaboration phase. The elaboration rules will be described in the next section.
+\paragraph{Terms} The external terms are the syntax users used in programming with the Wyvern language, and they will elaborate to internal Wyvern terms for execution, which contain neither literals nor the form for accessing the TSM or TSL parsers of a named type or macro explicitly, in the elaboration phase (which will be discussed later in the next section). The translational terms $\hat{e}$ and internal terms $i$ are exactly the same as those defined in \cite{TSLs}. For external terms, besides those in \cite{TSLs}, we supplement an expression $\mathbf{eaptsm}[s,body]$ to support explicitly TSM parser access in terms. 
 
 \paragraph{Types and Kinds}
-Wyvern types and kinds are described below in Fig.~\ref{syntax-types}. With type operators and kinds defined, we enable users to define type parameters within the language. Translational types are used for hygiene purpose in the elaboration phase for parameterized types.
+Wyvern types and kinds are described below in Fig.~\ref{syntax-types}. Type definitions are quite standard: containing named type $\T$, arrow type $\tau\rightarrow\tau$, object type $\mathbf{objtype}[\omega]$ (similar to record types in ML), case type $\mathbf{casetype}[\chi]$ (similar to ML sum type), type variable $t$, type abstraction $\lambda[\kappa](t.\tau)$ and type application form $\tau(\tau)$. Besides types definition, we defined translational types $\hat\tau$, which are similar to translational terms: they mirror the types and are used for hygiene purpose when deriving types from type-level TSM application in the elaboration phase.
 
 \begin{figure}[ht]
 \[
 	\begin{array}{llcl}
       \text{Kinds}\\
-      \mytab	\kappa ::=  \mathtt{Ty}  ~|~ \kappa \rightarrow \kappa\\
+      \mytab	\kappa ::=  \mathbf{Ty}  ~|~ \kappa \rightarrow \kappa\\
       \text{Types}\\
       \mytab	 \tau  ::=  \mathtt{T} ~|~ \tau \rightarrow \tau ~|~ \mathbf{objtype}[\omega] ~|~ \mathbf{casetype}[\chi] ~|~  t ~|~ \lambda[\kappa](t.\tau) ~|~ \tau(\tau) \\
       \text{Translational Types}\\
-      \mytab\hat{\tau} ~ ::= ... ~|~ \mathbf{spliced}[\tau]
+      \mytab\hat{\tau} ::= \mathtt{T} ~|~ \hat\tau \rightarrow \hat\tau ~|~ \mathbf{objtype}[\hat\omega] ~|~ \mathbf{casetype}[\hat\chi] ~|~  t ~|~ \lambda[\kappa](t.\hat\tau) ~|~ \hat\tau(\hat\tau) ~|~ \mathbf{spliced}[\tau]\\
+      \text{Objtype}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\text{Casetype}\\
+      \mytab\omega ::= \emptyset ~|~ l[\mathbf{val},\tau];\omega ~|~ l[\mathbf{def},\tau];\omega ~~~~~ \mytab\chi ::= \emptyset ~|~ C[\tau];\chi\\
+      %\text{Translational Objtype Declaration}\\
+      %\text{Casetype Declaration}\\
+      \mytab\hat\omega ::= \emptyset ~|~ l[\mathbf{val},\hat\tau];\hat\omega ~|~ l[\mathbf{def},\hat\tau];\hat\omega ~~~~~ \mytab\hat\chi ::= \emptyset ~|~ C[\hat\tau];\hat\chi
+      %\text{Translational Casetype Declaration}\\
   \end{array}
 \]
-\mycaption{Syntax for types and kinds. Metavariable $t$ ranges over type variables. Object type and case type declarations $\omega$ and $\chi$ are taken from \cite{TSLs}.
+\mycaption{Syntax for types and kinds. Metavariable $t$ ranges over type variables.
 %Metavariable $T$ ranges over type names, $l$ over member labels, $C$ over case names, $x$ over term variables, $X$ over type variables.
 }\label{syntax-types}
 \end{figure}
