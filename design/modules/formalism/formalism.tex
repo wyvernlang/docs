@@ -1,0 +1,125 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=1in]{geometry}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keyw}[1]{\textbf{#1}~}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\unittt}{\mathtt{unit}~}
+\newcommand{\Unittt}{\mathtt{Unit}~}
+\newcommand{\stateful}{\mathtt{stateful}~}
+
+\begin{document}
+
+
+\section{Syntax}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & & expressions \colon\\
+& | & x & variable\\
+& | & \lambda x : \tau . e & abstraction\\
+& | & e~e & application\\
+& | & \reftt e & allocation\\
+& | & l & store~location\\
+&&&\\
+v & ::= & & values \colon\\
+& | & \lambda x : \tau . e & abstraction~value\\
+& | & l & store~location\\
+&&&\\
+\tau & ::= & & types \colon\\
+& | & \tau \rightarrow \tau & stateless~function~type\\
+& | & \stateful \tau \rightarrow \tau~~~& stateful~function~type\\
+& | & \Reftt \tau & reference~type
+\end{array}
+& ~~~~~
+&
+\begin{array}{lllr}
+\mu & ::= & & stores \colon\\
+& | & \emptyset & empty~store\\
+& | & \mu,~l = v & location~binding\\
+&&&\\
+\Gamma & ::= & & contexts \colon\\
+& | & \emptyset & empty~context\\
+& | & \Gamma,~x : \tau & variable~binding\\
+& | & \Gamma,~\reftt r : \Reftt \tau~~~& reference~allocation\\
+&&&\\
+\Sigma & ::= & & store~typings \colon\\
+& | & \emptyset & empty~store~typing\\
+& | & \Sigma,~l : \tau & location~typing
+\end{array}
+\end{array}
+\]
+
+
+\section{Semantics}
+
+$\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(E-App1)}]
+  {e_1~e_2~|~\mu \longrightarrow e_1'~e_2~|~\mu'}
+  {e_1~|~\mu \longrightarrow e_1'~|~\mu'} 
+~~~~~~~~
+\infer[\textsc{(E-App2)}]
+  {v_1~e_2~|~\mu \longrightarrow v_1~e_2'~|~\mu'}
+  {e_2~|~\mu \longrightarrow e_2'~|~\mu'}\\[5ex]
+
+\infer[\textsc{(E-AppAbs)}]
+  {(\lambda x : \tau_1.e_1)~v_2~|~\mu \longrightarrow [v_2/x]e_1~|~\mu}
+  { }\\[5ex]
+
+\infer[\textsc{(E-RefV)}]
+  {\reftt v_1~|~\mu \longrightarrow l ~|~(\mu, l \mapsto v_1)}
+  {l \notin dom(\mu)}
+~~~~~~~~
+\infer[\textsc{(E-Ref)}]
+  {\reftt e_1~|~\mu \longrightarrow \reftt e_1'~|~\mu'}
+  {e_1~|~\mu \longrightarrow e_1'~|~\mu'}
+\end{array}
+\]
+
+$\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Var)}]
+  {\Gamma~|~\Sigma \vdash x : \tau}
+  {x : \tau \in \Gamma}
+~~~~~~~~
+\infer[\textsc{(T-Abs)}]
+  {\Gamma~|~\Sigma \vdash \lambda x : \tau_1.e_2 : \tau_1 \rightarrow \tau_2}
+  {\Gamma,~x : \tau_1~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
+
+\infer[\textsc{(T-AppNoState)}]
+  {\Gamma, \nexists~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1~e_2 : \tau_2}
+  {\Gamma, \nexists~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1 : \tau_1 \rightarrow \tau_2
+  ~~~~ \Gamma~|~\Sigma \mapsto e_2 : \tau_1}\\[5ex]
+  
+\infer[\textsc{(T-AppWithState)}]
+  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1~e_2 : \tau_2}
+  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1 : \stateful \tau_1 \rightarrow \tau_2
+  ~~~~ \Gamma~|~\Sigma \mapsto e_2 : \tau_1}\\[5ex]
+  
+\infer[\textsc{(T-AppWithStateError)}]
+  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash \mathtt{error}}
+  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1 : \tau_1 \rightarrow \tau_2
+  ~~~~ \Gamma~|~\Sigma \mapsto e_2 : \tau_1}\\[5ex]
+  
+\infer[\textsc{(T-Loc)}]
+  {\Gamma~|~\Sigma \vdash l : \Reftt \tau_1}
+  {\Sigma(l) = \tau_1}
+~~~~~~~~
+\infer[\textsc{(T-Ref)}]
+  {\Gamma~|~\Sigma \vdash \reftt e_1 : \Reftt \tau_1}
+  {\Gamma~|~\Sigma \vdash e_1 : \tau_1}
+\end{array}
+\]
+
+\end{document}
