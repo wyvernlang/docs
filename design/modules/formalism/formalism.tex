@@ -4,6 +4,7 @@
 \usepackage{proof}
 \usepackage{amssymb}
 \usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
 
 \lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
 \lstloadlanguages{Java,VBScript,XML,HTML}
@@ -24,35 +25,35 @@
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & & expressions \colon\\
-& | & x & variable\\
+& & x & variable\\
 & | & \lambda x : \tau . e & abstraction\\
 & | & e~e & application\\
 & | & \reftt e & allocation\\
 & | & l & store~location\\
 &&&\\
 v & ::= & & values \colon\\
-& | & \lambda x : \tau . e & abstraction~value\\
+& & \lambda x : \tau . e & abstraction~value\\
 & | & l & store~location\\
 &&&\\
 \tau & ::= & & types \colon\\
-& | & \tau \rightarrow \tau & stateless~function~type\\
-& | & \stateful \tau \rightarrow \tau~~~& stateful~function~type\\
+& & \tau \rightarrow \tau & stateless~function~type\\
+& | & \tau \xrightarrow{s} \tau~~~~& stateful~function~type\\
 & | & \Reftt \tau & reference~type
 \end{array}
 & ~~~~~
 &
 \begin{array}{lllr}
 \mu & ::= & & stores \colon\\
-& | & \emptyset & empty~store\\
+& & \varnothing & empty~store\\
 & | & \mu,~l = v & location~binding\\
 &&&\\
 \Gamma & ::= & & contexts \colon\\
-& | & \emptyset & empty~context\\
+& & \varnothing & empty~context\\
 & | & \Gamma,~x : \tau & variable~binding\\
 & | & \Gamma,~\reftt r : \Reftt \tau~~~& reference~allocation\\
 &&&\\
 \Sigma & ::= & & store~typings \colon\\
-& | & \emptyset & empty~store~typing\\
+& & \varnothing & empty~store~typing\\
 & | & \Sigma,~l : \tau & location~typing
 \end{array}
 \end{array}
@@ -77,7 +78,7 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
   { }\\[5ex]
 
 \infer[\textsc{(E-RefV)}]
-  {\reftt v_1~|~\mu \longrightarrow l ~|~(\mu, l \mapsto v_1)}
+  {\reftt v_1~|~\mu \longrightarrow l ~|~(\mu, l = v_1)}
   {l \notin dom(\mu)}
 ~~~~~~~~
 \infer[\textsc{(E-Ref)}]
@@ -92,10 +93,22 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 \infer[\textsc{(T-Var)}]
   {\Gamma~|~\Sigma \vdash x : \tau}
   {x : \tau \in \Gamma}
+~~~~~~~~  
+\infer[\textsc{(T-Loc)}]
+  {\Gamma~|~\Sigma \vdash l : \Reftt \tau_1}
+  {\Sigma(l) = \tau_1}
 ~~~~~~~~
-\infer[\textsc{(T-Abs)}]
+\infer[\textsc{(T-Ref)}]
+  {\Gamma~|~\Sigma \vdash \reftt e_1 : \Reftt \tau_1}
+  {\Gamma~|~\Sigma \vdash e_1 : \tau_1}\\[5ex]
+
+\infer[\textsc{(T-AbsNoState)}]
   {\Gamma~|~\Sigma \vdash \lambda x : \tau_1.e_2 : \tau_1 \rightarrow \tau_2}
   {\Gamma,~x : \tau_1~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
+
+\infer[\textsc{(T-AbsWithState)}]
+  {\Gamma~|~\Sigma \vdash \lambda x : \tau_1.e_2 : \tau_1 \xrightarrow{s} \tau_2}
+  {\Gamma,~x : \tau_1,~\reftt e_3 : \Reftt \tau~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
 
 \infer[\textsc{(T-AppNoState)}]
   {\Gamma, \nexists~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1~e_2 : \tau_2}
@@ -103,22 +116,9 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
   ~~~~ \Gamma~|~\Sigma \mapsto e_2 : \tau_1}\\[5ex]
   
 \infer[\textsc{(T-AppWithState)}]
-  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1~e_2 : \tau_2}
-  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1 : \stateful \tau_1 \rightarrow \tau_2
-  ~~~~ \Gamma~|~\Sigma \mapsto e_2 : \tau_1}\\[5ex]
-  
-\infer[\textsc{(T-AppWithStateError)}]
-  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash \mathtt{error}}
-  {\Gamma,~\reftt e_3 : \Reftt \tau \in \Gamma~|~\Sigma \vdash e_1 : \tau_1 \rightarrow \tau_2
-  ~~~~ \Gamma~|~\Sigma \mapsto e_2 : \tau_1}\\[5ex]
-  
-\infer[\textsc{(T-Loc)}]
-  {\Gamma~|~\Sigma \vdash l : \Reftt \tau_1}
-  {\Sigma(l) = \tau_1}
-~~~~~~~~
-\infer[\textsc{(T-Ref)}]
-  {\Gamma~|~\Sigma \vdash \reftt e_1 : \Reftt \tau_1}
-  {\Gamma~|~\Sigma \vdash e_1 : \tau_1}
+  {\Gamma,~\reftt e_3 : \Reftt \tau~|~\Sigma \vdash e_1~e_2 : \tau_2}
+  {\Gamma,~\reftt e_3 : \Reftt \tau~|~\Sigma \vdash e_1 : \tau_1 \xrightarrow{s} \tau_2
+  ~~~~ \Gamma~|~\Sigma \mapsto e_2 : \tau_1}  
 \end{array}
 \]
 
