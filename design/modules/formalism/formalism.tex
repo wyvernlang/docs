@@ -3,7 +3,7 @@
 \usepackage{listings}
 \usepackage{proof}
 \usepackage{amssymb}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=.9in]{geometry}
 \usepackage{amsmath}
 
 \lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
@@ -39,11 +39,12 @@ e & ::= & n & expressions \\
 & | & \tau \xrightarrow{s} \tau \\
 & | & \Reftt \tau \\
 &&\\
-p & ::= & M^* & program\\
+p & ::= & \epsilon & program\\
+& | & M;~p\\
 &&\\
 \Gamma & :: = & \varnothing & contexts\\
 & | & \Gamma,~x : \tau\\
-& | & \Gamma,~S\\
+& | & \Gamma,~m : S\\
 \end{array}
 & ~~~~~~
 &
@@ -51,7 +52,8 @@ p & ::= & M^* & program\\
 M & ::= & \keyw{module} m (m_1 : S)~MB & module \\
 & | & \keyw{module} m~MB \\
 &&\\
-MB & ::= & D^* : T & module~body\\
+MB & ::= & \epsilon & module~body\\
+& | & D : T;~MB\\
 &&\\
 D & ::= & \keyw{import} m~\keyw{as} m_1 & declaration \\
 & | & \keyw{instantiate} m(m_1)~\keyw{as} m_2 \\
@@ -60,13 +62,13 @@ D & ::= & \keyw{import} m~\keyw{as} m_1 & declaration \\
 T & ::= & S \rightarrow S & module~or~functor~type\\
 & | & S \\
 &&\\
-S & ::= & DT^* & module~type \\
-& | & \keyw{resource} DT^* \\
+S & ::= & \epsilon & module~type \\
+& | & DT;~S \\
+& | & \keyw{resource} DT;~S \\
 &&\\
 DT & ::= & \keyw{val} x : \tau & declaration~type\\
 &&\\
-\mu & ::= & & stores\\
-& & \varnothing \\
+\mu & ::= & \varnothing & stores\\
 & | & \mu,~l = v\\
 &&\\
 \Sigma & ::= & \varnothing & store~typings\\
@@ -114,11 +116,15 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 
 \infer[\textsc{(T-AbsWithState)}]
   {\Gamma~|~\Sigma \vdash \lambda x : \tau_1.e_2 : \tau_1 \xrightarrow{s} \tau_2}
-  {\Gamma,~x : \tau_1~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
-
+  {\Gamma,~x : \tau_1~|~\Sigma \vdash e_2 : \tau_2}
+~~~~~~~~
 \infer[\textsc{(T-ModMember)}]
   {\Gamma~|~\Sigma \vdash m_1.x_1 : \tau_1}
   {\Gamma~|~\Sigma \vdash m_1 : \{ x_i : \tau_i,~i \in 1..n\}}\\[5ex]
+
+\infer[\textsc{(T-Load)}]
+  {\Gamma~|~\Sigma \vdash \keyw{load} e_1(m_1)~\keyw{as} m_2~\keyw{in} e_2 : \tau_2}
+  {\Gamma~|~\Sigma \vdash e_1(m_1) : S_1~~~~~\Gamma,~m_2 : S_1~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
 
 %\infer[\textsc{(T-ProgOK)}]
 %  {\Gamma~|~\Sigma \vdash p~ \keyw{OK}}
@@ -128,9 +134,9 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 %\Gamma,~m_1 : S_1~|~\Sigma \vdash m_2 : S_2~~~~...~~~~\Gamma,~m_1 : S_1, ..., m_{n-1} : S_{n-1} ~|~\Sigma \vdash m_n : S_n
 %  \end{array}}\\[5ex]
 
-\infer[\textsc{(T-ProgOK)}]
-  {\Gamma~|~\Sigma \vdash p~ \keyw{OK}}
-  {p = \{\overline{M}\}~~~~~\Gamma~|~\Sigma \vdash \{\overline{M}\} : \{\overline{S}\}}\\[5ex]
+\infer[\textsc{(T-Prog)}]
+  {\Gamma,~m : S~|~\Sigma \vdash p}
+  {p = m;~p'~~~~~\Gamma~|~\Sigma \vdash m : S~~~~~\Gamma,~m : S~|~\Sigma \vdash p'}\\[5ex]
 
 \infer[\textsc{(T-ModuleNoArg)}]
   {\Gamma~|~\Sigma \vdash M : S}
@@ -149,11 +155,23 @@ M = \keyw{module} m(m_1 : S_1)~MB~~~~~MB = \{d_1, ..., d_n\}\\
 S = \{DT_1, ..., DT_n\}~~~~~\Gamma~|~\Sigma \vdash d_1 : DT_1 \\
 \Gamma,~d_1 : DT_1~|~\Sigma \vdash d_2 : DT_2~~~~...~~~~\Gamma,~d_1 : DT_1, ..., D_{n-1} : DT_{n-1} ~|~\Sigma \vdash d_n : DT_n
   \end{array}}\\[5ex]
-  
-\infer[\textsc{(T-Load)}]
-  {\Gamma~|~\Sigma \vdash \keyw{load} e_1(m_1)~\keyw{as} m_2~\keyw{in} e_2 : \tau_2}
-  {\Gamma~|~\Sigma \vdash e_1(m_1) : \tau_1~~~~~\Gamma,~m_2 : \tau_1~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
 
+%\end{array}
+%\]
+%
+%\newpage
+%
+%\[
+%\begin{array}{c}
+
+\infer[\textsc{(DT-Instantiate)}]
+  {\Gamma,~m : S~|~\Sigma \vdash \keyw{instantiate} m(m_1)~\keyw{as} m_2 : S}
+  {\Gamma~|~\Sigma \vdash m(m_1) : S}\\[5ex]
+
+\infer[\textsc{(DT-Import)}]
+  {\Gamma,~m : S~|~\Sigma \vdash \keyw{import} m~\keyw{as} m_1 : S}
+  {\Gamma~|~\Sigma \vdash m : S}
+~~~~~~~~
 \infer[\textsc{(DT-Val)}]
   {\Gamma~|~\Sigma \vdash \keyw{val} x : \tau = e : \keyw{val} x : \tau}
   {\Gamma~|~\Sigma \vdash e : \tau}\\[5ex]
