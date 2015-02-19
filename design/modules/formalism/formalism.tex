@@ -30,6 +30,7 @@ e & ::= & n & expressions \\
 & | & \keyw{fn} x : \tau . e \\
 & | & e~e\\
 & | & \reftt e \\
+& | & l \\
 & | & m.x \\
 & | & \keyw{load} e(m_1)~\keyw{as} m_2~\keyw{in} e \\
 &&\\
@@ -38,7 +39,11 @@ e & ::= & n & expressions \\
 & | & \tau \xrightarrow{s} \tau \\
 & | & \Reftt \tau \\
 &&\\
-p & ::= & M^* \vdash m & program\\
+p & ::= & M^* & program\\
+&&\\
+\Gamma & :: = & \varnothing & contexts\\
+& | & \Gamma,~x : \tau\\
+& | & \Gamma,~S\\
 \end{array}
 & ~~~~~~
 &
@@ -56,17 +61,89 @@ T & ::= & S \rightarrow S & module~or~functor~type\\
 & | & S \\
 &&\\
 S & ::= & DT^* & module~type \\
-& | & \keyw{resource} DT^* \\
 &&\\
-DT & ::= & \keyw{val} x : \tau & declaration~type
+DT & ::= & \keyw{val} x : \tau & declaration~type\\
+& | & \keyw{resource}~\keyw{val} x : \tau\\
+&&\\
+\mu & ::= & & stores\\
+& & \varnothing \\
+& | & \mu,~l = v\\
+&&\\
+\Sigma & ::= & \varnothing & store~typings\\
+& | & \Sigma,~l : \tau
 \end{array}
 \end{array}
 \]
 
+\newpage
 
 \subsection{Semantics}
 
-\vspace{20pt}
+$\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Int)}]
+  {\Gamma~|~\Sigma \vdash n : \Inttt}
+  {}
+~~~~~~~~  
+\infer[\textsc{(T-Var)}]
+  {\Gamma~|~\Sigma \vdash x : \tau}
+  {x : \tau \in \Gamma}
+~~~~~~~~  
+\infer[\textsc{(T-Loc)}]
+  {\Gamma~|~\Sigma \vdash l : \Reftt \tau_1}
+  {\Sigma(l) = \tau_1}\\[5ex]
+
+\infer[\textsc{(T-Ref)}]
+  {\Gamma~|~\Sigma \vdash \reftt e_1 : \Reftt \tau_1}
+  {\Gamma~|~\Sigma \vdash e_1 : \tau_1}
+~~~~~~~~
+\infer[\textsc{(T-App)}]
+  {\Gamma~|~\Sigma \vdash e_1~e_2 : \tau_2}
+  {\Gamma~|~\Sigma \vdash e_1 : \tau_1 \xrightarrow{[s]} \tau_2
+  ~~~~ \Gamma~|~\Sigma \vdash e_2 : \tau_1}\\[5ex]
+
+\infer[\textsc{(T-AbsNoState)}]
+  {\Gamma~|~\Sigma \vdash \lambda x : \tau_1.e_2 : \tau_1 \rightarrow \tau_2}
+  {\def\arraystretch{1.6}
+  \begin{array}{c}
+\Gamma_{ref} = \{x : \Reftt \tau'~|~ x : \Reftt \tau' \in \Gamma\}~~~~
+\Gamma_{sf} = \{ x : \tau \xrightarrow{s} \tau'~|~x : \tau \xrightarrow{s} \tau' \in \Gamma \} \\
+\Gamma' = \Gamma \setminus (\Gamma_{ref} \cup \Gamma_{fs})~~~~~~~~~~~~~\Gamma',~x : \tau_1~|~\Sigma \vdash e_2 : \tau_2
+  \end{array}}\\[5ex]
+
+\infer[\textsc{(T-AbsWithState)}]
+  {\Gamma~|~\Sigma \vdash \lambda x : \tau_1.e_2 : \tau_1 \xrightarrow{s} \tau_2}
+  {\Gamma,~x : \tau_1~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
+
+\infer[\textsc{(T-ModMember)}]
+  {\Gamma~|~\Sigma \vdash m_1.x_1 : \tau_1}
+  {\Gamma~|~\Sigma \vdash m_1 : \{ x_i : \tau_i,~i \in 1..n\}}\\[5ex]
+
+\infer[\textsc{(T-ProgOK)}]
+  {\Gamma~|~\Sigma \vdash p~ \keyw{OK}}
+  {\def\arraystretch{1.6}
+  \begin{array}{c}
+p = \{m_1, ..., m_n\}~~~~~\Gamma~|~\Sigma \vdash m_1 : S_1 \\
+\Gamma,~m_1 : S_1~|~\Sigma \vdash m_2 : S_2~~~~...~~~~\Gamma,~m_1 : S_1, ..., m_{n-1} : S_{n-1} ~|~\Sigma \vdash m_n : S_n
+  \end{array}}\\[5ex]
+
+\infer[\textsc{(T-Module-Version1)}]
+  {\Gamma~|~\Sigma \vdash \keyw{module} m : S}
+  {\keyw{module} m : S \in \Gamma}\\[5ex]
+
+\infer[\textsc{(T-Module-Version2)}]
+  {\Gamma~|~\Sigma \vdash \keyw{module} m : S}
+  {\def\arraystretch{1.6}
+  \begin{array}{c}
+\keyw{module} m = \{d_1, ..., d_n\}~~~~~S = \{DT_1, ..., DT_n\}~~~~~\Gamma~|~\Sigma \vdash d_1 : DT_1 \\
+\Gamma,~d_1 : DT_1~|~\Sigma \vdash d_2 : DT_2~~~~...~~~~\Gamma,~d_1 : DT_1, ..., D_{n-1} : DT_{n-1} ~|~\Sigma \vdash d_n : DT_n
+  \end{array}}\\[5ex]
+
+\end{array}
+\]
+
+\newpage
 
 \section{Expression Language}
 
