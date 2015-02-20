@@ -1,0 +1,155 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+
+\begin{document}
+
+
+\section{Modules}
+
+\subsection{Syntax}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & x & expressions \\
+& | & \keywadj{new}_{[p]}(x \Rightarrow d) \\
+& | & e.m(e)\\
+& | & e.f \\
+& | & e.f = e \\
+& | & l & run-time forms\\
+& | & l.m(l) \rhd e \\
+&&\\
+d & ::= & \bullet & declarations \\
+  & |   & \keyw{def} m(x:\tau):\tau = e; d \\
+  & |   & \keyw{var} f:\tau = e; d \\
+&&\\
+\tau & ::= & \{ x \Rightarrow \sigma \}_{[s]} & types \\
+&&\\
+\sigma & ::= & \bullet & decl.~ types \\
+       & |   & \keyw{def} m:\tau \rightarrow \tau; \sigma \\
+       & |   & \keyw{var} f:\tau; \sigma \\
+&&\\
+\Gamma & :: = & \varnothing & contexts\\
+& | & \Gamma,~x : \tau\\
+\end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+\mu & :: = & \bullet & store\\
+& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{[s]}\\
+&&\\
+d_v & ::= & \bullet & decl.~ values \\
+  & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
+  & |   & \keyw{var} f:\tau = l; d_v \\
+&&\\
+\Sigma & :: = & \bullet & store type\\
+& | & \Sigma,~l : \tau\\
+&&\\
+E & ::= & \diamond & eval.~ contexts\\
+  & |   & \keyw{new}_{[p]}(x \Rightarrow D) \\
+  & |   & E.m(e)\\
+  & |   & l.m(E)\\
+  & |   & E.f \\
+  & |   & E.f = e \\
+  & |   & l.f = E \\
+  & |   & l.m(l) \rhd E \\
+&&\\
+D & ::= & \keyw{def} m(x:\tau):\tau = e; D & decl.~ contexts\\
+  & |   & \keyw{var} f:\tau = E; d \\
+  & |   & \keyw{var} f:\tau = e; D \\
+&&\\
+\end{array}
+\end{array}
+\]
+
+\newpage
+
+\subsection{Authority}
+
+\[
+\begin{array}{c}
+\infer[\textsc{(auth-config)}]
+  {auth(l,\mu \rhd e) = auth(l,\mu) \cup auth(l,e,\mu)}
+  {}\\[5ex]
+
+\infer[\textsc{(auth-store)}]
+  {auth(l,\mu) = pointsto(d_v,\mu)}
+  {\mu(l) = \{ x \Rightarrow d_v \}_{[s]}}\\[5ex]
+  
+\infer[\textsc{(auth-stack)}]
+  {auth(l,E[l.m(l') \rhd e'],\mu) = pointsto(e,\mu) \cup auth(l,e',\mu)}
+  {l.m(l'') \rhd E' \not\in E}\\[5ex]
+  
+\infer[\textsc{(auth-stack-nocall)}]
+  {auth(l,e,\mu) = \varnothing}
+  {l.m(l') \rhd e' \not\in e}\\[5ex]
+  
+\infer[\textsc{(pointsto-def)}]
+  {pointsto(\keyw{def} m(x:\tau):\tau = e; d,\mu) = pointsto(e,\mu) \cup pointsto(d,\mu)}
+  {}\\[5ex]
+  
+\infer[\textsc{(pointsto-var)}]
+  {pointsto(\keyw{var} f:\tau = e; d,\mu) = pointsto(e,\mu) \cup pointsto(d,\mu)}
+  {}\\[5ex]
+  
+\infer[\textsc{(pointsto-principal)}]
+  {pointsto(l,\mu) = \{ l \}}
+  {\mu(l) = \{ x \Rightarrow d_v \}_s}\\[5ex]
+  
+\infer[\textsc{(pointsto-data)}]
+  {pointsto(l,\mu) = \varnothing }
+  {\mu(l) = \{ x \Rightarrow d_v \}}\\[5ex]
+
+\infer[\textsc{(pointsto-call-principal)}]
+  {pointsto(l.m(l') \rhd e,\mu) = \{l\} }
+  {\mu(l) = \{ x \Rightarrow d_v \}_s}\\[5ex]
+  
+\infer[\textsc{(pointsto-call-data)}]
+  {pointsto(l.m(l') \rhd e,\mu) = pointsto(e,\mu)}
+  {\mu(l) = \{ x \Rightarrow d_v \}}\\[5ex]
+  
+\infer[\textsc{(pointsto-new)}]
+  {pointsto(\keywadj{new}_{[p]}(x \Rightarrow d),\mu) = pointsto(d,\mu) }
+  {}\\[5ex]
+  
+\infer[\textsc{(pointsto-otherexp)}]
+  {pointsto(e,\mu) = pointsto(subexprs(e),\mu) }
+  {\textit{when $e$ is not one of the expression forms defined above}}\\[5ex]
+
+\end{array}
+\]
+
+note: the last rule is a shorthand; the rest of the \textit{pointsto} rules for expressions are just congruence - look inside the e's
+
+
+\newpage
+
+\subsection{Theory}
+
+\textbf{Theorem [Authority Safety].}  If $\mu \rhd e \stepsto \mu' \rhd e'$ then $\forall l \in domain(\mu)$ if $auth(\mu' \rhd e') \supset auth(\mu \rhd e)$ then one of the following holds:
+
+\begin{itemize}
+  \item \textbf{Creation.} $e = E[\keywadj{new}_p(x \Rightarrow d_v)]$, $e' = E[l']$, and $auth(\mu' \rhd e') = auth(\mu \rhd e) \cup \{ l' \}$.
+  \item \textbf{Call.} $e = E[l.m(l')]$, $e' = E[l.m(l') \rhd e]$, and $auth(\mu' \rhd e') = auth(\mu \rhd e) \cup \{ pointsto(l,\mu) \}$
+  \item \textbf{Return.}
+\end{itemize}
+
+Here, the Authority Safety theorem follows the definition in Maffeis et al. 2010.
+
+\end{document}
