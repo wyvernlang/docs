@@ -19,7 +19,10 @@
 \end{abstract}
 
 \section{Introduction}
+
+
 \section{Prior Work}
+
 
 \begin{figure}
 \subfile{fig1}
@@ -27,48 +30,100 @@
 \label{fig:cons}
 \end{figure}
 
-%WTF figure num
-Figure~\ref{fig:cons} demonstrates cases where existing local type inference systems fail. In each, a function of type $T \rightarrow ((T,V) \rightarrow T) \rightarrow T$ is invoked, with the first $T$ being a LinkedList, and the second $T$, the return type of the function being either List or ArrayList (in Scala). A trivial solution for $T$ exists, $T=\text{List[Integer]}$ in all cases, but all three existing type inference systems produce a type error, having concluded that $T=\text{LinkedList[Integer]}$, an assignment that renders the expression invalid.
+\section{Subtyping} To add a general form of subtyping to our system, we consider types $X,Y,Z$ as members of a set, where three critical operators are defined:
+\begin{enumerate}
+\item $\exists X, Y: X < Y$, subtyping
+\item $\forall X,Y\exists Z: X \lub Y = Z$, least upper bound
+\item $\forall X,Y\exists Z: X \glb Y = Z$, greatest lower bound
+\end{enumerate}
 
-\section{Approach}
-\paragraph{Ordered Contexts}
-\paragraph{Instantiation Judgements}
-\paragraph{Variable Bounds}
+These three operators enable us to perform type inference with respect to the external type system. The subtyping operator is self evident, but greatest lower bound and least upper bound are less clear.
 
+The two bound operators are used to compute a common super or subtype that satisfies two different supertype or subtyping constraints, defined by theorem 1:
+\begin{align*}
+\forall X,Y\exists Z: X\lub Y = Z &\implies \forall Z': X < Z' \text{ and } Y < Z', Z < Z'\\
+\forall X,Y\exists Z: X\glb Y = Z &\implies \forall Z': Z'<X \text{ and } Z'<X, Z' < Z\\
+\end{align*}
 
-\section{Construction}
-\subsection{Grammar}
-\subsection{Bounding}
-\subsection{Subtyping}
-\subsection{Instantiation}
+The implementation of these operators can be nontrivial, especially in a nominal type system like the one used in Java, where multiple super and subtypes can exist for any given type. To solve this problem, sets of types can be used instead of single types, providing an easy definition for bounding.
 
+\section{Typing}
 \begin{figure}
-\subfile{decl}
-\end{figure}
-
-\begin{figure}
-\subfile{construction}
-\label{fig:cons}
-\caption{Structure of our system}
+\subfile{terms}
+\label{fig:terms}
+\caption{Source Expressions}
 \end{figure}
 \begin{figure}
 \subfile{typing}
 \end{figure}
+
+Our source language is nearly identical to that of Dunfield, with the exception of the intro expression. $\intro{x}$ serves as the introduction form of a type with an additional subtyping operator, as discussed in the section of subtyping. 
+
+\section{Subtyping}
 \begin{figure}
-\subfile{instantiation}
+\subfile{declCons}
+\label{fig:declCons}
+\caption{Structure of the declarative system}
 \end{figure}
 \begin{figure}
-\subfile{siginst}
+\subfile{decl}
 \end{figure}
+
+The declarative subtyping system is a standard top-down approach, with the only interesting rules being $\leq\forall$L, $\leq\forall$R, and $\leq$Gen. Higher-rank polymorphism enables a value of one type to be used to replace values of a different type, a relationship commonly expressed using a subtyping relationsip. In this way, if one (generic) type can be instantiated so that it matches another, then the generic type is a subtype of the more specified type.
+
+Our declarative system, identical to Dunfield except for $\leq$Gen, is based around this idea, most easily seen in $\leq\forall$L. $\leq\forall$L describes this fundamental idea behind higher-rank polymorphism, as if there is a $\tau$ such that the relationship $[\tau/\alpha]A \leq B$ holds, then $\forall \alpha.A \leq B$ must then hold.
+
+$\leq\forall$R is a little more complex. Consider the constraint $A \leq \forall \beta.B$. For $A$ to be a subtype of $\forall\beta.B$, $A$ has to be more general than $\forall \beta.B$, and even with the addition of nominal subtyping this relationship can only be maintained if $A$ is also generified. As such, we are guaranteed to have in this case a $\forall$ on the left hand side in $A$ - somewhere. As such, we do not need to infer a $\tau$ for $\beta$, as that would be needless repetition.
+
+$\leq\forall$L in particular is very difficult to implement, however. Determining a good instantiation for $\tau$ is unclear, and a substantial amount of effort has been spent in coming up with systems that can generate valid types. Our algorithmic system provides a method for inferring bounds on $\tau$, and as proving the existence of bounds is sufficient to prove that some $\tau$ exists, can as such determine a subtyping relationship, without this ambiguity over the final type $\tau$.
+
+\section{Algorithmic System}
 \begin{figure}
-\subfile{sigbnd}
+\subfile{construction}
+\label{fig:cons}
+\caption{Structure of the algorithmic system}
 \end{figure}
+
+The general structure of the algorithmic system is similar to that of the declarative system, but with a few notable additions. We add the existential type variable $\alphahat$, used to infer the type of $\tau$ for a given forall type, and make some adjustments to the form of the context.
+
+We adopt the same proof-theoretic approach to type inference as Dunfield does, using input and output contexts. However, we have to modify the context, as the context form $\alphahat=\tau$ is no longer sufficient to enable complete type inference in the presence of subtyping. Instead, we use the form $\bound{\sigma_l}{\alphahat}{\sigma_u}$, where $\sigma_l$ and $\sigma_u$ are bounds on the existential $\alphahat$. $\sigma$ itself also has some subtleties - the most notable of which is the list of existential type variables.
+
+In order to maintain relationships of the form $\alphahat \st \betahat$ over an arbitrary number of existential type variables, we need to be able to store an arbitrary number of type variables in each bound, then, for each alteration of the monotype bounds on a given existential, bound the existential type variables on the other side accordingly. This feature is used extensively in our definition of algorithmic existential instantiation or bounding.
+
 \begin{figure}
 \subfile{subtyping}
 \end{figure}
 
+Our algorithmic subtyping system follows the declarative subtyping quite closely, with the only differences being the changes to remove $\tau$ from $\st\forall$L. To infer the type of $\tau$ in the declarative rule $\leq\forall$L, in $\st\forall$L we replace $\alpha$ with $\alphahat$. Then, in $\st$InstantiateL and $\st$InstantiateR, we specialize this $\alphahat$ using the instantiation operator, finding a definition for $\tau$ via $\alphahat$.
 
-\section{Verification}
-\subsection{Soundness}
-\subsection{Completeness}
+To simplify this instantiation operation, we use a separate judgement form, as well as two helper judgements, both checking/applying a bound.
+
+\begin{figure}
+\subfile{sigbnd}
+\end{figure}
+
+To check that every member of a bound has a supertype of some $\tau$, we use $\sigbndl$ and $\sigbndr$. In the case of $\sigbndl$, it checks that a lower bound $\sigma_l$ is bounded above with some $\tau$, and the converse for $\sigbndr$.
+
+Ensuring that the relationship holds is done by using instantiation (to ensure that the existential part of the bound holds) and simple subtyping to compare the monotype bounds.
+
+\begin{figure}[H]
+\subfile{siginst}
+\end{figure}
+
+Likewise, bound instantiation ensures that an existential is a super/subtype of everything in a bound.
+
+
+\begin{figure}[h]
+\subfile{instantiation}
+\end{figure}
+
+Instantiation is the core of our system, taking a constraint of the form $\alphahat \instl \tau$ or $\tau \instr\alphahat$ and applying it to the existential variable. 
+
+InstLAbs is the simplest case, where the constraint type is simply a $\tau$. We first ensure that $\sigma_l$ is bounded above by the $\tau$, then generate a new upper bound for $\alphahat$ using the least upper bound operator, a bound that is then applied to $\alphahat$ in the context.
+
+InstLVar and InstLReach are closely related. Both handle the case where one existential must be a subtype of the other. The difference is in where the existentials are defined in the context - as every existential in a bound must refer to an existential previously defined, the rules ensure that the context remains valid. Then, they ensure that the correct relationship between the two variables holds and add the new bound.
+
+InstLArrow is large but relatively simple. The constraints imposed by an arrow type cannot be represented in a single bound. Instead, we have to consider each side of the arrow independently, and to to that we need to introduce a new existential type variable for each side. The first four judgements ensure that the two new existentials $\alphahat_1,\alphahat_2$ satisfy the existing constraints on the type $\alphahat$, then the last two apply the new constraints from the arrow subtyping relation.
+
+The other InstR cases are analogous.
 \end{document}
