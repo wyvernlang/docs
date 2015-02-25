@@ -28,11 +28,11 @@
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expressions \\
-& | & \keywadj{new}_{[p]}(x \Rightarrow d) \\
+& | & \keywadj{new}_{[s]}(x \Rightarrow d) \\
 & | & e.m(e)\\
 & | & e.f \\
 & | & e.f = e \\
-& | & l & run-time forms\\
+& | & l & run\mbox{-}time~forms\\
 & | & l.m(l) \rhd e \\
 &&\\
 d & ::= & \bullet & declarations \\
@@ -45,24 +45,24 @@ d & ::= & \bullet & declarations \\
        & |   & \keyw{def} m:\tau \rightarrow \tau; \sigma \\
        & |   & \keyw{var} f:\tau; \sigma \\
 &&\\
-\Gamma & :: = & \varnothing & contexts\\
+\Gamma & :: = & \diamond & contexts\\
 & | & \Gamma,~x : \tau\\
 \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
-\mu & :: = & \bullet & store\\
+\mu & :: = & \diamond & store\\
 & | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{[s]}\\
 &&\\
 d_v & ::= & \bullet & decl.~ values \\
   & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
   & |   & \keyw{var} f:\tau = l; d_v \\
 &&\\
-\Sigma & :: = & \bullet & store type\\
+\Sigma & :: = & \diamond & store~type\\
 & | & \Sigma,~l : \tau\\
 &&\\
 E & ::= & \diamond & eval.~ contexts\\
-  & |   & \keyw{new}_{[p]}(x \Rightarrow D) \\
+  & |   & \keyw{new}_{[s]}(x \Rightarrow D) \\
   & |   & E.m(e)\\
   & |   & l.m(E)\\
   & |   & E.f \\
@@ -71,12 +71,72 @@ E & ::= & \diamond & eval.~ contexts\\
   & |   & l.m(l) \rhd E \\
 &&\\
 D & ::= & \keyw{def} m(x:\tau):\tau = e; D & decl.~ contexts\\
-  & |   & \keyw{var} f:\tau = E; d \\
+  & |   & \keyw{var} f:\tau = E; D \\
   & |   & \keyw{var} f:\tau = e; D \\
 &&\\
 \end{array}
 \end{array}
 \]
+
+\newpage
+
+\subsection{Semantics}
+
+$\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Var)}]
+  {\Gamma~|~\Sigma \vdash x : \tau}
+  {x : \tau \in \Gamma}\\[5ex]
+
+\infer[\textsc{(T-New)}]
+	{\Gamma~|~\Sigma \vdash\keywadj{new}_{[s]}(x \Rightarrow d) : \{ x \Rightarrow \sigma \}_{[s]}}
+	{\Gamma~|~\Sigma \vdash \overline{d} : \overline{\sigma}} \\[5ex]
+
+\infer[\textsc{(T-MethApp)}]
+	{\Gamma~|~\Sigma \vdash  e.m(e_2) : \tau_2} 
+	{\Gamma~|~\Sigma \vdash e_2 : \tau_1 & \Gamma~|~\Sigma \vdash e : \tau & \tau=\{..., \keyw{def}~ m : \tau_1 \rightarrow \tau_2 = e_1, ... \} }\\[5ex]
+
+%\infer[\textsc{(T-App)}]
+%  {\Gamma~|~\Sigma \vdash e_1~e_2 : \tau_2}
+%  {\Gamma~|~\Sigma \vdash e_1 : \tau_1 \xrightarrow{[s]} \tau_2
+%  & \Gamma~|~\Sigma \vdash e_2 : \tau_1}\\[5ex]
+%
+%\infer[\textsc{(T-Abs)}]
+%  {\Gamma~|~\Sigma \vdash \lambda x : \tau_1.e_2 : \tau_1 \xrightarrow{s} \tau_2}
+%  {\Gamma,~x : \tau_1~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
+
+\infer[\textsc{(T-Field)}]
+	{\Gamma~|~\Sigma \vdash  e.f : \tau_1} 
+	{\Gamma~|~\Sigma \vdash e:\sigma & \sigma= \{\keyw{var}~ f : \tau_1,... \} }\\[5ex]
+
+\infer[\textsc{(T-Assign)}]
+	{\Gamma~|~\Sigma \vdash  e.f=e_2 : \tau_1} 
+	{\Gamma~|~\Sigma \vdash e : \sigma & \sigma= \{\keyw{var}~ f:\tau_1=e_1,... \} & \Gamma~|~\Sigma \vdash e_2 : \tau_1 }\\[5ex]
+
+\infer[\textsc{(T-Loc)}]
+  {\Gamma~|~\Sigma \vdash l : \Reftt \tau_1}
+  {\Sigma(l) = \tau_1}\\[5ex]
+
+\infer[\textsc{(DT-Def)}]
+  {\Gamma~|~\Sigma \vdash \keyw{def} m(x : \tau_1) : \tau_2 = e : \keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma~|~\Sigma \vdash e : \tau_1 \rightarrow \tau_2}\\[5ex]
+
+\infer[\textsc{(DT-Var)}]
+  {\Gamma~|~\Sigma \vdash \keyw{var} f : \tau = e : \keyw{var} f : \tau}
+  {\Gamma~|~\Sigma \vdash e : \tau}\\[5ex]
+
+\infer[\textsc{(DvT-Def)}]
+  {\Gamma~|~\Sigma \vdash \keyw{def} m(x : \tau_1) : \tau_2 = e : \keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma~|~\Sigma \vdash e : \tau_1 \rightarrow \tau_2}\\[5ex]
+
+\infer[\textsc{(DvT-Var)}]
+  {\Gamma~|~\Sigma \vdash \keyw{var} f : \tau = l : \keyw{var} f : \tau}
+  {\Gamma~|~\Sigma \vdash l : \tau}\\[5ex]
+
+\end{array}
+\]
+
 
 \newpage
 
