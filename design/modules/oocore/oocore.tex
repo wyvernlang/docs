@@ -28,18 +28,20 @@
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expressions \\
-& | & \keywadj{new}_{[s]}(x \Rightarrow d) \\
+& | & \keywadj{new}_{s}(x \Rightarrow d) \\
 & | & e.m(e)\\
 & | & e.f \\
 & | & e.f = e \\
 & | & l & run\mbox{-}time~forms\\
 & | & l.m(l) \rhd e \\
 &&\\
+s & ::= & \keyw{stateful} | ~\keyw{pure} \\
+&&\\
 d & ::= & \epsilon & declarations \\
   & |   & \keyw{def} m(x:\tau):\tau = e; d \\
   & |   & \keyw{var} f:\tau = e; d \\
 &&\\
-\tau & ::= & \{ x \Rightarrow \sigma \}_{[s]} & types \\
+\tau & ::= & \{ x \Rightarrow \sigma \}_{s} & types \\
 &&\\
 \sigma & ::= & \epsilon & decl.~ types \\
        & |   & \keyw{def} m:\tau \rightarrow \tau; \sigma \\
@@ -52,7 +54,7 @@ d & ::= & \epsilon & declarations \\
 &
 \begin{array}{lllr}
 \mu & :: = & \varnothing & store\\
-& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{[s]}\\
+& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{s}\\
 &&\\
 d_v & ::= & \epsilon & decl.~ values \\
   & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
@@ -62,7 +64,7 @@ d_v & ::= & \epsilon & decl.~ values \\
 & | & \Sigma,~l : \tau\\
 &&\\
 E & ::= & \Diamond & eval.~ contexts\\
-  & |   & \keywadj{new}_{[s]}(x \Rightarrow D) \\
+  & |   & \keywadj{new}_{s}(x \Rightarrow D) \\
   & |   & E.m(e)\\
   & |   & l.m(E)\\
   & |   & E.f \\
@@ -81,13 +83,12 @@ D & ::= & \keyw{def} m(x:\tau):\tau = e; D & decl.~ contexts\\
 Notes:
 
 \begin{itemize}
-\item $s$ is a tag for objects that are $s$tateful
+\item The $s$ tag indicates whether an object is stateful (i.e. captures mutable state) or pure (i.e. captures no mutable state)
 \end{itemize}
 
 To Do:
 
 \begin{itemize}
-\item make $s$ into a grammatical form
 \item either take out $x \Rightarrow$ or add type members
 \end{itemize}
 
@@ -103,7 +104,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
   {x : \tau \in \Gamma}\\[5ex]
 
 \infer[\textsc{(T-New)}]
-	{\Gamma~|~\Sigma \vdash\keywadj{new}_{[s]}(x \Rightarrow d) : \{ x \Rightarrow \sigma \}_{[s]}}
+	{\Gamma~|~\Sigma \vdash\keywadj{new}_{s}(x \Rightarrow d) : \{ x \Rightarrow \sigma \}_{s}}
 	{\Gamma~|~\Sigma \vdash \overline{d} : \overline{\sigma}} \\[5ex]
 
 \infer[\textsc{(T-MethApp)}]
@@ -112,7 +113,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 
 %\infer[\textsc{(T-App)}]
 %  {\Gamma~|~\Sigma \vdash e_1~e_2 : \tau_2}
-%  {\Gamma~|~\Sigma \vdash e_1 : \tau_1 \xrightarrow{[s]} \tau_2
+%  {\Gamma~|~\Sigma \vdash e_1 : \tau_1 \xrightarrow{s} \tau_2
 %  & \Gamma~|~\Sigma \vdash e_2 : \tau_1}\\[5ex]
 %
 %\infer[\textsc{(T-Abs)}]
@@ -159,19 +160,19 @@ To do: fix the rules (Darya)
 \[
 \begin{array}{c}
 \infer[\textsc{(auth-config)}]
-  {auth(l,\mu \circ e) = auth(l,\mu) \cup auth(l,e,\mu)}
+  {auth(l,\mu \circ e) = auth_{store}(l,\mu) \cup auth_{stack}(l,e,\mu)}
   {}\\[5ex]
 
 \infer[\textsc{(auth-store)}]
-  {auth(l,\mu) = pointsto(d_v,\mu)}
-  {\mu(l) = \{ x \Rightarrow d_v \}_{[s]}}\\[5ex]
+  {auth_{store}(l,\mu) = pointsto(d_v,\mu)}
+  {\mu(l) = \{ x \Rightarrow d_v \}_{s}}\\[5ex]
   
 \infer[\textsc{(auth-stack)}]
-  {auth(l,E[l.m(l') \rhd e'],\mu) = pointsto(e',\mu) \cup auth(l,e',\mu)}
+  {auth_{stack}(l,E[l.m(l') \rhd e'],\mu) = pointsto(e',\mu) \cup auth_{stack}(l,e',\mu)}
   {l.m(l'') \rhd E' \not\in E}\\[5ex]
   
 \infer[\textsc{(auth-stack-nocall)}]
-  {auth(l,e,\mu) = \varnothing}
+  {auth_{stack}(l,e,\mu) = \varnothing}
   {l.m(l') \rhd e' \not\in e}\\[5ex]
   
 \infer[\textsc{(pointsto-def)}]
@@ -184,22 +185,22 @@ To do: fix the rules (Darya)
   
 \infer[\textsc{(pointsto-principal)}]
   {pointsto(l,\mu) = \{ l \}}
-  {\mu(l) = \{ x \Rightarrow d_v \}_s}\\[5ex]
+  {\mu(l) = \{ x \Rightarrow d_v \}_\keywadj{stateful}}\\[5ex]
   
 \infer[\textsc{(pointsto-data)}]
   {pointsto(l,\mu) = \varnothing }
-  {\mu(l) = \{ x \Rightarrow d_v \}}\\[5ex]
+  {\mu(l) = \{ x \Rightarrow d_v \}_\keywadj{pure}}\\[5ex]
 
 \infer[\textsc{(pointsto-call-principal)}]
   {pointsto(l.m(l') \rhd e,\mu) = \{l\} }
-  {\mu(l) = \{ x \Rightarrow d_v \}_s}\\[5ex]
+  {\mu(l) = \{ x \Rightarrow d_v \}_\keywadj{stateful}}\\[5ex]
   
 \infer[\textsc{(pointsto-call-data)}]
   {pointsto(l.m(l') \rhd e,\mu) = pointsto(e,\mu)}
-  {\mu(l) = \{ x \Rightarrow d_v \}}\\[5ex]
+  {\mu(l) = \{ x \Rightarrow d_v \}_\keywadj{pure}}\\[5ex]
   
 \infer[\textsc{(pointsto-new)}]
-  {pointsto(\keywadj{new}_{[s]}(x \Rightarrow d),\mu) = pointsto(d,\mu) }
+  {pointsto(\keywadj{new}_{s}(x \Rightarrow d),\mu) = pointsto(d,\mu) }
   {}\\[5ex]
   
 \infer[\textsc{(pointsto-otherexp)}]
@@ -216,7 +217,6 @@ To Do:
 \begin{itemize}
 \item add a textual description to give intuition
 \item write some examples (all but Darya will do)
-\item have auth-stack and auth-heap variants of auth
 \end{itemize}
 
 \newpage
