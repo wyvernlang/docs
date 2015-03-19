@@ -1,0 +1,42 @@
+LEXICAL SPECIFICATION
+=====================
+
+A Wyvern program is a sequence of logical Wyvern lines and DSL blocks, starting with a logical Wyvern line.
+
+Logical Lines
+-------------
+
+A logical Wyvern line is a sequence of characters ending in a newline character (\n or \r\n).  Each newline character encountered ends a logical Wyvern line, with the following exceptions:
+ * When there is a \ followed immediately by a newline character, both the \ and the newline are ignored, and the line continues with the subsequent characters
+ * When a newline character is within a multi-line comment delimited with /* */, it is treated as part of the comment
+ * When a newline character is within matching open and closed parentheses, brackets, or braces, it is treated as whitespace (e.g. just like a space character)
+ 
+When a logical line is read, its contents are lexically analyzed following the description below.  If the contents contain anything other than comments and whitespace, a LOGICAL_NEWLINE token is generated at the end of the line.
+ 
+Comments
+--------
+
+Wyvern supports multi-line comments, just as in C, delimited with /* */.  As described above, newlines within a comment do not end a logical Wyvern line.  Wyvern supports single-line comments beginning with // and ending with a newline character.
+
+A single-line comment typically ends a logical line, even when there is a \ at the end of the single-line comment.  The only exception is when the comment is within matching parentheses, brackets, or braces.
+
+Indentation Level
+-----------------
+
+Each logical line has an indentation level, which is defined to be the (possibly-empty) sequence of whitespace characters that begins that line.  Intentation levels are ordered by the subsequence relation.  A stack keeps track of increasing indentation levels within the program; the stack initially contains a single entry, the empty sequence of whitespace characters, representing the initial current indentation level.
+
+If the indentation level increases between two logical lines, an INDENT token is generated after the LOGICAL_NEWLINE that separates the logical lines, and the new indentation level is pushed onto the stack.
+
+If the indentation level decreases between two logical lines, one or more indentation levels are popped off the stack until the indentation level at the top of stack matches the indentation level seen at the current logical line.  It is an error if no matching indentation level is found on the stack.  For each pop operation, a DEDENT token is generated after the LOGICAL_NEWLINE that separates the logical lines.
+
+It is an error if the indentation level changes without either increasing or decreasing.
+
+DSL Blocks
+----------
+
+If a logical line contains a single ~ character that is not within a comment or a string token, it indicates that a DSL block follows.  The DSL block is the sequence of physical (i.e. not logical) lines of code, each of which begins with a sequence of whitespace characters that is above the current indentation level.  It is an error if the DSL block is the empty sequence of physical lines.  The contents of the DSL block is defined to be exactly the physical lines of code in the DSL block, except that whitespace corresponding to the current indentation level is removed from the beginning of each physical line.
+
+Lexical Structure of a Logical Line
+-----------------------------------
+
+<< TO DO - flesh out the specification of lexical structure within a logical line, including keywords, etc. >>
