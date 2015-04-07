@@ -105,7 +105,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 ~~~~~~~~~~
 \infer[\textsc{(T-New)}]
 	{\Gamma~|~\Sigma \vdash\keywadj{new}_{s}(x \Rightarrow d) : \{ x \Rightarrow \sigma \}_{s}}
-	{\Gamma, x : \tau~|~\Sigma \vdash d : \sigma} \\[5ex]
+	{\Gamma, x : \{ x \Rightarrow \sigma \}_{s}~|~\Sigma \vdash d : \sigma} \\[5ex]
 
 \infer[\textsc{(T-MethApp)}]
 	{\Gamma~|~\Sigma \vdash  e.m(e_2) : \tau_1} 
@@ -119,6 +119,14 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
   {\Gamma~|~\Sigma \vdash l : \tau_1}
   {\Sigma(l) = \tau_1}\\[5ex]
 
+\infer[\textsc{(T-ObjVal)}]
+  {\Gamma~|~\Sigma \vdash \{ x \Rightarrow d_v \}_{s} : \{ x \Rightarrow \sigma \}_{s}}
+  {\Gamma, x : \{ x \Rightarrow \sigma \}_{s}~|~\Sigma \vdash d_v : \sigma}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-Sub)}]
+  {\Gamma~|~\Sigma \vdash e : \tau_2}
+  {\Gamma~|~\Sigma \vdash e : \tau_1 & \tau_1 <: \tau_2}\\[5ex]
+
 \infer[\textsc{(T-Assign)}]
 	{\Gamma~|~\Sigma \vdash  e.f=e_1 : \tau_1} 
 	{\Gamma~|~\Sigma \vdash e : \tau & \tau = \{\keyw{var}~ f:\tau_1,... \} & \Gamma~|~\Sigma \vdash e_1 : \tau_1 }\\[5ex]
@@ -127,17 +135,39 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 	{\Gamma~|~\Sigma \vdash l.m(l_1) \rhd e : \tau_2}
 	{\Gamma~|~\Sigma \vdash l_1 : \tau_1 & \Gamma~|~\Sigma \vdash l : \tau & \tau = \{..., \keyw{def}~ m : \tau_1 \rightarrow \tau_2, ... \}} \\[5ex]
 
-\infer[\textsc{(DT-Def)}]
-  {\Gamma~|~\Sigma \vdash \keyw{def} m(x : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-  {\Gamma, x : \tau_1~|~\Sigma \vdash e : \tau_2 & \Gamma~|~\Sigma \vdash d : \sigma}\\[5ex]
+\end{array}
+\]
+
+$\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
+\[
+\begin{array}{c}
+
+\infer[\textsc{(DT-DefPure)}]
+  {\Gamma~|~\Sigma \vdash_{\keyw{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
+  {\def\arraystretch{1.6}
+  \begin{array}{c}
+\Gamma_{stateful} = \{x : \{ x \Rightarrow \sigma \}_{\keyw{stateful}} ~|~ x : \{ x \Rightarrow \sigma \}_{\keyw{stateful}} \in \Gamma\} \\
+\Gamma' = \Gamma \setminus \Gamma_{stateful}~~~~~~~~~~\Gamma', x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma'~|~\Sigma \vdash_s d : \sigma
+  \end{array}}\\[5ex]
+
+\infer[\textsc{(DT-DefStateful)}]
+  {\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
+  {\Gamma, x : \tau_1~|~\Sigma \vdash e : \tau_2 & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
 
 \infer[\textsc{(DT-Var)}]
-  {\Gamma~|~\Sigma \vdash \keyw{var} f : \tau = e; d~:~\keyw{var} f : \tau; \sigma}
-  {\Gamma~|~\Sigma \vdash e : \tau}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Sub)}]
-  {\Gamma~|~\Sigma \vdash e : \tau_2}
-  {\Gamma~|~\Sigma \vdash e : \tau_1 & \tau_1 :> \tau_2}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = e; d~:~\keyw{var} f : \tau; \sigma}
+  {\Gamma~|~\Sigma \vdash e : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\Gamma~|~\Sigma \vdash \mu$}$
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Store)}]
+  {\Gamma~|~\Sigma \vdash \mu}
+  {dom(\mu) = dom(\Sigma) & \forall l \in dom(\mu) : \Gamma~|~\Sigma \vdash \mu(l) : \Sigma(l)}\\[5ex]
 
 \end{array}
 \]
@@ -158,8 +188,20 @@ $\fbox{$\tau <: \tau'$}$
   {}%\\[5ex]  
 ~~~~~~~~~~
 \infer[\textsc{(S-State)}]
-  {\{ x \Rightarrow \sigma \}_{\keyw{stateful}} <: \{ x \Rightarrow \sigma \}_{\keyw{pure}}}
+  {\{ x \Rightarrow \sigma \}_{\keyw{pure}} <: \{ x \Rightarrow \sigma \}_{\keyw{stateful}}}
   {}\\[5ex]  
+
+\infer[\textsc{(S-Def)}]
+  {\keyw{def} m:\tau_1 \rightarrow \tau_2; \sigma <: \keyw{def} m:\tau_1' \rightarrow \tau_2; \sigma}
+  {\tau_1 <: \tau_1'}\\[5ex]  
+
+\infer[\textsc{(S-Var)}]
+  {\keyw{var} f:\tau; \sigma <: \keyw{var} f:\tau'; \sigma}
+  {\tau <: \tau'}\\[5ex]  
+
+\infer[\textsc{(S-Obj)}]
+  {\{ x \Rightarrow \sigma \}_{s} <: \{ x \Rightarrow \sigma' \}_{s}}
+  {\sigma <: \sigma'}\\[5ex]  
 
 \end{array}
 \]
@@ -176,7 +218,7 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
   {e_1.m(e_2)~|~\mu \longrightarrow e_1.m(e_2')~|~\mu'}
   {e_2~|~\mu \longrightarrow e_2'~|~\mu'}\\[5ex]
 
-\infer[\textsc{(E-Field)}]
+\infer[\textsc{(E-Field1)}]
   {e.f~|~\mu \longrightarrow e'.f~|~\mu'}
   {e~|~\mu \longrightarrow e'~|~\mu'}%\\[5ex]
 ~~~~~~~~~~
@@ -192,6 +234,26 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
   {e.f = e_1~|~\mu \longrightarrow e.f = e_1'~|~\mu'}
   {e_1~|~\mu \longrightarrow e_1'~|~\mu'}\\[5ex]
 
+\infer[\textsc{(E-NewObj)}]
+  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow l \mapsto \{ x \Rightarrow d_v \}_{s}~|~\mu'}
+  {d~|~\mu \longrightarrow d_v~|~\mu'}\\[5ex]
+
+\infer[\textsc{(E-Def)}]
+  {\keyw{def} m(x:\tau):\tau = e; d~|~\mu \longrightarrow \keyw{def} m(x:\tau):\tau = e; d_v~|~\mu'}
+  {}\\[5ex]
+
+\infer[\textsc{(E-Var)}]
+  {\keyw{var} f:\tau = e; d~|~\mu \longrightarrow \keyw{var} f:\tau = l; d_v~|~\mu'}
+  {}\\[5ex]
+
+\infer[\textsc{(E-Field2)}]
+  {e.f = e~|~\mu \longrightarrow e.f = l~|~\mu'}
+  {e~|~\mu \longrightarrow l~|~\mu'}%\\[5ex]  
+~~~~~~~~~~
+\infer[\textsc{(E-Meth)}]
+  {e_1.m(e_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd e~|~\mu'}
+  {e_1~|~\mu \longrightarrow l_1~|~\mu' & e_2~|~\mu \longrightarrow l_2~|~\mu'}\\[5ex]  
+  
 \end{array}
 \]
 
