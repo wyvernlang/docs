@@ -3,9 +3,9 @@
 \label{tr-semantics}
 
 \subsection{Contexts}
-Before turning to the elaboration rules, we will first give the definition of contexts (Fig.~\ref{typechecking-environment}). After declarations elaboration, TSM declarations and named type declarations will go into the contexts, $\Psi$ and $\Theta$ respectively, for further reference in the program body elaboration phase. We use $s[\mathbf{ty}(\kappa,i)]$ to denote the mapping between the TSM name $s$ to its body, which is a type-level TSM of kind $\kappa$ and with a parser $i$ (in the internal form after elaboration).
+Before turning to the elaboration rules, we will first give the definition of contexts (Fig.~\ref{typechecking-environment}). After declaration elaboration phase, TSM declarations and named type declarations will go into the contexts, $\Psi$ and $\Theta$ respectively, for further reference in the program body elaboration phase. In formal presentation, We use $s[\mathbf{ty}(\kappa,i)]$ to denote the mapping between the TSM name $s$ to its body $\mathbf{ty}(\kappa,i)$, which is a type-level TSM of kind $\kappa$ and with a parser $i$ (in the internal form after elaboration).
 
-Similarly, named type contexts maps named types $\mathtt{T}$ to their structure $\tau$ of kind $\kappa$ together with a TSL parser $i$. After elaboration, the difference between explicit declared types and types generated defined by TSM application no longer exists, and they will both go into the contexts with the form $\mathtt{T}[\tau :: \kappa,i]$. Besides, a special form $\T[-::\kappa,-]$ is used in the named type context to represent an intermediate state in elaboration: a type $\T$ only maps to its kind $\kappa$, with its structure and syntax parser to be elaborated later, which will be discussed more later in elaboration rules.
+Similarly, named type contexts maps named types $\mathtt{T}$ to their structure $\tau$ of kind $\kappa$ together with a TSL parser $i$. After elaboration, the difference between explicit declared types and types generated defined by TSM application no longer exists, and they will both go into the contexts with the form $\mathtt{T}[\tau :: \kappa,i]$. In the named type contexts, a special form $\T[-::\kappa,-]$ is used as an intermediate representation in elaboration: a type $\T$ only maps to its kind $\kappa$, with its structure and syntax parser to be elaborated later, which will be discussed more later in elaboration rules.
 
 \begin{figure}[ht]
 \[
@@ -30,27 +30,27 @@ $$\AXC{$d\sim(\Psi;\Theta)$ ~~~~ $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\P
 \UIC{$ d;e\sim(\Psi;\Theta)\rightsquigarrow i:\tau$}
 \DP$$
 
-The compilation judgment will compile an external Wyvern program to internal Wyvern program by 1) parsing declarations, $d$, and 2) transforming the external term $e$, representing the Wyvern program body, into an internal term $i$.
+The compilation judgment will compile an external Wyvern program to internal Wyvern program by 1) parsing the declarations $d$, and 2) transforming the external term $e$ (the Wyvern program body) into an internal term $i$.
 
-The judgment $d \sim (\Psi, \Theta)$, defined in Figure \ref{typechecking-elaboration}, generates a corresponding TSM context, $\Psi$, and named type context, $\Theta$, from $d$. We refer to the type declarations in the prelude, some of which were shown in Fig. \ref{exp-prelude} below, by using the named type context $\Theta_0$ in our rules.
+The judgment $d \sim (\Psi, \Theta)$ (which is defined in Figure \ref{typechecking-elaboration}) generates a corresponding TSM context, $\Psi$, and named type context, $\Theta$, from $d$. By using the named type context $\Theta_0$ in our rules, we refer to the type declarations in the prelude, some of which were shown in Fig. \ref{exp-prelude} below.
 
 \input{wyvern-prelude}
 
 
-Judgments $\Delta; \Gamma \vdash_\Theta^\Psi e \leadsto i \Rightarrow \tau$ and  $\Delta; \Gamma \vdash_\Theta^\Psi e \leadsto i \Leftarrow \tau$ can be read ``under kinding context $\Delta$, typing context $\Gamma$, named type context $\Theta$ and TSM context $\Psi$, external term $e$ elaborates to internal term $i$ and (synthesizes / analyzes against) type $\tau$''. This is a \emph{bidirectionally typed elaboration semantics}, used to elaborate TSL literals and TSM applications, which appear only in the external language, to an internal language, which includes only the core operations in the language. The semantics follows that given in \cite{TSLs}, so we do not repeat the rules for the core operations or TSL literals. 
+Judgments $\Delta; \Gamma \vdash_\Theta^\Psi e \leadsto i \Rightarrow \tau$ and  $\Delta; \Gamma \vdash_\Theta^\Psi e \leadsto i \Leftarrow \tau$ can be read as ``under kinding context $\Delta$, typing context $\Gamma$, named type context $\Theta$ and TSM context $\Psi$, the external term $e$ elaborates to the internal term $i$ and (synthesizes / analyzes against) type $\tau$''. This is a \emph{bidirectionally typed elaboration semantics}, used to elaborate TSL literals and TSM applications, which appear only in the external language, to an internal language, which includes only the core operations in the language. The semantics follows that given in \cite{TSLs}, so we do not repeat the rules for the core operations or TSL literals. 
 
 In the next sections, we will introduce the elaboration rules for mutually recursive type declarations, TSM declarations and the the rules for the new form in the external terms, $\textbf{eaptsm}[s, body]$.
 
 \subsection{Declarations}
-We will now introduce the elaboration rules for declarations, where named type context $\Theta$ and TSM context $\Psi$ will be generated from declarations $d$ through the judgment $d \sim (\Psi, \Theta)$. 
+We will now introduce the elaboration rules for declarations, where the named type context $\Theta$ and the TSM context $\Psi$ will be generated from declarations $d$ through the judgment $d \sim (\Psi, \Theta)$. 
 
 \subsubsection{Term-level TSMs}
-The rules D-syntsm and D-anatsm presents how term-level TSMs are elaborated. To elaborate a synthetic TSM $\mathbf{syntsm}(s,\tau,e_{tsm})$ to its corresponding context form $s[\mathbf{syn}(\tau,i_{tsm})]$, we need the following premises:
+The rules D-syntsm and D-anatsm present how term-level TSMs are elaborated. To elaborate a synthetic TSM $\mathbf{syntsm}(s,\tau,e_{tsm})$ to its corresponding context form $s[\mathbf{syn}(\tau,i_{tsm})]$, we need the following premises (Rule D-TSM):
 \begin{itemize}\itemsep0pt
 \item $d\sim(\Theta,\Psi)$ will first elaborate the the context before the declaration $d$ into contexts $\Theta$ and $\Psi$.
-\item $s\notin\text{dom}(\Psi)$ checks that the TSM $s$ was not yet declared before (in $\Psi$).
-\item $\emptyset\vdash_{\Theta_0\Theta}\tau::\mathbf{Ty}$ will check that if the type $\tau$ is of kind $\mathbf{Ty}$, as the type $\tau$ is the type for the term generated by the TSM application.
-\item $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e_{tsm}\rightsquigarrow i_{tsm} \Leftarrow \mathtt{Parser(Exp)}$, this is the elaboration judgment of the parser defined with the $s$. The parser term $e$ will be elaborated under the TSM context $\Psi$ and named type context $\Theta_0\Theta$, where $\Psi$ and $\Theta$ are declarations appeared before $s$ and $\Theta_0$ is the context with types declared in the Wyvern prelude (Fig.~\ref{exp-prelude}). The term $e$ will be checked against the type $\mathtt{Parser(Exp)}$ when elaborating to internal form $i_{tsm}$, as it should be an expression generator.
+\item $s\notin\text{dom}(\Psi)$ checks that the TSM $s$ name was not yet used in the previous context ($\Psi$).
+\item $\emptyset\vdash_{\Theta_0\Theta}\tau::\mathbf{Ty}$ will check whether the kind for the type $\tau$ is $\mathbf{Ty}$, as the type $\tau$ is the type for the term generated by the TSM application.
+\item $\emptyset;\emptyset\vdash_{\Theta_0\Theta}^{\Psi}e_{tsm}\rightsquigarrow i_{tsm} \Leftarrow \mathtt{Parser(Exp)}$ is the elaboration judgment of the parser defined with the $s$. The parser term $e$ will be elaborated under the TSM context $\Psi$ and named type context $\Theta_0\Theta$, where $\Psi$ and $\Theta$ are declarations appeared before $s$ and $\Theta_0$ is the context with types declared in the Wyvern prelude (Fig.~\ref{exp-prelude}). The term $e$ will be checked against the type $\mathtt{Parser(Exp)}$ when elaborating to internal form $i_{tsm}$, as it should be an expression generator.
 \end{itemize}
 
 The rule for analytical TSMs is similar to that of synthetic TSMs, except that no return type $\tau$ will be checked, as the type of a term generated from an analytical TSM will be determined by the type provided in TSM application term $\mathbf{eaptsm}(s,body)$.
@@ -59,9 +59,9 @@ The rule for analytical TSMs is similar to that of synthetic TSMs, except that n
 The elaboration rule for type-level TSMs (D-tytsm) is also similar to that of synthetic TSMs except that 1) the parser is checked against the type $\mathtt{Parser(Pair(Type,Parser(Exp)))}$, where the type argument $\mathtt{Pair(Type,Parser(Exp))}$ specifies the return type of the parser, and 2) the kind $\kappa$ is provided, which is the kind for a type generated by the application of the TSM.
 
 \subsubsection{Types}
-To support mutually recursive type declarations, as presented in the rule D-rec, the elaboration of type declarations is separated into two phases: 1) type names and kinds checking (specified as $\vdash_{\Theta}^{\Psi}\theta\sim_{\mathrm{I}}\Theta_1$) and 2) type structure and parser elaboration ($\vdash_{\Theta}^{\Psi}\theta\sim_{\mathrm{II}}\Theta_2$). 
+To support mutually recursive type declarations the elaboration of type declarations is separated into two phases (rule D-rec): 1) type names and kinds checking (specified as $\vdash_{\Theta}^{\Psi}\theta\sim_{\mathrm{I}}\Theta_1$) and 2) type structure and parser elaboration ($\vdash_{\Theta}^{\Psi}\theta\sim_{\mathrm{II}}\Theta_2$). 
 
-\paragraph{Phase-I elaboration} The rule T-I will promote the elaboration of mutually defined types $\theta_1 \mathsf{and} \theta_2$ to its components, namely $\theta_1$ and $\theta_2$, independently.  In both rules T-tydecl-I and T-aptsm-I, the type name $\T$ will be checked to be free of conflicts in the previous context and then store the type with its kind $\kappa$ into the context.
+\paragraph{Phase-I elaboration} The rule T-I will promote the elaboration of mutually defined types $\theta_1~\mathsf{and}~\theta_2$ to its components, namely $\theta_1$ and $\theta_2$, independently.  In both rules T-tydecl-I and T-aptsm-I, the type name $\T$ will be checked to be free of conflicts in the previous context and then store the type with its kind $\kappa$ into the context.
 
 \paragraph{Phase-II elaboration}
 Following the first elaboration phase, the type structure, together with its syntax parser, will be added into the contexts to finish type elaboration. The rule T-II is again a promotion to its components. 
