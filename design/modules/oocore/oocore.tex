@@ -5,6 +5,15 @@
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
 \usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+ 
+%\pagestyle{headings}
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\thepage}
 
 \lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
 \lstloadlanguages{Java,VBScript,XML,HTML}
@@ -76,8 +85,8 @@ D & ::= & \keyw{def} m(x:\tau):\tau = e; D & decl.~ contexts\\
   & |   & \keyw{var} f:\tau = E; d \\
   & |   & \keyw{var} f:\tau = l; D \\
 &&\\
-k & ::= & \varnothing & call~stack\\
-  & |   & k;~l.m(l)
+%k & ::= & \varnothing & call~stack\\
+%  & |   & k;~l.m(l)
 \end{array}
 \end{array}
 \]
@@ -88,11 +97,6 @@ Notes:
 \item The $s$ tag indicates whether an object is stateful (i.e. captures mutable state) or pure (i.e. captures no mutable state)
 \end{itemize}
 
-To Do:
-
-\begin{itemize}
-\item either take out $x \Rightarrow$ or add type members
-\end{itemize}
 
 \newpage
 
@@ -109,7 +113,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 	{\Gamma~|~\Sigma \vdash\keywadj{new}_{s}(x \Rightarrow d) : \{ \sigma \}_{s}}
 	{\Gamma, x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma} \\[5ex]
 
-\infer[\textsc{(T-MethApp)}]
+\infer[\textsc{(T-Meth)}]
 	{\Gamma~|~\Sigma \vdash  e.m(e_2) : \tau_1} 
 	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
 
@@ -216,9 +220,18 @@ $\fbox{$\sigma <: \sigma'$}$
   {\tau_1' <: \tau_1 & \tau_2 <: \tau_2' & \sigma <: \sigma'}%\\[5ex]  
 ~~~~~~~~~~
 \infer[\textsc{(S-Var)}]
-  {\keyw{var} f:\tau; \sigma <: \keyw{var} f:\tau'; \sigma'}
-  {\tau <: \tau' & \sigma <: \sigma'}\\[5ex]  
+  {\keyw{var} f:\tau; \sigma <: \keyw{var} f:\tau; \sigma'}
+  {\sigma <: \sigma'}\\[5ex]  
 
+\end{array}
+\]
+
+$\fbox{$E[e]~|~\mu \longrightarrow E[e']~|~\mu'$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(E-Congruence)}]
+  {E[e]~|~\mu \longrightarrow E[e']~|~\mu'}
+  {e~|~\mu \longrightarrow e'~|~\mu'}\\[5ex]  
 \end{array}
 \]
 
@@ -226,13 +239,41 @@ $\fbox{$\sigma <: \sigma'$}$
 $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
 \[
 \begin{array}{c}
-%\infer[\textsc{(E-NewObj)}]
-%  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow l \mapsto \{ x \Rightarrow d_v \}_{s}~|~\mu'}
-%  {d~|~\mu \longrightarrow d_v~|~\mu'}\\[5ex]
-%
-%\infer[\textsc{(E-New)}]
-%  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow \keywadj{new}_{s}(x \Rightarrow d_v)~|~\mu'}
-%  {d~|~\mu \longrightarrow d_v~|~\mu'}\\[5ex]
+\infer[\textsc{(E-New)}]
+  {\keywadj{new}_{s}(l)~|~\mu \longrightarrow [l/x]d_v~|~\mu'}
+  {l \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu}\\[5ex]
+  
+\infer[\textsc{(E-Meth)}]
+  {l_1.m(l_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd [l_2/y][l_1/x]e~|~\mu'}
+  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{def} m(y:\tau):\tau = e \in d_v}\\[5ex]
+
+\infer[\textsc{(E-Field)}]
+  {l_1.f~|~\mu \longrightarrow l_2~|~\mu'}
+  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{var} f:\tau = l_2 \in d_v}\\[5ex]
+
+\infer[\textsc{(E-Assign)}]
+  {l_1.f = e~|~\mu \longrightarrow l_1.f = [l_1/x]e~|~\mu'}
+  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{var} f:\tau = e \in d_v}\\[5ex]
+
+\infer[\textsc{(E-StackFrame)}]
+  {l_1.m(l_2) \rhd l_3~|~\mu \longrightarrow l_3~|~\mu'}
+  {}\\[5ex]
+  
+\end{array}
+\]
+
+\newpage
+
+$\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$ \textbf{(without evaluation context)}}$
+\[
+\begin{array}{c}
+\infer[\textsc{(E-New1)}]
+  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow \keywadj{new}_{s}(x \Rightarrow d')~|~\mu'}
+  {d~|~\mu \longrightarrow d'~|~\mu'}\\[5ex]
+
+\infer[\textsc{(E-New2)}]
+  {\keywadj{new}_{s}(l)~|~\mu \longrightarrow [l/x]d_v~|~\mu'}
+  {l \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu}\\[5ex]
 
 \infer[\textsc{(E-Meth1)}]
   {e_1.m(e_2)~|~\mu \longrightarrow e_1'.m(e_2)~|~\mu'}
@@ -243,8 +284,8 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
   {e_2~|~\mu \longrightarrow e_2'~|~\mu'}\\[5ex]
   
 \infer[\textsc{(E-Meth3)}]
-  {l_1.m(l_2)~|~\mu \longrightarrow [l_2/x]e~|~\mu'}
-  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{def} m(x:\tau):\tau = e \in d_v}\\[5ex]
+  {l_1.m(l_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd [l_2/y][l_1/x]e~|~\mu'}
+  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{def} m(y:\tau):\tau = e \in d_v}\\[5ex]
 
 \infer[\textsc{(E-Field1)}]
   {e.f~|~\mu \longrightarrow e'.f~|~\mu'}
@@ -254,39 +295,71 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
   {l_1.f~|~\mu \longrightarrow l_2~|~\mu'}
   {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{var} f:\tau = l_2 \in d_v}\\[5ex]
 
-
 \infer[\textsc{(E-Assign1)}]
-  {e.f = e_1~|~\mu \longrightarrow e'.f = e_1~|~\mu'}
-  {e~|~\mu \longrightarrow e'~|~\mu'}\\[5ex]
-
+  {e_1.f = e_2~|~\mu \longrightarrow e_1'.f = e_2~|~\mu'}
+  {e_1~|~\mu \longrightarrow e_1'~|~\mu'}%\\[5ex]
+~~~~~~~~~~
 \infer[\textsc{(E-Assign2)}]
-  {l_1.f = e~|~\mu \longrightarrow l_2~|~\mu'}
-  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & e~|~\mu \longrightarrow l_2~|~\mu' & \keyw{var} f:\tau = l_2 \in d_v}\\[5ex]
+  {l_1.f = e_2~|~\mu \longrightarrow l_1.f = e_2'~|~\mu'}
+  {e_2~|~\mu \longrightarrow e_2'~|~\mu'}\\[5ex]
+
+\infer[\textsc{(E-Assign3)}]
+  {l_1.f = e~|~\mu \longrightarrow l_1.f = [l_1/x]e~|~\mu'}
+  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{var} f:\tau = e \in d_v}\\[5ex]
+
+\infer[\textsc{(E-StackFrame1)}]
+  {l_1.m(l_2) \rhd e~|~\mu \longrightarrow l_1.m(l_2) \rhd e'~|~\mu'}
+  {e~|~\mu \longrightarrow e'~|~\mu}\\[5ex]
+
+\infer[\textsc{(E-StackFrame2)}]
+  {l_1.m(l_2) \rhd l_3~|~\mu \longrightarrow l_3~|~\mu'}
+  {}\\[5ex]
   
 \end{array}
 \]
 
-$\fbox{$d~|~\mu \longrightarrow d'~|~\mu'$}$
+$\fbox{$d~|~\mu \longrightarrow d'~|~\mu'$ \textbf{(without evaluation context)}}$
 \[
 \begin{array}{c}
 \infer[\textsc{(E-Def)}]
-  {\keyw{def} m(x:\tau):\tau = e_1~|~\mu \longrightarrow \keyw{def} m(x:\tau):\tau = e_1'~|~\mu'}
-  {e_1~|~\mu \longrightarrow e_1'~|~\mu'}\\[5ex] 
+  {\keyw{def} m(x:\tau):\tau = e; d~|~\mu \longrightarrow \keyw{def} m(x:\tau):\tau = e; d'~|~\mu'}
+  {d~|~\mu \longrightarrow d'~|~\mu'}\\[5ex] 
 
-\infer[\textsc{(E-Var)}]
-  {\keyw{var} f:\tau = e_1~|~\mu \longrightarrow \keyw{var} f:\tau = e_1'~|~\mu'}
-  {e_1~|~\mu \longrightarrow e_1'~|~\mu'}\\[5ex] 
+\infer[\textsc{(E-Var1)}]
+  {\keyw{var} f:\tau = e; d~|~\mu \longrightarrow \keyw{var} f:\tau = e'; d~|~\mu'}
+  {e~|~\mu \longrightarrow e'~|~\mu'}\\[5ex] 
+
+\infer[\textsc{(E-Var2)}]
+  {\keyw{var} f:\tau = e; d~|~\mu \longrightarrow \keyw{var} f:\tau = e; d'~|~\mu'}
+  {d~|~\mu \longrightarrow d'~|~\mu'}\\[5ex] 
 \end{array}
 \]
 
-$\fbox{$k \rhd e~|~\mu \longrightarrow k' \rhd e'~|~\mu'$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(E-StackFrame)}]
-  {k \rhd l_1.m(l_2)~|~\mu \longrightarrow k;~l_1.m(l_2) \rhd [l_2/x]e~|~\mu'}
-  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{def} m(x:\tau):\tau = e \in d_v}\\[5ex] 
-\end{array}
-\]
+
+%$\fbox{$k \rhd e~|~\mu \longrightarrow k' \rhd e'~|~\mu'$}$
+%\[
+%\begin{array}{c}
+%\infer[\textsc{(E-StackFrame)}]
+%  {k \rhd l_1.m(l_2)~|~\mu \longrightarrow k;~l_1.m(l_2) \rhd [l_2/x]e~|~\mu'}
+%  {l_1 \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{def} m(x:\tau):\tau = e \in d_v}\\[5ex] 
+%\end{array}
+%\]
+%
+%
+%\[
+%\begin{array}{c}    
+%\Delta :: = \varnothing~|~\Delta, t\\[5ex]
+%
+%\infer[\textsc{(T-New)}]
+%  {\Delta~|~\Gamma~|~\Sigma \vdash \keyw{new}_s(t \Rightarrow d) : \{t \Rightarrow \sigma\}_s}
+%  {\Delta, t~|~\Gamma~|~\Sigma \vdash d : \sigma}\\[5ex] 
+%
+%\infer[\textsc{(E-New)}]
+%  {\keyw{new}_s(t \Rightarrow d)~|~\mu \longrightarrow l~|~\mu'}
+%  {d~|~\mu \longrightarrow d_v~|~\mu' & l \mapsto \{d_v\} \in \mu' & d~|~\mu, l \mapsto \{d_v\}}\\[5ex] 
+%
+%\end{array}
+%\]
 
 
 \newpage
