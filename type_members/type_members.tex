@@ -1,9 +1,9 @@
 \documentclass{llncs}
 
-\usepackage{listings}
+%\usepackage{listings}
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
-\usepackage{amsmath}
+%\usepackage{amsmath}
 \usepackage{mathpartir}
 
 \begin{document}
@@ -76,35 +76,88 @@ E & :: = & [\;] & evaluation \; context \\
 
 \input{wf}
 
+\input{exp}
+
 %\subsubsection{Typing}
 
 \input{typing}
 
 \input{reduction}
 
-Still need to add:
-
-\hfill \fbox{$\Gamma \vdash T \prec \overline{d}$}\\
-
-
-\hfill \fbox{$\Gamma \vdash T \ni d$}
-\\
+T-Var? 
 
 \section{Type Safety}
 
-\subsection{Preservation}
+\subsection{Subject Reduction}
 
 
-\begin{theorem}[Subject Reduction ]
-If $ \Delta; \Sigma; \Gamma;  \vdash e : T$, 
+\begin{theorem}[Subject Reduction]
+If $\Sigma; \Gamma;  \vdash e : T$, 
    	$\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$ where
-	$\Delta; \; \Gamma \vdash \mu : \Sigma$ then 
+	$\Gamma \vdash \mu : \Sigma$ then 
  	$\exists \Gamma', \Sigma', T'$ s.t. 
 	$\Sigma'$ extends $\Sigma$,
 	$\Gamma'$ extends $\Gamma$,
-	$\Delta'; \Sigma'; \Gamma';  \vdash e' : T'$
+	$\Sigma'; \Gamma';  \vdash e' : T'$
 	and $\Gamma' \vdash T'<:T$.
 \end{theorem}
+\begin{proof}
+By induction on 	$\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
+\begin{case}[\textsc{R-New}]
+%\\ \fbox{
+\begin{mathpar}
+\inferrule
+  {}
+  {e := \texttt{var} \; y = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{d}\}; e \\
+	e' := e\\
+	\mu' = \mu, l \mapsto \{\texttt{self} \Rightarrow \overline{d}\} \\
+  	\Delta' = \Delta, y \mapsto l\\
+	\Delta; \; \Sigma; \; \Gamma, \texttt{self} : \{\texttt{self} \Rightarrow \overline{\sigma}\} \vdash \overline{d} : \overline{\sigma}\\
+	\Sigma; \; \Gamma, y : \{\texttt{self} \Rightarrow \overline{\sigma}\} \vdash e : T}
+\end{mathpar}
+
+Let $\Sigma' = \Sigma, l \mapsto \{\texttt{self} \Rightarrow \overline{\sigma}\}$ and 
+$\Gamma' = \Gamma, y : \{\texttt{self} \Rightarrow \overline{\sigma}\}$. 
+$\therefore \Sigma'; \Gamma';  \vdash e' : T$ and
+$\Gamma' \vdash T<:T$ by reflexivity.
+%}
+\end{case}
+\begin{case}[\textsc{R-Meth}]
+\begin{mathpar}
+\inferrule
+  {}
+  {e := y.m(z)\\
+	e' := [y/\texttt{self},z'/x]e\\
+	\mu(\Delta(y)) = \{\texttt{self} \Rightarrow ...,m:T(x:S)=e,...\}\\
+   \Delta(z) = l' \\
+  	z' \notin dom(\Delta)\\
+  	\Delta' = \Delta,z' \mapsto l'}
+\end{mathpar}
+
+Let $\Gamma' = \Gamma, z' : S$, $\Sigma' = \Sigma$ and $T' = T$. Since 
+$\Sigma; \Gamma;  \vdash y.m(z) : T$, the following hold (\textsc{T-Meth}):
+\begin{mathpar}
+\inferrule
+  {}
+  {\Sigma; \; \Gamma \vdash z : S \\
+  	\Sigma; \; \Gamma \vdash y : T_0 \\
+  	T_0 \ni \texttt{def} \; m:S \rightarrow T}
+\end{mathpar}
+
+Since $\Gamma \vdash \mu : \Sigma$ and $\Sigma \; \textbf{wf}$ it
+follows that $\Gamma \vdash T : \textbf{wf}$, and thus that 
+$\Gamma, z' : S \vdash T : \textbf{wf}$. 
+
+\end{case}
+\begin{case}[\textsc{R-Var}]
+\end{case}
+\begin{case}[\textsc{R-Var}]
+\end{case}
+\begin{case}[\textsc{R-Assign}]
+\end{case}
+\begin{case}[\textsc{R-Context}]
+\end{case}
+\end{proof}
 
 \subsection{Progress}
 \begin{theorem}[Progress]
