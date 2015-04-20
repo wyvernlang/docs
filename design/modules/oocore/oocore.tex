@@ -7,6 +7,7 @@
 \usepackage{amsmath}
 \usepackage[english]{babel}
 \usepackage[utf8]{inputenc}
+\usepackage{enumitem}
  
 %\pagestyle{headings}
 \usepackage{fancyhdr}
@@ -25,6 +26,25 @@
 \newcommand{\inttt}{\mathtt{int}~}
 \newcommand{\Inttt}{\mathtt{Int}~}
 \newcommand{\stepsto}{\leadsto}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\textit{Case}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{%
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}%
+  \else
+    \def\thiscase{~#1}%
+  \fi
+  \item
+}
 
 \begin{document}
 
@@ -263,30 +283,72 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
 \subsection{Type Safety}
 
 
-%\begin{theorem}[Preservation]
-%If $\Gamma~|~\Sigma \vdash e : \tau$ and
-%   	$e~|~\mu \rightarrow e'~|~\mu'$, where
-%	$\Gamma~|~\varnothing \vdash \mu : \Sigma$, then 
-% 	$\exists \Gamma', \Sigma', \tau'$ such that
-%	$\Gamma' \supseteq \Gamma$,
-%	$\Sigma' \supseteq \Sigma$,
-%	$\Gamma'~|~\varnothing \vdash \tau'<:\tau$, and
-%	$\Gamma'~|~\Sigma' \vdash e' : \tau'$.
-%\end{theorem}
-%%\begin{proof} TBD
-%%\end{proof}
-%
-%\vspace{15pt}
+\begin{theorem}[Preservation]
+If
+\begin{enumerate}
+\item $\Gamma~|~\Sigma \vdash e : \tau$,
+\item $\Gamma~|~\varnothing \vdash \mu : \Sigma$, and
+\item $e~|~\mu \rightarrow e'~|~\mu'$,
+\end{enumerate}
+then
+\begin{enumerate}
+\item $\exists \Sigma' \supseteq \Sigma$,
+\item $\Gamma~|~\varnothing \vdash \mu' : \Sigma'$,
+\item $\tau'<:\tau$, and
+\item $\Gamma~|~\Sigma' \vdash e' : \tau'$.
+\end{enumerate}
+
+\end{theorem}
+
+Before proving the preservation theorem, we define the lemma on preservation of types under substitution. Such a lemma enables us to show that substituting terms in a well-typed expression preserves the typing:
 
 
-%\[
-%\begin{array}{c}
-%\infer[\textsc{(T-Sub)}]
-%  {\Gamma~|~\Sigma \vdash e : \tau_2}
-%  {\Gamma~|~\Sigma \vdash e : \tau_1 & \tau_1 <: \tau_2}\\[5ex]
-%
-%\end{array}
-%\]
+\begin{lemma}[Preservation of types under substitution]
+If $\Gamma,~y : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\varnothing \vdash z : \tau'$, then $\Gamma~|~\Sigma \vdash [z/y]e : \tau$.
+\end{lemma}
+
+\begin{proof} The proof is by induction on a derivation of the statement $\Gamma,~y : \tau' \vdash e : \tau$. For a given derivation, we proceed by cases on the final typing rule used in the proof:
+
+\begin{pcases}
+\pcase[\textsc{T-Var}]
+$e = x$ and $x : \tau \in (\Gamma,~y : \tau')$
+
+There are two sub-cases to consider, depending on whether $x$ is $y$ or another variable. If $x = y$, then $[z/y]x = z$. The required result is then $\Gamma~|~\varnothing \vdash z : \tau'$, which is among the assumptions of the lemma. Otherwise, $[z/y]x = x$, and the desired result is immediate.
+\\
+\pcase[\textsc{T-Loc}] For the purposes of the lemma, this case is invalid since we cannot make substitutions in a location.
+\\
+\pcase[\textsc{T-New}]
+$e = \keywadj{new}_{s}(x \Rightarrow d)$ and $\Gamma,~x : \{ \sigma \}_{s},~y : \tau'~|~\Sigma \vdash d : \sigma$
+\\
+\pcase[\textsc{T-Meth}]
+$e = e_1.m(e_2)$ and $\Gamma,~y : \tau_3~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma$, $\Gamma,~y : \tau_3~|~\Sigma \vdash e_2 : \tau_2$
+
+By the induction hypothesis, $\Gamma~|~\Sigma \vdash [z/y]e_1 : \{\sigma\}_s$, $\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma$, and $\Gamma~|~\Sigma \vdash [z/y]e_2 : \tau_2$. Then, by \textsc{T-Meth}, $\Gamma~|~\Sigma \vdash [z/y]e_1.m([z/y]e_2) : \tau_2$, i.e., $\Gamma~|~\Sigma \vdash [z/y](e_1.m(e_2)) : \tau_2$.
+\\
+\pcase[\textsc{T-Field}]
+$e = e_1.f$ and $\Gamma,~y : \tau'~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{var}~ f : \tau \in \sigma$
+
+By the induction hypothesis, $\Gamma~|~\Sigma \vdash [z/y]e_1 : \{\sigma\}_s$ and $\keyw{var}~ f : \tau \in \sigma$. Then, by \textsc{T-Field}, $\Gamma~|~\Sigma \vdash ([z/y]e_1).f : \tau_2$, i.e., $\Gamma~|~\Sigma \vdash [z/y](e_1.f) : \tau_2$.
+\\
+\pcase[\textsc{T-Assign}]
+$e = e_1.f=e_2$ and $\Gamma,~y : \tau_3~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{var}~ f:\tau_2 \in \sigma$, $\Gamma,~y : \tau_3~|~\Sigma \vdash e_2 : \tau_2$
+
+By the induction hypothesis, $\Gamma~|~\Sigma \vdash [z/y]e_1 : \{\sigma\}_s$, $\keyw{var}~ f:\tau_2 \in \sigma$, and $\Gamma~|~\Sigma \vdash [z/y]e_2 : \tau_2$. Then, by \textsc{T-Assign}, $\Gamma~|~\Sigma \vdash  [z/y]e_1.f = [z/y]e_2 : \tau_2$, i.e., $\Gamma~|~\Sigma \vdash [z/y](e_1.f=e_2) : \tau_2$.
+\\
+\pcase[\textsc{T-StackFrame}]
+$e = l.m(l_1) \rhd e_2$ and $\Gamma,~y : \tau_3~|~\Sigma \vdash l : \{\sigma\}_s$, $\keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma$, $\Gamma,~y : \tau_3~|~\Sigma \vdash l_1 : \tau_1$, $\Gamma,~y : \tau_3~|~\Sigma \vdash e_2 : \tau_2$
+
+Locations are not affected by the substitution, and by the induction hypothesis, $\Gamma~|~\Sigma \vdash [z/y]e_2 : \tau_2$. Then, by \textsc{T-StackFrame}, $\Gamma~|~\Sigma \vdash l.m(l_1) \rhd [z/y]e : \tau_2$, i.e., $\Gamma~|~\Sigma \vdash [z/y](l.m(l_1) \rhd e) : \tau_2$.
+\\
+\pcase[\textsc{T-Sub}]
+$e = e'$ and $\Gamma,~y | \tau_3~|~\Sigma \vdash e' : \tau_1$, $\tau_1 <: \tau_2$
+
+By the induction hypothesis, $\Gamma~|~\Sigma \vdash [z/y]e' : \tau_1$, $\tau_1 <: \tau_2$. Then, by \textsc{T-Sub}, $\Gamma~|~\Sigma \vdash [y/z]e' : \tau_2$.
+\end{pcases}
+
+
+\end{proof}
+
 
 
 \begin{theorem}[Progress]
@@ -297,37 +359,34 @@ If $\Gamma~|~\Sigma \vdash e : \tau$, then either
    $\exists e', \mu'$ such that $e~|~\mu \rightarrow e'~|~\mu'$.
 \end{enumerate}
 \end{theorem}
-\begin{proof} The proof is by induction on the derivation of $\Gamma~|~\Sigma \vdash e : \tau$, with a case analysis on the last typing rule used. The cases when $e$ is a variable ($x$) or a location ($l$) are immediate, since in that case $e$ is a value. For the other cases, we argue as follows:
+\begin{proof} The proof is by induction on the derivation of $\Gamma~|~\Sigma \vdash e : \tau$, with a case analysis on the last typing rule used. The cases when $e$ is a variable (\textsc{T-Var}) or a location (\textsc{T-Loc}) are immediate, since in that case $e$ is a value. For the other cases, we argue as follows:
 
-\begin{case}[\textsc{T-New}]
+\begin{pcases}
+\pcase[\textsc{T-New}]
 $e = \keywadj{new}_{s}(x \Rightarrow d)$ and $\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma$
 
-\noindent By the induction hypothesis, either $d$ is a value or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $d$ is a value, then the rule \textsc{E-New} applies to $e$, and $e$ is a value (a location).
-\end{case}
-
-\begin{case}[\textsc{T-Meth}]
+By the induction hypothesis, either $d$ is a value or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $d$ is a value, then the rule \textsc{E-New} applies to $e$, and $e$ is a value (a location).
+\\
+\pcase[\textsc{T-Meth}]
 $e = e_1.m(e_2)$ and $\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma$, $\Gamma~|~\Sigma \vdash e_2 : \tau_2$
 
-\noindent By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation, and likewise $e_2$. If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If both $e_1$ and $e_2$ are values, then the rule \textsc{E-Meth} applies to $e$, and $e$ can take a step.
-\end{case}
-
-\begin{case}[\textsc{T-Field}]
+By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation, and likewise $e_2$. If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If both $e_1$ and $e_2$ are values, then the rule \textsc{E-Meth} applies to $e$, and $e$ can take a step.
+\\
+\pcase[\textsc{T-Field}]
 $e = e_1.f$ and $\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{var}~ f : \tau \in \sigma$
 
-\noindent By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation. If $e_1$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $e_1$ is a value, then the rule \textsc{E-Field} applies to $e$, and $e$ is a value (a location).
-\end{case}
-
-\begin{case}[\textsc{T-Assign}]
+By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation. If $e_1$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $e_1$ is a value, then the rule \textsc{E-Field} applies to $e$, and $e$ is a value (a location).
+\\
+\pcase[\textsc{T-Assign}]
 $e = e_1.f=e_2$ and $\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{var}~ f:\tau_2 \in \sigma$, $\Gamma~|~\Sigma \vdash e_2 : \tau_2$
 
-\noindent By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation, and likewise $e_2$. If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If both $e_1$ and $e_2$ are values, then the rule \textsc{E-Assign} applies to $e$, and $e$ is a value.
-\end{case}
-
-\begin{case}[\textsc{T-StackFrame}]
+By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation, and likewise $e_2$. If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If both $e_1$ and $e_2$ are values, then the rule \textsc{E-Assign} applies to $e$, and $e$ is a value.
+\\
+\pcase[\textsc{T-StackFrame}]
 $e = l.m(l_1) \rhd e_2$ and $\Gamma~|~\Sigma \vdash l : \{\sigma\}_s$, $\keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma$, $\Gamma~|~\Sigma \vdash l_1 : \tau_1$, $\Gamma~|~\Sigma \vdash e_2 : \tau_2$
 
-\noindent By the induction hypothesis, either $e_2$ is a value or else it can make a step of evaluation. If $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $e_2$ is a value, then the rule \textsc{E-StackFrame} applies to $e$, and $e$ is a value (a location).
-\end{case}
+By the induction hypothesis, either $e_2$ is a value or else it can make a step of evaluation. If $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $e_2$ is a value, then the rule \textsc{E-StackFrame} applies to $e$, and $e$ is a value (a location).
+\end{pcases}
 
 \end{proof}
 
