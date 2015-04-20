@@ -110,8 +110,8 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 	{\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma} \\[5ex]
 
 \infer[\textsc{(T-Meth)}]
-	{\Gamma~|~\Sigma \vdash  e.m(e_2) : \tau_1} 
-	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
+	{\Gamma~|~\Sigma \vdash  e.m(e_1) : \tau_2} 
+	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s  & \keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma & \Gamma~|~\Sigma \vdash e_1 : \tau_1}\\[5ex]
 
 \infer[\textsc{(T-Field)}]
 	{\Gamma~|~\Sigma \vdash  e.f : \tau} 
@@ -127,26 +127,11 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 
 \infer[\textsc{(T-StackFrames)}]
 	{\Gamma~|~\Sigma \vdash l.m(l_1) \rhd e : \tau_2}
-	{\Gamma~|~\Sigma \vdash l_1 : \tau_1 & \Gamma~|~\Sigma \vdash l : \{\sigma\}_s & \keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma & \Gamma~|~\Sigma \vdash e : \tau_2} \\[5ex]
+	{\Gamma~|~\Sigma \vdash l : \{\sigma\}_s & \keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma & \Gamma~|~\Sigma \vdash l_1 : \tau_1 & \Gamma~|~\Sigma \vdash e : \tau_2} \\[5ex]
 
 \infer[\textsc{(T-Sub)}]
   {\Gamma~|~\Sigma \vdash e : \tau_2}
   {\Gamma~|~\Sigma \vdash e : \tau_1 & \tau_1 <: \tau_2}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$\mu : \Sigma$}$
-\[
-\begin{array}{c}
-
-\infer[\textsc{(T-StoreEmpty)}]
-  {\varnothing : \varnothing}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Store)}]
-  {\mu, l \mapsto \{ x \Rightarrow d \} : \Sigma, l : \{ \sigma \}_s}
-  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash d : \sigma}\\[5ex]
 
 \end{array}
 \]
@@ -160,7 +145,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
   {\def\arraystretch{1.6}
   \begin{array}{c}
 \Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\} \\
-\Gamma' = \Gamma \setminus \Gamma_{stateful}~~~~~~~~~~\Gamma', x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma'~|~\Sigma \vdash_s d : \sigma
+\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~~~~\Gamma_{pure}, x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma_{pure}~|~\Sigma \vdash_s d : \sigma
   \end{array}}\\[5ex]
 
 \infer[\textsc{(DT-DefStateful)}]
@@ -168,8 +153,23 @@ $\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
   {\Gamma, x : \tau_1~|~\Sigma \vdash e : \tau_2 & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
 
 \infer[\textsc{(DT-Var)}]
-  {\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = e; d~:~\keyw{var} f : \tau; \sigma}
-  {\Gamma~|~\Sigma \vdash e : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = v; d~:~\keyw{var} f : \tau; \sigma}
+  {\Gamma~|~\Sigma \vdash v : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\mu : \Sigma$}$
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-StoreEmpty)}]
+  {\varnothing : \varnothing}
+  {}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-Store)}]
+  {\mu, l \mapsto \{ x \Rightarrow d \}~:~\Sigma,~l : \{ \sigma \}_s}
+  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash d : \sigma}\\[5ex]
 
 \end{array}
 \]
@@ -240,19 +240,19 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
   {l \not\in \mu}\\[5ex]
   
 \infer[\textsc{(E-Meth)}]
-  {l_1.m(l_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd [l_2/x][l_1/x]e~|~\mu}
-  {l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{def} m(x : \tau) : \tau = e \in d}\\[5ex]
+  {l.m(l_1)~|~\mu \longrightarrow l.m(l_1) \rhd [l_1/y][l/x]e~|~\mu}
+  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau = e \in d}\\[5ex]
 
 \infer[\textsc{(E-Field)}]
-  {l_1.f~|~\mu \longrightarrow l_2~|~\mu}
-  {l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_2 \in d}\\[5ex]
+  {l.f~|~\mu \longrightarrow l_1~|~\mu}
+  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d}\\[5ex]
 
 \infer[\textsc{(E-Assign)}]
-  {l_1.f = v~|~\mu \longrightarrow l_1.f = [l_1/x]v~|~\mu'}
-  {l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = v \in d}\\[5ex]
+  {l.f = v~|~\mu \longrightarrow [l/x]v~|~\mu}
+  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = v \in d}\\[5ex]
 
 \infer[\textsc{(E-StackFrame)}]
-  {l_1.m(l_2) \rhd l_3~|~\mu \longrightarrow l_3~|~\mu'}
+  {l.m(l_1) \rhd l_2~|~\mu \longrightarrow l_2~|~\mu'}
   {}\\[5ex]
   
 \end{array}
