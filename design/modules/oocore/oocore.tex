@@ -70,7 +70,7 @@ d & ::= & \epsilon & declarations \\
 \Sigma & :: = & \varnothing & store~type\\
 & | & \Sigma,~l : \tau\\
 &&\\
-E & ::= & \Diamond & eval.~ contexts\\
+E & ::= & [~] & eval.~ contexts\\
   & |   & \keywadj{new}_{s}(x \Rightarrow D) \\
   & |   & E.m(e)\\
   & |   & l.m(E)\\
@@ -105,25 +105,25 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
   {\Gamma~|~\Sigma \vdash x : \tau}
   {x : \tau \in \Gamma}%\\[5ex]
 ~~~~~~~~~~
+\infer[\textsc{(T-Loc)}]
+  {\Gamma~|~\Sigma \vdash l : \tau}
+  {l : \tau \in \Sigma}\\[5ex]
+
 \infer[\textsc{(T-New)}]
-	{\Gamma~|~\Sigma \vdash\keywadj{new}_{s}(x \Rightarrow d) : \{ \sigma \}_{s}}
+	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow d) : \{ \sigma \}_{s}}
 	{\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma} \\[5ex]
 
 \infer[\textsc{(T-Meth)}]
-	{\Gamma~|~\Sigma \vdash  e.m(e_1) : \tau_2} 
+	{\Gamma~|~\Sigma \vdash e.m(e_1) : \tau_2} 
 	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s  & \keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma & \Gamma~|~\Sigma \vdash e_1 : \tau_1}\\[5ex]
 
 \infer[\textsc{(T-Field)}]
 	{\Gamma~|~\Sigma \vdash  e.f : \tau} 
-	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f : \tau \in \sigma }\\[5ex]
+	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f : \tau \in \sigma}\\[5ex]
 	
 \infer[\textsc{(T-Assign)}]
 	{\Gamma~|~\Sigma \vdash  e.f=e_1 : \tau_1} 
-	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f:\tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_1 : \tau_1 }%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Loc)}]
-  {\Gamma~|~\Sigma \vdash l : \tau}
-  {l : \tau \in \Sigma}\\[5ex]
+	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f:\tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_1 : \tau_1 }\\[5ex]
 
 \infer[\textsc{(T-StackFrames)}]
 	{\Gamma~|~\Sigma \vdash l.m(l_1) \rhd e : \tau_2}
@@ -155,21 +155,6 @@ $\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
 \infer[\textsc{(DT-Var)}]
   {\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = v; d~:~\keyw{var} f : \tau; \sigma}
   {\Gamma~|~\Sigma \vdash v : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$\mu : \Sigma$}$
-\[
-\begin{array}{c}
-
-\infer[\textsc{(T-StoreEmpty)}]
-  {\varnothing : \varnothing}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Store)}]
-  {\mu, l \mapsto \{ x \Rightarrow d \}~:~\Sigma,~l : \{ \sigma \}_s}
-  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash d : \sigma}\\[5ex]
 
 \end{array}
 \]
@@ -222,6 +207,21 @@ $\fbox{$\sigma <: \sigma'$}$
 \end{array}
 \]
 
+$\fbox{$\mu : \Sigma$}$
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-StoreEmpty)}]
+  {\varnothing : \varnothing}
+  {}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-Store)}]
+  {\mu, l \mapsto \{ x \Rightarrow d \}~:~\Sigma,~l : \{ \sigma \}_s}
+  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash d : \sigma}\\[5ex]
+
+\end{array}
+\]
+
 $\fbox{$E[e]~|~\mu \longrightarrow E[e']~|~\mu'$}$
 \[
 \begin{array}{c}
@@ -258,6 +258,78 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
 \end{array}
 \]
 
+\newpage
+
+\subsection{Type Safety}
+
+
+%\begin{theorem}[Preservation]
+%If $\Gamma~|~\Sigma \vdash e : \tau$ and
+%   	$e~|~\mu \rightarrow e'~|~\mu'$, where
+%	$\Gamma~|~\varnothing \vdash \mu : \Sigma$, then 
+% 	$\exists \Gamma', \Sigma', \tau'$ such that
+%	$\Gamma' \supseteq \Gamma$,
+%	$\Sigma' \supseteq \Sigma$,
+%	$\Gamma'~|~\varnothing \vdash \tau'<:\tau$, and
+%	$\Gamma'~|~\Sigma' \vdash e' : \tau'$.
+%\end{theorem}
+%%\begin{proof} TBD
+%%\end{proof}
+%
+%\vspace{15pt}
+
+
+%\[
+%\begin{array}{c}
+%\infer[\textsc{(T-Sub)}]
+%  {\Gamma~|~\Sigma \vdash e : \tau_2}
+%  {\Gamma~|~\Sigma \vdash e : \tau_1 & \tau_1 <: \tau_2}\\[5ex]
+%
+%\end{array}
+%\]
+
+
+\begin{theorem}[Progress]
+If $\Gamma~|~\Sigma \vdash e : \tau$, then either
+\begin{enumerate}
+\item $e$ is a value or
+\item $\forall \mu$ such that $\Gamma~|~\varnothing \vdash \mu : \Sigma$,
+   $\exists e', \mu'$ such that $e~|~\mu \rightarrow e'~|~\mu'$.
+\end{enumerate}
+\end{theorem}
+\begin{proof} The proof is by induction on the derivation of $\Gamma~|~\Sigma \vdash e : \tau$, with a case analysis on the last typing rule used. The cases when $e$ is a variable ($x$) or a location ($l$) are immediate, since in that case $e$ is a value. For the other cases, we argue as follows:
+
+\begin{case}[\textsc{T-New}]
+$e = \keywadj{new}_{s}(x \Rightarrow d)$ and $\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma$
+
+\noindent By the induction hypothesis, either $d$ is a value or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $d$ is a value, then the rule \textsc{E-New} applies to $e$, and $e$ is a value (a location).
+\end{case}
+
+\begin{case}[\textsc{T-Meth}]
+$e = e_1.m(e_2)$ and $\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma$, $\Gamma~|~\Sigma \vdash e_2 : \tau_2$
+
+\noindent By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation, and likewise $e_2$. If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If both $e_1$ and $e_2$ are values, then the rule \textsc{E-Meth} applies to $e$, and $e$ can take a step.
+\end{case}
+
+\begin{case}[\textsc{T-Field}]
+$e = e_1.f$ and $\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{var}~ f : \tau \in \sigma$
+
+\noindent By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation. If $e_1$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $e_1$ is a value, then the rule \textsc{E-Field} applies to $e$, and $e$ is a value (a location).
+\end{case}
+
+\begin{case}[\textsc{T-Assign}]
+$e = e_1.f=e_2$ and $\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s$, $\keyw{var}~ f:\tau_2 \in \sigma$, $\Gamma~|~\Sigma \vdash e_2 : \tau_2$
+
+\noindent By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation, and likewise $e_2$. If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If both $e_1$ and $e_2$ are values, then the rule \textsc{E-Assign} applies to $e$, and $e$ is a value.
+\end{case}
+
+\begin{case}[\textsc{T-StackFrame}]
+$e = l.m(l_1) \rhd e_2$ and $\Gamma~|~\Sigma \vdash l : \{\sigma\}_s$, $\keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma$, $\Gamma~|~\Sigma \vdash l_1 : \tau_1$, $\Gamma~|~\Sigma \vdash e_2 : \tau_2$
+
+\noindent By the induction hypothesis, either $e_2$ is a value or else it can make a step of evaluation. If $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$. If $e_2$ is a value, then the rule \textsc{E-StackFrame} applies to $e$, and $e$ is a value (a location).
+\end{case}
+
+\end{proof}
 
 \newpage
 
