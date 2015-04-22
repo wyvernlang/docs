@@ -57,7 +57,7 @@
 \begin{array}{lll}
 \begin{array}{lllr}
 v & ::= & x & values \\
-   & | & l \\
+   & | & l & (run\mbox{-}time~form)\\
 e & ::= & v & expressions \\
 & | & \keywadj{new}_{s}(x \Rightarrow d) \\
 & | & e.m(e)\\
@@ -112,6 +112,14 @@ Notes:
 
 \begin{itemize}
 \item The $s$ tag indicates whether an object is stateful (i.e. captures mutable state) or pure (i.e. captures no mutable state)
+\item Example of how to initialize and use object declarations (and potentially encode modules):
+\[
+\keywadj{new}_{s}(x \Rightarrow \keyw{def} m(y : \tau) : \tau' = \keywadj{new}_{s}(x \Rightarrow \keyw{var} f_1 : \tau = y;~\keyw{var} f_2 : \tau = y;~\keyw{var} f_3 : \tau = y)).m(\keywadj{new}_{s} (x \Rightarrow \epsilon))
+\]
+which in memory looks like 
+\[
+l_2 \mapsto \{l_1,l_1,l_1\},~l_1 \mapsto \varnothing
+\]
 \end{itemize}
 
 
@@ -258,7 +266,7 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
 \begin{array}{c}
 \infer[\textsc{(E-New)}]
   {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow d \}_{s}}
-  {l \not\in \mu}\\[5ex]
+  {l \not\in dom(\mu)}\\[5ex]
   
 \infer[\textsc{(E-Meth)}]
   {l.m(l_1)~|~\mu \longrightarrow l.m(l_1) \rhd [l_1/y][l/x]e~|~\mu}
@@ -269,8 +277,8 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
   {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d}\\[5ex]
 
 \infer[\textsc{(E-Assign)}]
-  {l.f = v~|~\mu \longrightarrow [l/x]v~|~\mu}
-  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = v \in d}\\[5ex]
+  {l.f = l_1~|~\mu \longrightarrow l_1~|~\mu}
+  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d}\\[5ex]
 
 \infer[\textsc{(E-StackFrame)}]
   {l.m(l_1) \rhd l_2~|~\mu \longrightarrow l_2~|~\mu'}
