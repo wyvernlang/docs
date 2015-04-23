@@ -174,7 +174,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
   {\def\arraystretch{1.6}
   \begin{array}{c}
 \Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\} \\
-\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~~~~\Gamma_{pure}, x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma_{pure}~|~\Sigma \vdash_s d : \sigma
+\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~~~~\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma_{pure}~|~\Sigma \vdash_s d : \sigma
   \end{array}}\\[5ex]
 
 \infer[\textsc{(DT-DefStateful)}]
@@ -320,6 +320,7 @@ then
 
 Before proving the preservation theorem, we define the lemma on preservation of types under substitution. Such a lemma enables us to show that substituting terms in a well-typed expression preserves the typing:
 
+\vspace{15pt}
 
 \begin{lemma}[Preservation of types under substitution]
 If $\Gamma,~y : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\varnothing \vdash z : \tau'$, then $\Gamma~|~\Sigma \vdash [z/y]e : \tau$.
@@ -340,7 +341,36 @@ $e = \keywadj{new}_{s}(x \Rightarrow d)$ and, from the premise, we get
 \[
 \Gamma,~x : \{ \sigma \}_{s},~y : \tau'~|~\Sigma \vdash d : \sigma
 \]
+Here, $d$ is a sequence of declarations each of which are either a method declaration or a field, and so we consider each of them in order next.
 \\
+\begin{itemize}
+\item[] \textit{Case} \textsc{DT-Def}\textit{:} $d = \keyw{def} m(x : \tau_1) : \tau_2 = e$. First, let us consider the right-hand side of this expression and specifically the method argument. There are two cases: If $x = y$, then $[z/y](\keyw{def} m(x : \tau_1) : \tau_2) = \keyw{def} m(z : \tau_1) : \tau_2$ and $\tau' = \tau_1$, which, if all uses of $x$ are substituted with $z$ in the body of the method $e$, is equivalent to alpha renaming, and thus the types are preserved. If $ x \neq y$, then $[z/y](\keyw{def} m(x : \tau_1) : \tau_2) = \keyw{def} m(x : \tau_1) : \tau_2$, and the desired result is immediate.
+\\\\
+Then, there are two cases: either the method is pure or it is stateful:
+\\
+\begin{itemize}
+\item[] \textit{Case} \textsc{DT-DefPure}\textit{:} From the premise, we get
+\[
+\Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\}~~~~~\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}
+\]\[
+\Gamma_{pure},~x : \tau_1,~y : \tau'~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma_{pure},~y : \tau'~|~\Sigma \vdash_s d : \sigma
+\]
+By the induction hypothesis, $\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash [z/y]e : \tau_2$ and substituting $z$ for $y$ in $d$ preserves the original types. Then, by \textsc{DT-DefPure}, $\Gamma~|~\Sigma \vdash_{\keyw{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = [z/y]e; [z/y]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e., $\Gamma~|~\Sigma \vdash_{\keyw{pure}} [z/y](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
+\\
+\item[] \textit{Case} \textsc{DT-DefStateful}\textit{:} From the premise, we get
+\[
+\Gamma, x : \tau_1,~y : \tau'~|~\Sigma \vdash e : \tau_2~~~~~\Gamma,~y : \tau'~|~\Sigma \vdash_s d : \sigma
+\]
+By the induction hypothesis, $\Gamma, x : \tau_1~|~\Sigma \vdash [z/y]e : \tau_2$ and substituting $z$ for $y$ in $d$ preserves the original types. Then, by \textsc{DT-DefStateful}, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = [z/y]e; [z/y]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e., $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} [z/y](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
+\\
+\end{itemize}
+
+Therefore, if $d$ is a method definition, the lemma holds.
+\\
+\item[] \textit{Case} \textsc{DT-Var}\textit{:} $d = \keyw{var} f : \tau = v$. There are two possibilities for $v$: If $v$ is a location $l$, it is not affected by the substitution, and the desired result is immediate. If $v$ is a variable $x$, 
+\\
+\end{itemize}
+
 \pcase[\textsc{T-Meth}]
 $e = e_1.m(e_2)$ and, from the premise, we get
 \[
@@ -377,10 +407,9 @@ $e = e'$ and, from the premise, we get
 By the induction hypothesis, $\Gamma~|~\Sigma \vdash [z/y]e' : \tau_1$ and $\tau_1 <: \tau_2$. Then, by \textsc{T-Sub}, $\Gamma~|~\Sigma \vdash [y/z]e' : \tau_2$.
 \end{pcases}
 
-
 \end{proof}
 
-
+\vspace{15pt}
 
 \begin{theorem}[Progress]
 If $\Gamma~|~\Sigma \vdash e : \tau$, then either
