@@ -1,18 +1,108 @@
 \documentclass{llncs}
 
-%\usepackage{listings}
+\usepackage{listings}
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
 %\usepackage{amsmath}
 \usepackage{mathpartir}
 
+\lstdefinestyle{custom_lang}{
+  xleftmargin=\parindent,
+  showstringspaces=false,
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries
+}
+
+\lstset{emph={%  
+    var, def, type, new, self%
+    },emphstyle={\bfseries \tt}%
+}
+
 \begin{document}
+
+
+
 
 
 \section{Type Members}
 
-\subsection{Syntax}
+\section{Counter Examples to Preservation}
+	\label{s:examples}
 
+\subsection{Term Membership Restriction}
+Figure \ref{f:mem} gives the \emph{Membership} judgement. 
+$\Gamma \vdash e \ni \sigma$ says that an expression $e$ 
+has $\sigma_i$ as a member of its type in environment $\Gamma$. 
+There are two rules for membership. By \textsc{M-Path} a 
+variable $x$ has a member of type $[x/\texttt{self}]\sigma_i$ 
+if $\sigma_i$ is a member of the type of $x$. By \textsc{M-Exp}
+an expression $e$ has member $\sigma_i$ if $\sigma_i$ is 
+a member of $e$'s type, and \texttt{self} does not occur 
+within $\sigma_i$.
+
+This is reasonable since we cannot substitute a non-value 
+expression into a selection type such as $\texttt{self}.L$. 
+This does however present a counter-example to preservation. 
+Given two types $X$ and $Y$,
+
+\begin{lstlisting}[mathescape, style=custom_lang]
+Y = {self $\Rightarrow$
+     var l : $\top$
+     def m : Y(y:Y){
+       var a = new {};
+       y
+     }
+    }
+\end{lstlisting}
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {self $\Rightarrow$
+     type L : $\top$ .. $\top$
+     var l : self.L
+     def m : Y(y:Y){
+       y
+     }
+    }
+\end{lstlisting}
+
+the following expression is well typed.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var x = new X(l = z);
+var y = new Y(l = (var z = new {}; z));
+y.m(x).l
+\end{lstlisting}
+We can see that this is well-typed, and in particular that membership 
+holds for \texttt{y.m(x)} and \texttt{l}. This reduces to 
+\begin{lstlisting}[mathescape, style=custom_lang]
+(var a = new {}; x).l
+\end{lstlisting}
+which is not well-typed since \texttt{var a = new {}; x} has type 
+\texttt{X}, and \texttt{X.l} contains a \texttt{self} reference 
+\texttt{self.L}.
+
+\subsection{Expansion Lost}
+\subsection{Well-Formedness Lost}
+
+\subsection{Path Equality}
+
+\begin{lstlisting}[mathescape, style=custom_lang]
+var b = new {self $\Rightarrow$
+             type L : $\top$ .. $\top$
+             var l : self.L = b};
+var a = new {self $\Rightarrow$
+             var i : {self $\Rightarrow$
+                      type L : $\bot$ .. $\top$
+                      var l : self.L} = b};
+var x = new {self $\Rightarrow$}
+
+\end{lstlisting}
+
+
+
+\section{Type System}
+	\label{s:type_sys}
+
+
+\subsection{Syntax}
 
 
 \[
@@ -25,13 +115,13 @@ e & ::= & x & expression \\
 & | & e.m(e) &\\
 & | & e.f &\\
 & | & e.f = e&\\
-& | & e \succ T&\\
+& | & e \unlhd T&\\
 %& | & l &\\
 &&\\
-v & ::= & x & value \\
-&&\\
-p & ::= & v & paths \\
+p & ::= & x & paths \\
 & | & p.f &\\
+&&\\
+v & ::= & p & value \\
 &&\\
 d & ::= & \texttt{var} \; f : T = e & declaration \\
   & |   & \texttt{def} \; m : T(x:T) = e &\\
@@ -53,7 +143,7 @@ d_v & ::= & \texttt{var} \; f : T = v & declaration \; value \\
 \begin{array}{lllr}
 %T & ::= & \{\texttt{self} \Rightarrow \overline{\sigma}\} & type \\
 T & ::= & \{\texttt{self} \Rightarrow \overline{\sigma}\} & type \\
-& | & x.L &\\
+& | & p.L &\\
 & | & \top & \\
 & | & \bot & \\
 &&\\
@@ -68,7 +158,7 @@ E & :: = & [\;] & evaluation \; context \\
        & | & E.f\\
        & | & E.f = e\\
        & | & v.f = E\\
-       & | & E \succ T\\
+       & | & E \unlhd T\\
 &&\\
 D & :: = & [\;] & decl \; evaluation \; context \\
        & | & \texttt{var} \; f : T = E\\
@@ -95,7 +185,6 @@ D & :: = & [\;] & decl \; evaluation \; context \\
 
 \input{reduction}
 
-T-Var? 
 
 %\section{Type Safety}
 %
@@ -181,5 +270,10 @@ T-Var?
 %         $\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$
 %\end{enumerate}
 %\end{theorem}
+
+
+
+\bibliographystyle{plain}
+\bibliography{bib}
 
 \end{document}
