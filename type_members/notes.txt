@@ -1,0 +1,55 @@
+7/05/2015 (Julian, Alex, Jonathan)
+Discussed:
+1) Can we allow selection types to include expressions? Can e.L be a valid type instead of just p.L?
+
+This would mean that we would have some notion of reduction of types. i.e. e -> e', what would happen to 
+e.L? Would it become e'.L?
+
+If L : S .. U is a member of the type of expression e : T, and e -> e', (e' : T') then T' <: T, and there exists 
+a L : S' .. U' which is a member of the type of e' s.t. S <: S' and U' <: U.  Would we then be able to say e.L <: e'.L?
+
+2) Do we want to include intersection types? Of the 3 counter-examples in Dependent Object Types (fool 2012), 
+Expansion lost (4.2) and Well-Formedness lost (4.3), both rely on both intersection types and environment 
+narrowing in order to construct the counter examples. Is it possible to construct counter-examples without the
+inclusion of intersection types? Currently we do not have intersection types. It would be nice to include them.
+
+Currently we are using a global mapping (Delta) from variables to locations in order to prevent environment narrowing.
+Variables are still typed in the environment. During variable substitution in method bodies, variables are renamed, 
+and new mappings are created in Delta to the original locations. The new variables are mapped to the original argument 
+types of the method. We are also using explicitly type widened expressions as method returns. For example:
+
+X = {z => def m:T(y:S){e0}}
+
+The expression
+
+var x = new X;
+x.m(new {...})
+
+reduces to [z/x,y/new {...}]e0 < T. This is the method body widened to T.
+This is done to solve the environment narrowing problem that arises from term 
+membership (4.1 fool2012)
+We can use this to prevent environment narrowing of method arguments too. So the above 
+expression would reduce to [z/x < X,y/new {...} < S]e0 < T. The problem with this is 
+that we may need to retrieve the type of the receiver at reduction.
+
+We might not need to retrieve the receiver type since the receiver would not (cannot) be narrowed ... ?
+
+Initially we had allowed reduction of type widened expressions values (v < T) to the 
+value (v). However this would not work if we used type widened expressions at substitution 
+of method arguments, as they would be immediately reduced, and thus narrowed. Therefore, 
+values must be extended to include type widened valued (v < T).
+
+3) We had previously discussed introducing paths as values in order to solve the issue 
+of path equality.
+
+Questions:
+
+In 3) above, what about this example?
+
+var x = new {z => var f : {z => var l : {}} = (var a = new {z => var l : {} = (var b = new {}; b)}; a)};
+x.f = x.f;
+x.l;
+
+Reduction of field assignment would need to assign the actual location or object, not just assign the 
+value (path). Then we would still be doing path reduction, just hiding it in assignment. Would we still have 
+the path equality problem? How de we ensure a terminating path?? 
