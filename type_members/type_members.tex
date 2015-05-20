@@ -83,7 +83,7 @@ which is not well-typed since \texttt{var a = new {}; x} has type
 \subsection{Well-Formedness Lost}
 
 \subsection{Path Equality}
-
+The example below illustrates the problem with path equality.
 \begin{lstlisting}[mathescape, style=custom_lang]
 var b = new {self $\Rightarrow$
              type L : $\top$ .. $\top$
@@ -91,10 +91,13 @@ var b = new {self $\Rightarrow$
 var a = new {self $\Rightarrow$
              var i : {self $\Rightarrow$
                       type L : $\bot$ .. $\top$
-                      var l : self.L} = b};
-var x = new {self $\Rightarrow$}
-
+                      var l : self.L} = b
+             def meth : $\top$ (x : self.i.L)self.i};
+a.meth(b.l)
 \end{lstlisting}
+Even though we initialize a.i as b, we are unable to determine if
+a.i and b are equivalent paths, hence we cannot ensure that b.L subtypes 
+a.i.L.
 
 
 
@@ -114,7 +117,7 @@ e & ::= & x & expression \\
 %& | & e(e)\\
 & | & e.m(e) &\\
 & | & e.f &\\
-& | & e.f = e&\\
+%& | & e.f = e&\\
 & | & e \unlhd T&\\
 %& | & l &\\
 &&\\
@@ -154,21 +157,21 @@ T & ::= & \{\texttt{self} \Rightarrow \overline{\sigma}\} & type \\
        & |   & \texttt{def} \; m:T \rightarrow T \\
 		 & |   & \texttt{type} \; L : T .. T &\\
 &&\\
-E & :: = & [\;] & evaluation \; context \\
-       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{D}\}; \; e& \\
-       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{d_v}\}; \; E& \\
+E & :: = & \bigcirc & eval \; context\\
        & | & E.m(e)\\
        & | & v.m(E)\\
        & | & E.f\\
-       & | & E.f = e\\
-       & | & v.f = E\\
+%       & | & E.f = e\\
+%       & | & v.f = E\\
        & | & E \unlhd T\\
+       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{D}\}; \; e & eval \; context \\
+       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{d_v}\}; \; E& \\
 &&\\
-D & :: = & [\;] & decl \; evaluation \; context \\
-       & | & \texttt{var} \; f : T = E\\
+D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
   & |   & \texttt{def} \; m : T(x:T) = e &\\
   & |   & \texttt{type} \; L : T .. T = T &\\
-%&&\\
+&&\\
+K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
 %\Delta & :: = & \varnothing \; | \; \Delta,\; x \mapsto l & substitution \; context \\
 %&&\\
 %\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : T & store \; context \\
@@ -203,21 +206,20 @@ D & :: = & [\;] & decl \; evaluation \; context \\
 \input{reduction}
 
 
-%\section{Type Safety}
-%
-%\subsection{Subject Reduction}
-%
-%
-%\begin{theorem}[Subject Reduction]
-%If $\Sigma; \Gamma;  \vdash e : T$, 
-%   	$\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$ where
-%	$\Gamma \vdash \mu : \Sigma$ then 
-% 	$\exists \Gamma', \Sigma', T'$ s.t. 
-%	$\Sigma'$ extends $\Sigma$,
-%	$\Gamma'$ extends $\Gamma$,
-%	$\Sigma'; \Gamma';  \vdash e' : T'$
-%	and $\Gamma' \vdash T'<:T$.
-%\end{theorem}
+\section{Type Safety}
+
+\subsection{Subject Reduction}
+
+
+\begin{theorem}[Subject Reduction]
+If $\Gamma; K \vdash e : T$, 
+   	$\mu \; | \; e \; | \; K \rightarrow \mu' \; | \; e' \; | \; K'$ where
+	$\Gamma \vdash \mu$ then 
+ 	$\exists \Gamma', T'$ s.t.
+	$\Gamma'$ extends $\Gamma$,
+	$\Gamma'; K' \vdash e' : T'$
+	and $\Gamma'; K' \vdash T'<:T$.
+\end{theorem}
 %\begin{proof}
 %By induction on 	$\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
 %\begin{case}[\textsc{R-New}]
@@ -276,17 +278,17 @@ D & :: = & [\;] & decl \; evaluation \; context \\
 %\end{case}
 %\end{proof}
 %
-%\subsection{Progress}
-%\begin{theorem}[Progress]
-%If $\Delta; \Sigma; \Gamma;  \vdash e : T$, then either
-%\begin{enumerate}
-%\item e is a value, or
-%\item $\forall \mu$ s.t.
-%		   $\Delta; \; \Gamma \vdash \mu : \Sigma$,
-%         $\exists e', \mu', \Delta'$ s.t. 
-%         $\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$
-%\end{enumerate}
-%\end{theorem}
+\subsection{Progress}
+\begin{theorem}[Progress]
+If $\Gamma; K \vdash e : T$, then either
+\begin{enumerate}
+\item e is a value, or
+\item $\forall \mu$ s.t.
+		   $\Gamma \vdash \mu$,
+         $\exists e', \mu', K'$ s.t. 
+         $\mu \; | \; e \; | \; K \rightarrow \mu' \; | \; e' \; | \; K'$
+\end{enumerate}
+\end{theorem}
 
 
 
