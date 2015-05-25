@@ -99,8 +99,26 @@ Even though we initialize a.i as b, we are unable to determine if
 a.i and b are equivalent paths, hence we cannot ensure that b.L subtypes 
 a.i.L.
 
+\subsection{Path Equality and Type Widened Expressions}
+\begin{lstlisting}[mathescape, style=custom_lang]
+var a = new {self $\Rightarrow$
+             type L : $\top$ .. $\top$
+             var i : self.L = a};
+var b = new {self $\Rightarrow$
+             var j : {self $\Rightarrow$
+                      type L :{self $\Rightarrow$ i:$\top$} .. $\top$
+	                   var i : self.L} = a};
+var c = new {self $\Rightarrow$
+             var k : {var j : {self $\Rightarrow$
+                               type L :$\bot$ .. $\top$
+	                            var i : self.L}} = b
+             def m : $\top$ (x : self.k.j.L){
+                 var y = new {self $\Rightarrow$ var l : z.k.j.L = x}; y
+             }};
+c.m(c.k.j.i)
+\end{lstlisting}
 
-
+c.m(c.k.j.i) $\rightarrow$ c.m(b.j.i) $\rightarrow$ c.m(a.i) $\rightarrow$ c.m(a)
 \section{Type System}
 	\label{s:type_sys}
 
@@ -108,6 +126,7 @@ a.i.L.
 \subsection{Syntax}
 
 
+\begin{figure}[h]
 \[
 \begin{array}{lll}
 \begin{array}{lllr}
@@ -170,14 +189,17 @@ E & :: = & \bigcirc & eval \; context\\
 D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
   & |   & \texttt{def} \; m : T(x:T) = e &\\
   & |   & \texttt{type} \; L : T .. T = T &\\
-&&\\
-K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
+%&&\\
+%K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
 %\Delta & :: = & \varnothing \; | \; \Delta,\; x \mapsto l & substitution \; context \\
 %&&\\
 %\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : T & store \; context \\
 \end{array}
 \end{array}
 \]
+\caption{Syntax}
+\label{f:syntax}
+\end{figure}
 
 
 \begin{figure}[h]
@@ -212,13 +234,14 @@ K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
 
 
 \begin{theorem}[Subject Reduction]
-If $\Gamma; K \vdash e : T$, 
-   	$\mu \; | \; e \; | \; K \rightarrow \mu' \; | \; e' \; | \; K'$ where
+If $\Gamma; E \vdash e : T$, 
+   	$\mu \; | \; e \; | \; E \rightarrow \mu' \; | \; e' \; | \; E'$ where
 	$\Gamma \vdash \mu$ then 
- 	$\exists \Gamma', T'$ s.t.
-	$\Gamma'$ extends $\Gamma$,
-	$\Gamma'; K' \vdash e' : T'$
-	and $\Gamma'; K' \vdash T'<:T$.
+ 	$\exists \Gamma', T'$ s.t. 
+	$\Gamma'$ extends $\Gamma$, 
+	$\Gamma' \vdash \mu'$, 
+	$\Gamma'; E' \vdash e' : T'$ 
+	and $\Gamma'; E' \vdash T'<:T$.
 \end{theorem}
 %\begin{proof}
 %By induction on 	$\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
@@ -280,13 +303,13 @@ If $\Gamma; K \vdash e : T$,
 %
 \subsection{Progress}
 \begin{theorem}[Progress]
-If $\Gamma; K \vdash e : T$, then either
+If $\Gamma; E \vdash e : T$, then either
 \begin{enumerate}
 \item e is a value, or
 \item $\forall \mu$ s.t.
 		   $\Gamma \vdash \mu$,
-         $\exists e', \mu', K'$ s.t. 
-         $\mu \; | \; e \; | \; K \rightarrow \mu' \; | \; e' \; | \; K'$
+         $\exists e', \mu', E'$ s.t. 
+         $\mu \; | \; e \; | \; E \rightarrow \mu' \; | \; e' \; | \; E'$
 \end{enumerate}
 \end{theorem}
 
