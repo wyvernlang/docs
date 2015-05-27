@@ -58,7 +58,7 @@ e & ::= & x & expressions \\
 & | & e.f \\
 & | & e.f = e \\
 & | & l & (run\mbox{-}time~forms)\\
-& | & \keywadj{new}_{s}(x \Rightarrow d_v)\\
+%& | & \keywadj{new}_{s}(x \Rightarrow d_v)\\
 & | & l.m(l) \rhd e \\
 &&\\
 s & ::= & \keyw{stateful} | ~\keyw{pure} \\
@@ -66,11 +66,12 @@ s & ::= & \keyw{stateful} | ~\keyw{pure} \\
 d & ::= & \epsilon & declarations \\
   & |   & \keyw{def} m(x:\tau):\tau = e; d \\
   & |   & \keyw{var} f:\tau = x; d \\
+  & |   & \keyw{var} f:\tau = l; d & (run\mbox{-}time~form)\\
 &&\\
-d_v & ::= & \epsilon & decl.~values \\
-  & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
-  & |   & \keyw{var} f:\tau = l; d_v \\
-&&\\
+%d_v & ::= & \epsilon & decl.~values \\
+%  & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
+%  & |   & \keyw{var} f:\tau = l; d_v \\
+%&&\\
 \tau & ::= & \{ \sigma \}_{s} & types \\
 &&\\
 \sigma & ::= & \epsilon & decl.~ types \\
@@ -85,13 +86,15 @@ d_v & ::= & \epsilon & decl.~values \\
 & | & \Gamma,~x : \tau\\
 &&\\
 \mu & :: = & \varnothing & store\\
-& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{s}\\
+%& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{s}\\
+& | & \mu,~l \mapsto \{ x \Rightarrow d \}_{s}\\
 &&\\
 \Sigma & :: = & \varnothing & store~type\\
 & | & \Sigma,~l : \tau\\
 &&\\
 E & ::= & [~] & eval.~ contexts\\
-  & |   & \keywadj{new}_{s}(x \Rightarrow D) \\
+%  & |   & \keywadj{new}_{s}(x \Rightarrow D) \\
+  & |   & \keywadj{new}_{s}(x \Rightarrow d) \\
   & |   & E.m(e)\\
   & |   & l.m(E)\\
   & |   & E.f \\
@@ -99,11 +102,11 @@ E & ::= & [~] & eval.~ contexts\\
   & |   & l.f = E \\
   & |   & l.m(l) \rhd E \\
 &&\\
-D & ::= & [~] & decl.~eval.~ contexts\\
-  & |   & \keyw{def} m(x:\tau):\tau = e; D \\
-  & |   & \keyw{var} f:\tau = E; d \\
-  & |   & \keyw{var} f:\tau = l; D \\
-&&\\
+%D & ::= & [~] & decl.~eval.~ contexts\\
+%  & |   & \keyw{def} m(x:\tau):\tau = e; D \\
+%  & |   & \keyw{var} f:\tau = E; d \\
+%  & |   & \keyw{var} f:\tau = l; D \\
+%&&\\
 \end{array}
 \end{array}
 \]
@@ -136,7 +139,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
   {\Gamma~|~\Sigma \vdash x : \tau}
   {x : \tau \in \Gamma}%\\[5ex]
 ~~~~~~~~~~
-\infer[\textsc{(T-New-1)}]
+\infer[\textsc{(T-New)}]
 	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow d) : \{ \sigma \}_{s}}
 	{\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma} \\[5ex]
 
@@ -150,15 +153,11 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 	
 \infer[\textsc{(T-Assign)}]
 	{\Gamma~|~\Sigma \vdash  e.f=e_1 : \tau_1} 
-	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f:\tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_1 : \tau_1 }\\[5ex]
-
+	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f:\tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_1 : \tau_1 }%\\[5ex]
+~~~~~~~~~~
 \infer[\textsc{(T-Loc)}]
   {\Gamma~|~\Sigma \vdash l : \tau}
-  {l : \tau \in \Sigma}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-New-2)}]
-	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow d_v) : \{ \sigma \}_{s}}
-	{\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d_v : \sigma} \\[5ex]
+  {l : \tau \in \Sigma}\\[5ex]
 
 \infer[\textsc{(T-StackFrames)}]
 	{\Gamma~|~\Sigma \vdash l.m(l_1) \rhd e : \tau_2}
@@ -193,30 +192,6 @@ $\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
 
 \end{array}
 \]
-
-$\fbox{$\Gamma~|~\Sigma \vdash_s d_v : \sigma$}$
-\[
-\begin{array}{c}
-
-\infer[\textsc{(DvT-DefPure)}]
-  {\Gamma~|~\Sigma \vdash_{\keyw{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = e; d_v~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-  {\def\arraystretch{1.6}
-  \begin{array}{c}
-\Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\} \\
-\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~~~~\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma_{pure}~|~\Sigma \vdash_s d_v : \sigma
-  \end{array}}\\[5ex]
-
-\infer[\textsc{(DvT-DefStateful)}]
-  {\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e; d_v~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-  {\Gamma, x : \tau_1~|~\Sigma \vdash e : \tau_2 & \Gamma~|~\Sigma \vdash_s d_v : \sigma}\\[5ex]
-
-\infer[\textsc{(DvT-Var)}]
-  {\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = l; d_v~:~\keyw{var} f : \tau; \sigma}
-  {\Gamma~|~\Sigma \vdash l : \tau & \Gamma~|~\Sigma \vdash_s d_v : \sigma}\\[5ex]
-
-\end{array}
-\]
-
 
 $\fbox{$\tau <: \tau'$}$
 \[
@@ -275,8 +250,8 @@ $\fbox{$\mu : \Sigma$}$
   {}%\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-Store)}]
-  {\mu,~l \mapsto \{ x \Rightarrow d_v \}_s~:~\Sigma,~l : \{ \sigma \}_s}
-  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash d_v : \sigma}\\[5ex]
+  {\mu,~l \mapsto \{ x \Rightarrow d \}_s~:~\Sigma,~l : \{ \sigma \}_s}
+  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash d : \sigma}\\[5ex]
 
 \end{array}
 \]
@@ -295,23 +270,23 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
 \[
 \begin{array}{c}
 \infer[\textsc{(E-New)}]
-  {\keywadj{new}_{s}(x \Rightarrow d_v)~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow d_v \}_{s}}
+  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow d \}_{s}}
   {l \not\in dom(\mu)}\\[5ex]
 
 \infer[\textsc{(E-Meth)}]
   {l.m(l_1)~|~\mu \longrightarrow l.m(l_1) \rhd [l_1/y][l/x]e~|~\mu}
-  {l \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau = e \in d_v}\\[5ex]
+  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau = e \in d}\\[5ex]
 
 \infer[\textsc{(E-Field)}]
   {l.f~|~\mu \longrightarrow l_1~|~\mu}
-  {l \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d_v}\\[5ex]
+  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d}\\[5ex]
 
 \infer[\textsc{(E-Assign)}]
   {l.f = l_2~|~\mu \longrightarrow l_2~|~\mu'}
   {\def\arraystretch{1.6}
   \begin{array}{c}
-l \mapsto \{ x \Rightarrow d_v \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l_1 \in d_v \\
-d_v' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l_1]d_v~~~~~\mu' = [l \mapsto \{ x \Rightarrow d_v' \}_{s}/l \mapsto \{ x \Rightarrow d_v \}_{s}]\mu
+l \mapsto \{ x \Rightarrow d \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l_1 \in d \\
+d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l_1]d~~~~~\mu' = [l \mapsto \{ x \Rightarrow d' \}_{s}/l \mapsto \{ x \Rightarrow d \}_{s}]\mu
   \end{array}}\\[5ex]
 
 \infer[\textsc{(E-StackFrame)}]
@@ -335,6 +310,7 @@ If $\Gamma~|~\varnothing \vdash e : \tau$ and $\Delta$ is a permutation of $\Gam
 Straightforward induction on typing derivations. \qed
 \end{proof}
 
+\vspace{8pt}
 
 \begin{lemma}[Weakening]
 If $\Gamma~|~\varnothing \vdash e : \tau$ and $x \not\in dom(\Gamma)$, then $\Gamma,~x : \tau'~|~\varnothing \vdash e : \tau$, and the latter derivation has the same depth as the former.
@@ -344,6 +320,7 @@ If $\Gamma~|~\varnothing \vdash e : \tau$ and $x \not\in dom(\Gamma)$, then $\Ga
 Straightforward induction on typing derivations. \qed
 \end{proof}
 
+\vspace{8pt}
 
 \begin{lemma}[Preservation of types under substitution]
 If $\Gamma,~v_1 : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\varnothing \vdash v_2 : \tau'$, where $v_1$ and $v_2$ are both values, then $\Gamma~|~\Sigma \vdash [v_2/v_1]e : \tau$.
@@ -438,7 +415,7 @@ By the induction hypothesis, $\Gamma~|~\Sigma \vdash [z/y]e' : \tau_1$ and $\tau
 \noindent Thus, substituting terms in a well-typed expression preserves the typing. \qed
 \end{proof}
 
-\vspace{15pt}
+\vspace{8pt}
 
 \begin{theorem}[Preservation]
 If
@@ -506,15 +483,22 @@ If $\varnothing~|~\Sigma \vdash e : \tau$ (i.e., $e$ is a closed, well-typed exp
    $\exists e', \mu'$ such that $e~|~\mu \longrightarrow e'~|~\mu'$.
 \end{enumerate}
 \end{theorem}
-\begin{proof} The proof is by induction on the derivation of $\varnothing~|~\Sigma \vdash e : \tau$, with a case analysis on the last typing rule used. The case when $e$ is a variable (\textsc{T-Var}) cannot occur, and the case when $e$ is a location (\textsc{T-Loc}) is immediate, since in that case $e$ is a value. For the other cases, we argue as follows:
+\begin{proof} The proof is by induction on the derivation of $\varnothing~|~\Sigma \vdash e : \tau$ and $\varnothing~|~\Sigma \vdash d : \sigma$, with a case analysis on the last typing rule used. The case when $e$ is a variable (\textsc{T-Var}) cannot occur, and the case when $e$ is a location (\textsc{T-Loc}) is immediate, since in that case $e$ is a value. For the other cases, we argue as follows:
 
 \begin{pcases}
-\pcase[\textsc{T-New}]
+\pcase[\textsc{T-New-1}]
 $e = \keywadj{new}_{s}(x \Rightarrow d)$ and, from the premise, we have
 \[
 \Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma
 \]
-By the induction hypothesis, either $d$ is a value or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $d$ is a value, then the rule \textsc{E-New} applies to $e$, and $e$ is a value (a location).
+By the induction hypothesis, either $d$ is a value (i.e., $d$) or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $d$ is a value (i.e., $d$), then the rule \textsc{E-New} applies to $e$, and $e$ is a value (i.e., a location $l$).
+\\
+\pcase[\textsc{T-New-2}]
+$e = \keywadj{new}_{s}(x \Rightarrow d_v)$ and, from the premise, we have
+\[
+\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d_v : \sigma
+\]
+By the induction hypothesis, either $d$ is a value (i.e., $d_v$) or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $d$ is a value (i.e., $d_v$), then the rule \textsc{E-New} applies to $e$, and $e$ is a value (i.e., a location $l$).
 \\
 \pcase[\textsc{T-Meth}]
 $e = e_1.m(e_2)$ and, from the premise, we have
