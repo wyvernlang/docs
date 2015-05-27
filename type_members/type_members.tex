@@ -14,7 +14,7 @@
 }
 
 \lstset{emph={%  
-    var, def, type, new, self%
+    var, def, type, new, z%
     },emphstyle={\bfseries \tt}%
 }
 
@@ -34,19 +34,19 @@ Figure \ref{f:mem} gives the \emph{Membership} judgement.
 $\Gamma \vdash e \ni \sigma$ says that an expression $e$ 
 has $\sigma_i$ as a member of its type in environment $\Gamma$. 
 There are two rules for membership. By \textsc{M-Path} a 
-variable $x$ has a member of type $[x/\texttt{self}]\sigma_i$ 
+variable $x$ has a member of type $[x/\texttt{z}]\sigma_i$ 
 if $\sigma_i$ is a member of the type of $x$. By \textsc{M-Exp}
 an expression $e$ has member $\sigma_i$ if $\sigma_i$ is 
-a member of $e$'s type, and \texttt{self} does not occur 
+a member of $e$'s type, and \texttt{z} does not occur 
 within $\sigma_i$.
 
 This is reasonable since we cannot substitute a non-value 
-expression into a selection type such as $\texttt{self}.L$. 
+expression into a selection type such as $\texttt{z}.L$. 
 This does however present a counter-example to preservation. 
 Given two types $X$ and $Y$,
 
 \begin{lstlisting}[mathescape, style=custom_lang]
-Y = {self $\Rightarrow$
+Y = {z $\Rightarrow$
      var l : $\top$
      def m : Y(y:Y){
        var a = new {};
@@ -55,9 +55,9 @@ Y = {self $\Rightarrow$
     }
 \end{lstlisting}
 \begin{lstlisting}[mathescape, style=custom_lang]
-X = {self $\Rightarrow$
+X = {z $\Rightarrow$
      type L : $\top$ .. $\top$
-     var l : self.L
+     var l : z.L
      def m : Y(y:Y){
        y
      }
@@ -76,8 +76,8 @@ holds for \texttt{y.m(x)} and \texttt{l}. This reduces to
 (var a = new {}; x).l
 \end{lstlisting}
 which is not well-typed since \texttt{var a = new {}; x} has type 
-\texttt{X}, and \texttt{X.l} contains a \texttt{self} reference 
-\texttt{self.L}.
+\texttt{X}, and \texttt{X.l} contains a \texttt{z} reference 
+\texttt{z.L}.
 
 \subsection{Expansion Lost}
 \subsection{Well-Formedness Lost}
@@ -85,40 +85,53 @@ which is not well-typed since \texttt{var a = new {}; x} has type
 \subsection{Path Equality}
 The example below illustrates the problem with path equality.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var b = new {self $\Rightarrow$
+var b = new {z $\Rightarrow$
              type L : $\top$ .. $\top$
-             var l : self.L = b};
-var a = new {self $\Rightarrow$
-             var i : {self $\Rightarrow$
+             var l : z.L = b};
+var a = new {z $\Rightarrow$
+             var i : {z $\Rightarrow$
                       type L : $\bot$ .. $\top$
-                      var l : self.L} = b
-             def meth : $\top$ (x : self.i.L)self.i};
+                      var l : z.L} = b
+             def meth : $\top$ (x : z.i.L)z.i};
 a.meth(b.l)
 \end{lstlisting}
 Even though we initialize a.i as b, we are unable to determine if
 a.i and b are equivalent paths, hence we cannot ensure that b.L subtypes 
 a.i.L.
 
-\subsection{Path Equality and Type Widened Expressions}
+\subsection{Path Equality Redux}
 \begin{lstlisting}[mathescape, style=custom_lang]
-var a = new {self $\Rightarrow$
-             type L : $\top$ .. $\top$
-             var i : self.L = a};
-var b = new {self $\Rightarrow$
-             var j : {self $\Rightarrow$
-                      type L :{self $\Rightarrow$ i:$\top$} .. $\top$
-	                   var i : self.L} = a};
-var c = new {self $\Rightarrow$
-             var k : {var j : {self $\Rightarrow$
-                               type L :$\bot$ .. $\top$
-	                            var i : self.L}} = b
-             def m : $\top$ (x : self.k.j.L){
-                 var y = new {self $\Rightarrow$ var l : z.k.j.L = x}; y
+var n = new {z $\Rightarrow$ type X : $\top$ .. $\top$};
+var a = new {z $\Rightarrow$
+             type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+             var i : z.Y = n};
+var b = new {z $\Rightarrow$
+             type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
+                                          {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+                                 var i : z.X}
+             var j : z.L = a};
+var c = new {z $\Rightarrow$
+             var k : {z $\Rightarrow$
+                      type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
+                                                   {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+                                          var i : z.X}
+                      var j : z.L} = b
+             def m : $\top$ (x : z.k.L){
+                 var y = new {z $\Rightarrow$ var l : x.Y = x.i
+                                   var m : x.i.X = new {z $\Rightarrow$}}; y
              }};
-c.m(c.k.j.i)
+c.m(c.k.j)
 \end{lstlisting}
-
-c.m(c.k.j.i) $\rightarrow$ c.m(b.j.i) $\rightarrow$ c.m(a.i) $\rightarrow$ c.m(a)
+\begin{lstlisting}[mathescape, style=custom_lang]
+c.m(c.k.j) $\rightarrow$ c.m(b.j)
+\end{lstlisting} 
+\texttt{b.j} has type \texttt{b.L}, therefore we need 
+$\texttt{b.L} <: \texttt{c.k.L}$
+\begin{lstlisting}[mathescape, style=custom_lang]
+c.m(b.j) $\rightarrow$ c.m(a)
+c.m(a) $\rightarrow$ (var y = new {z $\Rightarrow$ var l : (a $\unlhd$ c.k.L).X = (a $\unlhd$ c.k.L).i 
+                            var m : x.i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
+\end{lstlisting}
 \section{Type System}
 	\label{s:type_sys}
 
@@ -131,7 +144,7 @@ c.m(c.k.j.i) $\rightarrow$ c.m(b.j.i) $\rightarrow$ c.m(a.i) $\rightarrow$ c.m(a
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expression \\
-& | & \texttt{var} \; x = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{d}\}; \; e&\\
+& | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d}\}; \; e&\\
 %& | & \lambda x:T = e\\
 %& | & e(e)\\
 & | & e.m(e) &\\
@@ -160,13 +173,13 @@ d_v & ::= & \texttt{var} \; f : T = v & declaration \; value \\
 &&\\
 \Gamma & :: = & \varnothing \; | \; \Gamma, \; x : T & context \\
 &&\\
-\mu & :: = & \varnothing \; | \; \mu,\; x \mapsto \{\texttt{self} \Rightarrow \overline{d}\} & store \\
+\mu & :: = & \varnothing \; | \; \mu,\; x \mapsto \{\texttt{z} \Rightarrow \overline{d}\} & store \\
 \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
-%T & ::= & \{\texttt{self} \Rightarrow \overline{\sigma}\} & type \\
-T & ::= & \{\texttt{self} \Rightarrow \overline{\sigma}\} & type \\
+%T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
+T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
 & | & p.L &\\
 & | & T \wedge T & \\
 & | & \top & \\
@@ -183,8 +196,8 @@ E & :: = & \bigcirc & eval \; context\\
 %       & | & E.f = e\\
 %       & | & v.f = E\\
        & | & E \unlhd T\\
-       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{D}\}; \; e & eval \; context \\
-       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{d_v}\}; \; E& \\
+       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{D}\}; \; e & eval \; context \\
+       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\}; \; E& \\
 &&\\
 D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
   & |   & \texttt{def} \; m : T(x:T) = e &\\
@@ -250,16 +263,16 @@ If $\Gamma; E \vdash e : T$,
 %\begin{mathpar}
 %\inferrule
 %  {}
-%  {e := \texttt{var} \; y = \texttt{new} \; \{\texttt{self} \Rightarrow \overline{d}\}; e \\
+%  {e := \texttt{var} \; y = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d}\}; e \\
 %	e' := e\\
-%	\mu' = \mu, l \mapsto \{\texttt{self} \Rightarrow \overline{d}\} \\
+%	\mu' = \mu, l \mapsto \{\texttt{z} \Rightarrow \overline{d}\} \\
 %  	\Delta' = \Delta, y \mapsto l\\
-%	\Delta; \; \Sigma; \; \Gamma, \texttt{self} : \{\texttt{self} \Rightarrow \overline{\sigma}\} \vdash \overline{d} : \overline{\sigma}\\
-%	\Sigma; \; \Gamma, y : \{\texttt{self} \Rightarrow \overline{\sigma}\} \vdash e : T}
+%	\Delta; \; \Sigma; \; \Gamma, \texttt{z} : \{\texttt{z} \Rightarrow \overline{\sigma}\} \vdash \overline{d} : \overline{\sigma}\\
+%	\Sigma; \; \Gamma, y : \{\texttt{z} \Rightarrow \overline{\sigma}\} \vdash e : T}
 %\end{mathpar}
 %
-%Let $\Sigma' = \Sigma, l \mapsto \{\texttt{self} \Rightarrow \overline{\sigma}\}$ and 
-%$\Gamma' = \Gamma, y : \{\texttt{self} \Rightarrow \overline{\sigma}\}$. 
+%Let $\Sigma' = \Sigma, l \mapsto \{\texttt{z} \Rightarrow \overline{\sigma}\}$ and 
+%$\Gamma' = \Gamma, y : \{\texttt{z} \Rightarrow \overline{\sigma}\}$. 
 %$\therefore \Sigma'; \Gamma';  \vdash e' : T$ and
 %$\Gamma' \vdash T<:T$ by reflexivity.
 %%}
@@ -269,8 +282,8 @@ If $\Gamma; E \vdash e : T$,
 %\inferrule
 %  {}
 %  {e := y.m(z)\\
-%	e' := [y/\texttt{self},z'/x]e\\
-%	\mu(\Delta(y)) = \{\texttt{self} \Rightarrow ...,m:T(x:S)=e,...\}\\
+%	e' := [y/\texttt{z},z'/x]e\\
+%	\mu(\Delta(y)) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}\\
 %   \Delta(z) = l' \\
 %  	z' \notin dom(\Delta)\\
 %  	\Delta' = \Delta,z' \mapsto l'}
