@@ -94,7 +94,7 @@ d & ::= & \epsilon & declarations \\
 &&\\
 E & ::= & [~] & eval.~ contexts\\
 %  & |   & \keywadj{new}_{s}(x \Rightarrow D) \\
-  & |   & \keywadj{new}_{s}(x \Rightarrow d) \\
+%  & |   & \keywadj{new}_{s}(x \Rightarrow d) \\
   & |   & E.m(e)\\
   & |   & l.m(E)\\
   & |   & E.f \\
@@ -330,7 +330,7 @@ Straightforward induction on typing derivations. \qed
 If $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\varnothing \vdash e' : \tau'$, then $\Gamma~|~\Sigma \vdash [e'/z]e : \tau$.
 \end{lemma}
 
-\begin{proof} The proof is by induction on a derivation of the statements $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma$. For a given derivation, we proceed by cases on the final typing rule used in the proof:
+\begin{proof} The proof is by induction on a derivation of $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma$. For a given derivation, we proceed by cases on the final typing rule used in the proof:
 
 \begin{pcases}
 \pcase[\textsc{T-Var}]
@@ -427,7 +427,7 @@ By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_1$ and $\tau
 \noindent Thus, substituting terms in a well-typed expression preserves the typing. \qed
 \end{proof}
 
-\vspace{8pt}
+\newpage
 
 \begin{theorem}[Preservation]
 If
@@ -484,13 +484,14 @@ $e = e_1.f$ and, from the premise, we have
 
 \end{proof}
 
+\newpage
 
 \subsection{Progress}
 
 \begin{theorem}[Progress]
 If $\varnothing~|~\Sigma \vdash e : \tau$ (i.e. $e$ is a closed, well-typed expression), then either
 \begin{enumerate}
-\item $e$ is a value or
+\item $e$ is a value (i.e. a location) or
 \item $\forall \mu$ such that $\mu : \Sigma$,
    $\exists e', \mu'$ such that $e~|~\mu \longrightarrow e'~|~\mu'$.
 \end{enumerate}
@@ -498,19 +499,12 @@ If $\varnothing~|~\Sigma \vdash e : \tau$ (i.e. $e$ is a closed, well-typed expr
 \begin{proof} The proof is by induction on the derivation of $\varnothing~|~\Sigma \vdash e : \tau$ and $\varnothing~|~\Sigma \vdash d : \sigma$, with a case analysis on the last typing rule used. The case when $e$ is a variable (\textsc{T-Var}) cannot occur, and the case when $e$ is a location (\textsc{T-Loc}) is immediate, since in that case $e$ is a value. For the other cases, we argue as follows:
 
 \begin{pcases}
-\pcase[\textsc{T-New-1}]
+\pcase[\textsc{T-New}]
 $e = \keywadj{new}_{s}(x \Rightarrow d)$ and, from the premise, we have
 \[
 \Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma
 \]
-By the induction hypothesis, either $d$ is a value (i.e. $d$) or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $d$ is a value (i.e. $d$), then the rule \textsc{E-New} applies to $e$, and $e$ is a value (i.e. a location $l$).
-\\
-\pcase[\textsc{T-New-2}]
-$e = \keywadj{new}_{s}(x \Rightarrow d_v)$ and, from the premise, we have
-\[
-\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d_v : \sigma
-\]
-By the induction hypothesis, either $d$ is a value (i.e. $d_v$) or else it can make a step of evaluation. If $d$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $d$ is a value (i.e. $d_v$), then the rule \textsc{E-New} applies to $e$, and $e$ is a value (i.e. a location $l$).
+Here $d$ is a sequence of declarations: either method definitions or fields. If $d$ is a method definition, i.e. $d = \keyw{def} m(x : \tau_1) : \tau_2 = e$, it is equivalent to being a value since we use lazy evaluation of the method body and do not evaluate $e$ until it is to be run. If $d$ is a field, i.e. $d = \keyw{var} f : \tau = x$ or $d = \keyw{var} f : \tau = l$, the former form is resolved to the latter form by substitution, and the latter form is equivalent to $d$ being a value. Therefore, in both cases, $d$ is equivalent to being a value, and thus the rule \textsc{E-New} applies to $e$, and $e$ is a value (i.e. a location $l$).
 \\
 \pcase[\textsc{T-Meth}]
 $e = e_1.m(e_2)$ and, from the premise, we have
@@ -524,7 +518,7 @@ $e = e_1.f$ and, from the premise, we have
 \[
 \Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s~~~~~\keyw{var}~ f : \tau \in \sigma
 \]
-By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation. If $e_1$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $e_1$ is a value, then the rule \textsc{E-Field} applies to $e$, and $e$ is a value (a location).
+By the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation. If $e_1$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $e_1$ is a value, then the rule \textsc{E-Field} applies to $e$, and $e$ is a value (i.e. a location $l_1$).
 \\
 \pcase[\textsc{T-Assign}]
 $e = e_1.f=e_2$ and, from the premise, we have
@@ -538,7 +532,7 @@ $e = l.m(l_1) \rhd e_2$ and, from the premise, we have
 \[
 \Gamma~|~\Sigma \vdash l : \{\sigma\}_s~~~~~\keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma~~~~~\Gamma~|~\Sigma \vdash l_1 : \tau_1~~~~~\Gamma~|~\Sigma \vdash e_2 : \tau_2
 \]
-By the induction hypothesis, either $e_2$ is a value or else it can make a step of evaluation. If $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $e_2$ is a value, then the rule \textsc{E-StackFrame} applies to $e$, and $e$ is a value (a location).
+By the induction hypothesis, either $e_2$ is a value or else it can make a step of evaluation. If $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step. If $e_2$ is a value, then the rule \textsc{E-StackFrame} applies to $e$, and $e$ is a value (i.e. a location $l_2$).
 \\
 \pcase[\textsc{T-Sub}]
 The result follows directly from the induction hypothesis.
