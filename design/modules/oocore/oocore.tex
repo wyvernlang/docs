@@ -141,7 +141,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 ~~~~~~~~~~
 \infer[\textsc{(T-New)}]
 	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow d) : \{ \sigma \}_{s}}
-	{\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma} \\[5ex]
+	{\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash_s d : \sigma} \\[5ex]
 
 \infer[\textsc{(T-Meth)}]
 	{\Gamma~|~\Sigma \vdash e_1.m(e_2) : \tau_1} 
@@ -255,7 +255,7 @@ $\fbox{$\mu : \Sigma$}$
 ~~~~~~~~~~
 \infer[\textsc{(T-Store)}]
   {\mu,~l \mapsto \{ x \Rightarrow d \}_s~:~\Sigma,~l : \{ \sigma \}_s}
-  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash d : \sigma}\\[5ex]
+  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash_s d : \sigma}\\[5ex]
 
 \end{array}
 \]
@@ -334,12 +334,7 @@ If $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\varnothing \vdash
 
 \begin{pcases}
 \pcase[\textsc{T-Var}]
-$e = x$ and, from the premise, we get 
-\[
-x : \tau \in (\Gamma,~z : \tau')
-\]
-
-There are two sub-cases to consider, depending on whether $x$ is $z$ or another variable. If $x = z$, then $[e'/z]x = e'$. The required result is then $\Gamma~|~\varnothing \vdash e' : \tau'$, which is among the assumptions of the lemma. Otherwise, $[e'/z]x = x$, and the desired result is immediate.
+$e = x$ and, from the premise, we get $x : \tau \in (\Gamma,~z : \tau')$. There are two sub-cases to consider, depending on whether $x$ is $z$ or another variable. If $x = z$, then $[e'/z]x = e'$. The required result is then $\Gamma~|~\varnothing \vdash e' : \tau'$, which is among the assumptions of the lemma. Otherwise, $[e'/z]x = x$, and the desired result is immediate.
 \\
 \pcase[\textsc{T-New}]
 $e = \keywadj{new}_{s}(x \Rightarrow d)$ and, from the premise, we get
@@ -352,7 +347,7 @@ Here, $d$ is a sequence of declarations each of which are either a method declar
 \item[] \textit{Case $d$ is a method definition:} $d = \keyw{def} m(x : \tau_1) : \tau_2 = e$. We do substitution on the method body expression, which is subject to alpha-conversion. There are two cases: either the method is pure or it is stateful:
 \\
 \begin{itemize}
-\item[] \textit{Case} \textsc{DT-DefPure}\textit{:} From the premise, we get
+\item[] \textit{Subcase} \textsc{DT-DefPure}\textit{:} From the premise, we get
 \[
 \Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\}~~~~~\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}
 \]\[
@@ -360,7 +355,7 @@ Here, $d$ is a sequence of declarations each of which are either a method declar
 \]
 By the induction hypothesis, $\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_2$, and substituting $e'$ for $z$ in $d$ preserves the original types. (The latter can be proved by induction on $d$ starting with the end of the sequence when $d = \epsilon$.) Then, by \textsc{DT-DefPure}, $\Gamma~|~\Sigma \vdash_{\keyw{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = [e'/z]e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keyw{pure}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
 \\
-\item[] \textit{Case} \textsc{DT-DefStateful}\textit{:} From the premise, we get
+\item[] \textit{Subcase} \textsc{DT-DefStateful}\textit{:} From the premise, we get
 \[
 \Gamma, x : \tau_1,~z : \tau'~|~\Sigma \vdash e : \tau_2~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
 \]
@@ -372,19 +367,19 @@ By the induction hypothesis, $\Gamma, x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_
 \item[] \textit{Case $d$ is a field:} There are two cases depending on whether it is run-time or not:
 \\
 \begin{itemize}
-\item[] \textit{Case} \textsc{DT-Varx}\textit{:} $d = \keyw{var} f : \tau = x$, and, from the premise, we get
+\item[] \textit{Subcase} \textsc{DT-Varx}\textit{:} $d = \keyw{var} f : \tau = x$, and, from the premise, we get
 \[
 \Gamma,~z : \tau'~|~\Sigma \vdash x : \tau~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
 \]
 There are two sub-cases to consider, depending on whether $x$ is $z$ or another variable. If $x = z$, then $[e'/z](\keyw{var} f : \tau = x) = \keyw{var} f : \tau = e'$. Then, $\Gamma~|~\varnothing \vdash e' : \tau'$ is among the assumptions of the lemma, and substituting $e'$ for $z$ in $d$ preserves the original types. (The latter can be proved by induction on $d$ starting with the end of the sequence when $d = \epsilon$.). Thus, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = e'; d~:~\keyw{var} f : \tau'; \sigma$ as required. Otherwise, $[e'/z](\keyw{var} f : \tau = x) = \keyw{var} f : \tau = x$, and the desired result is immediate.
 \\
-\item[] \textit{Case} \textsc{DT-Varl}\textit{:} $d = \keyw{var} f : \tau = l$, i.e. the field is resolved to a location $l$. This is not affected by the substitution, and the desired result is immediate.
+\item[] \textit{Subcase} \textsc{DT-Varl}\textit{:} $d = \keyw{var} f : \tau = l$, i.e. the field is resolved to a location $l$. This is not affected by the substitution, and the desired result is immediate.
 \\
 \end{itemize}
 
 \end{itemize}
 
-Having considered all the possibilities for $d$, we see that $\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash [e'/z]d : \sigma$. Then, by \textsc{T-New}, $\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow [e'/z]d) : \{ \sigma \}_{s}$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](\keywadj{new}_{s}(x \Rightarrow d)) : \{ \sigma \}_{s}$.
+Having considered all the possibilities for $d$, we see that $\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash_s [e'/z]d : \sigma$. Then, by \textsc{T-New}, $\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow [e'/z]d) : \{ \sigma \}_{s}$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](\keywadj{new}_{s}(x \Rightarrow d)) : \{ \sigma \}_{s}$.
 \\
 \pcase[\textsc{T-Meth}]
 $e = e_1.m(e_2)$ and, from the premise, we get
@@ -401,20 +396,20 @@ $e = e.f$ and, from the premise, we get
 By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \{\sigma\}_s$. Then, by \textsc{T-Field}, $\Gamma~|~\Sigma \vdash ([e'/z]e).f : \tau$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](e.f) : \tau$.
 \\
 \pcase[\textsc{T-Assign}]
-$e = e.f=e_1$ and, from the premise, we get
+$e = e_1.f=e_2$ and, from the premise, we get
 \[
-\Gamma,~z : \tau'~|~\Sigma \vdash e : \{\sigma\}_s~~~~~\keyw{var}~ f:\tau_1 \in \sigma~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash e_1 : \tau_1
+\Gamma,~z : \tau'~|~\Sigma \vdash e_1 : \{\sigma\}_s~~~~~\keyw{var}~ f : \tau \in \sigma~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash e_2 : \tau
 \]
-By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \{\sigma\}_s$ and $\Gamma~|~\Sigma \vdash [e'/z]e_1 : \tau_1$. Then, by \textsc{T-Assign}, $\Gamma~|~\Sigma \vdash  [e'/z]e.f = [e'/z]e_1 : \tau_1$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](e.f=e_1) : \tau_1$.
+By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e_1 : \{\sigma\}_s$ and $\Gamma~|~\Sigma \vdash [e'/z]e_2 : \tau$. Then, by \textsc{T-Assign}, $\Gamma~|~\Sigma \vdash  [e'/z]e_1.f = [e'/z]e_2 : \tau$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](e_1.f=e_2) : \tau$.
 \\
 \pcase[\textsc{T-Loc}] This case is invalid since we cannot make substitutions in a location.
 \\
 \pcase[\textsc{T-StackFrame}]
-$e = l.m(l_1) \rhd e$ and, from the premise, we get
+$e = l_1.m(l_2) \rhd e$ and, from the premise, we get
 \[
-\Gamma,~z : \tau'~|~\Sigma \vdash l : \{\sigma\}_s~~~~~\keyw{def}~ m : \tau_1 \rightarrow \tau_2 \in \sigma~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash l_1 : \tau_1~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau_2
+\Gamma,~z : \tau'~|~\Sigma \vdash l_1 : \{\sigma\}_s~~~~~\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash l_2 : \tau_2~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau_1
 \]
-Locations are not affected by the substitution, and by the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_2$. Then, by \textsc{T-StackFrame}, $\Gamma~|~\Sigma \vdash l.m(l_1) \rhd [e'/z]e : \tau_2$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](l.m(l_1) \rhd e) : \tau_2$.
+Locations are not affected by the substitution, and by the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_1$. Then, by \textsc{T-StackFrame}, $\Gamma~|~\Sigma \vdash l_1.m(l_2) \rhd [e'/z]e : \tau_1$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](l_1.m(l_2) \rhd e) : \tau_1$.
 \\
 \pcase[\textsc{T-Sub}]
 $e = e$ and, from the premise, we get
