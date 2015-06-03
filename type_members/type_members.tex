@@ -4,7 +4,11 @@
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
 %\usepackage{amsmath}
+%\usepackage{amsthm}
 \usepackage{mathpartir}
+
+
+
 
 \lstdefinestyle{custom_lang}{
   xleftmargin=\parindent,
@@ -157,8 +161,8 @@ p & ::= & x & paths \\
 & | & p.f &\\
 & | & p \unlhd T &\\
 &&\\
-v & ::= & p & value \\
-%& | & v \unlhd T &\\
+v & ::= & x & value \\
+& | & v.f &\\
 &&\\
 d & ::= & \texttt{var} \; f : T = e & declaration \\
   & |   & \texttt{def} \; m : T(x:T) = e &\\
@@ -263,11 +267,149 @@ D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
 
 \subsection{Subject Reduction}
 
+\begin{theorem}[Subtype Reflexivity]
+ 	If $\Gamma \vdash T \; \textbf{\tt{wfe}}$ then $\Gamma \vdash T <: T$
+\end{theorem}
+\begin{proof}
+This is easy to demonstrate using \textsc{S-Struct}.
+\end{proof}
+
 \begin{theorem}[Subtype Transitivity]
-If $\Gamma \vdash S <: T$ and 
+If $\Gamma \vdash S, T, U \; \textbf{\tt{wfe}}$,
+	$\Gamma \vdash S <: T$ and 
    	$\Gamma \vdash T <: U$ then
 	$\Gamma \vdash S <: U$
 \end{theorem}
+\begin{proof}
+Proceed by mutual induction $\Gamma \vdash S <: T$  and declaration subtyping.
+\begin{case}[\textsc{S-Struct}]
+\begin{mathpar}
+\inferrule
+  {\Gamma \vdash S \prec \overline{\sigma} \\
+  	\Gamma \vdash T \prec \overline{\sigma'} \\
+  	\forall \sigma'_i \in \overline{\sigma'}, \; 
+  	\exists \sigma_i \in \overline{\sigma}, \; s.t. \;
+  	\Gamma \vdash \sigma_i \; <: \; \sigma'_i \\
+	\Gamma \vdash T <: U }
+  {}
+\end{mathpar}
+With our induction hypothesis:
+\begin{mathpar}
+\inferrule
+  {\forall \sigma, \; \Gamma \vdash \sigma'_i <: \sigma \; \Rightarrow
+	\Gamma \vdash \sigma_i <: \sigma}
+  {}
+\end{mathpar}
+By induction on $\Gamma \vdash T <: U$.
+\begin{itemize}
+\item[]  \textit{Subcase 1} (\textsc{S-Struct}): 
+\begin{mathpar}
+\inferrule
+  {\Gamma \vdash U \prec \overline{\sigma''} \\
+  	\forall \sigma''_i \in \overline{\sigma''}, \; 
+  	\exists \sigma'_i \in \overline{\sigma'}, \; s.t. \;
+  	\Gamma \vdash \sigma'_i \; <: \; \sigma''_i}
+  {}
+\end{mathpar}
+Let $\sigma''_i \in \overline{\sigma''}$. 
+It follows from above that there exists a 
+$\sigma'_i \in \overline{\sigma'}$ such that 
+$\Gamma \vdash \sigma'_i \; <: \; \sigma''_i$.
+By our original assumption there exists some 
+$\sigma_i \in \overline{\sigma}$ such that 
+$\Gamma \vdash \sigma_i \; <: \; \sigma'_i$. 
+It follows by our induction hypothesis that 
+$\Gamma \vdash \sigma_i \; <: \; \sigma''_i$. 
+Therefore by \textsc{S-Struct} $\Gamma \vdash S <: U$.
+\\
+\item[]  \textit{Subcase 2} (\textsc{S-Select-Lower}): 
+\begin{mathpar}
+\inferrule
+  {U = p.L \\
+	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
+  	\Gamma \vdash T <: S'}
+  {}
+\end{mathpar}
+With our induction hypothesis:
+\begin{mathpar}
+\inferrule
+  {\Gamma \vdash S <: S'}
+  {}
+\end{mathpar}
+Therefore, by \textsc{S-Select-Lower}, $\Gamma \vdash S <: p.L$, i.e. 
+$\Gamma \vdash S <: U$
+\\
+\item[]  \textit{Subcase 3} (\textsc{S-Bottom}): 
+\begin{mathpar}
+\inferrule
+  {T = \bot}
+  {}
+\end{mathpar}
+This forms a contradiction since $T$ is well-formed and expanding,
+and $\bot$ is not.
+\\
+\end{itemize}
+\end{case}
+%\begin{case}[\textsc{S-Refl}]
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {S = T \\
+%	\Gamma \vdash T\; <: \; T \\
+%	\Gamma \vdash T <: U}
+%\end{mathpar}
+%This follows automatically from our assumption.
+%\end{case}
+%\begin{case}[\textsc{S-Rec}]
+%\begin{mathpar}
+%\inferrule
+%  {S = \{\texttt{z} \Rightarrow \overline{\sigma}\} \\
+%	T = \{\texttt{z} \Rightarrow \overline{\sigma'}\} \\
+%	\forall \sigma_i' \in \overline{\sigma}', \; \exists \; \sigma_i \in \overline{\sigma} \; 
+%	st \; \Gamma, \texttt{z} : \{\texttt{z} \Rightarrow \overline{\sigma}\} \vdash 
+%	\sigma_i <:\; \sigma_i' \\
+%	\Gamma \vdash T <: U}
+%  {}
+%\end{mathpar}
+%\end{case}
+%\begin{case}[\textsc{S-Select-Upper}]
+%\end{case}
+\begin{case}[\textsc{S-Select-Lower}]
+\begin{mathpar}
+\inferrule
+  {T = p.L \\
+	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
+  	\Gamma \vdash S <: S' \\
+	\Gamma \vdash p.L <: U}
+  {}
+\end{mathpar}
+With our induction hypothesis:
+\begin{mathpar}
+\inferrule
+  {\forall U'', \Gamma \vdash S' <: U'' \Rightarrow \Gamma \vdash S <: U''}
+  {}
+\end{mathpar}
+%Complete proof for S-Select-Lower
+\end{case}
+%\begin{case}[\textsc{S-Top}]
+%\begin{mathpar}
+%\inferrule
+%  {T = \top \\
+%	\Gamma \vdash \top <: U}
+%  {}
+%\end{mathpar}
+%\end{case}
+\begin{case}[\textsc{S-Bottom}]
+\begin{mathpar}
+\inferrule
+  {S = \bot\\
+	\Gamma \vdash T <: U}
+  {}
+\end{mathpar}
+This forms a contradiction since $S$ is well-formed and expanding, and 
+$\bot$ is not.
+\end{case}
+\end{proof}
 
 \begin{theorem}[Subject Reduction]
 If $\Gamma \vdash e : T$, 
@@ -280,12 +422,12 @@ If $\Gamma \vdash e : T$,
 	and $\Gamma' \vdash T'<:T$.
 \end{theorem}
 \begin{proof}
-By induction on 	$\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
+By induction on $\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
 \begin{case}[\textsc{R-New}]
 \end{case}
 \begin{case}[\textsc{R-Meth}]
 \end{case}
-\begin{case}[\textsc{R-Acc}]
+\begin{case}[\textsc{R-Narrow}]
 \end{case}
 \begin{case}[\textsc{R-Context}]
 \end{case}

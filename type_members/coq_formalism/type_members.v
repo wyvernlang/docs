@@ -16,10 +16,11 @@ Inductive meth : Type :=
   | m_cons : nat -> meth.
 
 Inductive type : Type :=
-  | t_rec : list type_d -> type
-  | t_sel : var -> ty -> type
-  | t_top : type
-  | t_bot : type
+  | t_rec   : list type_d -> type
+  | t_sel   : var -> ty -> type
+  | t_union : type -> type -> type
+  | t_top   : type
+  | t_bot   : type
 
 with type_d : Type :=
   | t_var  : field -> type -> type_d
@@ -31,15 +32,16 @@ Inductive exp : Type :=
   | e_new    : var -> list decl -> exp -> exp
   | e_meth   : exp -> meth -> exp -> exp
   | e_field  : exp -> field -> exp
-  | e_assign : exp -> field -> exp -> exp
 
 with decl : Type :=
-  | d_var  : field -> type -> exp -> decl
+  | d_var  : field -> type -> var -> decl
   | d_def  : meth -> var -> type -> exp -> type -> decl
   | d_type : ty -> type -> type -> decl.
 
 Inductive val : exp -> Prop :=
-  | V_Var : forall x, val (e_var x).
+  | V_Var  : forall x, val (e_var x)
+  | V_Path : forall v f, val v ->
+             val (e_field v f).
 
 Inductive d_val : decl -> Prop :=
   | DV_Var : forall f T v,
