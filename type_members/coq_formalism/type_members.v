@@ -15,10 +15,12 @@ Inductive field : Type :=
 Inductive meth : Type :=
   | m_cons : nat -> meth.
 
+Inductive path : Type :
+
 Inductive type : Type :=
   | t_rec   : list type_d -> type
   | t_sel   : var -> ty -> type
-  | t_union : type -> type -> type
+(*  | t_union : type -> type -> type*)
   | t_top   : type
   | t_bot   : type
 
@@ -32,6 +34,7 @@ Inductive exp : Type :=
   | e_new    : var -> list decl -> exp -> exp
   | e_meth   : exp -> meth -> exp -> exp
   | e_field  : exp -> field -> exp
+  | e_type   : exp -> type -> exp
 
 with decl : Type :=
   | d_var  : field -> type -> var -> decl
