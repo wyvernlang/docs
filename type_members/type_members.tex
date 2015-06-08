@@ -83,10 +83,88 @@ which is not well-typed since \texttt{var a = new {}; x} has type
 \texttt{X}, and \texttt{X.l} contains a \texttt{z} reference 
 \texttt{z.L}.
 
+After patching we allow expressions to maintain original type. 
+Expressions are then typed with respect to the original type.
+This is given in Figure \ref{f:syntax} as $e \unlhd T$ where 
+$T$ is the original type. The patched reduction is given in 
+Figure \ref{f:red}. The amended method reduction \textsc{R-Meth} is 
+shown below.
+\begin{mathpar}
+\inferrule
+  {\mu(path(\mu, v_1)) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
+  {\mu \; | \; v_1.m(v_2) \;\rightarrow \mu \; | \; [v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T}
+  \quad (\textsc {R-Meth})
+\end{mathpar}
+This is very similar to the standard method reduction. The two main 
+differences are the introduction of the $path$ function, and the 
+inclusion of the original types in the returned expression. For now 
+ignore the $path$ function, this is explained in \ref{s:patheq}.
+
+We retrieve the method for the receiver from the store, and substitute 
+the method parameter into the body. The method parameter retains it's 
+original type ($v_2 \unlhd S$) as does the entire returned body 
+$[v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T$. Using this rule we 
+can attempt to evaluate our original example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var x = new X(l = z);
+var y = new Y(l = (var z = new {}; z));
+y.m(x).l
+\end{lstlisting}
+reduces to
+\begin{lstlisting}[mathescape, style=custom_lang]
+((var a = new {}; (x $\unlhd$ Y))$\unlhd$ Y).l
+\end{lstlisting}
+Now we can treat the method body as having type \texttt{Y} and 
+we can determine membership of \texttt{l} for \texttt{Y} rather 
+than \texttt{X}.
+
 \subsection{Expansion Lost}
+For preservation to hold, we need to ensure that types are expandable 
+to lists of declarations. This is captured in Figure \ref{f:wfe}. It is 
+possible for expansion to be lost during environment narrowing. This is 
+shown in \cite{Amin:2012}, but is briefly covered again below.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     type A : $\bot$ .. z.B
+     type B : $\bot$ .. $\top$
+    }
+Y = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. z.A
+    }
+\end{lstlisting}
+While both these types are expandable, their union is not.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X $\wedge$ Y = {z $\Rightarrow$
+         type A : $\bot$ .. z.B
+         type B : $\bot$ .. z.A
+        }
+\end{lstlisting}
+While we could not type this normally, we can create this 
+scenario during environmental narrowing that results in 
+an a type without an expansion, providing a counter-example 
+to preservation.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     type A : $\bot$ .. z.B
+     type B : $\bot$ .. $\top$
+    }
+Y = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. $\top$
+    }
+Z = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. z.A
+    }
+\end{lstlisting}
+
+
+
 \subsection{Well-Formedness Lost}
 
 \subsection{Path Equality}
+\label{s:patheq}
 The example below illustrates the problem with path equality.
 \begin{lstlisting}[mathescape, style=custom_lang]
 var b = new {z $\Rightarrow$
@@ -136,6 +214,12 @@ c.m(b.j) $\rightarrow$ c.m(a)
 c.m(a) $\rightarrow$ (var y = new {z $\Rightarrow$ var l : (a $\unlhd$ c.k.L).Y = (a $\unlhd$ c.k.L).i 
                             var m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
 \end{lstlisting}
+
+%\subsection{Patched Counter Examples}
+%\subsubsection{Term Membership Restriction}
+%\subsubsection{Expansion Lost}
+%\subsubsection{Well-formedness Lost}
+%\subsubsection{Path Equality}
 \section{Type System}
 	\label{s:type_sys}
 
@@ -163,6 +247,7 @@ p & ::= & x & paths \\
 &&\\
 v & ::= & x & value \\
 & | & v.f &\\
+& | & v \unlhd T &\\
 &&\\
 d & ::= & \texttt{var} \; f : T = e & declaration \\
   & |   & \texttt{def} \; m : T(x:T) = e &\\
