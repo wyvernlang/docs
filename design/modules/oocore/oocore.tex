@@ -571,7 +571,140 @@ The result follows directly from the induction hypothesis.
 
 \newpage
 
-\subsection{Authority}
+\section{Module Translation}
+
+\subsection{Code Example}
+
+\begin{tabular}{p{0.53\textwidth}p{0.47\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+signature resource sigA =
+  var f : Int
+  def m(y : Int) : Int
+
+signature resource sigB =
+  var k : Int
+
+signature resource sigC =
+  def n(Unit) : Int
+
+signature resource sigD =
+  def m(y : Int) : Int
+
+resource module Main
+  instantiate A() as copyOfAForB 
+  instantiate A() as copyOfAForC 
+  instantiate B(copyOfAForB)
+  instantiate C(copyOfAForC)
+
+resource module A : sigA
+  var f : Int = 3
+  def m(y : Int) : Int = y
+
+resource module B : sigB
+  import D as myD
+  require sigA as myA
+  var k : Int = myA.m(3)
+
+resource module C : sigC
+  require sigA as myA
+  def n(Unit) : Int = myA.m(5)
+
+module D : sigD
+  def m(y : Int) : Int = 42
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+signature resource sigA =
+  var f : Int
+  def m: Int -> Int
+
+signature resource sigB =
+  var k : Int
+
+signature resource sigC =
+  def n : Unit -> Int
+
+signature resource sigD =
+  def m : Int -> Int
+  
+val D : sigD =
+    bind in
+    new (D =>
+        def m(y : Int) : Int = 42;
+    );
+
+val A : Unit -> sigA = fn _ : Unit =>
+    bind in
+    new (A =>
+        var f : Int = 3;
+        def m(y : Int) : Int = y;
+    );
+
+val B : sigA -> sigB = fn myA : sigA =>
+  bind
+     val myD = D
+  in
+  new(B =>
+    var k : Int = myA.m(3);
+  );
+
+val C : sigA -> sigC = fn myA : sigA =>
+  bind in
+  new(C =>
+    def n (Unit) : Int = myA.m(5);
+  );
+
+val Main = fn _ : Unit =>
+    bind
+        val copyOfAForB = A()
+        val copyOfAForC = A()
+        val B = B(copyOfAForB)
+        val C = C(copyOfAForC)
+    in
+        // nothing
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\newpage
+
+\subsection{Abstract Grammar}
+\[
+\begin{array}{lllr}
+m & ::= & h~i^*~d^* & module \\
+&&\\
+h & ::= & [\keywadj{resource}]~\keyw{module} x : URI & module~header \\
+&&\\
+i & ::= & \keyw{import} URI~[\keyw{as} x] \\
+  & |   & \keyw{instantiate} URI(x^*)~[\keyw{as} x] \\
+  & |   & \keyw{requires} x : URI \\
+&&\\
+sm & ::= & \keyw{signature} [\keywadj{resource}] x = \tau & signatures~module \\
+&&\\
+d & ::= & ... & declarations \\
+&&\\
+\end{array}
+\]
+
+\noindent\textbf{Explanation and comments:}
+\begin{itemize}
+\item Imported, instantiated, and required modules specified by URI.
+\item $\keywadj{requires}$ is used to specify module parameters; the URI is the module signature.
+\item Declarations are defined by regular Wyvern.
+\item $sm$ is a module that defines only module signatures.
+\item $\keywadj{import}$ is for non-resource modules whose implementation you specify directly.
+\item $\keywadj{requires}$ is for resource modules created by someone else and for modules the module is  parameterized by.
+\item $\keywadj{instantiate}$ is for specifying the parameter of some parameterized module and for creating a resource module. (It is assumed that modules can only call native code if they are an FFI module.)
+\end{itemize}
+
+
+\newpage
+
+\section{Authority}
 
 \[
 \begin{array}{c}
