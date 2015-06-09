@@ -34,6 +34,7 @@
 	\label{s:examples}
 
 \subsection{Term Membership Restriction}
+	\label{s:term_mem}
 Figure \ref{f:mem} gives the \emph{Membership} judgement. 
 $\Gamma \vdash e \ni \sigma$ says that an expression $e$ 
 has $\sigma_i$ as a member of its type in environment $\Gamma$. 
@@ -145,23 +146,62 @@ scenario during environmental narrowing that results in
 an a type without an expansion, providing a counter-example 
 to preservation.
 \begin{lstlisting}[mathescape, style=custom_lang]
-X = {z $\Rightarrow$
-     type A : $\bot$ .. z.B
-     type B : $\bot$ .. $\top$
-    }
-Y = {z $\Rightarrow$
+W = {z $\Rightarrow$
      type A : $\bot$ .. $\top$
      type B : $\bot$ .. $\top$
-    }
-Z = {z $\Rightarrow$
-     type A : $\bot$ .. $\top$
-     type B : $\bot$ .. z.A
     }
 \end{lstlisting}
+Looking at the following expression, we can see it is well-type, 
+and the type \texttt{i.L} $\wedge$ \texttt{x.K} in particular is 
+well-formed and expanding.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var x = new {z $\Rightarrow$ type K : $\bot$ .. X};
+var y = new {z $\Rightarrow$ type L : $\bot$ .. Y};
+var w = new {z $\Rightarrow$ type L : $\bot$ .. W};
+var c = new {z $\Rightarrow$
+         def meth1 : $\top$ (i : {z $\Rightarrow$ type L : $\bot$ .. W}){
+           var d = new {z $\Rightarrow$
+                        def meth2 : $\top$ (j : i.L $\wedge$ x.K){
+                          j
+                        }
+                       };
+           d
+         }
+        };
+c.meth1(y)
+\end{lstlisting}
+Evaluating the above expression results in the following.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var d = new {z $\Rightarrow$
+             def meth2 : $\top$ (j : y.L $\wedge$ x.K){
+               j
+             }
+            };
+d
+\end{lstlisting}
+Now the type \texttt{y.L} $\wedge$ \texttt{x.K} gives us the loss of 
+expansion we were attempting to construct. In our new patched calculus, 
+this problem does not occur because the original type of the \texttt{i} 
+parameter is maintained. So if we re-evaluate the original expression 
+with our type system, we get the following.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var d = new {z $\Rightarrow$
+             def meth2 : $\top$ (j : (y $\unlhd$ {z $\Rightarrow$ type L : $\bot$ .. W}).L $\wedge$ x.K){
+               j
+             }
+            };
+d
+\end{lstlisting}
+The type \texttt{(y} $\unlhd$ \texttt{\{z} $\Rightarrow$ 
+\texttt{type L :} $\bot$ \texttt{.. W\}).L} $\wedge$ \texttt{x.K} is now 
+both well-formed and expanding because it is the original type 
+from our original expression.
 
 
 
 \subsection{Well-Formedness Lost}
+
+
 
 \subsection{Path Equality}
 \label{s:patheq}
@@ -174,12 +214,33 @@ var a = new {z $\Rightarrow$
              var i : {z $\Rightarrow$
                       type L : $\bot$ .. $\top$
                       var l : z.L} = b
-             def meth : $\top$ (x : z.i.L)z.i};
-a.meth(b.l)
+             def meth : $\top$ (x : z.i.L){x}};
+a.meth(a.i.l)
 \end{lstlisting}
-Even though we initialize a.i as b, we are unable to determine if
-a.i and b are equivalent paths, hence we cannot ensure that b.L subtypes 
-a.i.L.
+\texttt{a.i.l} reduces to \texttt{b.l} which has type \texttt{b.L}. 
+There is no way for us to ensure that \texttt{b.L} <: \texttt{a.i.L}.
+This presents a path equality problem for preservation.
+
+Typing paths correctly requires that we maintain some information 
+about the original paths. For this reason we don't evaluate paths 
+in the calculus. We still however need to retrieve the correct object 
+the path is pointing to during method reduction and object initialization. 
+This is done by the \emph{path} function given in Figure \ref{f:path}. 
+With a path and a store, we can find the object referenced by that path.
+Below is the evaluation of the above example without evaluating paths.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var b = new {z $\Rightarrow$
+             type L : $\top$ .. $\top$
+             var l : z.L = b};
+var a = new {z $\Rightarrow$
+             var i : {z $\Rightarrow$
+                      type L : $\bot$ .. $\top$
+                      var l : z.L} = b
+             def meth : $\top$ (x : z.i.L){x}};
+a.meth(a.i.l)
+\end{lstlisting}
+Reduces to \texttt{a.meth(a.i.l)} which type checks. \texttt{a.meth(a.i.l)}
+reduces to \texttt{a.i.l}
 
 \subsection{Path Equality Redux}
 \begin{lstlisting}[mathescape, style=custom_lang]
@@ -249,7 +310,7 @@ v & ::= & x & value \\
 & | & v.f &\\
 & | & v \unlhd T &\\
 &&\\
-d & ::= & \texttt{var} \; f : T = e & declaration \\
+d & ::= & \texttt{var} \; f : T = x & declaration \\
   & |   & \texttt{def} \; m : T(x:T) = e &\\
   & |   & \texttt{type} \; L : T .. T = T &\\
 &&\\
