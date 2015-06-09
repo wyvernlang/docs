@@ -571,7 +571,221 @@ The result follows directly from the induction hypothesis.
 
 \newpage
 
-\subsection{Authority}
+\section{Module Translation}
+
+\subsection{Code Example}
+
+\begin{tabular}{p{0.53\textwidth}p{0.47\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+signature resource sigA =
+  var f : Int
+  def m(y : Int) : Int
+
+signature resource sigB =
+  var k : Int
+
+signature resource sigC =
+  def n(Unit) : Int
+
+signature resource sigD =
+  def m(y : Int) : Int
+
+resource module Main
+  instantiate A() as copyOfAForB 
+  instantiate A() as copyOfAForC 
+  instantiate B(copyOfAForB)
+  instantiate C(copyOfAForC)
+
+resource module A : sigA
+  var f : Int = 3
+  def m(y : Int) : Int = y
+
+resource module B : sigB
+  import D as myD
+  require sigA as myA
+  var k : Int = myA.m(3)
+
+resource module C : sigC
+  require sigA as myA
+  def n(Unit) : Int = myA.m(5)
+
+module D : sigD
+  def m(y : Int) : Int = 42
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+signature resource sigA =
+  var f : Int
+  def m: Int -> Int
+
+signature resource sigB =
+  var k : Int
+
+signature resource sigC =
+  def n : Unit -> Int
+
+signature resource sigD =
+  def m : Int -> Int
+  
+val A : Unit -> sigA = fn _ : Unit =>
+    bind in
+    new (A =>
+        var f : Int = 3;
+        def m(y : Int) : Int = y;
+    );
+
+val B : sigA -> sigB = fn myA : sigA =>
+  bind
+     val myD = D
+  in
+  new(B =>
+    var k : Int = myA.m(3);
+  );
+
+val C : sigA -> sigC = fn myA : sigA =>
+  bind in
+  new(C =>
+    def n (Unit) : Int = myA.m(5);
+  );
+  
+val D : sigD =
+    bind in
+    new (D =>
+        def m(y : Int) : Int = 42;
+    );
+
+val Main = fn _ : Unit =>
+    bind
+        val copyOfAForB = A()
+        val copyOfAForC = A()
+        val B = B(copyOfAForB)
+        val C = C(copyOfAForC)
+    in
+        // nothing
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\newpage
+
+\subsection{Abstract Grammar}
+\[
+\begin{array}{lllr}
+m & ::= & h~i^*~d^* & module \\
+&&\\
+h & ::= & [\keywadj{resource}]~\keyw{module} x : URI & module~header \\
+&&\\
+i & ::= & \keyw{import} URI~[\keyw{as} x] \\
+  & |   & \keyw{instantiate} URI(x^*)~[\keyw{as} x] \\
+  & |   & \keyw{requires} x : URI \\
+&&\\
+sm & ::= & \keyw{signature} [\keywadj{resource}]~x = \tau & signatures~module \\
+&&\\
+d & ::= & ... & declarations \\
+&&\\
+\end{array}
+\]
+
+\noindent\textbf{Explanation and comments:}
+\begin{itemize}
+\item Imported, instantiated, and required modules specified by URI.
+\item $\keywadj{requires}$ is used to specify module parameters; the URI is the module signature.
+\item Declarations are defined by regular Wyvern.
+\item $sm$ is a module that defines only module signatures.
+\item $\keywadj{import}$ is for non-resource modules whose implementation you specify directly.
+\item $\keywadj{requires}$ is for resource modules created by someone else and for modules the module is  parameterized by.
+\item $\keywadj{instantiate}$ is for specifying the parameter of some parameterized module and for creating a resource module. (It is assumed that modules can only call native code if they are an FFI module.)
+\end{itemize}
+
+
+\subsection{Translation Rules}
+
+\begin{center}
+\begin{tabular}{ r c l }
+$\textit{trans}(\keyw{def} m(x : \tau_1) : \tau_2; \sigma)$ & $\equiv$ & $ \keyw{def} m : \tau_1 \rightarrow \tau_2; trans(\sigma)$ \\
+%$\textit{trans}(\keyw{var} f : \tau; \sigma)$ & $\equiv$ & $\keyw{var} f : \tau; trans(\sigma)$ \\
+\\
+$\textit{trans}(\keyw{signature} M = \sigma)$ & $\equiv$ & $ \keyw{signature} M = trans(\sigma)$ \\
+$\textit{trans}(\keyw{signature} \keyw{resource} M = \sigma)$ & $\equiv$ & $ \keyw{signature} \keyw{resource} M = trans(\sigma)$ \\
+%\\
+%$\textit{trans}(\keyw{def} m (x : \tau) : \tau = e; d)$ & $\equiv$ & $\keyw{def} m (x : \tau) : \tau = e; trans(d)$ \\
+%$\textit{trans}(\keyw{var} f : \tau = x; d)$ & $\equiv$ & $\keyw{var} f : \tau = x; trans(d)$ \\
+%$\textit{trans}(\keyw{var} f : \tau = l; d)$ & $\equiv$ & $\keyw{var} f : \tau = l; trans(d)$ \\
+\\
+$\textit{trans}(\keyw{import} M~\keyw{as} M_1; *)$ & $\equiv$ & $\keyw{val} M_1 = M; trans(*)$ \\
+$\textit{trans}(\keyw{require} URI~\keyw{as} M_1; *)$ & $\equiv$ & $ M_1 : URI,~trans(*)$ \\
+$\textit{trans}(\keyw{instantiate} URI(M_1^*)~\keyw{as} M; *)$ & $\equiv$ & $ \keyw{val} M = URI(M_1^*); trans(*)$ \\
+\\
+%$\textit{trans}(\keyw{var}~ f:\tau)$ & $\equiv$ & $f:\keyw{ref}~ \tau$ \\
+%
+%$\textit{trans}(\keyw{meth}~ m:\tau)$ & $\equiv$ & $m:\keyw{unit} \rightarrow \tau$ \\
+%
+%$\textit{trans}(\keyw{meth}~ m:\tau = e; \overline{d})$ & $\equiv$ & $m:\tau = \boldsymbol\lambda \_:\keyw{unit}.\textit{trans}(e);$ \\
+%&& $\textit{trans}(\overline{d})$\\
+%
+%$\textit{trans}(\keyw{var}~ f:\tau = e; \overline{d})$ & $\equiv$ & $f:\tau := \keyw{alloc}~ \textit{trans}(e);$ \\
+%&& $\textit{trans}(\overline{d})$\\
+%
+%$\textit{trans}(e.m)$ & $\equiv$ & $(\keyw{unfold}~ \textit{trans}(e)).m()$ \\
+%
+%$\textit{trans}(\keyw{new}~ \{\overline{d}\})$ & $\equiv$ & $\keyw{letrec}~this:\sigma =$\\
+%&&$ ~~~~ \{ \textit{trans}(\overline{d}) \}$\\
+%&&$ \keyw{in}~ \keyw{fold}~ this$ \\
+%&& \textit{where} $~ \Gamma,\sigma \vdash \{ \overline{d} \} : \sigma$ \\
+%
+%$\textit{trans}(e.f=e_1)$ & $\equiv$ & $\textit{trans}(e).f=\textit{trans}(e_1)$ \\
+%
+%$\textit{trans}(e.f)$ & $\equiv$ &  $!\textit{trans}(e).f$ \\
+%
+%$\textit{trans}(\keyw{type}~ t = \{\overline{\tau_d}\}; \overline{d})$ & $\equiv$ & $\textit{trans}([\boldsymbol\mu t.\textit{trans}(\overline{\tau_d})/t]\overline{d})$ \\
+
+\end{tabular}
+\end{center}
+
+%\newpage
+
+\noindent$trans(\keyw{module} M : URI; d) \equiv \keyw{val} M : URI = \keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow d)$
+\\\\
+\noindent$trans(\keyw{resource} \keyw{module} M : URI; d) \equiv \keyw{val} M : \keyw{Unit} \rightarrow URI = \keyw{fn} \_ : \keyw{Unit} \Rightarrow~\keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow d)$
+\\\\
+\noindent$trans(\keyw{resource} \keyw{module} M : URI; im^*; re^*; in^*; d) \equiv$
+
+$\keyw{val} M : \keyw{re\_types} \rightarrow URI = \keyw{fn} trans(re^*) \Rightarrow~\keyw{bind} trans(im^*); trans(in^*) \keyw{in} \keywadj{new}(M \Rightarrow d)$
+\\\\
+\noindent$trans(\keyw{resource} \keyw{module} M : URI; im^*; re^*; in^*; d) \equiv$
+
+$\keyw{val} M : \keyw{re\_types} \rightarrow URI = \keyw{fn} trans(re^*) \Rightarrow~\keyw{bind} trans(im^*); trans(in^*) \keyw{in} \keywadj{new}(M \Rightarrow d)$
+\\\\
+\noindent$trans(\keyw{class} ~ c ~ \{\overline{cd}; \overline{d}\}) \equiv \keyw{type}~ c = \tau_i; ~ \keyw{var}~ c:\tau_c = e$ \\
+$~~~~~~~ \textrm{where}$ \\
+$~~~~~~~~~~~~~~ \tau_c = \{\overline{\keyw{meth}~ m:\tau}\}$ \\
+$~~~~~~~~~~~~~~~~~~~~~ \textrm{where}~ \keyw{meth}~ m:\tau \in \tau_c$ \\
+$~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textrm{iff}~ \keyw{class}~ \keyw{meth}~ m:\tau = e \in \overline{cd}$ \\
+%$~~~~~~~~~~~~~~ \sigma_c = \tau_c \union \{\overline{\keyw{var}~ f:\tau}\}$ \\
+%$~~~~~~~~~~~~~~~~~~~~~\textrm{where}~ \keyw{var}~ f:\tau \in \sigma_c ~\textrm{iff}~ \keyw{class}~ \keyw{var}~ f:\tau = e \in \overline{cd}$ \\
+$~~~~~~~~~~~~~~ \tau_i = \{\overline{\keyw{meth}~ m:\tau}\}$ \\
+$~~~~~~~~~~~~~~~~~~~~~\textrm{where}~ \keyw{meth}~ m:\tau \in \tau_i ~\textrm{iff}~ \keyw{meth}~ m:\tau = e \in \overline{d}$ \\
+%${~~~~~~~~~~~~~~ \sigma_i = \tau_i \union \{\overline{\keyw{type}~ t ~ \{\overline{\tau_d}\}}\} \union \{\overline{\keyw{var}~ f:\tau}\}}$ \\
+%$~~~~~~~~~~~~~~~~~~~~~ \textrm{where}~ \keyw{type}~ t ~ \{\overline{\tau_d}\} \in \sigma_i ~\textrm{iff}~ \keyw{type}~ t ~ \{\overline{\tau_d}\} \in \overline{d},$ \\
+%$~~~~~~~~~~~~~~~~~~~~~ \textrm{and}~ \keyw{var}~ f:\tau \in \sigma_i ~\textrm{iff}~ \keyw{var}~ f:\tau = e \in \overline{d}$ \\
+$~~~~~~~~~~~~~~ \overline{d_{cl}} = \{\overline{\keyw{meth}~ m:\tau = e}\} \cup \{\overline{\keyw{var}~ f:\tau = e}\}$ \\
+$~~~~~~~~~~~~~~~~~~~~~ \textrm{where}~ \keyw{meth}~ m:\tau = e \in \overline{d_{cl}}$\\
+$~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textrm{iff}~ \keyw{class}~ \keyw{meth}~ m:\tau = e \in \overline{cd}$ \\
+$~~~~~~~~~~~~~~~~~~~~~ \textrm{and}~ \keyw{var}~ f:\tau = e \in \overline{d_{cl}}$\\
+$~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textrm{iff}~ \keyw{class}~ \keyw{var}~ f:\tau = e \in \overline{cd}$ \\
+$~~~~~~~~~~~~~~ \overline{d'_{cl}} = [\keyw{new} ~ \{\overline{d} \oplus \overline{d'}\} ~ / ~ \keyw{new} ~ \{\overline{d'}\}] ~ \overline{d_{cl}}$ \\
+$~~~~~~~~~~~~~~ \overline{d''_{cl}} = trans(\overline{d'_{cl}}$) \\
+$~~~~~~~~~~~~~~ e = \keyw{new} \{ \overline{d''_{cl}} \}$ \\
+%$~~~~~~~~~~~~~~ \Gamma \vdash e : \tau$
+
+
+\newpage
+
+\section{Authority}
 
 \[
 \begin{array}{c}
