@@ -174,55 +174,70 @@ with notin_d : var -> decl -> Prop :=
 
 with notin_t : var -> type -> Prop :=
   | notin_rec : forall x z D_,
-                (forall D, In D D_ -> notin_td x D) ->
+                (forall D, In D D_ -> notin_D x D) ->
                 notin_t x (t_rec z D_)
   | notin_sel : forall x p L,
                 notin_e x p ->
                 notin_t x (t_sel p L)
 
-with notin_td : var -> type_d -> Prop :=
-  | notin_td_var : forall x f T,
+with notin_D : var -> type_d -> Prop :=
+  | notin_D_var : forall x f T,
                    notin_t x T ->
-                   notin_td x (t_var f T)
-  | notin_td_def : forall x m S T,
+                   notin_D x (t_var f T)
+  | notin_D_def : forall x m S T,
                    notin_t x S ->
                    notin_t x T ->
-                   notin_td x (t_def m S T)
-  | notin_td_type : forall x L S U,
+                   notin_D x (t_def m S T)
+  | notin_D_type : forall x L S U,
                    notin_t x S ->
                    notin_t x U ->
-                   notin_td x (t_type L S U).
+                   notin_D x (t_type L S U).
 
 Inductive expansion : list (var * type) -> var -> type -> list type_d -> Prop:=
   | E_Rec : forall G z D_,
             expansion G z (t_rec z D_) D_
   | E_Sel : forall G z p L S U D_,
             val p ->
-            member G z p (t_type L S U) ->
+            member G p (t_type L S U) ->
             expansion G z U D_ ->
             expansion G z (t_sel p L) D_
 
-with member : list (var * type) -> var -> exp -> type_d -> Prop:=
+with member : list (var * type) -> exp -> type_d -> Prop:=
   | M_Path : forall G z p T D_ D,
 (*typing G p T*)
              expansion G z T D_ ->
              In D D_ ->
-             member G z p (subst_D z p D)
+             member G p (subst_D z p D)
   | M_Exp : forall G z e T D_ D,
 (*typing G e T*)
             expansion G z T D_ ->
             In D D_ ->
-            notin_td z D ->
-            member G z e D.
+            notin_D z D ->
+            member G e D.
 
 Inductive sub : list (var * type) -> type -> type -> Prop :=
-  | S_Refl : forall G T, sub G T T
-  | S_Rec  : forall G D_ D_',
-             (forall D, In D D_ -> exists2 D', In D' D_' & sub_d G. D D') ->
-             sub G (t_rec D_) (t_rec D_')
-  | S_Sel_Upper : forall G x L S U U',
+  | S_Refl      : forall G T, sub G T T
+
+  | S_Rec       : forall G z z' D_ D_',
+                  (forall D, In D D_ -> 
+                  exists2 D', In D' D_' & sub_d ((z,t_rec z D_)::G) D (subst_D z' (e_var z) D')) ->
+                  sub G (t_rec z D_) (t_rec z' D_')
+
+  | S_Sel_Upper : forall G p L S U U',
                   sub G U U' ->
-                  member 
+                  member G p (t_type L S U) ->
+                  sub G (t_sel p L) U'
+
+  | S_Sel_Lower : forall G p L S U S',
+                  sub G S' S ->
+                  member G p (t_type L S U) ->
+                  sub G S' (t_sel p L)
+
+  | S_Top       : forall G T,
+                  sub G T t_top
+
+  | S_Bot       : forall G T,
+                  sub G t_bot T
 
 with sub_d : list (var * type) -> type_d -> type_d -> Prop :=
   | SD_Var  : forall G f S T,
@@ -236,4 +251,37 @@ with sub_d : list (var * type) -> type_d -> type_d -> Prop :=
               sub G S' S ->
               sub G U U' ->
               sub_d G (t_type L S U) (t_type L S' U').
+
+Inductive typing : list (var * type) -> exp -> type -> Prop :=
+  | T_Var : forall G x T,
+            In (x,T) G ->
+            typing G (e_var x) T
+
+  | T_New : forall G y d_ e T,
+            (exists2 D_, typings_d (y, t_rec y D_)::G d_ D_ &
+                         typing (y, t_rec y D_)::G e T) ->
+            
+
+with typing_d : list (var * type) -> decl -> type_d -> Prop :=
+  | TD_Var : forall G f T v,
+             typing G v T ->
+             val v ->
+             typing_d G (d_var f T v) (t_var f T)
+
+  | TD_Def : forall G m x S e T,
+             typing ((x,S)::G) e T
+             typing_d G (d_def m x S e T) (t_def m S T)
+
+  | TD_Type : forall G L S U,
+              sub G S U ->
+              typing G (d_type L S U) (t_type L S U)
+              
+
+with typings_d : list (var * type) -> list decl -> list type_d -> Prop :=
+  | TD_Nil : forall G, typings_d G nil nil
+
+  | TD_Head : forall G d D d_ D_,
+              typing_d G d D ->
+              typings_d G d_ D_ ->
+              typings_d G 
 
