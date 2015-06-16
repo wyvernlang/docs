@@ -293,7 +293,7 @@ c.m(a) $\rightarrow$ (var y = new {z $\Rightarrow$ var l : (a $\unlhd$ c.k.L).Y 
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expression \\
-& | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d}\}; \; e&\\
+& | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d}\};&\\
 %& | & \lambda x:T = e\\
 %& | & e(e)\\
 & | & e.m(e) &\\
@@ -427,12 +427,21 @@ If $\Gamma \vdash S, T, U \; \textbf{\tt{wfe}}$,
 	$\Gamma \vdash S <: U$
 \end{theorem}
 \begin{proof}
-Proceed by mutual induction $\Gamma \vdash S <: T$  and declaration subtyping.
-\begin{case}[\textsc{S-Struct}]
+Proceed by induction $\Gamma \vdash S <: T$.
+\begin{case}[\textsc{S-Refl}]
 \begin{mathpar}
 \inferrule
-  {\Gamma \vdash S \prec \overline{\sigma} \\
-  	\Gamma \vdash T \prec \overline{\sigma'} \\
+  {S = T \\
+	\Gamma \vdash T\; \texttt{<:}\; U}
+  {}
+\end{mathpar}
+The conclusion follows from our assumptions.
+\end{case}
+\begin{case}[\textsc{S-Rec}]
+\begin{mathpar}
+\inferrule
+  {S = \{z \Rightarrow \overline{\sigma}\} \\
+  	T = \{z \Rightarrow \overline{\sigma'}\} \\
   	\forall \sigma'_i \in \overline{\sigma'}, \; 
   	\exists \sigma_i \in \overline{\sigma}, \; s.t. \;
   	\Gamma \vdash \sigma_i \; <: \; \sigma'_i \\
@@ -446,12 +455,12 @@ With our induction hypothesis:
 	\Gamma \vdash \sigma_i <: \sigma}
   {}
 \end{mathpar}
-By induction on $\Gamma \vdash T <: U$.
+$\Gamma \vdash T <: U$ can be derived in one of the following cases.
 \begin{itemize}
-\item[]  \textit{Subcase 1} (\textsc{S-Struct}): 
+\item[]  \textit{Subcase 1} (\textsc{S-Refl}): 
 \begin{mathpar}
 \inferrule
-  {\Gamma \vdash U \prec \overline{\sigma''} \\
+  {U = \{z \Rightarrow \overline{\sigma''}\} \\
   	\forall \sigma''_i \in \overline{\sigma''}, \; 
   	\exists \sigma'_i \in \overline{\sigma'}, \; s.t. \;
   	\Gamma \vdash \sigma'_i \; <: \; \sigma''_i}
@@ -466,9 +475,20 @@ $\sigma_i \in \overline{\sigma}$ such that
 $\Gamma \vdash \sigma_i \; <: \; \sigma'_i$. 
 It follows by our induction hypothesis that 
 $\Gamma \vdash \sigma_i \; <: \; \sigma''_i$. 
-Therefore by \textsc{S-Struct} $\Gamma \vdash S <: U$.
+Therefore by \textsc{S-Rec} $\Gamma \vdash S <: U$.
 \\
-\item[]  \textit{Subcase 2} (\textsc{S-Select-Lower}): 
+\item[]  \textit{Subcase 2} (\textsc{S-Select-Upper}): 
+\begin{mathpar}
+\inferrule
+  {T = p.L \\
+	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
+  	\Gamma \vdash U' <: U}
+  {}
+\end{mathpar}
+This clearly presents a contradiction, since by our initial assumption,
+$T = \{z \Rightarrow \overline{\sigma'}\} \neq p.L$.
+\\
+\item[]  \textit{Subcase 3} (\textsc{S-Select-Lower}): 
 \begin{mathpar}
 \inferrule
   {U = p.L \\
@@ -476,16 +496,27 @@ Therefore by \textsc{S-Struct} $\Gamma \vdash S <: U$.
   	\Gamma \vdash T <: S'}
   {}
 \end{mathpar}
-With our induction hypothesis:
+
+$\Gamma \vdash S <: S'$?????????????????????
+%With our induction hypothesis:
+%\begin{mathpar}
+%\inferrule
+%  {\Gamma \vdash S <: S'}
+%  {}
+%\end{mathpar}
+%Therefore, by \textsc{S-Select-Lower}, $\Gamma \vdash S <: p.L$, i.e. 
+%$\Gamma \vdash S <: U$
+\\
+\item[]  \textit{Subcase 4} (\textsc{S-Top}): 
 \begin{mathpar}
 \inferrule
-  {\Gamma \vdash S <: S'}
+  {U = \top}
   {}
 \end{mathpar}
-Therefore, by \textsc{S-Select-Lower}, $\Gamma \vdash S <: p.L$, i.e. 
-$\Gamma \vdash S <: U$
+$\Gamma \vdash S <: \top$ follows from \textsc{S-Top}.
 \\
-\item[]  \textit{Subcase 3} (\textsc{S-Bottom}): 
+\\
+\item[]  \textit{Subcase 5} (\textsc{S-Bottom}): 
 \begin{mathpar}
 \inferrule
   {T = \bot}
@@ -493,7 +524,6 @@ $\Gamma \vdash S <: U$
 \end{mathpar}
 This forms a contradiction since $T$ is well-formed and expanding,
 and $\bot$ is not.
-\\
 \end{itemize}
 \end{case}
 %\begin{case}[\textsc{S-Refl}]
@@ -535,8 +565,42 @@ With our induction hypothesis:
   {\forall U'', \Gamma \vdash S' <: U'' \Rightarrow \Gamma \vdash S <: U''}
   {}
 \end{mathpar}
-%Complete proof for S-Select-Lower
+From the derivation of $\Gamma \vdash p.L <: U$, we get the following cases.
+
+\begin{itemize}
+\item[]  \textit{Subcase 1} (\textsc{S-Refl}):
+\begin{mathpar}
+\inferrule
+  {U = T = p.L}
+  {}
+\end{mathpar}
+The result follows by assumption.
+\\
+\item[]  \textit{Subcase 2} (\textsc{S-Rec}):
+\begin{mathpar}
+\inferrule
+  {T = \{z \Rightarrow \overline{\sigma}\} \\
+	U = \{z \Rightarrow \overline{\sigma'}\}}
+  {}
+\end{mathpar}
+This results in a contradiction from 
+$T \neq p.L = \{z \Rightarrow \overline{\sigma}\}$
+\\
+\item[]  \textit{Subcase 3} (\textsc{S-Select-Upper}):
+\begin{mathpar}
+\inferrule
+  {T = p.L \\
+	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
+	\Gamma \vdash U' <: U}
+  {}
+\end{mathpar}
+By our existing premise $\Gamma \vdash S <: S'$, and since $p.L$ is 
+well-formed in $\Gamma$, we know that $\Gamma \vdash S' <: U$ and it follows 
+that $\Gamma \vdash S <: U$.
+\\
+\end{itemize}
 \end{case}
+%Complete proof for S-Select-Lower
 %\begin{case}[\textsc{S-Top}]
 %\begin{mathpar}
 %\inferrule
@@ -568,14 +632,47 @@ If $\Gamma \vdash e : T$,
 	and $\Gamma' \vdash T'<:T$.
 \end{theorem}
 \begin{proof}
-By induction on $\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
+By induction on the derivation of $\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
 \begin{case}[\textsc{R-New}]
+\begin{mathpar}
+\inferrule
+  {e = (\texttt{var} \; y = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\}) \\
+	e' = y \\
+	\mu' = \mu, y \mapsto \{\texttt{z} \Rightarrow \overline{d_v}\}\\
+	\forall d_i \in \overline{d_v}, \; 
+  \Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
+  \vdash d_i : \sigma_i\\
+  	y \notin dom(\Gamma)}
+  {}
+\end{mathpar}
+Let $\Gamma' = \Gamma, y : \{z \Rightarrow \overline{\sigma}\}$. 
+\begin{mathpar}
+\inferrule
+  {\forall d_i \in \overline{d_v}, \; 
+  \Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
+  \vdash d_i : \sigma_i\\
+  	y \notin dom(\Gamma)}
+  {}
+\end{mathpar}
 \end{case}
+
 \begin{case}[\textsc{R-Meth}]
-\end{case}
-\begin{case}[\textsc{R-Narrow}]
+\begin{mathpar}
+\inferrule
+  {e = v_1.m(v_2) \\
+	e' = v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T \\
+	\mu' = \mu \\
+	\mu(path(\mu, v_1)) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e_0,...\}}
+  {}
+\end{mathpar}
 \end{case}
 \begin{case}[\textsc{R-Context}]
+\begin{mathpar}
+\inferrule
+  {	\mu \; | \; e \; \rightarrow \; \mu' \; | \; e'}
+  {\mu \; | \; E[e] \; \rightarrow \mu' \; | \; E[e']}
+  \quad (\textsc {R-Context})
+\end{mathpar}
 \end{case}
 \end{proof}
 
