@@ -278,8 +278,8 @@ with sub : list (var * type) -> type -> type -> Prop :=
   | S_Refl      : forall G T, sub G T T
 
   | S_Rec       : forall G z z' D_ D_',
-                  (forall D, In D D_ -> 
-                  exists2 D', In D' D_' & sub_d ((z,t_rec z D_)::G) D (subst_D z' (e_var z) D')) ->
+                  (forall D', In D' D_' -> 
+                  exists2 D, In D D_ & sub_d ((z,t_rec z D_)::G) D (subst_D z' (e_var z) D')) ->
                   sub G (t_rec z D_) (t_rec z' D_')
 
   | S_Sel_Upper : forall G p L S U U',
@@ -385,8 +385,33 @@ Theorem subtype_transitivity : forall G S T,
   forall U, sub G T U ->
   sub G S U.
 Proof.
+  intros G S T; revert G S.
+  induction T; intros.
+
+Qed.
+
+Theorem subtype_transitivity : forall G S T,
+  sub G S T ->
+  forall U, sub G T U ->
+  sub G S U.
+Proof.
   intros G S T Hsub;
   induction Hsub; intros.
+
+  auto.
+
+  induction H0; subst. admit. admit.
+    apply S_Rec; auto.
+
+    admit.
+
+    apply S_Rec; intros.
+    apply H5 in H1; destruct H1 as [D Ha Hb].
+    
+
+    
+
+Qed.
   
   
   
