@@ -1,0 +1,29 @@
+To justify the construction of our algorithmic type system, consider the problematic rule $\st\forall$App. If we are able to find a value for $\tau$ that satisfies the given constraints, we're done. Finding this type is difficult, however, as it requires solving the type constraints implied by the subtyping relationship. Dunfield solves this problem elegantly by replacing $\tau$ with the existential variable $\alphahat$, then determining values for $\alphahat$ based on what subtyping judgements arise for it. In this way, if $\alphahat$ has a valid instantiation, then the same value will work for $\tau$.
+
+One problem with this approach, however, is that it eagerly determines instantiations for $\alphahat$ and is thus incomplete in the presence of subtyping. Suppose we say that $\alphahat$ is a subtype of $\tau_1$ and $\tau_2$, and also that $\tau_1 \st \tau_2$. If we set $\alphahat$ to $\tau_2$ first, then try to check if $\alphahat \st \tau_1$, it does not work, despite even though we could have set $\alphahat$ to $\tau_1$ and both constraints would have held.
+
+To get around this, we replace the notion of instantiation, taking an existential and a type and setting the existential to the type, with the idea of bounding, where an existential must be a subtype of another type. This enables us to represent the above constraint, as because we know that $\tau_1 \st \tau_2$, we can safely replace the upper bound $\tau_2$ on $\alphahat$ with $\tau_1$. 
+
+This system, using upper and lower bounds consisting of types has a flaw, however. Consider two existential variables $\alphahat$ and $\betahat$, where $\alphahat \st \betahat$. $\alphahat$ can be a subtype of some $\tau$ with no additional constraint on $\betahat$, and $\betahat$ can be a supertype of some other $\tau'$ with no implications for $\alphahat$. As such, we cannot represent relationships between two existentials and retain soundness while only maintaining a single type for bounds.
+
+Instead, our approach uses a pair of a type $\tau$ and a list of existential variables $\rho$ for bounds. Suppose that $\alphahat$ is bounded below by both some $\tau$ and an existential $\betahat$, represented as $\pair{\{\betahat\}}{\tau}$, referred to as $\sigma$. This representation enables us to maintain relationships between existentials, while still ensuring that bounding relationships hold.
+
+We need two new concepts to extend Dunfield's formalism to our approach. The first is the notion of sigma bounding, where a bound of the form $\pair{\rho}{\tau}$ is bounded below or above by some other $\tau'$, and the second is greatest lower/least upper bounds.
+
+Sigma bounding enables us to check types against bounds. Consider the case where $\alphahat$ is constrained below by $\sigma$ and we add the constraint $\tau$. It suffices to show that every member (that is, the type and the list of existential type vriables) in $\sigma$ is a subtype of $\tau$, a constraint we represent with sigma bounding, and notated as $\sigma \sigbndl \tau$.
+
+Our notion of greatest lower ($\glb$) and least upper bounds ($\lub$) is similar to that of Pierce and Turner, with some modifications to adapt it to our system. Our operators work over a bound and a type, and produce a new bound. For example, suppose that $\sigma \glb \tau = \sigma'$. Then, $\tau \sigbndr \sigma'$ and every member of $\sigma$ is bounded above by $\sigma'$.
+
+
+Bounding
+
+Bounding works by additionally constraining an existential type variable in the context. Suppose that $\alphahat$ is bounded above by both some $\betahat$ and a $\tau$. If we then add a $\tau' \st \tau$, then $\alphahat$ would be bounded above by $\betahat$ and the new $\tau'$. Likewise, if we added a $\hat{\gamma}$, then $\alphahat$ should be bounded above by both $\betahat$ and $\hat{\gamma}$. We represent this action with the notation $\Gamma \vdash \alphahat \instl A \dashv \Delta$ (for upper constraints) and $\Gamma \vdash A \instr \alphahat \dashv \Delta$ (for lower constraints).
+
+This can be easily seen in the rule InstLAbs, where $\tau$ is a simple type. We are trying to constrain $\alphahat$, already bounded by $\sigma_l$ from below and $\sigma_t$ from above, and want to add the new constraint $\tau$. To make sure that $\alphahat$ can possibly take on $\tau$ as a value, we need to make sure that the lower bound will admit it. We do so using the first predicate, $\Gamma \vdash \sigma_l \sigbndl \tau \dashv \Theta$, which, against the input context $\Gamma$ checks that every constraint in $\sigma_l$ is a subtype of $\tau$. Now that we know that it is possible for the constraint to hold, we then ensure that the upper bound constraint holds via the least upper bound operator, producing the new upper bound $\sigma'$.
+
+InstLVar and InstLReach handle the case where $\alphahat$ is bounded above with $\betahat$. Like Dunfield, we must maintain the ordering relationship between bounds, but we cannot use rule InstLAbs for the case where 
+
+Typing the arrow type is difficult, as it requires that we infer constraints on both the argument and return type. We do so by constraining $\alphahat$ such that $\alphahat = \alphahat_1 \rightarrow \alphahat_2$, where $\alphahat_1$ and $\alphahat_2$ are fresh existential variables, then bound $\alphahat_1$ and $\alphahat_2$ with the constraint types.
+
+Our InstLAIIL and InstRAIIL rules are a copy of those proposed by Dunfield for InstLAIIL. We use the existential form of Dunfield InstLAIIL to impelement InstLAIIR to simplify the bounding operators.
+ 
