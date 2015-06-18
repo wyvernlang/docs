@@ -19,11 +19,6 @@
 
 \end{abstract}
 
-\section{Introduction}
-Bidirectional typechecking is a commonly used method for implementing a wide range of type systems in new languages. The mechanism is simple and easy to implement, a attractive combination for language implementers. However, the theoretical basis of bidirectional type checking has fallen behind implementation, with a number of important components remaining informal, most notably higher-rank polymorphism. Dunfield and Krishnaswami provide a method for handling higher-rank polymorphism, but are unable to handle cases where the underlying type system has an inherent subtyping mechanism.
-
-Our primary contribution is an adaptation of Dunfield's system to allow it to handle higher-rank polymorphism and subtyping, while retaining the bidirectional structure and the underlying simplicity of the system. Additionally, our approach is both sound and complete over a predicative system $F_{\st}$, and therefore retains the general applicability of Dunfield et al's approach.
-
 \section{Prior Work}
 
 % The seminal work in this area is that by Pierce and Turner~\cite{Pierce:2000:LTI:345099.345100}. Their approach is built around subtyping for higher-order functions, and introduced the idea of using type argument synthesis. In their system, they develop a set of constraints for each type parameter, then manipulate these sets to find a consistent argument type, akin to a simplified unification system. This approach is quite limited in comparison, however, as their approach cannot handle transitive subtyping relations among existential type variables.
@@ -51,7 +46,6 @@ Our primary contribution is an adaptation of Dunfield's system to allow it to ha
 \end{figure}
 \begin{figure}
 \subfile{terms}
-
 \small
 \label{fig:terms}
 \caption{Source Expressions}
@@ -62,16 +56,23 @@ Our primary contribution is an adaptation of Dunfield's system to allow it to ha
 \caption{Typing rules for our system}
 \end{figure}
 
-A subtyping relationship can be described as a partial ordering over a set of types. To represent types with some relation of this form, we use the variables $X,Y,Z$. We then define $X < Y$ to mean that $X$ is a subtype of $Y$ in the external relationship. This structure allows us to simply describe nominal type systems without multiple inheritance. To support multiple inheritance, we can use a simple power set construction.
-
-% Note - there's a bunch of explanatory text that I am leaving out here, mainly about justifying why the system is built this way, citing Dunfield et al.
-We add two new rules to the basic type system, $\leq$Sub and Synth, both for handling types with some arbitrary subtype relation. $\leq$Sub refers the internal judgement $X \leq Y$ to the external judgement $X < Y$, and rule Synth provides a means for introducing a new nominal type.
-
 \section{Algorithmic Type System}
-Rule $\leq\forall L$ causes the declarative type system to be difficult to implement. We propose a new algorithmic system, in the vein of that of Dunfield, to implement the declarative type system with an algorithmic approach.
 
-Our algorithmic subtyping approach is identical to that of Dunfield et al, with two minor modifications. The first is the modification of $\st\forall$R to introduce a new existential variable instead of a simple type variable, a change made to enable proper bounding, as we cannot infer bounds for simple type variables. Second, we add the rule $\st$Sub, which again refers the algorithmic subtyping judgment $X \st Y$ to the external mechanism.
+To justify the construction of our algorithmic type system, consider the problematic rule $\st\forall$App. If we are able to find a value for $\tau$ that satisfies the given constraints, we're done. Finding this type is difficult, however, as it requires solving the type constraints implied by the subtyping relationship. Dunfield solves this problem elegantly by replacing $\tau$ with the existential variable $\alphahat$, then determining values for $\alphahat$ based on what subtyping judgements arise for it. In this way, if $\alphahat$ has a valid instantiation, then the same value will work for $\tau$.
 
+One problem with this approach, however, is that it eagerly determines instantiations for $\alphahat$ and is thus incomplete in the presence of subtyping. Suppose we say that $\alphahat$ is a subtype of $\tau_1$ and $\tau_2$, and also that $\tau_1 \st \tau_2$. If we set $\alphahat$ to $\tau_2$ first, then try to check if $\alphahat \st \tau_1$, it does not work, despite even though we could have set $\alphahat$ to $\tau_1$ and both constraints would have held.
+
+To get around this, we replace the notion of instantiation, taking an existential and a type and setting the existential to the type, with the idea of bounding, where an existential must be a subtype of another type. This enables us to represent the above constraint, as because we know that $\tau_1 \st \tau_2$, we can safely replace the upper bound $\tau_2$ on $\alphahat$ with $\tau_1$. 
+
+This system, using upper and lower bounds consisting of types has a flaw, however. Consider two existential variables $\alphahat$ and $\betahat$, where $\alphahat \st \betahat$. $\alphahat$ can be a subtype of some $\tau$ with no additional constraint on $\betahat$, and $\betahat$ can be a supertype of some other $\tau'$ with no implications for $\alphahat$. As such, we cannot represent relationships between two existentials and retain soundness while only maintaining a single type for bounds.
+
+Instead, our approach uses a pair of a type $\tau$ and a list of existential variables $\rho$ for bounds. Suppose that $\alphahat$ is bounded below by both some $\tau$ and an existential $\betahat$, represented as $\pair{\{\betahat\}}{\tau}$, referred to as $\sigma$. This representation enables us to maintain relationships between existentials, while still ensuring that bounding relationships hold.
+
+We need two new concepts to extend Dunfield's formalism to our approach. The first is the notion of sigma bounding, where a bound of the form $\pair{\rho}{\tau}$ is bounded below or above by some other $\tau'$, and the second is greatest lower/least upper bounds.
+
+Sigma bounding enables us to check types against bounds. Consider the case where $\alphahat$ is constrained below by $\sigma$ and we add the constraint $\tau$. It suffices to show that every member (that is, the type and the list of existential type vriables) in $\sigma$ is a subtype of $\tau$, a constraint we represent with sigma bounding, and notated as $\sigma \sigbndl \tau$.
+
+Our notion of greatest lower ($\glb$) and least upper bounds ($\lub$) is similar to that of Pierce and Turner, with some modifications to adapt it to our system. Our operators work over a bound and a type, and produce a new bound. For example, suppose that $\sigma \glb \tau = \sigma'$. Then, $\tau \sigbndr \sigma'$ and every member of $\sigma$ is bounded above by $\sigma'$.
 \begin{figure}
 
 \small
@@ -79,59 +80,34 @@ Our algorithmic subtyping approach is identical to that of Dunfield et al, with 
 \caption{Algorithmic subtyping relationship}
 \end{figure}
 
-The bulk of our modifications are to instantiation. Dunfield et al's system eagerly instantiates existential variables to types, causing the system to become incomplete in the presence of subtyping. onsider the instantiations $. \vdash \text{Cat} \instr \alphahat \Theta$ and $\Theta \vdash \text{Dog} \instr \alphahat \Delta$, where $\text{Cat} \not\st \text{Dog}$ and vice versa, but both $\text{Cat} < \text{Animal}$ and $\text{Dog} < \text{Animal}$. In Dunfield's system, it would infer $\alphahat = \text{Cat}$ then be unable to derive the second judgement, as $\text{Dog}$ is not a subtype of Cat.
-
-To solve this problem, we extend Dunfield's instantiation mechanism with a bounding mechanism similar to that of Pierce and Turner. Like Pierce and Turner, instead of directly instantiating an existential to a type $\tau$, we find a range of valid instantiations for the existential. However, we cannot directly use Pierce and Turner's mechanism, as it cannot maintain transitive relationships between existential variables. To solve this, we have to keep track of the relationships between existential variables, in addition to the relations between existential variables and atomic types. We implement this by adding a list of existentials to each bound (e.g. $\pair{\{\alphahat_1,\alphahat_2\}}{\tau} \st \alphahat$), enabling us to maintain the relationship between existential variables.
-
-Additionally, we need to be able to compare a \emph{bound} to a \emph{type}. If an existential is bounded below by some $\sigma_l$, and we want to bound it above with some type $\tau$, then every member in $\sigma_l$ must be a subtype of $\tau$. To represent this in our rules, we use the $\sigbndl$ and $\sigbndr$ judgments. $\Gamma \vdash \sigma \sigbndl \tau \dashv \Delta$ ensures that every member of $\sigma$ is a subtype of $\tau$, producing the context $\Delta$, and $\Gamma \vdash \tau \sigbndr \sigma \dashv \Delta$ is the converse.
 \begin{figure}[h]
 \small
 \subfile{instantiation}
 \end{figure}
 
-To this end, we redefine instantiation entirely. InstLVar is the case where an existential $\alphahat$, with bounds $\sigma_l$ and $\sigma_u$, should be bounded \emph{above} by some type $\tau$. Ensuring this case is obvious - we need to make sure that $\sigma_l \st \tau$ and that the upper bound's monotype $\tau_u$ is a supertype of $\tau$. We use the operator $\sigbndl$ to ensure that $\sigma_l$ on the left is a subtype of $\tau$ on the right, as it operates by simply checking the subtyping relationship between every member in the bound and the type $\tau$.
+Bounding works by additionally constraining an existential type variable in the context. Suppose that $\alphahat$ is bounded above by both some $\betahat$ and a $\tau$. If we then add a $\tau' \st \tau$, then $\alphahat$ would be bounded above by $\betahat$ and the new $\tau'$. Likewise, if we added a $\hat{\gamma}$, then $\alphahat$ should be bounded above by both $\betahat$ and $\hat{\gamma}$. We represent this action with the notation $\Gamma \vdash \alphahat \instl A \dashv \Delta$ (for upper constraints) and $\Gamma \vdash A \instr \alphahat \dashv \Delta$ (for lower constraints).
 
-We then use the $\lub$ operator. The $\lub$ operator takes a bound $\sigma$ and a type $\tau$ and outputs a new bound $\sigma'$, where the monotype in $\sigma'$ is guaranteed to be a supertype of both the monotype in $\sigma$ and the type $\tau$. By using both of these operators, we ensure that $\alphahat$ \emph{can} be bounded above by $\tau$ (checking that the lower bound is below $\tau$ with $\sigbndl$) and that it is a subtype of $\tau$ (using $\lub$ to update the upper context).
+This can be easily seen in the rule InstLAbs, where $\tau$ is a simple type. We are trying to constrain $\alphahat$, already bounded by $\sigma_l$ from below and $\sigma_t$ from above, and want to add the new constraint $\tau$. To make sure that $\alphahat$ can possibly take on $\tau$ as a value, we need to make sure that the lower bound will admit it. We do so using the first predicate, $\Gamma \vdash \sigma_l \sigbndl \tau \dashv \Theta$, which, against the input context $\Gamma$ checks that every constraint in $\sigma_l$ is a subtype of $\tau$. Now that we know that it is possible for the constraint to hold, we then ensure that the upper bound constraint holds via the least upper bound operator, producing the new upper bound $\sigma'$.
 
-The rules InstLVar and InstLReach work similarly. InstLVar instantiates $\alphahat$ to be a subtype of $\betahat$, by making sure $\betahat$ is a supertype of $\alphahat$'s lower bound (using the $\sigbndr$ operator, repeatedly instantiating $\betahat$) and simply adds it to the upper bound of $\alphahat$.
+InstLReach is critical to maintaining the ordered context property. To ensure that no cycles arise in the typing relationships, we apply an ordering to the context. However, in the case where we are bounding one existential $\alphahat$ above with another $\betahat$, where $\alphahat$ is \emph{above} $\betahat$ in the context. Since we cannot add $\betahat$ to the bound on $\alphahat$, we have to add $\alphahat$ to the lower bound of $\betahat$, using InstLReach
 
-To ensure that the ordered property holds (e.g. $\alphahat$ references $\betahat$ iff $\alphahat$ follows $\betahat$ in the context), we use InstLReach, which works when $\alphahat$ (the variable being bounded) precedes $\betahat$ in the context. To maintain the invariant, we ensure that $\betahat$ is a supertype of $\alphahat$.
+Typing the arrow type is difficult, as it requires that we infer constraints on both the argument and return type. We do so by constraining $\alphahat$ such that $\alphahat = \alphahat_1 \rightarrow \alphahat_2$, where $\alphahat_1$ and $\alphahat_2$ are fresh existential variables, then bound $\alphahat_1$ and $\alphahat_2$ with the constraint types.
 
-InstLArrow constrains $\alphahat$ such that it is bounded both above and below by the type $\alphahat_1 \rightarrow \alphahat_2$, equivalent to forcing equality. It then ensures that the correct relations between the new $\alphahat$ variables hold, which then implicitly enforces the constraint on $\alphahat$ itself.
+Our InstLAIIL and InstRAIIL rules are a copy of those proposed by Dunfield for InstLAIIL. As our system does not have pure type variables, only existential variables, we use the form of InstLAIIL in InstLAIIR.
 
-InstLAIIL is identical in operation to Dunfield's InstRAIIL but for InstL, as defining $\lub$ and $\glb$ over $\alpha$ and $\alphahat$ is not possible.
-\begin{figure}[h]
-\small
-\subfile{sigbnd}
-\end{figure}
+The InstR rules are entirely symmetric, considering new lower bounds instead of new upper bounds.
+ 
 
 Bounding is defined in the obvious manner. We simply iterate through the existential variables, instantiating where required, and then check the subtyping relation on the final type $\tau$.
 
-\begin{figure}[h]
-\small
-\subfile{bound_adapt}
-\end{figure}
 
 \section{Verification}
 
-To be able to express soundness and completeness for the system, we relate our algorithmic context to the complete contexts of Dunfield et al by checking that the bounds expressed by our system map to the instantiation provided by the complete context. We express this relationship as $\Gamma \mapsto \Omega$, read as ``$\Omega$ satisfies $\Gamma$''.
-
-
 \subfile{cext}
 
-Additionally, note that our system only adds constraints, so constraints will continue to be valid in the future, and any later valid assignment will also satisfy earlier constraints. We introduce the operator $\hookrightarrow$ to represent this ``tightening'' relationship, allowing us to state a number of important lemmas.
-
-\emph{Constraint addition} $\Gamma \vdash \alphahat \instl \tau \dashv \Delta$ implies $\Gamma \hookrightarrow \Delta$
-
-\emph{Transitivity of tightening} $\Gamma \hookrightarrow \Theta$ and $\Theta \hookrightarrow \Delta$ implies $\Gamma \hookrightarrow \Delta$
-
-\emph{Repeatability of instantiation} $\Gamma \vdash \alphahat \instl \tau \dashv \Theta$ and $\Theta \hookrightarrow \Delta$ implies $\Delta \vdash \alphahat \instl \tau \dashv \Delta$.
-
-\emph{Stability of instantiation over tightening} $\Gamma \hookrightarrow \Theta$ and $\Theta \mapsto \Omega$ implies $\Gamma \mapsto \Omega$
 
 
-
-To validate our system itself, we prove that it is sound and complete with reference to our algorithmic approach. Our theorems follow those of Dunfield, with the minor loss of one precondition to completeness of instantiation.
+To validate our system, we prove that it is sound and complete with reference to our algorithmic approach. Our theorems follow those of Dunfield, with the minor loss of one precondition to completeness of instantiation.
 
 \emph{Soundness of instantiation} If $\Gamma \vdash \alphahat\instl A \dashv\Delta$ and $\Delta \mapsto \Omega$, then $[\Omega]\Gamma \vdash [\Omega]\alphahat \leq [\Omega]A$
 

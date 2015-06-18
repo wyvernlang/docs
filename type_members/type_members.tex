@@ -411,7 +411,18 @@ D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
 
 \section{Type Safety}
 
-\subsection{Subject Reduction}
+\begin{lemma}[Subtype Definition]\label{lem:sub}
+If $\Gamma \vdash S \prec_z \overline{\sigma_1}$,
+	$\Gamma \vdash T \prec_z \overline{\sigma_2}$ and
+	$\forall \sigma_i \in \overline{\sigma_2} \;
+	 \exists \sigma_j \in \overline{\sigma_1}:
+	 \Gamma, z : \{z \Rightarrow \overline{\sigma_1}\} 
+	 \vdash \sigma_j <: \sigma_i$ then
+	$\Gamma \vdash S <: T$
+\end{lemma}
+\begin{proof}
+Can't be shown.
+\end{proof}
 
 %\begin{theorem}[Subtype Reflexivity]
 % 	If $\Gamma \vdash T \; \textbf{\tt{wfe}}$ then $\Gamma \vdash T <: T$
@@ -420,6 +431,98 @@ D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
 %This is easy to demonstrate using \textsc{S-Struct}.
 %\end{proof}
 
+\begin{lemma}[Type Equality]\label{lem:sub_eq}
+If $\Gamma \vdash S <: T$ and
+	$\Gamma \vdash T <: S$ then
+	$S = T$
+\end{lemma}
+\begin{proof}
+By induction on the derivation of $\Gamma \vdash S <: T$.
+\begin{case}[\textsc{S-Refl}]
+The result follows immediately. 
+\end{case}
+\begin{case}[\textsc{S-Rec}]
+\begin{mathpar}
+\inferrule
+  {S = \{z \Rightarrow \overline{\sigma}\} \\
+	T = \{z \Rightarrow \overline{\sigma'}\} \\
+	\forall \sigma_i' \in \overline{\sigma'}, \; \exists \; \sigma_i \in \overline{\sigma} \; : \; \Gamma, z : \{z \Rightarrow \overline{\sigma}\} \vdash \sigma_i <:\; \sigma_i'}
+  {}
+\end{mathpar}
+Since $\Gamma \vdash \{z \Rightarrow \overline{\sigma}\} <: \{z \Rightarrow \overline{\sigma'}\}$, by case analysis on this 
+derivation, it follows that either $S = T$ by \textsc{S-Refl} in which 
+the result is immediate, or by \textsc{S-Rec} the following holds.
+\begin{mathpar}
+\inferrule
+  {\forall \sigma_i \in \overline{\sigma}, \; \exists \; \sigma_i' \in \overline{\sigma'} \; : \; \Gamma, z : \{z \Rightarrow \overline{\sigma'}\} \vdash \sigma'_i <:\; \sigma_i}
+  {}
+\end{mathpar}
+We can now apply our induction hypothesis to each $\sigma_i$ 
+and $\sigma_i'$ pair, and infer that $\sigma_i = \sigma_i'$ 
+%We can further say that the subtype relation is bijective from 
+%$\overline{\sigma}$ to $\overline{\sigma'}$ due to the uniqueness 
+%of declaration label names
+and consequently that $\overline{\sigma} = \overline{\sigma'}$. 
+i.e. that $\{z \Rightarrow \overline{\sigma}\} = \{z \Rightarrow \overline{\sigma'}\}$,
+or $S = T$.
+\end{case}
+\begin{case}[\textsc{S-Select-Upper}]
+\begin{mathpar}
+\inferrule
+  {S = p.L \\
+	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U'\\
+  	\Gamma \vdash S' <: U' \\
+  	\Gamma \vdash U' <: T}
+  {}
+\end{mathpar}
+\end{case}
+\begin{case}[\textsc{S-Selcet-Lower}]
+\begin{mathpar}
+\inferrule
+  {T = p.L \\
+	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U'\\
+  	\Gamma \vdash S' <: U' \\
+  	\Gamma \vdash S <: S'}
+  {}
+\end{mathpar}
+\end{case}
+\begin{case}[\textsc{S-Top}]
+\begin{mathpar}
+\inferrule
+  {T = \top}
+  {}
+\end{mathpar}
+We need to know show that $S = \top$, or otherwise forms a 
+contradiction. Case analysis on the derivation of $\Gamma \vdash T <: S$.
+\begin{itemize}
+\item[]  \textit{Subcase 1} (\textsc{S-Refl}): 
+Trivial.
+\\
+\item[]  \textit{Subcase 2} (\textsc{S-Selecet-Lower}):
+\begin{mathpar}
+\inferrule
+  {S = p.L\\
+	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U'\\
+  	\Gamma \vdash S' <: U' \\
+  	\Gamma \vdash \top <: S'}
+  {}
+\end{mathpar} 
+\\
+\item[]  \textit{Subcase 3} (\textsc{S-Top}):
+Trivial.
+\\
+\end{itemize}
+\end{case}
+\begin{case}[\textsc{S-Bottom}]
+\begin{mathpar}
+\inferrule
+  {S = \bot \\}
+  {}
+\end{mathpar}
+\end{case}
+
+\end{proof}
+
 \begin{theorem}[Subtype Transitivity]
 If $\Gamma \vdash S, T, U \; \textbf{\tt{wfe}}$,
 	$\Gamma \vdash S <: T$ and 
@@ -427,7 +530,7 @@ If $\Gamma \vdash S, T, U \; \textbf{\tt{wfe}}$,
 	$\Gamma \vdash S <: U$
 \end{theorem}
 \begin{proof}
-Proceed by induction $\Gamma \vdash S <: T$.
+Proceed by induction on the derivation of $\Gamma \vdash S <: T$.
 \begin{case}[\textsc{S-Refl}]
 \begin{mathpar}
 \inferrule
@@ -435,7 +538,7 @@ Proceed by induction $\Gamma \vdash S <: T$.
 	\Gamma \vdash T\; \texttt{<:}\; U}
   {}
 \end{mathpar}
-The conclusion follows from our assumptions.
+The result follows from our initial assumptions.
 \end{case}
 \begin{case}[\textsc{S-Rec}]
 \begin{mathpar}
@@ -455,9 +558,17 @@ With our induction hypothesis:
 	\Gamma \vdash \sigma_i <: \sigma}
   {}
 \end{mathpar}
-$\Gamma \vdash T <: U$ can be derived in one of the following cases.
+Case analysis on the derivation of $\Gamma \vdash T <: U$.
 \begin{itemize}
 \item[]  \textit{Subcase 1} (\textsc{S-Refl}): 
+\begin{mathpar}
+\inferrule
+  {U = T = \{z \Rightarrow \overline{\sigma'}\}}
+  {}
+\end{mathpar}
+The result follows from our initial assumptions.
+\\
+\item[]  \textit{Subcase 2} (\textsc{S-Rec}): 
 \begin{mathpar}
 \inferrule
   {U = \{z \Rightarrow \overline{\sigma''}\} \\
@@ -477,35 +588,15 @@ It follows by our induction hypothesis that
 $\Gamma \vdash \sigma_i \; <: \; \sigma''_i$. 
 Therefore by \textsc{S-Rec} $\Gamma \vdash S <: U$.
 \\
-\item[]  \textit{Subcase 2} (\textsc{S-Select-Upper}): 
-\begin{mathpar}
-\inferrule
-  {T = p.L \\
-	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
-  	\Gamma \vdash U' <: U}
-  {}
-\end{mathpar}
-This clearly presents a contradiction, since by our initial assumption,
-$T = \{z \Rightarrow \overline{\sigma'}\} \neq p.L$.
-\\
 \item[]  \textit{Subcase 3} (\textsc{S-Select-Lower}): 
 \begin{mathpar}
 \inferrule
   {U = p.L \\
 	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
-  	\Gamma \vdash T <: S'}
+	\Gamma \vdash \{z \Rightarrow \overline{\sigma'}\} <: S}
   {}
 \end{mathpar}
-
-$\Gamma \vdash S <: S'$?????????????????????
-%With our induction hypothesis:
-%\begin{mathpar}
-%\inferrule
-%  {\Gamma \vdash S <: S'}
-%  {}
-%\end{mathpar}
-%Therefore, by \textsc{S-Select-Lower}, $\Gamma \vdash S <: p.L$, i.e. 
-%$\Gamma \vdash S <: U$
+???????????????????????????????????????????????
 \\
 \item[]  \textit{Subcase 4} (\textsc{S-Top}): 
 \begin{mathpar}
@@ -515,15 +606,6 @@ $\Gamma \vdash S <: S'$?????????????????????
 \end{mathpar}
 $\Gamma \vdash S <: \top$ follows from \textsc{S-Top}.
 \\
-\\
-\item[]  \textit{Subcase 5} (\textsc{S-Bottom}): 
-\begin{mathpar}
-\inferrule
-  {T = \bot}
-  {}
-\end{mathpar}
-This forms a contradiction since $T$ is well-formed and expanding,
-and $\bot$ is not.
 \end{itemize}
 \end{case}
 %\begin{case}[\textsc{S-Refl}]
@@ -565,7 +647,7 @@ With our induction hypothesis:
   {\forall U'', \Gamma \vdash S' <: U'' \Rightarrow \Gamma \vdash S <: U''}
   {}
 \end{mathpar}
-From the derivation of $\Gamma \vdash p.L <: U$, we get the following cases.
+Case analysis on  the derivation of $\Gamma \vdash p.L <: U$ gives us the following cases.
 
 \begin{itemize}
 \item[]  \textit{Subcase 1} (\textsc{S-Refl}):
@@ -576,27 +658,26 @@ From the derivation of $\Gamma \vdash p.L <: U$, we get the following cases.
 \end{mathpar}
 The result follows by assumption.
 \\
-\item[]  \textit{Subcase 2} (\textsc{S-Rec}):
-\begin{mathpar}
-\inferrule
-  {T = \{z \Rightarrow \overline{\sigma}\} \\
-	U = \{z \Rightarrow \overline{\sigma'}\}}
-  {}
-\end{mathpar}
-This results in a contradiction from 
-$T \neq p.L = \{z \Rightarrow \overline{\sigma}\}$
-\\
-\item[]  \textit{Subcase 3} (\textsc{S-Select-Upper}):
+\item[]  \textit{Subcase 2} (\textsc{S-Select-Upper}):
 \begin{mathpar}
 \inferrule
   {T = p.L \\
 	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
+	\Gamma \vdash S' <: U' \\
 	\Gamma \vdash U' <: U}
   {}
 \end{mathpar}
-By our existing premise $\Gamma \vdash S <: S'$, and since $p.L$ is 
-well-formed in $\Gamma$, we know that $\Gamma \vdash S' <: U$ and it follows 
-that $\Gamma \vdash S <: U$.
+By our existing premise $\Gamma \vdash S <: S'$.
+We also know that $\Gamma \vdash S' <: U'$ thus it follows 
+from our induction hypothesis that $\Gamma \vdash S <: U'$.
+\\
+\item[]  \textit{Subcase 3} (\textsc{S-Top}):
+\begin{mathpar}
+\inferrule
+  {U = \top}
+  {}
+\end{mathpar}
+The result follows from \textsc{S-Top}
 \\
 \end{itemize}
 \end{case}
@@ -609,6 +690,16 @@ that $\Gamma \vdash S <: U$.
 %  {}
 %\end{mathpar}
 %\end{case}
+\begin{case}[\textsc{S-Top}]
+\begin{mathpar}
+\inferrule
+  {T = \top\\
+	\Gamma \vdash T <: U}
+  {}
+\end{mathpar}
+It follows from Lemma \ref{lem:sub_eq} that $U = \top$, and subsequently 
+that $S <: U$ by \textsc{S-Top}.
+\end{case}
 \begin{case}[\textsc{S-Bottom}]
 \begin{mathpar}
 \inferrule
@@ -616,10 +707,11 @@ that $\Gamma \vdash S <: U$.
 	\Gamma \vdash T <: U}
   {}
 \end{mathpar}
-This forms a contradiction since $S$ is well-formed and expanding, and 
-$\bot$ is not.
+The result follows from \textsc{S-Bottom}
 \end{case}
 \end{proof}
+
+\subsection{Subject Reduction}
 
 \begin{theorem}[Subject Reduction]
 If $\Gamma \vdash e : T$, 
