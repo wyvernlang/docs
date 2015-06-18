@@ -573,7 +573,7 @@ The result follows directly from the induction hypothesis.
 
 \section{Module Translation}
 
-\subsection{Code Example}
+\subsection{Code Example 1}
 
 \begin{tabular}{p{0.53\textwidth}p{0.47\textwidth}}
 \begin{minipage}[t]{\textwidth}
@@ -621,7 +621,7 @@ resource module Main
 \begin{lstlisting}
 signature resource sigA =
   var f : Int
-  def m: Int -> Int
+  def m : Int -> Int
 
 signature resource sigB =
   var k : Int
@@ -671,6 +671,99 @@ val Main = fn _ : Unit =>
 \end{lstlisting}
 \end{minipage}
 \end{tabular}
+
+\newpage
+
+\subsection{Code Example 2}
+
+\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+signature sigA = 
+  def a(Unit) : Int
+
+signature sigB =
+  def b(y : Int) : Int
+
+resource signature sigC =
+  var c : Int
+
+resource signature sigD =
+  var d : Int
+  
+resource signature sigX =
+  def sumX(y : Int) : Int
+
+
+
+module A : sigA
+  def a(Unit) : Int = 42
+
+module B : sigB
+  def b(y : Int) : Int = y
+
+resource module C : sigC
+  var c : Int = 2
+
+resource module D : sigD
+  var d : Int = 0
+
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource module X : sigX
+
+  resource signature sigE =
+    var e : Int
+  
+  resource signature sigF =
+    def f(y : Int)
+  
+  resource signature sigG =
+    def g(Unit)
+
+  resource module E : sigE
+    var e : Int = 5
+
+  resource module F : sigF
+    require sigE as myE
+    def f(y : Int) = y + myE.e
+
+  resource module G : sigG
+    require sig E as myE
+    def g(Unit) = myE.e
+
+  import sigA as myA
+  import sigB as myB
+  require sigC as myC
+  require sigD as myD
+  instantiate E() as myE // necessary to access?
+  instantiate E() as eForF
+  instantiate E() as eForG
+  instantiate F(eForF) as myF
+  instantiate G(eForG) as myG
+
+  def sumX(y : Int) : Int = 
+      myA.a() + myB.b(y) + myC.c + myD.d
+      + myE.E + myF.f(y) + myG.g() // + E.e?
+
+
+
+resource module Main
+  instantiate C() as cForX
+  instantiate D() as dForX
+  instantiate X(cForX, dForX) as x
+// instantiate X(instantiate C(), instantiate D()) ?
+
+
+
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
 
 \newpage
 
