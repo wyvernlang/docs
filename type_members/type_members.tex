@@ -18,7 +18,7 @@
 }
 
 \lstset{emph={%  
-    var, def, type, new, z%
+    val, def, type, new, z%
     },emphstyle={\bfseries \tt}%
 }
 
@@ -52,9 +52,9 @@ Given two types $X$ and $Y$,
 
 \begin{lstlisting}[mathescape, style=custom_lang]
 Y = {z $\Rightarrow$
-     var l : $\top$
+     val l : $\top$
      def m : Y(y:Y){
-       var a = new {};
+       val a = new {};
        y
      }
     }
@@ -62,7 +62,7 @@ Y = {z $\Rightarrow$
 \begin{lstlisting}[mathescape, style=custom_lang]
 X = {z $\Rightarrow$
      type L : $\top$ .. $\top$
-     var l : z.L
+     val l : z.L
      def m : Y(y:Y){
        y
      }
@@ -71,16 +71,16 @@ X = {z $\Rightarrow$
 
 the following expression is well typed.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var x = new X(l = z);
-var y = new Y(l = (var z = new {}; z));
+val x = new X(l = z);
+val y = new Y(l = (val z = new {}; z));
 y.m(x).l
 \end{lstlisting}
 We can see that this is well-typed, and in particular that membership 
 holds for \texttt{y.m(x)} and \texttt{l}. This reduces to 
 \begin{lstlisting}[mathescape, style=custom_lang]
-(var a = new {}; x).l
+(val a = new {}; x).l
 \end{lstlisting}
-which is not well-typed since \texttt{var a = new {}; x} has type 
+which is not well-typed since \texttt{val a = new {}; x} has type 
 \texttt{X}, and \texttt{X.l} contains a \texttt{z} reference 
 \texttt{z.L}.
 
@@ -107,17 +107,47 @@ original type ($v_2 \unlhd S$) as does the entire returned body
 $[v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T$. Using this rule we 
 can attempt to evaluate our original example.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var x = new X(l = z);
-var y = new Y(l = (var z = new {}; z));
+val x = new X(l = z);
+val y = new Y(l = (val z = new {}; z));
 y.m(x).l
 \end{lstlisting}
 reduces to
 \begin{lstlisting}[mathescape, style=custom_lang]
-((var a = new {}; (x $\unlhd$ Y))$\unlhd$ Y).l
+((val a = new {}; (x $\unlhd$ Y))$\unlhd$ Y).l
 \end{lstlisting}
 Now we can treat the method body as having type \texttt{Y} and 
 we can determine membership of \texttt{l} for \texttt{Y} rather 
 than \texttt{X}.
+
+\subsection{Term Membership Restriction Redux}
+	\label{s:term_mem2}
+First we define the following types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     def m(x : $\top$){var y = new {z $\Rightarrow$}}:$\top$
+    }
+Y = {z $\Rightarrow$
+     type L : $\bot$ .. $\top$
+     def m(x : $\top$){var y = new {z $\Rightarrow$}}:z.L
+    }
+\end{lstlisting}
+Then we attempt to evaluate the following expression.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var a = new {z $\Rightarrow$
+              def meth(x:$\top$){val b = new Y}:X
+            };
+val c = new {z $\Rightarrow$};
+a.meth(c).m(c)
+\end{lstlisting}
+This reduces to \texttt{a.meth(c).m(c)} which has type $\top$. 
+Applying \textsc{R-Meth} we get \texttt{(val b = new Y $\unlhd$ X).m(c)}
+which has type $\top$ and so is still well typed. This eventually reduces 
+to \texttt{[z/b $\unlhd$ X](var y = new \{z $\Rightarrow$\}) $\unlhd$ z.L}.
+Since during reduction on a method call of the form $v \unlhd T$
+we retrieve the return type of the object ($v$) and 
+not the type ($T$), the reduced expression has type \texttt{b $\unlhd$ X.L}. 
+This type is allowed since \texttt{b $\unlhd$ X} is a path, but 
+it does present a case of narrowing.
 
 \subsection{Expansion Lost}
 For preservation to hold, we need to ensure that types are expandable 
@@ -155,12 +185,12 @@ Looking at the following expression, we can see it is well-type,
 and the type \texttt{i.L} $\wedge$ \texttt{x.K} in particular is 
 well-formed and expanding.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var x = new {z $\Rightarrow$ type K : $\bot$ .. X};
-var y = new {z $\Rightarrow$ type L : $\bot$ .. Y};
-var w = new {z $\Rightarrow$ type L : $\bot$ .. W};
-var c = new {z $\Rightarrow$
+val x = new {z $\Rightarrow$ type K : $\bot$ .. X};
+val y = new {z $\Rightarrow$ type L : $\bot$ .. Y};
+val w = new {z $\Rightarrow$ type L : $\bot$ .. W};
+val c = new {z $\Rightarrow$
          def meth1 : $\top$ (i : {z $\Rightarrow$ type L : $\bot$ .. W}){
-           var d = new {z $\Rightarrow$
+           val d = new {z $\Rightarrow$
                         def meth2 : $\top$ (j : i.L $\wedge$ x.K){
                           j
                         }
@@ -172,7 +202,7 @@ c.meth1(y)
 \end{lstlisting}
 Evaluating the above expression results in the following.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var d = new {z $\Rightarrow$
+val d = new {z $\Rightarrow$
              def meth2 : $\top$ (j : y.L $\wedge$ x.K){
                j
              }
@@ -185,7 +215,7 @@ this problem does not occur because the original type of the \texttt{i}
 parameter is maintained. So if we re-evaluate the original expression 
 with our type system, we get the following.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var d = new {z $\Rightarrow$
+val d = new {z $\Rightarrow$
              def meth2 : $\top$ (j : (y $\unlhd$ {z $\Rightarrow$ type L : $\bot$ .. W}).L $\wedge$ x.K){
                j
              }
@@ -207,13 +237,13 @@ from our original expression.
 \label{s:patheq}
 The example below illustrates the problem with path equality.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var b = new {z $\Rightarrow$
+val b = new {z $\Rightarrow$
              type L : $\top$ .. $\top$
-             var l : z.L = b};
-var a = new {z $\Rightarrow$
-             var i : {z $\Rightarrow$
+             val l : z.L = b};
+val a = new {z $\Rightarrow$
+             val i : {z $\Rightarrow$
                       type L : $\bot$ .. $\top$
-                      var l : z.L} = b
+                      val l : z.L} = b
              def meth : $\top$ (x : z.i.L){x}};
 a.meth(a.i.l)
 \end{lstlisting}
@@ -229,13 +259,13 @@ This is done by the \emph{path} function given in Figure \ref{f:path}.
 With a path and a store, we can find the object referenced by that path.
 Below is the evaluation of the above example without evaluating paths.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var b = new {z $\Rightarrow$
+val b = new {z $\Rightarrow$
              type L : $\top$ .. $\top$
-             var l : z.L = b};
-var a = new {z $\Rightarrow$
-             var i : {z $\Rightarrow$
+             val l : z.L = b};
+val a = new {z $\Rightarrow$
+             val i : {z $\Rightarrow$
                       type L : $\bot$ .. $\top$
-                      var l : z.L} = b
+                      val l : z.L} = b
              def meth : $\top$ (x : z.i.L){x}};
 a.meth(a.i.l)
 \end{lstlisting}
@@ -244,24 +274,24 @@ reduces to \texttt{a.i.l}
 
 \subsection{Path Equality Redux}
 \begin{lstlisting}[mathescape, style=custom_lang]
-var n = new {z $\Rightarrow$ type X : $\top$ .. $\top$};
-var a = new {z $\Rightarrow$
+val n = new {z $\Rightarrow$ type X : $\top$ .. $\top$};
+val a = new {z $\Rightarrow$
              type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. {z $\Rightarrow$ type X : $\bot$ .. $\top$}
-             var i : z.Y = n};
-var b = new {z $\Rightarrow$
+             val i : z.Y = n};
+val b = new {z $\Rightarrow$
              type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
                                           {z $\Rightarrow$ type X : $\bot$ .. $\top$}
-                                 var i : z.Y}
-             var j : z.L = a};
-var c = new {z $\Rightarrow$
-             var k : {z $\Rightarrow$
+                                 val i : z.Y}
+             val j : z.L = a};
+val c = new {z $\Rightarrow$
+             val k : {z $\Rightarrow$
                       type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
                                                    {z $\Rightarrow$ type X : $\bot$ .. $\top$}
-                                          var i : z.Y}
-                      var j : z.L} = b
+                                          val i : z.Y}
+                      val j : z.L} = b
              def m : $\top$ (x : z.k.L){
-                 var y = new {z $\Rightarrow$ var l : x.Y = x.i 
-                            var m : x.i.X = new {z $\Rightarrow$}}; y
+                 val y = new {z $\Rightarrow$ val l : x.Y = x.i 
+                            val m : x.i.X = new {z $\Rightarrow$}}; y
              }};
 c.m(b.j)
 \end{lstlisting}
@@ -272,8 +302,8 @@ c.m(b.j)
 $\texttt{b.L} <: \texttt{c.k.L}$
 \begin{lstlisting}[mathescape, style=custom_lang]
 c.m(b.j) $\rightarrow$ c.m(a)
-c.m(a) $\rightarrow$ (var y = new {z $\Rightarrow$ var l : (a $\unlhd$ c.k.L).Y = (a $\unlhd$ c.k.L).i 
-                            var m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
+c.m(a) $\rightarrow$ (val y = new {z $\Rightarrow$ val l : (a $\unlhd$ c.k.L).Y = (a $\unlhd$ c.k.L).i 
+                            val m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
 \end{lstlisting}
 
 %\subsection{Patched Counter Examples}
@@ -293,7 +323,7 @@ c.m(a) $\rightarrow$ (var y = new {z $\Rightarrow$ var l : (a $\unlhd$ c.k.L).Y 
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expression \\
-& | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d}\};&\\
+& | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d}\}&\\
 %& | & \lambda x:T = e\\
 %& | & e(e)\\
 & | & e.m(e) &\\
@@ -303,28 +333,23 @@ e & ::= & x & expression \\
 %& | & l &\\
 &&\\
 p & ::= & x & paths \\
+%& | & l &\\
 & | & p.f &\\
 & | & p \unlhd T &\\
 &&\\
 v & ::= & x & value \\
-& | & v.f &\\
+%& | & v.f &\\
 & | & v \unlhd T &\\
 &&\\
-d & ::= & \texttt{var} \; f : T = x & declaration \\
-  & |   & \texttt{def} \; m : T(x:T) = e &\\
+d & ::= & \texttt{val} \; f : T = e & declaration \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
   & |   & \texttt{type} \; L : T .. T = T &\\
 &&\\
-d_v & ::= & \texttt{var} \; f : T = x & declaration \; value \\
-  & |   & \texttt{def} \; m : T(x:T) = e &\\
+d_v & ::= & \texttt{val} \; f : T = p & declaration \; value \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
   & |   & \texttt{type} \; L : T .. T = T &\\
 &&\\
-%p & ::= & x & path \\
-%  & | & l & \\
-&&\\
-\Gamma & :: = & \varnothing \; | \; \Gamma, \; x : T & context \\
-&&\\
-\mu & :: = & \varnothing \; | \; \mu,\; x \mapsto \{\texttt{z} \Rightarrow \overline{d}\} & store \\
-\end{array}
+ \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
@@ -335,28 +360,33 @@ T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
 & | & \top & \\
 & | & \bot & \\
 &&\\
-\sigma & ::= & \texttt{var} \; f:T & decl \; type\\
+\sigma & ::= & \texttt{val} \; f:T & decl \; type\\
        & |   & \texttt{def} \; m:T \rightarrow T \\
 		 & |   & \texttt{type} \; L : T .. T &\\
 &&\\
 E & :: = & \bigcirc & eval \; context\\
        & | & E.m(e)\\
-       & | & v.m(E)\\
+       & | & p.m(E)\\
        & | & E.f\\
 %       & | & E.f = e\\
 %       & | & v.f = E\\
        & | & E \unlhd T\\
-       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{D}\}; \; e & eval \; context \\
-       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\}; \; E& \\
+       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{D}\} & eval \; context \\
 &&\\
-D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
-  & |   & \texttt{def} \; m : T(x:T) = e &\\
-  & |   & \texttt{type} \; L : T .. T = T &\\
+D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
+  & |   & \texttt{type} \; L : T .. T &\\
 %&&\\
 %K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
 %\Delta & :: = & \varnothing \; | \; \Delta,\; x \mapsto l & substitution \; context \\
 %&&\\
 %\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : T & store \; context \\
+%&&\\
+%p & ::= & x & path \\
+%  & | & l & \\
+&&\\
+\mu & :: = & \varnothing \; | \; \mu,\; x \mapsto \{\texttt{z} \Rightarrow \overline{d}\} & store \\
+%\Sigma & :: = & \varnothing \; | \; \Sigma,\; l \mapsto \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
 \end{array}
 \end{array}
 \]
@@ -377,10 +407,33 @@ D & :: = & \texttt{var} \; f : T = E & decl \; eval \; context \\
 	\and
 \inferrule
   {\mu(path(\mu, p)) = \{z \Rightarrow \overline{d}\} \\
-	\texttt{var} \; f : T = x \in \overline{d}}
+	\texttt{val} \; f : T = x \in \overline{d}}
+  {path(\mu, p.f) = x}
+	\and
+\inferrule
+  {\mu(path(\mu, d_p)) = \{z \Rightarrow \overline{d}\} \\
+	\texttt{val} \; f : T = x \in \overline{d}}
   {path(\mu, p.f) = x}
 \end{mathpar}
 \caption{Path Function}
+\label{f:path}
+\end{figure}
+
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {path(\mu, p) = x}
+  {path(\mu, \texttt{val} \; f : T = p) = \texttt{val} \; f : T = x}
+	\and
+\inferrule
+  {}
+  {path(\mu, \texttt{def} \; m : S(x:T) = e) = (\texttt{def} \; m(x:S) = e : T)}
+	\and
+\inferrule
+  {}
+  {path(\mu, \texttt{type} \; L : S .. T) = \texttt{type} \; L : S .. T}
+\end{mathpar}
+\caption{Declaration Path Function}
 \label{f:path}
 \end{figure}
 %\begin{figure}[h]
@@ -728,7 +781,7 @@ By induction on the derivation of $\Delta; \; \mu \; | \; e \rightarrow \Delta';
 \begin{case}[\textsc{R-New}]
 \begin{mathpar}
 \inferrule
-  {e = (\texttt{var} \; y = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\}) \\
+  {e = (\texttt{val} \; y = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\}) \\
 	e' = y \\
 	\mu' = \mu, y \mapsto \{\texttt{z} \Rightarrow \overline{d_v}\}\\
 	\forall d_i \in \overline{d_v}, \; 
