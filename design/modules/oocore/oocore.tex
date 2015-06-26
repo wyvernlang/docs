@@ -357,10 +357,10 @@ Straightforward induction on typing derivations. \qed
 \vspace{8pt}
 
 \begin{lemma}[Preservation of types under substitution]
-If $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\Sigma \vdash e' : \tau'$, then $\Gamma~|~\Sigma \vdash [e'/z]e : \tau$.
+If $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\Sigma \vdash e' : \tau'$, then $\Gamma~|~\Sigma \vdash [e'/z]e : \tau$. Furthermore, if $\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma$ and $\Gamma~|~\Sigma \vdash e' : \tau'$, then $\Gamma~|~\Sigma \vdash_s [e'/z]d : \sigma$.
 \end{lemma}
 
-\begin{proof} The proof is by induction on a derivation of $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma$. For a given derivation, we proceed by cases on the final typing rule used in the proof:
+\begin{proof} The proof is by simultaneous induction on a derivation of $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma$. For a given derivation, we proceed by cases on the final typing rule used in the proof:
 
 \begin{pcases}
 \pcase[\textsc{T-Var}]
@@ -369,48 +369,9 @@ $e = x$, and from the premise, we get $x : \tau \in (\Gamma,~z : \tau')$. There 
 \pcase[\textsc{T-New}]
 $e = \keywadj{new}_{s}(x \Rightarrow d)$, and from the premise, we get
 \[
-\Gamma,~x : \{ \sigma \}_{s},~z : \tau'~|~\Sigma \vdash d : \sigma
+x : \{ \sigma \}_{s},~z : \tau'~|~\Sigma \vdash_s d : \sigma
 \]
-Here, $d$ is a sequence of declarations each of which are either a method declaration or a field, and so we consider each of the two possibilities in order next.
-\\
-\begin{itemize}
-\item[] \textit{Case $d$ is a method definition:} $d = \keyw{def} m(x : \tau_1) : \tau_2 = e$. We do substitution on the method body expression, which is subject to alpha-conversion. There are two cases: either the method is pure or it is stateful:
-\\
-\begin{itemize}
-\item[] \textit{Subcase} \textsc{DT-DefPure}\textit{:} From the premise, we get
-\[
-\Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\}~~~~~\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}
-\]\[
-\Gamma_{pure},~x : \tau_1,~z : \tau'~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma_{pure},~z : \tau'~|~\Sigma \vdash_s d : \sigma
-\]
-By the induction hypothesis, $\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_2$, and substituting $e'$ for $z$ in $d$ preserves the original types. (The latter can be proved by induction on $d$ starting with the end of the sequence when $d = \epsilon$.) Then, by \textsc{DT-DefPure}, $\Gamma~|~\Sigma \vdash_{\keyw{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = [e'/z]e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keyw{pure}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
-\\
-\item[] \textit{Subcase} \textsc{DT-DefStateful}\textit{:} From the premise, we get
-\[
-\Gamma, x : \tau_1,~z : \tau'~|~\Sigma \vdash e : \tau_2~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
-\]
-By the induction hypothesis, $\Gamma, x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_2$, and substituting $e'$ for $z$ in $d$ preserves the original types. (The latter can be proved by induction on $d$ starting with the end of the sequence when $d = \epsilon$.) Then, by \textsc{DT-DefStateful}, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = [e'/z]e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
-\\
-\end{itemize}
-
-
-\item[] \textit{Case $d$ is a field:} There are two cases depending on whether it is run-time or not:
-\\
-\begin{itemize}
-\item[] \textit{Subcase} \textsc{DT-Varx}\textit{:} $d = \keyw{var} f : \tau = x$, and from the premise, we get
-\[
-\Gamma,~z : \tau'~|~\Sigma \vdash x : \tau~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
-\]
-There are two subcases to consider, depending on whether $x$ is $z$ or another variable. If $x = z$, then
-$\Gamma,~z : \tau'~|~\Sigma \vdash [e'/z]x : \tau$ yields $\Gamma,~z : \tau'~|~\Sigma \vdash e' : \tau$ and $\tau = \tau'$. Substituting $e'$ for $z$ in $d$ preserves the original types. (The latter can be proved by induction on $d$ starting with the end of the sequence when $d = \epsilon$.) Thus, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = e'; d~:~\keyw{var} f : \tau; \sigma$ as required. If $x \not = z$, then $\Gamma,~z : \tau'~|~\Sigma \vdash [e'/z]x : \tau$ yields $\Gamma,~z : \tau'~|~\Sigma \vdash x : \tau$, and the desired result is immediate.
-\\
-\item[] \textit{Subcase} \textsc{DT-Varl}\textit{:} $d = \keyw{var} f : \tau = l$, i.e. the field is resolved to a location $l$. This is not affected by the substitution, and the desired result is immediate.
-\\
-\end{itemize}
-
-\end{itemize}
-
-Having considered all the possibilities for $d$, we see that $\Gamma,~x : \{ \sigma \}_{s}~|~\Sigma \vdash_s [e'/z]d : \sigma$. Then, by \textsc{T-New}, $\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow [e'/z]d) : \{ \sigma \}_{s}$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](\keywadj{new}_{s}(x \Rightarrow d)) : \{ \sigma \}_{s}$.
+By the induction hypothesis, $x : \{ \sigma \}_{s}~|~\Sigma \vdash_s [e'/z]d : \sigma$. Then, by \textsc{T-New}, $\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow [e'/z]d) : \{ \sigma \}_{s}$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](\keywadj{new}_{s}(x \Rightarrow d)) : \{ \sigma \}_{s}$.
 \\
 \pcase[\textsc{T-Meth}]
 $e = e_1.m(e_2)$, and from the premise, we get
@@ -452,6 +413,53 @@ $e = e$, and from the premise, we get
 \Gamma,~z : \tau'~|~\Sigma \vdash e : \tau_1~~~~~\tau_1 <: \tau_2
 \]
 By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_1$ and $\tau_1 <: \tau_2$. Then, by \textsc{T-Sub}, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_2$.
+\\
+
+\pcase[\textsc{DT-Empty}]
+$d = \epsilon$, i.e. an empty declaration. This is not affected by the substitution, and the desired result is immediate.
+\\
+\pcase[\textsc{DT-DefPure}]
+$d = \keyw{def} m(x : \tau_1) : \tau_2 = e$. There are two subcases depending on whether $z$ is in $\Gamma_{pure}$:
+\\
+\begin{itemize}
+\item[] \textit{Subcase $z \in \Gamma_{pure}$}: From the premise, we get
+\[
+\Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\}~~~~~\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}
+\]\[
+\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
+\]
+By the induction hypothesis, $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} [e'/z]d : \sigma$. Then, by \textsc{DT-DefPure}, $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
+\\
+\item[] \textit{Subcase $z \not\in \Gamma_{pure}$}: From the premise, we get
+\[
+\Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\}~~~~~\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}
+\]\[
+\Gamma_{pure},~x : \tau_1,~z : \tau'~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
+\]
+By the induction hypothesis, $\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_2$ and $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} [e'/z]d : \sigma$. Then, by \textsc{DT-DefPure}, $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = [e'/z]e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keyw{pure}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
+\\
+\end{itemize}
+
+Thus, in both cases, the type of $d$ is preserved under substitution.
+\\
+\pcase[\textsc{DT-DefStateful}]
+$d = \keyw{def} m(x : \tau_1) : \tau_2 = e$, and from the premise, we get
+\[
+\Gamma, x : \tau_1,~z : \tau'~|~\Sigma \vdash e : \tau_2~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
+\]
+By the induction hypothesis, $\Gamma, x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_2$ and $\Gamma~|~\Sigma \vdash_s [e'/z]d : \sigma$. Then, by \textsc{DT-DefStateful}, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = [e'/z]e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
+\\
+\pcase[\textsc{DT-Varx}]
+$d = \keyw{var} f : \tau = x$, and from the premise, we get
+\[
+\Gamma,~z : \tau'~|~\Sigma \vdash x : \tau~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
+\]
+There are two subcases to consider, depending on whether $x$ is $z$ or another variable. If $x = z$, then
+$\Gamma,~z : \tau'~|~\Sigma \vdash [e'/z]x : \tau$ yields $\Gamma,~z : \tau'~|~\Sigma \vdash e' : \tau$ and $\tau = \tau'$. By the induction hypothesis, $\Gamma~|~\Sigma \vdash_s [e'/z]d : \sigma$. Thus, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = e'; d~:~\keyw{var} f : \tau; \sigma$ as required. If $x \not = z$, then $\Gamma,~z : \tau'~|~\Sigma \vdash [e'/z]x : \tau$ yields $\Gamma,~z : \tau'~|~\Sigma \vdash x : \tau$, and the desired result is immediate.
+\\
+\pcase[\textsc{DT-Varl}]
+$d = \keyw{var} f : \tau = l$, i.e. the field is resolved to a location $l$. This is not affected by the substitution, and the desired result is immediate.
+
 \end{pcases}
 
 \noindent Thus, substituting terms in a well-typed expression preserves the typing. \qed
