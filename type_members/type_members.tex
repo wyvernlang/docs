@@ -119,36 +119,6 @@ Now we can treat the method body as having type \texttt{Y} and
 we can determine membership of \texttt{l} for \texttt{Y} rather 
 than \texttt{X}.
 
-\subsection{Term Membership Restriction Redux}
-	\label{s:term_mem2}
-First we define the following types.
-\begin{lstlisting}[mathescape, style=custom_lang]
-X = {z $\Rightarrow$
-     def m(x : $\top$){var y = new {z $\Rightarrow$}}:$\top$
-    }
-Y = {z $\Rightarrow$
-     type L : $\bot$ .. $\top$
-     def m(x : $\top$){var y = new {z $\Rightarrow$}}:z.L
-    }
-\end{lstlisting}
-Then we attempt to evaluate the following expression.
-\begin{lstlisting}[mathescape, style=custom_lang]
-var a = new {z $\Rightarrow$
-              def meth(x:$\top$){val b = new Y}:X
-            };
-val c = new {z $\Rightarrow$};
-a.meth(c).m(c)
-\end{lstlisting}
-This reduces to \texttt{a.meth(c).m(c)} which has type $\top$. 
-Applying \textsc{R-Meth} we get \texttt{(val b = new Y $\unlhd$ X).m(c)}
-which has type $\top$ and so is still well typed. This eventually reduces 
-to \texttt{[z/b $\unlhd$ X](var y = new \{z $\Rightarrow$\}) $\unlhd$ z.L}.
-Since during reduction on a method call of the form $v \unlhd T$
-we retrieve the return type of the object ($v$) and 
-not the type ($T$), the reduced expression has type \texttt{b $\unlhd$ X.L}. 
-This type is allowed since \texttt{b $\unlhd$ X} is a path, but 
-it does present a case of narrowing.
-
 \subsection{Expansion Lost}
 For preservation to hold, we need to ensure that types are expandable 
 to lists of declarations. This is captured in Figure \ref{f:wfe}. It is 
@@ -229,6 +199,36 @@ from our original expression.
 
 
 
+\subsection{Expansion Lost Redux}
+	\label{s:term_mem2}
+First we define the following types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     def m(x : $\top$){var y = new {z $\Rightarrow$}}:$\top$
+    }
+Y = {z $\Rightarrow$
+     type L : $\bot$ .. $\top$
+     def m(x : $\top$){var y = new {z $\Rightarrow$}}:z.L
+    }
+\end{lstlisting}
+Then we attempt to evaluate the following expression.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var a = new {z $\Rightarrow$
+              def meth(x:$\top$){val b = new Y}:X
+            };
+val c = new {z $\Rightarrow$};
+a.meth(c).m(c)
+\end{lstlisting}
+This reduces to \texttt{a.meth(c).m(c)} which has type $\top$. 
+Applying \textsc{R-Meth} we get \texttt{(val b = new Y $\unlhd$ X).m(c)}
+which has type $\top$ and so is still well typed. This eventually reduces 
+to \texttt{[z/b $\unlhd$ X](var y = new \{z $\Rightarrow$\}) $\unlhd$ z.L}.
+Since during reduction on a method call of the form $v \unlhd T$
+we retrieve the return type of the object ($v$) and 
+not the type ($T$), the reduced expression has type \texttt{b $\unlhd$ X.L}. 
+This type is allowed since \texttt{b $\unlhd$ X} is a path, but 
+it does present a case of narrowing.
+
 \subsection{Well-Formedness Lost}
 
 
@@ -306,11 +306,6 @@ c.m(a) $\rightarrow$ (val y = new {z $\Rightarrow$ val l : (a $\unlhd$ c.k.L).Y 
                             val m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
 \end{lstlisting}
 
-%\subsection{Patched Counter Examples}
-%\subsubsection{Term Membership Restriction}
-%\subsubsection{Expansion Lost}
-%\subsubsection{Well-formedness Lost}
-%\subsubsection{Path Equality}
 \section{Type System}
 	\label{s:type_sys}
 
@@ -323,38 +318,35 @@ c.m(a) $\rightarrow$ (val y = new {z $\Rightarrow$ val l : (a $\unlhd$ c.k.L).Y 
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expression \\
-& | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d}\}&\\
+& | & \texttt{new} \; \{z \Rightarrow \overline{d}\}&\\
 %& | & \lambda x:T = e\\
 %& | & e(e)\\
 & | & e.m_T(e) &\\
 & | & e.f &\\
 %& | & e.f = e&\\
 & | & e \unlhd T&\\
-%& | & l &\\
+& | & l &\\
 &&\\
 p & ::= & x & paths \\
-%& | & l &\\
+& | & l &\\
 & | & p.f &\\
 & | & p \unlhd T &\\
 &&\\
-v & ::= & x & value \\
-%& | & v.f &\\
+v & ::= & l & value \\
+& | & v.f &\\
 & | & v \unlhd T &\\
 &&\\
-d & ::= & \texttt{val} \; f : T = e & declaration \\
+d & ::= & \texttt{val} \; f : T = p & declaration \\
   & |   & \texttt{def} \; m(x:T) = e : T &\\
-  & |   & \texttt{type} \; L : T .. T = T &\\
+  & |   & \texttt{type} \; L : T .. T&\\
 &&\\
-d_v & ::= & \texttt{val} \; f : T = p & declaration \; value \\
-  & |   & \texttt{def} \; m(x:T) = e : T &\\
-  & |   & \texttt{type} \; L : T .. T = T &\\
-&&\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & Environment \\
  \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
 %T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
-T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
+T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
 & | & p.L &\\
 & | & T \wedge T & \\
 & | & \top & \\
@@ -371,11 +363,15 @@ E & :: = & \bigcirc & eval \; context\\
 %       & | & E.f = e\\
 %       & | & v.f = E\\
        & | & E \unlhd T\\
-       & | & \texttt{var} \; x = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{D}\} & eval \; context \\
 &&\\
-D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
+d_v & ::= & \texttt{val} \; f : T = l & declaration \; value \\
   & |   & \texttt{def} \; m(x:T) = e : T &\\
-  & |   & \texttt{type} \; L : T .. T &\\
+  & |   & \texttt{type} \; L : T .. T = T &\\
+%       & | & \texttt{var} \; x = \texttt{new} \; \{z \Rightarrow \overline{D}\} & eval \; context \\
+%&&\\
+%D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
+%  & |   & \texttt{def} \; m(x:T) = e : T &\\
+%  & |   & \texttt{type} \; L : T .. T &\\
 %&&\\
 %K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
 %\Delta & :: = & \varnothing \; | \; \Delta,\; x \mapsto l & substitution \; context \\
@@ -385,8 +381,8 @@ D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
 %p & ::= & x & path \\
 %  & | & l & \\
 &&\\
-\mu & :: = & \varnothing \; | \; \mu,\; x \mapsto \{\texttt{z} \Rightarrow \overline{d}\} & store \\
-%\Sigma & :: = & \varnothing \; | \; \Sigma,\; l \mapsto \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
+\mu & :: = & \varnothing \; | \; \mu,\; l \mapsto \{z \Rightarrow \overline{d}\} & store \\
+\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
 \end{array}
 \end{array}
 \]
@@ -399,21 +395,15 @@ D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
 \begin{mathpar}
 \inferrule
   {}
-  {path(\mu, x) = \mu(x)}
+  {path(\mu, l) = \mu(l)}
 	\and
 \inferrule
   {}
-  {path(\mu, p \unlhd T) = path(\mu, p)}
+  {path(\mu, v \unlhd T) = path(\mu, v)}
 	\and
 \inferrule
-  {\mu(path(\mu, p)) = \{z \Rightarrow \overline{d}\} \\
-	\texttt{val} \; f : T = x \in \overline{d}}
-  {path(\mu, p.f) = x}
-	\and
-\inferrule
-  {\mu(path(\mu, d_p)) = \{z \Rightarrow \overline{d}\} \\
-	\texttt{val} \; f : T = x \in \overline{d}}
-  {path(\mu, p.f) = x}
+  {}
+  {path(\mu, v.f) = \mu(path(\mu,v))(f)}
 \end{mathpar}
 \caption{Path Function}
 \label{f:path}
@@ -422,16 +412,16 @@ D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
 \begin{figure}[h]
 \begin{mathpar}
 \inferrule
-  {path(\mu, p) = x}
-  {path(\mu, \texttt{val} \; f : T = p) = \texttt{val} \; f : T = x}
+  {}
+  {path_d(\mu, \texttt{val} \; f : T = v) = (\texttt{val} \; f : T = path(\mu, v)})
 	\and
 \inferrule
   {}
-  {path(\mu, \texttt{def} \; m : S(x:T) = e) = (\texttt{def} \; m(x:S) = e : T)}
+  {path_d(\mu, \texttt{def} \; m : S(x:T) = e) = (\texttt{def} \; m(x:S) = e : T)}
 	\and
 \inferrule
   {}
-  {path(\mu, \texttt{type} \; L : S .. T) = \texttt{type} \; L : S .. T}
+  {path_d(\mu, \texttt{type} \; L : S .. U) = \texttt{type} \; L : S .. U}
 \end{mathpar}
 \caption{Declaration Path Function}
 \label{f:path}
@@ -462,376 +452,6 @@ D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
 \input{reduction}
 
 
-\section{Type Safety}
-
-\begin{lemma}[Subtype Definition]\label{lem:sub}
-If $\Gamma \vdash S \prec_z \overline{\sigma_1}$,
-	$\Gamma \vdash T \prec_z \overline{\sigma_2}$ and
-	$\forall \sigma_i \in \overline{\sigma_2} \;
-	 \exists \sigma_j \in \overline{\sigma_1}:
-	 \Gamma, z : \{z \Rightarrow \overline{\sigma_1}\} 
-	 \vdash \sigma_j <: \sigma_i$ then
-	$\Gamma \vdash S <: T$
-\end{lemma}
-\begin{proof}
-Can't be shown.
-\end{proof}
-
-%\begin{theorem}[Subtype Reflexivity]
-% 	If $\Gamma \vdash T \; \textbf{\tt{wfe}}$ then $\Gamma \vdash T <: T$
-%\end{theorem}
-%\begin{proof}
-%This is easy to demonstrate using \textsc{S-Struct}.
-%\end{proof}
-
-\begin{lemma}[Type Equality]\label{lem:sub_eq}
-If $\Gamma \vdash S <: T$ and
-	$\Gamma \vdash T <: S$ then
-	$S = T$
-\end{lemma}
-\begin{proof}
-By induction on the derivation of $\Gamma \vdash S <: T$.
-\begin{case}[\textsc{S-Refl}]
-The result follows immediately. 
-\end{case}
-\begin{case}[\textsc{S-Rec}]
-\begin{mathpar}
-\inferrule
-  {S = \{z \Rightarrow \overline{\sigma}\} \\
-	T = \{z \Rightarrow \overline{\sigma'}\} \\
-	\forall \sigma_i' \in \overline{\sigma'}, \; \exists \; \sigma_i \in \overline{\sigma} \; : \; \Gamma, z : \{z \Rightarrow \overline{\sigma}\} \vdash \sigma_i <:\; \sigma_i'}
-  {}
-\end{mathpar}
-Since $\Gamma \vdash \{z \Rightarrow \overline{\sigma}\} <: \{z \Rightarrow \overline{\sigma'}\}$, by case analysis on this 
-derivation, it follows that either $S = T$ by \textsc{S-Refl} in which 
-the result is immediate, or by \textsc{S-Rec} the following holds.
-\begin{mathpar}
-\inferrule
-  {\forall \sigma_i \in \overline{\sigma}, \; \exists \; \sigma_i' \in \overline{\sigma'} \; : \; \Gamma, z : \{z \Rightarrow \overline{\sigma'}\} \vdash \sigma'_i <:\; \sigma_i}
-  {}
-\end{mathpar}
-We can now apply our induction hypothesis to each $\sigma_i$ 
-and $\sigma_i'$ pair, and infer that $\sigma_i = \sigma_i'$ 
-%We can further say that the subtype relation is bijective from 
-%$\overline{\sigma}$ to $\overline{\sigma'}$ due to the uniqueness 
-%of declaration label names
-and consequently that $\overline{\sigma} = \overline{\sigma'}$. 
-i.e. that $\{z \Rightarrow \overline{\sigma}\} = \{z \Rightarrow \overline{\sigma'}\}$,
-or $S = T$.
-\end{case}
-\begin{case}[\textsc{S-Select-Upper}]
-\begin{mathpar}
-\inferrule
-  {S = p.L \\
-	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U'\\
-  	\Gamma \vdash S' <: U' \\
-  	\Gamma \vdash U' <: T}
-  {}
-\end{mathpar}
-\end{case}
-\begin{case}[\textsc{S-Selcet-Lower}]
-\begin{mathpar}
-\inferrule
-  {T = p.L \\
-	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U'\\
-  	\Gamma \vdash S' <: U' \\
-  	\Gamma \vdash S <: S'}
-  {}
-\end{mathpar}
-\end{case}
-\begin{case}[\textsc{S-Top}]
-\begin{mathpar}
-\inferrule
-  {T = \top}
-  {}
-\end{mathpar}
-We need to know show that $S = \top$, or otherwise forms a 
-contradiction. Case analysis on the derivation of $\Gamma \vdash T <: S$.
-\begin{itemize}
-\item[]  \textit{Subcase 1} (\textsc{S-Refl}): 
-Trivial.
-\\
-\item[]  \textit{Subcase 2} (\textsc{S-Selecet-Lower}):
-\begin{mathpar}
-\inferrule
-  {S = p.L\\
-	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U'\\
-  	\Gamma \vdash S' <: U' \\
-  	\Gamma \vdash \top <: S'}
-  {}
-\end{mathpar} 
-\\
-\item[]  \textit{Subcase 3} (\textsc{S-Top}):
-Trivial.
-\\
-\end{itemize}
-\end{case}
-\begin{case}[\textsc{S-Bottom}]
-\begin{mathpar}
-\inferrule
-  {S = \bot \\}
-  {}
-\end{mathpar}
-\end{case}
-
-\end{proof}
-
-\begin{theorem}[Subtype Transitivity]
-If $\Gamma \vdash S, T, U \; \textbf{\tt{wfe}}$,
-	$\Gamma \vdash S <: T$ and 
-   	$\Gamma \vdash T <: U$ then
-	$\Gamma \vdash S <: U$
-\end{theorem}
-\begin{proof}
-Proceed by induction on the derivation of $\Gamma \vdash S <: T$.
-\begin{case}[\textsc{S-Refl}]
-\begin{mathpar}
-\inferrule
-  {S = T \\
-	\Gamma \vdash T\; \texttt{<:}\; U}
-  {}
-\end{mathpar}
-The result follows from our initial assumptions.
-\end{case}
-\begin{case}[\textsc{S-Rec}]
-\begin{mathpar}
-\inferrule
-  {S = \{z \Rightarrow \overline{\sigma}\} \\
-  	T = \{z \Rightarrow \overline{\sigma'}\} \\
-  	\forall \sigma'_i \in \overline{\sigma'}, \; 
-  	\exists \sigma_i \in \overline{\sigma}, \; s.t. \;
-  	\Gamma \vdash \sigma_i \; <: \; \sigma'_i \\
-	\Gamma \vdash T <: U }
-  {}
-\end{mathpar}
-With our induction hypothesis:
-\begin{mathpar}
-\inferrule
-  {\forall \sigma, \; \Gamma \vdash \sigma'_i <: \sigma \; \Rightarrow
-	\Gamma \vdash \sigma_i <: \sigma}
-  {}
-\end{mathpar}
-Case analysis on the derivation of $\Gamma \vdash T <: U$.
-\begin{itemize}
-\item[]  \textit{Subcase 1} (\textsc{S-Refl}): 
-\begin{mathpar}
-\inferrule
-  {U = T = \{z \Rightarrow \overline{\sigma'}\}}
-  {}
-\end{mathpar}
-The result follows from our initial assumptions.
-\\
-\item[]  \textit{Subcase 2} (\textsc{S-Rec}): 
-\begin{mathpar}
-\inferrule
-  {U = \{z \Rightarrow \overline{\sigma''}\} \\
-  	\forall \sigma''_i \in \overline{\sigma''}, \; 
-  	\exists \sigma'_i \in \overline{\sigma'}, \; s.t. \;
-  	\Gamma \vdash \sigma'_i \; <: \; \sigma''_i}
-  {}
-\end{mathpar}
-Let $\sigma''_i \in \overline{\sigma''}$. 
-It follows from above that there exists a 
-$\sigma'_i \in \overline{\sigma'}$ such that 
-$\Gamma \vdash \sigma'_i \; <: \; \sigma''_i$.
-By our original assumption there exists some 
-$\sigma_i \in \overline{\sigma}$ such that 
-$\Gamma \vdash \sigma_i \; <: \; \sigma'_i$. 
-It follows by our induction hypothesis that 
-$\Gamma \vdash \sigma_i \; <: \; \sigma''_i$. 
-Therefore by \textsc{S-Rec} $\Gamma \vdash S <: U$.
-\\
-\item[]  \textit{Subcase 3} (\textsc{S-Select-Lower}): 
-\begin{mathpar}
-\inferrule
-  {U = p.L \\
-	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
-	\Gamma \vdash \{z \Rightarrow \overline{\sigma'}\} <: S}
-  {}
-\end{mathpar}
-???????????????????????????????????????????????
-\\
-\item[]  \textit{Subcase 4} (\textsc{S-Top}): 
-\begin{mathpar}
-\inferrule
-  {U = \top}
-  {}
-\end{mathpar}
-$\Gamma \vdash S <: \top$ follows from \textsc{S-Top}.
-\\
-\end{itemize}
-\end{case}
-%\begin{case}[\textsc{S-Refl}]
-%\begin{mathpar}
-%\inferrule
-%  {}
-%  {S = T \\
-%	\Gamma \vdash T\; <: \; T \\
-%	\Gamma \vdash T <: U}
-%\end{mathpar}
-%This follows automatically from our assumption.
-%\end{case}
-%\begin{case}[\textsc{S-Rec}]
-%\begin{mathpar}
-%\inferrule
-%  {S = \{\texttt{z} \Rightarrow \overline{\sigma}\} \\
-%	T = \{\texttt{z} \Rightarrow \overline{\sigma'}\} \\
-%	\forall \sigma_i' \in \overline{\sigma}', \; \exists \; \sigma_i \in \overline{\sigma} \; 
-%	st \; \Gamma, \texttt{z} : \{\texttt{z} \Rightarrow \overline{\sigma}\} \vdash 
-%	\sigma_i <:\; \sigma_i' \\
-%	\Gamma \vdash T <: U}
-%  {}
-%\end{mathpar}
-%\end{case}
-%\begin{case}[\textsc{S-Select-Upper}]
-%\end{case}
-\begin{case}[\textsc{S-Select-Lower}]
-\begin{mathpar}
-\inferrule
-  {T = p.L \\
-	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
-  	\Gamma \vdash S <: S' \\
-	\Gamma \vdash p.L <: U}
-  {}
-\end{mathpar}
-With our induction hypothesis:
-\begin{mathpar}
-\inferrule
-  {\forall U'', \Gamma \vdash S' <: U'' \Rightarrow \Gamma \vdash S <: U''}
-  {}
-\end{mathpar}
-Case analysis on  the derivation of $\Gamma \vdash p.L <: U$ gives us the following cases.
-
-\begin{itemize}
-\item[]  \textit{Subcase 1} (\textsc{S-Refl}):
-\begin{mathpar}
-\inferrule
-  {U = T = p.L}
-  {}
-\end{mathpar}
-The result follows by assumption.
-\\
-\item[]  \textit{Subcase 2} (\textsc{S-Select-Upper}):
-\begin{mathpar}
-\inferrule
-  {T = p.L \\
-	\Gamma \vdash p \ni \texttt{type} \; L : S' .. U' \\
-	\Gamma \vdash S' <: U' \\
-	\Gamma \vdash U' <: U}
-  {}
-\end{mathpar}
-By our existing premise $\Gamma \vdash S <: S'$.
-We also know that $\Gamma \vdash S' <: U'$ thus it follows 
-from our induction hypothesis that $\Gamma \vdash S <: U'$.
-\\
-\item[]  \textit{Subcase 3} (\textsc{S-Top}):
-\begin{mathpar}
-\inferrule
-  {U = \top}
-  {}
-\end{mathpar}
-The result follows from \textsc{S-Top}
-\\
-\end{itemize}
-\end{case}
-%Complete proof for S-Select-Lower
-%\begin{case}[\textsc{S-Top}]
-%\begin{mathpar}
-%\inferrule
-%  {T = \top \\
-%	\Gamma \vdash \top <: U}
-%  {}
-%\end{mathpar}
-%\end{case}
-\begin{case}[\textsc{S-Top}]
-\begin{mathpar}
-\inferrule
-  {T = \top\\
-	\Gamma \vdash T <: U}
-  {}
-\end{mathpar}
-It follows from Lemma \ref{lem:sub_eq} that $U = \top$, and subsequently 
-that $S <: U$ by \textsc{S-Top}.
-\end{case}
-\begin{case}[\textsc{S-Bottom}]
-\begin{mathpar}
-\inferrule
-  {S = \bot\\
-	\Gamma \vdash T <: U}
-  {}
-\end{mathpar}
-The result follows from \textsc{S-Bottom}
-\end{case}
-\end{proof}
-
-\subsection{Subject Reduction}
-
-\begin{theorem}[Subject Reduction]
-If $\Gamma \vdash e : T$, 
-   	$\mu \; | \; e \; \rightarrow \mu' \; | \; e'$ where
-	$\Gamma \vdash \mu$ then 
- 	$\exists \Gamma', T'$ s.t. 
-	$\Gamma'$ extends $\Gamma$, 
-	$\Gamma' \vdash \mu'$, 
-	$\Gamma' \vdash e' : T'$ 
-	and $\Gamma' \vdash T'<:T$.
-\end{theorem}
-\begin{proof}
-By induction on the derivation of $\Delta; \; \mu \; | \; e \rightarrow \Delta'; \; \mu' \; | \; e'$.
-\begin{case}[\textsc{R-New}]
-\begin{mathpar}
-\inferrule
-  {e = (\texttt{val} \; y = \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\}) \\
-	e' = y \\
-	\mu' = \mu, y \mapsto \{\texttt{z} \Rightarrow \overline{d_v}\}\\
-	\forall d_i \in \overline{d_v}, \; 
-  \Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
-  \vdash d_i : \sigma_i\\
-  	y \notin dom(\Gamma)}
-  {}
-\end{mathpar}
-Let $\Gamma' = \Gamma, y : \{z \Rightarrow \overline{\sigma}\}$. 
-\begin{mathpar}
-\inferrule
-  {\forall d_i \in \overline{d_v}, \; 
-  \Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
-  \vdash d_i : \sigma_i\\
-  	y \notin dom(\Gamma)}
-  {}
-\end{mathpar}
-\end{case}
-
-\begin{case}[\textsc{R-Meth}]
-\begin{mathpar}
-\inferrule
-  {e = v_1.m(v_2) \\
-	e' = v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T \\
-	\mu' = \mu \\
-	\mu(path(\mu, v_1)) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e_0,...\}}
-  {}
-\end{mathpar}
-\end{case}
-\begin{case}[\textsc{R-Context}]
-\begin{mathpar}
-\inferrule
-  {	\mu \; | \; e \; \rightarrow \; \mu' \; | \; e'}
-  {\mu \; | \; E[e] \; \rightarrow \mu' \; | \; E[e']}
-  \quad (\textsc {R-Context})
-\end{mathpar}
-\end{case}
-\end{proof}
-
-\subsection{Progress}
-\begin{theorem}[Progress]
-If $\Gamma \vdash e : T$, then either
-\begin{enumerate}
-\item e is a value, or
-\item $\forall \mu$ s.t.
-		   $\Gamma \vdash \mu$,
-         $\exists e'$ and $\mu'$ s.t. 
-         $\mu \; | \; e \; \rightarrow \mu' \; | \; e'$
-\end{enumerate}
-\end{theorem}
 
 
 

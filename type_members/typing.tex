@@ -1,34 +1,35 @@
 \begin{figure}[h]
-\hfill \fbox{$\Gamma; E \vdash e:T$}
+\hfill \fbox{$\Gamma; \Sigma \vdash e:T$}
 \begin{mathpar}
 \inferrule
-  {x : T \in \Gamma}
-  {	\Gamma \vdash x : T}
+  {x \in dom(\Gamma)}
+  {	\Gamma; \Sigma \vdash x : \Gamma(x)}
   \quad (\textsc {T-Var})
 	\and
 \inferrule
-  {\forall d_i \in \overline{d}, \; 
-  \Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
-  \vdash d_i : \sigma_i\\
-%  	\Gamma, y : \{y \Rightarrow \overline{\sigma}\}
-%  	\vdash e : T \\
+  {	l \in dom(\Sigma)}
+  {	\Gamma; \Sigma \vdash l : \Sigma(l)}
+  \quad (\textsc {T-Loc})
+	\and
+\inferrule
+  {\Gamma, z : \{z \Rightarrow \overline{\sigma}\}; \Sigma 
+  \vdash \overline{d} : \overline{\sigma} \\
   	y \notin dom(\Gamma)}
-  {	\Gamma \vdash \texttt{var} \; z = \texttt{new} \; \{z \Rightarrow \overline{d}\} : 
+  {	\Gamma; \Sigma\vdash \texttt{new} \; \{z \Rightarrow \overline{d}\} : 
   \{z \Rightarrow \overline{\sigma}\}}
   \quad (\textsc {T-New})
 	\and
 \inferrule
-  {	\Gamma \vdash e_1 : S \\
-  	\Gamma \vdash e_0 : T_0 \\
-  	T_0 \ni \texttt{def} \; m:S \rightarrow T \\
-  	\Gamma \vdash T <: U}
-  {	\Gamma \vdash e_0.m_U(e_1) : U}
+  {\Gamma; \Sigma \vdash e_0 \ni \texttt{def} \; m:S \rightarrow T \\
+  	\Gamma; \Sigma \vdash e_1 : S \\
+  	\Gamma; \Sigma \vdash T <: U}
+  {	\Gamma; \Sigma \vdash e_0.m_U(e_1) : U}
   \quad (\textsc {T-Meth})
 	\and
 \inferrule
-  {	\Gamma \vdash e_0 : T_0 \\
-  	T_0 \ni \texttt{def} \; f:T = e}
-  {	\Gamma \vdash e_0.f : T}
+  {	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash e \ni \texttt{val} \; f:T}
+  {	\Gamma; \Sigma \vdash e.f : T}
   \quad (\textsc {T-Acc})
 %	\and
 %\inferrule
@@ -38,21 +39,16 @@
 %  {	\Gamma; E \vdash e_0.f = e_1 : T}
 %  \quad (\textsc {T-Assign})
 %	\and
-%\inferrule
-%  {	l:T \in \Sigma}
-%  {	\Gamma \vdash l : T}
-%  \quad (\textsc {T-Loc})
 	\and
 \inferrule
-  {	\Gamma \vdash e : S \\
-  	\Gamma \vdash S <: T}
-  {	\Gamma \vdash e \unlhd T : T}
-  \quad (\textsc {T-Wide})
+  {	\Gamma; \Sigma \vdash e : T}
+  {	\Gamma; \Sigma \vdash e \unlhd T : T}
+  \quad (\textsc {T-Type})
 	\and
 \inferrule
-  {	\Gamma \vdash e : S \\
-  	\Gamma \vdash S <: T}
-  {	\Gamma \vdash e : T}
+  {	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash S <: T}
+  {	\Gamma; \Sigma \vdash e : T}
   \quad (\textsc {T-Sub})
 \end{mathpar}
 \caption{Expression Typing}
@@ -62,18 +58,18 @@
 \hfill \fbox{$\Gamma; E \vdash d:\sigma$}
 \begin{mathpar}
 \inferrule
-  {\Gamma \vdash e : T}
-  {\Gamma \vdash \texttt{def} \; f:T = e : \texttt{def} \; f:T}
+  {\Gamma; \Sigma \vdash e : T}
+  {\Gamma; \Sigma \vdash \texttt{def} \; f:T = e : \texttt{def} \; f:T}
   \quad (\textsc {T-Decl-Var})
 	\and
 \inferrule
-  {\Gamma, x : S \vdash e_0 : T}
-  {\Gamma \vdash \texttt{def} \; m(x:S) = e : T : \texttt{def} \; m:S \rightarrow T}
+  {\Gamma, x : S; \Sigma \vdash e_0 : T}
+  {\Gamma; \Sigma \vdash \texttt{def} \; m(x:S) = e : T : \texttt{def} \; m:S \rightarrow T}
   \quad (\textsc {T-Decl-Def})
 	\and
 \inferrule
-  {\Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf} }
-  {\Gamma \vdash \texttt{type} \; L : S .. U : \texttt{type} \; L : S .. U}
+  {\Gamma; \Sigma \vdash \texttt{type} \; L : S .. U \; \textbf{wf} }
+  {\Gamma; \Sigma \vdash \texttt{type} \; L : S .. U : \texttt{type} \; L : S .. U}
   \quad (\textsc {T-Decl-Type})
 \end{mathpar}
 \caption{Declaration Typing}
@@ -83,10 +79,10 @@
 %\hfill \fbox{$\Gamma \vdash \mu:\Sigma$}
 %\begin{mathpar}
 %\inferrule
-%  {\forall l \in dom(\mu), \; \mu(l)= \{\texttt{z} \Rightarrow \overline{d}\} \\
-%  	\Sigma(l)= \{\texttt{z} \Rightarrow \overline{\sigma}\} \\
+%  {\forall x \in dom(\mu), \; \mu(x)= \{\texttt{z} \Rightarrow \overline{d}\} \\
+%  	\Gamma(x) = \{\texttt{z} \Rightarrow \overline{\sigma}\} \\
 %  	\Gamma \vdash \overline{d} : \overline{\sigma}}
-%  {\Gamma \vdash \mu : \Sigma}
+%  {\Gamma \vdash \mu}
 %  \quad (\textsc {T-Store})
 %\end{mathpar}
 %\caption{Store Typing}
