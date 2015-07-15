@@ -425,6 +425,13 @@ match e with
   | e_type e0 T => path e0 u
   | _ => None
 end.*)
+
+Inductive reduction : store -> exp -> store -> exp -> Prop :=
+  | R_New : forall l u d_,
+            length u = l ->
+            reduction u (e_new d_) (d_::u) (e_loc l).
+            
+
 Require Export String.
 Open Scope string_scope.
 
@@ -487,6 +494,8 @@ Combined Scheme sub_mutind from
       subtype_subs_d_ind.
 
 Notation "l1 '++' l2" := (app l1 l2).
+
+(*Theorem preservation : forall G E e T, bleh.*)
 
 Theorem environment_narrowing_mutind : 
   (forall G E e T, typing G E e T -> (forall G_a x S U G_b,
