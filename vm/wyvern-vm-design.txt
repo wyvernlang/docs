@@ -1,0 +1,157 @@
+Relevant constructs from Smalltalk bytecode
+ - read local variable
+ - read field
+ - literals
+ - write field
+ - instance method call
+ - jumps (conditional and non-conditional)
+
+Constructs we may not directly use 
+ - write local variable
+ - return
+
+Things to consider adding
+ - an approach to primitives
+
+Less relevant constructs
+ - stack manipulation constructs
+ - send to super
+
+
+Questions
+ - how does Smalltalk handle variables from an outer scope?
+	Answer: a BlockContext copies the local variables (by reference, I guess) from the outer scope
+ - how does Smalltalk do non-local returns?
+ - how are primitives handled?
+	Answer: some methods have numbered primitive implementations.
+		If the primitive fails, a bytecode implementation can serve as a backup
+ - what is a "literal variable"? there are push and store opcode for this
+
+what is a special message?
+what is an arithmetic message?
+
+
+Discussion/Thinking
+ - how to handle control structures?  jumps in IL, or do everything with higher-order code?
+	probably the latter
+ - how to handle primitives?
+	
+ - where's the research on implementing delegation?
+	is there prior work on this?
+	
+References
+	Evlan - functional bytecode
+		http://evlan.org/concepts/functional/
+		(no public details, I think)
+	JVM http://da.vidr.cc/projects/lljvm/
+	
+Tags
+	a type that may be extended with new cases (class-like)
+		class t with ...
+		implicitly an exact type
+			(if approximate type, no need to use this construct)
+	a type that is a case of another type
+		syntax: case of t with ...
+		(independent of class/datatype)
+		distinguish exact type from subtype
+		in the case of exact type, it can be instantiated
+	a type with a known, fixed set of cases (datatype-like)
+		datatype t is ... with ...
+		(mutually exclusive with class)
+		actual type is implicitly a subtype of this one
+		
+	can we encode all this with the ECOOP tag theory?
+	
+	fits best into our current (Odersky-based) formalism if these are structural types
+		for now we should consider only type members that are equal to a known type, and those that are fully abstract
+		
+	possible formalism
+		let w be purely structural types: the cases we have right now
+		let c be 
+			case of p.L w
+			(or just w)
+		let
+			extag c
+			datatag list<p.L> c
+			(or just c)
+		// the above extends naturally to abstraction via subtyping bounds
+	
+	match: need multiple arms for efficiency
+	
+What literals to support?
+	strings
+	integers
+	rationals (soon)
+	characters?
+
+Simple type system (type members, but no bounds)
+2-way FFI spec!
+	FFI constructor
+		- specify the platform object (purpose: arch control)
+			implicitly specifies the language
+			used to interpret the type and platform-specific data
+			provides functions needed at run-time
+				one example would be getting the CLASSPATH (for Java)
+				or the include path (for C)
+			could be specified dynamically
+			metadata on the actual type of the platform object allows checking, optimization before the program is run (compile-time/load-time)
+			Actually, the FFI constructor should *be* the platform object
+		- platform-specific data about what functions we are extracting
+			(could be specified dynamically)
+			an example is the Java package name,
+			or the .h file in C that we will load
+			this is specified as a type member of the platform
+				** does this mean we need dependent types?
+					no, only type members, since the FFI constructor is a
+					method of the platform object
+				** do we need this to be static?
+					yes, if we want to do extra checking
+		- a Wyvern type specifying what you can do with the FFI object
+			(specified statically)
+	Platform object abstraction
+	Language abstraction
+		- should be reusable across platforms
+			thus separate abstraction from the platform abstraction
+			a platform may support more than one language, for example
+				e.g. LLVM that talks to a JVM
+			different platforms may connect to the same language with
+				different compilation/interpretation approaches
+		- tool for generating typed FFI interfaces
+			e.g. from a package or class in Java, or a .h file in C
+			writes an FFI module
+				(that takes a platform of the appropriate language type as an argument)
+				includes metadata that permits re-checking the interface
+				against resources available in the current deployment info
+		- specification of the 2-way interface
+			how a Java module translates to a Wyvern specification
+	Later: allow FFI objects to have custom types (e.g. allowing overriding in Java interfaces)
+	
+Serialization - using Protocol Buffers is tempting!
+	main weakness is no pointers
+	Thrift is almost as small/fast, has better data structures,
+		and works across more languages
+	Handle trees with nested structs, a union, and an enum to tag the union
+		(but worse documentation/examples)
+		
+	Of course both will be significantly less compact than a bytecode...
+
+	
+How to handle Int, String, Rational
+-----------------------------------
+
+Parsing
+	"sdfsdfds", 253, and 98.24 are all just literal forms
+		when there is an expected type, these are handled by the parser for that type
+	when there is no expected type, we infer a type ascription as follows:
+		"sdfsdfds" : wyvern.lang.String
+		253 : wyvern.lang.Int
+		98.24 : wyvern.lang.Rational
+
+module wyvern.lang	// will figure out this syntax/semantics later
+	type Int
+
+
+Reporting Run-Time Errors
+-------------------------
+call a library function that takes a string as argument, reports the error,
+and drops into a debugger or halts

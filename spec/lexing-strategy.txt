@@ -1,0 +1,38 @@
+New Wyvern Lexing Strategy
+==========================
+
+Input: a finite sequence of characters
+Output: a sequence of tokens
+	each has source location information
+	standard Wyvern tokens
+	+ DSLBLOCK
+	+ INDENT, DEDENT, NEWLINE
+	+ comment and whitespace information retained somehow
+	
+Strategy
+	read one logical line at a time
+		compute indentation level: generate INDENT or DEDENT if needed
+			exception if indentation level doesn't extend current or go back to something on the stack
+		remove comments (newlines within comments do not "count" as changing the line)
+		handle line continuation
+		generate standard Wyvern tokens
+		generate NEWLINE at end
+	if previous line had a ~
+		select the following lines that are more highly-indented
+		throw a lexing error if there wasn't at least one such line
+		strip the least indentation level off of these more highly-indented lines
+		generate a DSLBLOCK token
+
+Stages
+	eliminate comments (but keep them in the stream)
+		this stage has to be aware of quoting
+	semantic newlines
+		figure out the indentation level for each semantic line
+		keep the original lines around so we can restore them for DSL blocks - or (better!) merge with next stage
+	identify DSL blocks
+		if a semantic line has a ~, the following literal lines that are indented more than the current line are made into a DSL block.  Note that this requires undoing semantic newlines and comments.  Is this a conflicting specification?
+	
+Features
+	comments (both forms)
+	end of line continuation
+	

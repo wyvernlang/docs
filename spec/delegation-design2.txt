@@ -1,0 +1,39 @@
+// Simple example for testing - without downcalls
+
+type IntCollectionCore
+    def do(f:Int -> Unit):Unit
+    def add(element:Int):Unit
+
+type IntCollection extends IntCollectionCore
+    def addAll(c:IntCollection):Unit
+
+def makeIntCollection(core:IntCollectionCore):IntCollection = new
+    delegate IntCollectionCore to core
+    def addAll(c:IntCollection):Unit
+        c.do(fn element:Int => core.add(element))
+
+def makeIntLinkedList():IntCollection
+    type Link
+        def do(f:Int -> Unit):Unit
+    val Nil = new Link
+        def do(f:Int -> Unit):Unit = ()
+    def Cons(e:Int, n:Link):Link = new
+        def do(f:Int -> Unit):Unit
+            f(e)
+            n.do(f)
+    makeIntCollection(new IntCollectionCore)
+        var first:Link = Nil
+        def do(f:Int -> Unit):Unit = first.do(f)
+        def add(element:Int):Unit
+            first = Cons(element, first)
+
+val list1 = makeIntLinkedList()
+val list2 = makeIntLinkedList()
+list1.add(1)
+list2.add(2)
+list2.add(3)
+list1.addAll(list2)
+list1.do(fn i:Int => printInt(i))
+var sum:Int = 0
+list1.do(fn i:Int => sum = sum + i)
+sum

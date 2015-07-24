@@ -1,0 +1,115 @@
+Distributed System Principles
+=============================
+
+What the language can provide:
+ - metaprogramming to make distributed access look like local access
+   > invent such a mechanism
+ - the ability to pass live objects or functions across the network (if the other side can accept, true of JavaScript)
+ - knowledge of when an operation might involve network access, and therefore might partially fail
+   > need some failure marking mechanism, probably
+ - static reasoning to be able to analyze what is sent over the network
+   - an interface with all messages/data sent/received
+   - ability to limit to just data, and/or to control what kind of data can be serialized
+     > use a custom static type system - mechanism needed
+   - ability to reason about what variables are captured
+     > use a special function constructor that specifies this
+	 > the function constructor generates a subtype of function that is used in the remote interface
+	 > at the client, the function can be invoked normally
+	 > already done by Scala (see ECOOP 2014 Miller et al. paper)
+   - ability to reason about local resources captured
+     > ProtocolProxy[X] is a subtype of X
+	 > typechecker for Protocol ensures that there is no state or resources, only ProtocolProxies for them
+	 > ProtocolProxy must match the Protocol being used
+	 > must expose state/resources in type system
+   - ability to distinguish objects passed by value from those passed by reference
+     - typically when passing an object by value, it should be immutable
+	 - "moving" objects creates a big risk of inconsistency,
+		in a model where consistency is likely expected - probably not an appropriate primitive
+
+Possible research contributions
+ - metaprogramming system
+   - implement an interface with proxy code, producing a compiled result
+   - enable custom checks on that interface, e.g. to eliminate non-serializable things
+ - failure marking mechanism more practical than RMI exceptions
+   - need to think more carefully about the drawbacks of the exception mechanism and what we would do here
+ - security properties
+   - e.g. use of metaprogramming system to analyze what is passed over the network in a rigorous way
+ - system for reasoning about resources - like ML5 but lightweight
+   - prohibit capturing, or enable capturing but make clear that accessing goes back over network
+ - lightweight by-value/by-reference type system, with immutability
+		
+Design decisions for Laurys
+ - an interface for passing live objects and functions across the network - Java to JavaScript and vice versa
+   - need to instrument Java-based Wyvern objects with enough info to convert to JavaScript, and vice versa
+ - a way of making the above more efficient in important special cases
+   - we have known, static code that we want to run in JavaScript (without creating Wyvern objects first)
+   - we want to pass pure data and we know the data's shape (at least as far as what is passed)
+ - a way for proxies to determine their own serialization (effectively passing a reference to the underlying object, not all its contents)
+   - probably either the proxy knows about the serialization mechanism, or vice versa
+   - do proxies get generated automatically for certain types that get passed?
+     - does this happen explicitly for resources/stateful things, and is there a run-time notion of that?
+	 
+Scenarios
+ (1) write a Wyvern program, compile it to JavaScript, run it on node.js
+ (2) using the Wyvern HTML DSL, write a web page with embedded commands.  Compile it to HTML/JavaScript and put it on a static web server.
+ (3) write a Wyvern web server plugin that dynamically generates HTML with embedded actions.  Pass the resulting object to the client as HTML/JavaScript.
+   - Ideally, do as much of the compilation-to-HTML-and-JavaScript work in advance as possible.
+ (3ab) support passing objects from Java to JavaScript and back, in an unplanned way (3)
+ (4) support proxies for "resource objects" in the case above
+
+Mechanisms / things to implement
+ - compiler from Wyvern code to straight JavaScript (1)
+   - or (functionally equivalent, but less performant) an interpreter for Wyvern in JavaScript
+ - compiler from Wyvern code (with bound variables) to a Wyvern function that, when invoked, yields JavaScript code with the values embedded (2)
+   - are the values already in JavaScript?  or does the function convert them?
+   - alternative: generate JavaScript that calls the Wyvern-in-JS interpreter at the appropriate places
+ - convert Wyvern functions and objects (in the Java interpreter) to JavaScript ones (3, 3a, support for 2)
+   - or just invoke the interpreter on them
+ - take a Wyvern function or object on the JavaScript side and serialize it so it can be instantiated and invoked in the Java interpreter (3b)
+ - how do resources work? (4)
+  - dynamic or static?
+  - Architectural Control => want static reasoning
+    - interface shows types passed explicitly
+	- additional list of types that can be passed if captured
+	  - checked dynamically, but static type system will eventually verify this
+	- list of types that should be proxied
+	  - could be part of explicit interface or captured type interface
+	- how do we (statically, dynamically) identify resources/stateful objects?
+	  - for now: only a limited set of native Java objects can be passed across (maybe the empty set)
+	  - later: static and dynamic identification of statefulness/resource-ness
+	    - could re-use tags?  but needs to have semantics, for state at least.  maybe resource is a tag.
+
+***Signatures for the above mechanisms
+
+(1)
+	Java.compile: Wyvern -> JavaScript
+	*or*
+	JavaScript.interpret: Wyvern -> WJSObject
+
+(2)
+	Java.compile: WyvernWithHoles -> WyvernFunction[WJObjects -> JavaScript]
+	*or*
+	[just use the interpreter functionality above]
+
+(3a)
+	Java.toJS: WJObject -> JSON
+	*or*
+	Java.toWON: WJObject -> WyvernObjectNotation
+	JavaScript.fromWON: WyvernObjectNotation -> WJSObject
+(3b)
+	JavaScript.toWON: WJSObject -> WyvernObjectNotation
+	Java.fromWON: WyvernObjectNotation -> WJObject
+(4)
+	enhance toWON functions with:
+		- a set of types to translate
+		- a set of types to proxy
+		- a function that creates proxies: type -> object -> WyvernObjectNotation
+
+Discussion with Alex Potanin
+ - he agrees we may want an intermediate notation
+ - he agrees we may eventually pass java across
+ - first dump JavaScript
+ - then serialization (records)
+ - then remote objects
+ - then pass first-class objects
+ - there will be coordination with the Chinese student - interfaces that he uses, shared between Java and JavaScript, maybe the intermediate form

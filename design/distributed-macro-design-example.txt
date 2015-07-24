@@ -1,0 +1,76 @@
+Preparation
+ - read about async/await in C#
+ - read a metaprogramming paper.  Shan shan Huang's?  Scala annotation macros?
+
+
+Example:
+
+import wyvern.rpc
+
+type IPing
+    def ping():Unit
+
+
+class PingServer implements IPing
+    def ping():Unit = ()
+
+    class def main()
+        val server = new
+        rpc.register(server, 1000)
+        rpc.run()
+
+
+module PingClient
+
+def main()
+    val server = rpc.lookup<IPing>("www.wyvern.com", 1000)
+    server.ping()
+    stdio.print("got result")
+
+//////////////////////////////////////
+
+module rpc
+
+// should we write this type from the internal perspective, too?
+// then programatically check the expressions are right?
+macro register<T>(obj:T, port:Int):Unit
+    // runs at compile time
+    val t:Type = typeof T
+    match(t)
+        ObjectType =>
+            val stub:Expr = NewExpr(Type("Stub"))
+			val body:Expr = MatchExpr("s")
+			for each def m in t do
+			    case m.name => m.name(/* translate args */)
+			stub.addDef("invoke","s","String",body)
+            CallExpr(FunctionExpr("registerInternal"), stub)
+        default => compileError("Must call register with a concrete object type")
+
+type Stub
+    def invoke(s:String):String
+
+def registerInternal(obj:Stub, port:Int):Unit
+
+def run()
+
+macro lookup<T>(address:String, port:Int):T
+    // runs at compile time
+    val t:Type = typeof T
+    match(t)
+        ObjectType =>
+            val n:NewExpr = NewExpr(t)
+            for each def m in t do
+                val body = getSerializeAST(m.name, m.type.argument)
+                n.addDef(m.name, m.type, body)
+            n.addVal("address", address);
+            n.addVal("port", port);
+            n
+        default => compileError("Must call register with a concrete object type")
+
+
+
+
+Ideas for Chenglong
+ - implement a macro system
+ - implement async/await
+

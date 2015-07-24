@@ -1,0 +1,61 @@
+// In the example below, ** indicates places to look at
+
+type Collection (this) // **(this) is optional, and can be renamed
+    type E
+    def do(f:E -> Unit):Unit
+    def add(element:E):Unit
+    def addAll(c:Collection[E]):Unit
+
+type Addable (this:Addable[E]) // **here we have given this an explicit type
+    type E
+    def add(element:E):Unit
+
+type AbstractCollection (delegator:Addable[E]) // **here we rename this and give it a custom type
+    type E
+    def addAll(c:Collection[E]):Unit
+
+def makeAbstractCollection[E]():AbstractCollection[E] = new AbstractCollection[E] // **default name and type for this comes from AbstractCollection[E]
+    def addAll(c:Collection[E]):Unit
+        c.do(fn element:E => delegator.add(element))
+
+def makeLinkedList[E]()
+    type Link
+        type E
+        def do(f:E -> Unit):Unit
+    val Nil = new Link[E]
+        def do(f:E -> Unit):Unit = ()
+    def Cons(e:E, n:Link[E]):Link[E] = new
+        def do(f:E -> Unit):Unit
+            f(e)
+            n.do(f)
+    new Collection
+        val coll = makeAbstractCollection[E]()
+        // **here we specify that when we invoke methods through the delegate field, we pass "this" as the delegator
+        delegate AbstractCollection(this) to coll  // **can leave out (this) if AbstractCollection does not need to make downcalls
+        type E = E
+        var first:Link[E] = Nil
+        def do(f:E -> Unit):Unit
+            first.do(f)
+        def add(e:E):Unit
+            first = Cons(e, first)
+
+val list1 = makeLinkedList[Int]()
+val list2 = makeLinkedList[Int]()
+list1.add(1)
+list2.add(2)
+list2.add(3)
+list1.addAll(list2)
+list1.do(fn i:Int => printInt(i))
+
+
+// just for fun
+val addable = new Addable[Int] ... // not shown
+val abstractCollection = new AbstractCollection[Int]
+// **here we pass the delegator explicitly
+abstractCollection.addAll(delegator=addable,list1)
+
+
+//old version of delegation
+//this avoids the need for a separate delegation statement
+//but it is less flexible because it requires us to delegate exactly the type of the field
+        delegate(this) val abstractCollection = makeAbstractCollection[E]()

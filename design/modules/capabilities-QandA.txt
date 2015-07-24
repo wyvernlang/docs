@@ -1,0 +1,31 @@
+Question: how does what we're doing differ from an effect system?
+Answer:
+	An effect system is very good at telling you which operations access which resources transitively
+		Example: making sure a call does not result in sending anything over the network
+	Our system is good for telling you which modules access which resources directly
+		Example: making sure everything sent over the network is encrypted
+		Right now we do not formalize this reasoning, but capability-based systems are known to enable it (show a concrete example)
+		In the longer term we could provide a formal system that does permit this kind of reasoning
+Q: how does this compare to type qualifier systems that could also check properties such as "everything sent over the network is encrypted"
+	A: although we have not formalized it, the capability mechanism has the advantage of being more expressive than a typical type qualifier system is
+	A: furthermore, the syntactic overhead is much lower.  E.g. you don't have to put qualifiers on types everywhere.
+	[but we sacrifice tool support - could be added, at the cost of some syntactic overhead and some cost in flexibility for those things you want to statically verify]
+	
+Q: we have a strategy where we provide formal reasoning about capability safety, and we argue this can be leveraged to reason about higher-level (and more interesting) architectural properties.  Why should anyone believe us?
+	A: one approach is to show case studies that illustrate the informal reasoning humans can do leveraging capability safety
+	A: ideally we show directly how the authority safety theorem is useful
+	A: another approach (longer term) is to provide some kind of formal system that verifies the higher-level properties
+	(Might be good to talk about answers to this with James and Sophia)
+	
+Imagine we have a framework for secure distributed communication
+We want to verify that the whole program only uses this framework to access the network.
+In Java today, I argue this is complex.
+We can build a fairly simple informal proof that relies on authority safety.
+1. we pass the network capability to the framework when the framework is imported.  Main doesn't pass the network capability anywhere else. (by inspection of Main)
+2. the network capability does not escape the framework. (justification by 2.a. and 2.b. below)
+3. no other part of the program can access the network without going through the framework if the network capability does not escape the framework (obvious)
+2.a. let's assume that the interface of the framework is purely functional--i.e. there are no "stateful" annotations on any of the types in the framework's interface (except the type of the framework itself)
+	(if the framework interface is not purely functional, the reasoning is more complicated, but can follow the same principles I'm using here)
+2.b. The Authority Safety theorem says that the only way the network capability can escape the framework is by being passed in a call or in a return to some principal.
+	That principal can only be a client of the framework since the framework interface doesn't have any principals in it.
+	But the framework interface has no stateful types, and the network is a stateful type.  Therefore it cannot escape.

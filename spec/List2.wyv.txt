@@ -1,0 +1,56 @@
+// In the example below, ** indicates places to look at
+// This example includes both this and an optional delegator parameter
+
+type Collection (this) // **(this) is optional, and can be renamed
+    type E
+    def do(f:E -> Unit):Unit
+    def add(element:E):Unit
+    def addAll(c:Collection[E]):Unit
+
+type Addable
+    type E
+    def add(element:E):Unit
+
+type AbstractCollection (this, delegator:Addable[E]) // **here we use an extra delegation parameter and specify its type
+    type E
+    def addAll(c:Collection[E]):Unit
+
+def makeAbstractCollection[E]():AbstractCollection[E] = new AbstractCollection[E] // **name for this and delegator comes from type declaration
+    def addAll(c:Collection[E]):Unit
+        c.do(fn element:E => delegator.add(element))
+
+def makeLinkedList[E]()
+    type Link
+        type E
+        def do(f:E -> Unit):Unit
+    val Nil = new Link[E]
+        def do(f:E -> Unit):Unit = ()
+    def Cons(e:E, n:Link[E]):Link[E] = new
+        def do(f:E -> Unit):Unit
+            f(e)
+            n.do(f)
+    new Collection
+        val coll = makeAbstractCollection[E]()
+        // **here we specify that when we invoke methods through the delegate field, we pass "this" as the delegator
+        delegate AbstractCollection(this) to coll  // **can leave out (this) if AbstractCollection does not need to make downcalls
+        type E = E
+        var first:Link[E] = Nil
+        def do(f:E -> Unit):Unit
+            first.do(f)
+        def add(e:E):Unit
+            first = Cons(e, first)
+
+val list1 = makeLinkedList[Int]()
+val list2 = makeLinkedList[Int]()
+list1.add(1)
+list2.add(2)
+list2.add(3)
+list1.addAll(list2)
+list1.do(fn i:Int => printInt(i))
+
+
+// just for fun
+val addable = new Addable[Int] ... // not shown
+val abstractCollection = new AbstractCollection[Int]
+// **here we pass the delegator explicitly
+abstractCollection.addAll(delegator=addable,list1)

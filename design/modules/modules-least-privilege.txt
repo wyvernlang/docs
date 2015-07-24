@@ -1,0 +1,154 @@
+NEED TO GET MODULE & LEAST PRIVILEGE STORY STRAIGHT
+
+how does the syntactic sugar actually work?
+can we justify it in terms of the argument below?
+when do we really insist that main is only configuration (if ever)?
+what is the rule for loading default module implementations in main?
+
+having config separate from code
+facilitates least privilege
+because config often needs high privilege (even FFI)
+and typical pieces of code -- even main -- should have less
+
+
+other design questions
+	what rule do we enforce linking a module's name with its filename?
+		and it's location in the file system or in a URI?
+	what is the rule used to look up modules if no URI is given?
+
+what are the design rules for dealing with stateful modules?
+ - should main always instantiate? or only if the module is shared?
+ - what about modules that would otherwise require an FFI?
+ 
+CANDIDATE DESIGN RULES FOR USING STATEFUL MODULES
+ (1) main should never pass on ffi unless the sub-module is going to use the ffi dynamically [least privilege] or wishes to hide the purpose of using the ffi [information hiding]
+ (2) similarly, main should use requires rather than ffi unless a module requires ffi plus another import [least privilege]
+ (3) module X should only require module Y if it is going to use it directly, rather than to pass it to some other module
+	good for least privilege
+ (4) module X should instantiate module Y (rather than importing it) if module X does not share module Y with anyone
+	good for information hiding
+	good for enforcing (and clarifying) isolation (but this is second-order)
+ 
+ NOTE: (3) and (4) are sometimes in conflict!
+ 
+ 
+MODULES IN WYVERN
+
+Require Clauses in Main.  The main module may have a require clause
+of one of three forms:
+
+ * require ffi
+ 
+ * require ffi/platform-name, where platform-name is the name of the
+ platform on which the module is intended to operate.
+ 
+ * require URI, where URI refers to a module that has only one
+ require clause, requiring an ffi in either of the above forms,
+ where any specified platform-name is the same for any ffis
+ imported by the main module and its required modules.
+
+In the last case, URI will be resolved to a pair of a type and a
+module, where the type is a supertype of the module's type.  The
+module will be instantiated with the proper FFI, assigned the
+appropriate type, and bound to the main module's requirement.
+
+Resolution of Imports and Requires Types.  URIs given for an import
+clause should resolve to a module.  URIs given for a require clause
+should resolve to a type, but if a module is found first, the type
+of the module is used.  In the latter case the module should be
+ascribed a type intentionally, as a matter of good design.
+
+If the URI includes a scheme, that scheme is used to resolve the URI
+to a file.  If the URI does not include a scheme, a standard set of
+paths will be used to find module elements.  By default, these
+paths include, in order:
+
+ * The stdlib/ directory from the local Wyvern installation
+ 
+ * The platform/X/stdlib/ directory from the local Wyvern installation
+ 
+ * The current directory
+
+A future version of the Wyvern modules specification will provide a
+way to specify paths.
+
+If a URI does not end in a .wyv or .wyt extension, Wyvern will search
+for the file with the .wyt extension, then with the .wyv extension,
+for the first location in the path.  If no match is found with any
+extension, the second location in the path will be searched.
+
+A module whose URI ends in the simple name X must be stored in a
+file named X.wyt or X.wyv.  The first form is permitted only for
+files that contain a single type declaration.
+
+
+Guidelines.  There are a number of guidelines for using Wyvern's
+module system, that will aid in getting the most benefit from Wyvern's
+constructs.  While not enforced, these are followed in the Wyvern
+standard library and example programs, and are recommended for all
+Wyvern users:
+
+ (A) Each program module should require interfaces only for resources
+ that it needs to use directly.  Requiring a resource R because it is
+ used by some submodule M' to be instantiated is usually a design flaw.
+ Instead, M' should be instantiated by a higher-level module with R as
+ a resource, and M' should be required instead.  For example, prefer:
+ 
+    require stdio
+	
+ to:
+ 
+    require ffi
+	instantiate stdio(ffi)
+	
+ This guideline arises from the Principle of Least Privilege: each
+ module should require only the privileges it needs.
+ 
+ (B) As a corrollary of the above guideline, rather than requiring
+ an FFI, the main program module should ordinarily require modules
+ that use the FFI in a particular way, leveraging the syntactic
+ sugar described above.
+
+ (C) A module should instantiate a resourceful module, rather than
+ requiring it, if the resourceful module does not require greater
+ privilege (see guideline A) and if the resourceful module does not
+ need to be shared with sibling modules.  This guideline enhances
+ isolation by ensuring that resourceful modules that are not
+ intended to be shared do not end up being shared accidentally.
+
+ (D) For programs that consist of more than one module--not
+ considering libraries that are not specific to that program--the
+ set of modules should be divided into configuration modules
+ (including the main module) and code modules.  Configuration
+ modules should focus on instantiating and linking resource
+ modules and should generally have as little code as possible,
+ whereas code modules should avoid instantiating anything other
+ than the library modules they directly need.
+
+ 
+ 
+ 
+ 
+ADDITIONAL IDEAS ---------------------
+
+Component.  A component is a unit intended for separate distribution.
+Components may be single modules or a set of modules.  A component
+should be given a canonical name of the form:
+
+authority/path-to-component
+
+and any nested modules should be given a canonical name of the form:
+
+authority/path-to-component/module/path-to-module
+
+Here the word "module" is special, because it cannot form part of a
+module name, and so the system can use it to determine that the
+component should be loaded for type-ascription purposes before the
+module.
+
+Components should be stand-alone in that their import and require
+clauses should be given in terms of complete URIs.
+
+In a future version of Wyvern's module system that supports versioning,
+components should include full version specifications for the
+component itself as well as for all imported and required components.
