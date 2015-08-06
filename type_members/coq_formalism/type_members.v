@@ -426,10 +426,17 @@ match e with
   | _ => None
 end.*)
 
-Inductive reduction : store -> exp -> store -> exp -> Prop :=
+Inductive sub_x : list (var * type) -> list type -> type -> type -> Prop :=
+  | Sx_Refl : forall G E S, sub_x G E S S
+
+  | S_Trans : forall G E S T U, sub_x G E S T ->
+              sub G E T U ->
+              sub_x G E S U.
+
+(*Inductive reduction : store -> exp -> store -> exp -> Prop :=
   | R_New : forall l u d_,
             length u = l ->
-            reduction u (e_new d_) (d_::u) (e_loc l).
+            reduction u (e_new d_) (d_::u) (e_loc l).*)
             
 
 Require Export String.
@@ -498,10 +505,11 @@ Notation "l1 '++' l2" := (app l1 l2).
 (*Theorem preservation : forall G E e T, bleh.*)
 
 Theorem environment_narrowing_mutind : 
-  (forall G E e T, typing G E e T -> (forall G_a x S U G_b,
+  (forall G E e T, typing G E e T -> (forall G_a x S U G_b T',
                                       G = (G_a ++ ((x,U)::G_b)) ->
                                       sub G_a E S U ->
-                                      subtyping (G_a ++ ((x,S)::G_b)) E e T)) /\
+                                      typing (G_a ++ ((x,S)::G_b)) E e T) ->
+                                      ) /\
 
   (forall G E e T, subtyping G E e T -> (forall G_a x S U G_b,
                                          G = (G_a ++ ((x,U)::G_b)) ->
