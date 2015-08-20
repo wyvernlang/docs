@@ -954,12 +954,12 @@ $\fbox{$~auth()~$}$
 \[
 \begin{array}{c}
 \infer[\textsc{(auth-store)}]
-  {auth_{store}(l,\mu) = pointsto(d,\mu)}
+  {auth_{store}(l,\mu) = \{ l \} \cup pointsto(d,\mu)}
   {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu}\\[5ex]
   
 \infer[\textsc{(auth-stack)}]
   {auth_{stack}(l,E[l.m(l') \rhd e'],\mu) = pointsto(e',\mu) \cup auth_{stack}(l,e',\mu)}
-  {l.m(l'') \rhd E' \not\in E}\\[5ex]
+  {l.m'(l'') \rhd E' \not\in E}\\[5ex]
   
 \infer[\textsc{(auth-stack-nocall)}]
   {auth_{stack}(l,e,\mu) = \varnothing}
@@ -978,6 +978,7 @@ $\fbox{$~auth()~$}$
 
 \begin{itemize}
 \item A \textit{principal} is a stateful object.
+\item An object can \emph{directly access} a principle if the object either has a reference to the principle or can access the object via pure methods.
 \item ``$pointsto(e, \mu) = \{ ... \}$'' means that, in the context of memory $\mu$, the expression $e$ can directly access principals identified (pointed to) by locations in $\{ ... \}$.
 \item ``$auth_{store}(l, \mu) = \{ ... \}$'' means that, in the context of memory $\mu$, the principal identified by $l$ can directly access the other principals identified by locations in $\{ ... \}$, by virtue of $l$'s (static) state.
 \item ``$auth_{stack}(l, e, \mu) = \{ ... \}$'' means that, in the context of memory $\mu$, the principal identified by $l$ can directly access the other principals identified by locations in $\{ ... \}$, by virtue of the execution state of methods of $l$ executing in $e$.
@@ -1001,17 +1002,16 @@ $\fbox{$~auth()~$}$
 
 \item The \emph{authority of an object or an expression} is the union of the set of all principles (stateful objects) the current principle or expression has access to.
 
-\item The \emph{authority of an object or an expression} is the aggregated authority of all reachable objects. (Topological definition.)
-
 \item The authority of an object can change due to actions performed by other objects. For example:
 \begin{itemize}
-\item If a principle A, authority for which an object B does not have, is passed in as an argument to the object B's method by some caller object C, which has authority over A, then B (perhaps only temporarily) gains authority over A, or
-\item If an object A, for which another object B has authority, creates a new object C, A gains authority over C via B.
+\item If an object A creates a new object B, A gains authority over B.
+\item If a principle A, authority for which an object B does not have, is passed in as an argument to the object B's method by some caller object C, which has authority over A, then B (perhaps only temporarily) gains authority over A.
+\item If a principle A, authority for which an object B does not have, was returned from a method call that B initiated, then B gains authority over A.
 \end{itemize}
 
-\item The authority of an expression can change as the expression is being evaluated and executed and variables are substituted with concrete values (i.e., objects).
+\item The authority of an expression can change as the expression is being executed.
 
-\item The authority of an object may also be determined by the behavior of the code stored in the object (methods' bodies, $auth_{store}$).
+\item The authority of an object can be statically determined by the code stored in the object. (See the \textsc{auth-store} rule above.)
 
 \end{itemize}
 
@@ -1037,17 +1037,19 @@ then one of the following must hold:
   \item \textbf{Method call:}
   \begin{enumerate}
   \item $e = E[l.m(l')]$, $e' = E[l.m(l') \rhd e'']$,
-  \item $\{ l' \} \not\in pointsto(l, \mu)$,
-  \item $pointsto(l', \mu') \in auth_{stack}(l'', e, \mu)$, \textbf{\emph{~~~[The caller $l''$ previously had the authority that $l$ gained]}}
-  \item $auth(l, e', \mu') = auth(l, e, \mu) \cup pointsto(l',\mu')$.\\
+  \item $pointsto(l',\mu) = \{ l' \}$, \textbf{\emph{~~~[The argument $l'$ is a principle]}}
+  \item $\{ l' \} \not\in auth_{stack}(l, e, \mu)$,
+  \item $\{ l' \} \in auth_{stack}(l'', e, \mu)$, \textbf{\emph{~~~[The caller $l''$ previously had the authority that $l$ gained]}}
+  \item $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l' \}$.\\
   \end{enumerate}
   \item \textbf{Method return:}
   \begin{enumerate}
   \item $e = E[l'.m(l'') \rhd l''']$, $e' = E[l''']$,
-  \item $\{ l' \} \in pointsto(l, \mu)$,
-  \item $\{ l''' \} \not\in pointsto(l, \mu)$,
-%  \item \textbf{\emph{[The caller previously had the authority that $l$ gained]}}
-  \item $auth(l, e', \mu') = auth(l, e, \mu) \cup pointsto(l''',\mu')$.\\
+  \item $pointsto(l''',\mu) = \{ l''' \}$, \textbf{\emph{~~~[The returned $l'''$ is a principle]}}
+  \item $\{ l' \} \in auth_{stack}(l, e, \mu)$,
+  \item $\forall l_o : auth_{stack}(l, e, \mu) \subset auth_{stack}(l_o, e, \mu)$, \textbf{\emph{~~~[The caller was $l$, the ``closest'' principle to $e$]}}
+  \item $\{ l''' \} \not\in auth_{stack}(l, e, \mu)$,
+  \item $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l''' \}$.\\
   \end{enumerate}
 \end{itemize}
 
