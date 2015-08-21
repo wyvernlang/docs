@@ -1059,6 +1059,8 @@ then one of the following must hold:
 
 \begin{proof} The proof is by induction on a derivation of $e~|~\mu \longrightarrow e'~|~\mu'$. For a given derivation, we proceed by cases on the final evaluation rule used in the proof:
 
+\sloppy 
+
 \begin{pcases}
 \pcase[\textsc{E-New}]
 $e = \keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d)$, $e' = l'$, $\mu' = \mu, l \mapsto \{ x \Rightarrow d \}_{s}$, and from the premise, we get $l \not\in dom(\mu)$ and $\keywadj{new}_{s}(x \Rightarrow d)~is~closed$.
@@ -1070,7 +1072,7 @@ $e = \keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d)$, $e' = l'$, $\mu' = \m
 \hspace{12pt} Thus, $auth(l, e', \mu') \supset auth(l, e, \mu)$ and specifically $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l' \}$ in compliance with the \textbf{\textit{object creation}} case of the theorem.
 \\
 \pcase[\textsc{E-Field}]
-$e = l.f$, $e' = l'$, $\mu = \mu'$, and from the premise, we get $l \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ and $\keyw{var} f:\tau = l_1 \in d$.
+$e = l.f$, $e' = l'$, $\mu' = \mu$, and from the premise, we get $l \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ and $\keyw{var} f:\tau = l_1 \in d$.
 
 \hspace{12pt} Let us consider $auth(l, e, \mu)$. By \textsc{auth-config}, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l,e,\mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e, \mu) = \varnothing$. Then, $auth(l, e, \mu) = auth_{store}(l, \mu)$.
 
@@ -1078,10 +1080,45 @@ $e = l.f$, $e' = l'$, $\mu = \mu'$, and from the premise, we get $l \mapsto \{ x
 
 \hspace{12pt} Since $\mu' = \mu$, $auth_{store}(l, \mu') = auth_{store}(l, \mu)$ and thus $auth(l, e', \mu') = auth(l, e, \mu)$, i.e., no gain in authority occurred.
 \\
+\pcase[\textsc{E-Assign}]
+$e = l_1.f = l_2$, $e' = l_2$, $\mu' = [l_1 \mapsto \{ x \Rightarrow d' \}_{s}/l_1 \mapsto \{ x \Rightarrow d \}_{s}]\mu$, where $d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]d$, and from the premise, we get $l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ and $\keyw{var} f:\tau = l \in d$.
+
+\hspace{12pt} Let us consider $auth(l, e, \mu)$. By \textsc{auth-config}, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l,e,\mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e, \mu) = \varnothing$. Then, $auth(l, e, \mu) = auth_{store}(l, \mu)$.
+
+\hspace{12pt} Now let us consider $auth(l, e', \mu')$. By \textsc{auth-config}, $auth(l, e', \mu') = auth_{store}(l, \mu') \cup auth_{stack}(l, e',\mu')$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e', \mu') = \varnothing$. Then, $auth(l, e', \mu') = auth_{store}(l, \mu')$.
+...
+\\
+\pcase[\textsc{E-Bind}]
+$e = \keyw{bind} x = l_1~\keyw{in} e_2$, $e' = [l_1/x]e_2$, $\mu' = \mu$.
+
+\hspace{12pt} Let us consider $auth(l, e, \mu)$. By \textsc{auth-config}, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l,e,\mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e, \mu) = \varnothing$. Then, $auth(l, e, \mu) = auth_{store}(l, \mu)$.
+
+\hspace{12pt} Now let us consider $auth(l, e', \mu')$. By \textsc{auth-config}, $auth(l, e', \mu') = auth_{store}(l, \mu') \cup auth_{stack}(l, e',\mu')$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e', \mu') = \varnothing$. Then, $auth(l, e', \mu') = auth_{store}(l, \mu')$.
+
+\hspace{12pt} Since $\mu' = \mu$, $auth_{store}(l, \mu') = auth_{store}(l, \mu)$ and thus $auth(l, e', \mu') = auth(l, e, \mu)$, i.e., no gain in authority occurred.
+\\
+\pcase[\textsc{E-Meth}]
+$e = l_1.m(l_2)$, $e' = l_1.m(l_2) \rhd [l_2/y][l_1/x]e$, $\mu' = \mu$, and from the premise, we get $l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ and $\keyw{def} m(y : \tau_1) : \tau_2 = e \in d$.
+
+\hspace{12pt} Let us consider $auth(l, e, \mu)$. By \textsc{auth-config}, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l,e,\mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e, \mu) = \varnothing$. Then, $auth(l, e, \mu) = auth_{store}(l, \mu)$.
+
+\hspace{12pt} Now let us consider $auth(l, e', \mu')$. By \textsc{auth-config}, $auth(l, e', \mu') = auth_{store}(l, \mu') \cup auth_{stack}(l, e',\mu')$. Since $\mu' = \mu$, $auth(l, e', \mu') = auth_{store}(l, \mu) \cup auth_{stack}(l, e',\mu)$. By \textsc{auth-stack}, $auth_{stack}(l, e', \mu) = pointsto([l_2/y][l_1/x]e, \mu) \cup auth_{stack}(l, [l_2/y][l_1/x]e, \mu)$. Then, $auth(l, e', \mu') = auth_{store}(l, \mu) \cup pointsto([l_2/y][l_1/x]e, \mu) \cup auth_{stack}(l, [l_2/y][l_1/x]e, \mu)$.
+...
+\\
+\pcase[\textsc{E-StackFrame}]
+$e = l'.m(l_1) \rhd l_2$, $e' = l_2$, $\mu' = \mu$.
+
+\hspace{12pt} Let us consider $auth(l, e, \mu)$. By \textsc{auth-config}, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l,e,\mu)$. By \textsc{auth-stack}, $auth_{stack}(l, e, \mu) = pointsto(l_2, \mu) \cup auth_{stack}(l, l_2, \mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, l_2, \mu) = \varnothing$. Then, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup pointsto(l_2, \mu)$.
+
+\hspace{12pt} Now let us consider $auth(l, e', \mu')$. By \textsc{auth-config}, $auth(l, e', \mu') = auth_{store}(l, \mu') \cup auth_{stack}(l, e',\mu')$. Since $\mu' = \mu$, $auth(l, e', \mu') = auth_{store}(l, \mu) \cup auth_{stack}(l, e',\mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e', \mu') = \varnothing$. Then, $auth(l, e', \mu') = auth_{store}(l, \mu')$.
+...
+\\
 \end{pcases}
 
 \noindent...
 \end{proof}
+
+\fussy
 
 %\[
 %\begin{array}{c}
