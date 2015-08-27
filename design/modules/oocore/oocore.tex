@@ -16,7 +16,7 @@
 \fancyhf{}
 \rhead{\thepage}
 
-\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
 \lstloadlanguages{Java,VBScript,XML,HTML}
 
 \newcommand{\keywadj}[1]{\mathtt{#1}}
@@ -753,10 +753,10 @@ resource signature sigE =
   var e : Int
   
 resource signature sigF =
-  def f(y : Int)
+  def f(y : Int) : Int
   
 resource signature sigG =
-  def g(Unit)
+  def g(Unit) : Int
 
 resource signature sigX =
   def sumX(y : Int) : Int
@@ -1163,6 +1163,185 @@ A principle cannot lose authority.
 \begin{corollary}
 A principle always stays a principle and cannot become a pure object.
 \end{corollary}
+
+\newpage
+
+\subsection{Sample Scenarios}
+
+\noindent\underline{\smash{\textbf{\textit{Object creation:}}}}
+%resource signature sigD =
+%  var xd : typeOfE
+%
+%resource signature sigF =
+%  def mf(Unit) : typeOfG
+%
+%resource signature sigD =
+%  var xj : typeOfE
+%
+%resource signature sigF =
+%  def mf : Unit -> typeOfG
+
+\vspace{10pt}
+
+\noindent\textbf{Scenario 1:}
+
+\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource module D : sigD
+  var xd : typeOfE = new(E =>
+    var xe : Int = 5)
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+val D : sigD =
+    bind in
+    new($l_D$ =>
+        var xd : typeOfE =
+          new($l_E$ => var xe : Int =5))
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\begin{itemize}
+\item $l_D$ gains authority over $l_E$
+\end{itemize}
+
+\noindent\textbf{Scenario 2:}
+
+
+\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource module F : sigF
+  def mf(Unit) : typeOfG =
+    [return] new(G =>
+      var xg : Int = 3)
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+val F : sigF =
+    bind in
+    new($l_F$ =>
+      def mf : Unit -> typeOfG =
+      [return] new($l_G$ =>
+        var xg : Int = 3)
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\begin{itemize}
+\item $l_F$ gains authority over $l_G$? temporarily? statically via $auth_{store}$?
+\end{itemize}
+
+\vspace{12pt}
+
+\noindent\underline{\smash{\textbf{\textit{Method call:}}}}
+
+\vspace{10pt}
+
+\noindent\textbf{Scenario 3:}
+
+\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource signature sigH =
+  var xh : Int
+
+module I : sigI
+  def mi(yi : sigH) : Int =
+    [return] yi.xh
+    
+resource module J : sigJ
+  import sigI as myI
+  var xj : sigH = new(H =>
+    var xh : Int = 17)
+  def mj(Unit) : Int =
+    [return] myI.mi(xj)
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource signature sigH =
+  var xh : Int
+
+val I : sigI =
+    bind in
+    new ($l_I$ =>
+      def mi : sigH -> Int =
+      [return] yi.xh
+
+val J : sigJ =
+    bind
+      val myI : sigI = I
+    in
+    new ($l_J$ =>
+        var xj : sigH =
+          new($l_H$ =>
+            var xh : Int =17)
+          def mj(Unit) : Int =
+            [return] myI.mi(xj))
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\begin{itemize}
+\item Is module \lstinline{I} a resource?
+\item $l_J$ has authority over $l_H$
+\item $l_I$ gains authority over $l_H$ because $l_H$ is passed in as an argument into $l_I$'s method?
+\end{itemize}
+
+\newpage
+
+\noindent\underline{\smash{\textbf{\textit{Method return:}}}}
+
+\vspace{10pt}
+
+\noindent\textbf{Scenario 4:}
+
+\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource module A : sigA
+  def ma(Unit) : typeOfB =
+    [return] new(B => var xb : Int = 42)
+    
+resource module C : sigC
+  require sigA as myA
+  def mc(Unit) : typeOfB =
+    myA.ma()
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+val A : sigA =
+    bind in
+    new ($l_A$ =>
+      def ma : Unit -> typeOfB =
+      [return] new($l_B$ => var xb : Int = 42))
+
+val C : sigA -> sigC = fn myA : sigA =>
+    bind in
+    new ($l_C$ =>
+          def mc: Unit -> typeOfB =
+            myA.ma())
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\begin{itemize}
+\item $l_C$ gains authority over $l_B$
+\end{itemize}
 
 \bibliographystyle{plain}
 \bibliography{bibtex}
