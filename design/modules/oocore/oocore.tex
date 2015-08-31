@@ -16,7 +16,7 @@
 \fancyhf{}
 \rhead{\thepage}
 
-\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
 \lstloadlanguages{Java,VBScript,XML,HTML}
 
 \newcommand{\keywadj}[1]{\mathtt{#1}}
@@ -705,7 +705,7 @@ val D : sigD =
 
 val B : sigA -> sigB = fn myA : sigA =>
   bind
-     val myD = D
+     val myD : sigD = D
   in
   new(B =>
     var k : Int = myA.m(3);
@@ -753,10 +753,10 @@ resource signature sigE =
   var e : Int
   
 resource signature sigF =
-  def f(y : Int)
+  def f(y : Int) : Int
   
 resource signature sigG =
-  def g(Unit)
+  def g(Unit) : Int
 
 resource signature sigX =
   def sumX(y : Int) : Int
@@ -928,7 +928,7 @@ $\fbox{$~pointsto()~$}$
   {l \mapsto \{ x \Rightarrow d \}_\keywadj{pure} \in \mu}\\[5ex]
 
 \infer[\textsc{(pointsto-emptydecl)}]
-  {pointsto(\epsilon; d,\mu) = pointsto(d,\mu)}
+  {pointsto(d; \epsilon,\mu) = pointsto(d,\mu)}
   {}\\[5ex]
 
 \infer[\textsc{(pointsto-def)}]
@@ -954,7 +954,7 @@ $\fbox{$~auth()~$}$
 \[
 \begin{array}{c}
 \infer[\textsc{(auth-store)}]
-  {auth_{store}(l,\mu) = \{ l \} \cup pointsto(d,\mu)}
+  {auth_{store}(l,\mu) = pointsto(l, \mu) \cup pointsto(d,\mu)}
   {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu}\\[5ex]
   
 \infer[\textsc{(auth-stack)}]
@@ -1037,7 +1037,7 @@ then one of the following must hold:
   \item \textbf{Method call:}
   \begin{enumerate}
   \item $e = E[l.m(l')]$, $e' = E[l.m(l') \rhd e'']$,
-  \item $pointsto(l',\mu) = \{ l' \}$, \textbf{\emph{~~~[The argument $l'$ is a principle]}}
+  \item $pointsto(l',\mu) = \{ l' \}$, \emph{~~~[The argument $l'$ is a principle]}
   \item $\{ l' \} \not\in auth_{stack}(l, e, \mu)$,
   \item $\{ l' \} \in auth_{stack}(l'', e, \mu)$, \textbf{\emph{~~~[The caller $l''$ previously had the authority that $l$ gained]}}
   \item $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l' \}$.\\
@@ -1045,7 +1045,7 @@ then one of the following must hold:
   \item \textbf{Method return:}
   \begin{enumerate}
   \item $e = E[l'.m(l'') \rhd l''']$, $e' = E[l''']$,
-  \item $pointsto(l''',\mu) = \{ l''' \}$, \textbf{\emph{~~~[The returned $l'''$ is a principle]}}
+  \item $pointsto(l''',\mu) = \{ l''' \}$, \emph{~~~[The returned $l'''$ is a principle]}
   \item $\{ l' \} \in auth_{stack}(l, e, \mu)$,
   \item $\forall l_o : auth_{stack}(l, e, \mu) \subset auth_{stack}(l_o, e, \mu)$, \textbf{\emph{~~~[The caller was $l$, the ``closest'' principle to $e$]}}
   \item $\{ l''' \} \not\in auth_{stack}(l, e, \mu)$,
@@ -1063,7 +1063,7 @@ then one of the following must hold:
 
 \begin{pcases}
 \pcase[\textsc{E-New}]
-$e = \keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d)$, $e' = l'$, $\mu' = \mu, l \mapsto \{ x \Rightarrow d \}_{s}$, and from the premise, we get $l \not\in dom(\mu)$ and $\keywadj{new}_{s}(x \Rightarrow d)~is~closed$.
+$e = \keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d)$, $e' = l'$, $\mu' = \mu, l \mapsto \{ x \Rightarrow d \}_{\keywadj{stateful}}$, and from the premise, we get $l \not\in dom(\mu)$ and $\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d)~is~closed$.
 
 \hspace{12pt} Let us consider $auth(l, e, \mu)$. By \textsc{auth-config}, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l,e,\mu)$. By \textsc{auth-store}, $auth_{store}(l,\mu) = \{ l \} \cup pointsto(d,\mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e, \mu) = \varnothing$. Then, $auth(l, e, \mu) = \{ l \} \cup pointsto(d, \mu)$.
 
@@ -1161,8 +1161,247 @@ A principle cannot lose authority.
 \end{theorem}
 
 \begin{corollary}
-A principle always stays a principle and cannot become a pure object.
+Once a principle is created, it always stays a principle and cannot become a pure object.
 \end{corollary}
+
+\vspace{10pt}
+
+\noindent\textbf{Notes:}
+
+\begin{itemize}
+\item \lstinline{getCaller($E$)}
+\item[] \emph{Input:} evaluation context $E$
+\item[] \emph{Output:} Let $E''$ be the innermost evaluation context of $E$ that has the form $l.m(l') \rhd E'$. Return $l$.
+\end{itemize}
+
+\newpage
+
+\subsection{Sample Scenarios}
+
+\noindent\underline{\smash{\textbf{\textit{Object creation:}}}}
+%resource signature sigD =
+%  var xd : typeOfE
+%
+%resource signature sigF =
+%  def mf(Unit) : typeOfG
+%
+%resource signature sigD =
+%  var xj : typeOfE
+%
+%resource signature sigF =
+%  def mf : Unit -> typeOfG
+
+\vspace{10pt}
+
+\noindent\textbf{Scenario 1:}
+
+\begin{lstlisting}[xleftmargin=20pt]
+new($l_D$ =>
+  var xd : typeOfE = new($l_E$ => var xe : Int = 5))
+\end{lstlisting}
+
+%\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+%\begin{minipage}[t]{\textwidth}
+%\begin{lstlisting}
+%resource module D : sigD
+%  var xd : typeOfE = new(E =>
+%    var xe : Int = 5)
+%\end{lstlisting}
+%\end{minipage}
+%&
+%\hspace{-10ex}
+%\begin{minipage}[t]{\textwidth}
+%\begin{lstlisting}
+%val D : sigD =
+%    bind in
+%    new($l_D$ =>
+%        var xd : typeOfE =
+%          new($l_E$ => var xe : Int = 5))
+%\end{lstlisting}
+%\end{minipage}
+%\end{tabular}
+
+\begin{itemize}
+\item $l_D$ gains authority over $l_E$:
+\end{itemize}
+
+\noindent$e = E[\keywadj{new}(l_E \Rightarrow \keyw{var} x_e : Int = 5)]$, $e' = E[l_E]$
+
+\noindent$auth(l_D, e', \mu') = auth(l_D, e, \mu) \cup \{ l_E \}$
+\begin{align*}auth(l_D, e', \mu') &= auth_{store}(l_D, \mu') \cup auth_{stack}(l_D, e', \mu') & (\textsc{auth-config})\\
+ &= auth_{store}(l_D, \mu') & (\textsc{auth-stack-nocall})\\
+ &= pointsto(l_D, \mu') \cup pointsto(\keyw{var} x_d : typeOfE = l_E, \mu') & (\textsc{auth-store})\\
+ &= \{ l_D \} \cup pointsto(\keyw{var} x_d : typeOfE = l_E, \mu') & (\textsc{pointsto-principal})\\
+ &= \{ l_D \} \cup pointsto(l_E, \mu') & (\textsc{pointsto-varl, -emptydecl})\\
+ &= \{ l_D \} \cup \{ l_E \} & (\textsc{pointsto-principal})\end{align*}
+\begin{align*}auth(l_D, e, \mu) &= auth_{store}(l_D, \mu) \cup auth_{stack}(l_D, e, \mu) & (\textsc{auth-config})\\
+ &= auth_{store}(l_D, \mu) & (\textsc{auth-stack-nocall})\\
+ &= pointsto(l_D, \mu) \cup pointsto(\keyw{var} x_d : typeOfE = \keywadj{new}(l_E => ...), \mu) & (\textsc{auth-store})\\
+ &= \{ l_D \} \cup pointsto(\keyw{var} x_d : typeOfE = \keywadj{new}(l_E => ...), \mu) & (\textsc{pointsto-principal})\\
+ &= \{ l_D \} \cup pointsto(\keywadj{new}(l_E => \keyw{var} x_e : Int = 5), \mu) & (\textsc{pointsto-varx, -emptydecl})\\
+ &= \{ l_D \} \cup pointsto(\keyw{var} x_e : Int = 5, \mu) & (\textsc{pointsto-new})\\
+ &= \{ l_D \} \cup pointsto(5, \mu) & (\textsc{pointsto-varx, -emptydecl})\\
+ &= \{ l_D \} & (\textsc{pointsto-data})\end{align*}
+
+
+%\newpage
+
+\noindent\textbf{Scenario 2:}
+
+\begin{lstlisting}[xleftmargin=20pt]
+new($l_F$ =>
+  def mf : Unit -> typeOfG =
+    [return] new($l_G$ => var xg : Int = 3))
+\end{lstlisting}
+
+%\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+%\begin{minipage}[t]{\textwidth}
+%\begin{lstlisting}
+%resource module F : sigF
+%  def mf(Unit) : typeOfG =
+%    [return] new(G => var xg : Int = 3)
+%\end{lstlisting}
+%\end{minipage}
+%&
+%\hspace{-10ex}
+%\begin{minipage}[t]{\textwidth}
+%\begin{lstlisting}
+%val F : sigF =
+%    bind in
+%    new($l_F$ =>
+%      def mf : Unit -> typeOfG =
+%      [return] new($l_G$ => var xg : Int = 3))
+%\end{lstlisting}
+%\end{minipage}
+%\end{tabular}
+
+\begin{itemize}
+\item $l_F$ is stateful
+\item $l_F$ gains authority over $l_G$:
+\end{itemize}
+
+\noindent$e = E[\keywadj{new}(l_G \Rightarrow \keyw{var} x_g : Int = 3)]$, $e' = E[l_G]$
+
+\noindent$auth(l_F, e', \mu') = auth(l_F, e, \mu) \cup \{ l_G \}$
+\begin{align*}auth(l_F, e', \mu') &= auth_{store}(l_F, \mu') \cup auth_{stack}(l_F, e', \mu') & (\textsc{auth-config})\\
+ &= auth_{store}(l_F, \mu') & (\textsc{auth-stack-nocall})\\
+ &= pointsto(l_F, \mu') \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = l_G, \mu') & (\textsc{auth-store})\\
+ &= \{ l_F \} \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = l_G, \mu') & (\textsc{pointsto-principal})\\
+ &= \{ l_F \} \cup pointsto(l_G, \mu') & (\textsc{pointsto-def, -emptydecl})\\
+ &= \{ l_F \} \cup \{ l_G \} & (\textsc{pointsto-principal})\end{align*}
+\begin{align*}auth(l_F, e, \mu) &= auth_{store}(l_F, \mu) \cup auth_{stack}(l_F, e, \mu) & (\textsc{auth-config})\\
+ &= auth_{store}(l_F, \mu) & (\textsc{auth-stack-nocall})\\
+ &= pointsto(l_F, \mu') \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = ...), \mu') & (\textsc{auth-store})\\
+ &= \{ l_F \} \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = \keywadj{new}(l_G \Rightarrow ...), \mu) & (\textsc{pointsto-principal})\\
+ &= \{ l_F \} \cup pointsto(\keywadj{new}(l_G => \keyw{var} x_g : Int = 3), \mu) & (\textsc{pointsto-def, -emptydecl})\\
+ &= \{ l_F \} \cup pointsto(\keyw{var} x_g : Int = 3, \mu) & (\textsc{pointsto-new})\\
+ &= \{ l_F \} \cup pointsto(3, \mu) & (\textsc{pointsto-varx, -emptydecl})\\
+ &= \{ l_F \} & (\textsc{pointsto-data})\end{align*}
+
+
+\vspace{12pt}
+%\newpage
+
+\noindent\underline{\smash{\textbf{\textit{Method call:}}}}
+
+\vspace{10pt}
+
+\noindent\textbf{Scenario 3:}
+
+\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource signature sigH =
+  var xh : Int
+
+module I : sigI
+  def mi(yi : sigH) : Int =
+    [return] yi.xh
+    
+resource module J : sigJ
+  import sigI as myI
+  var xj : sigH = new(H =>
+    var xh : Int = 17)
+  def mj(Unit) : Int =
+    [return] myI.mi(xj)
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource signature sigH =
+  var xh : Int
+
+val I : sigI =
+    bind in
+    new ($l_I$ =>
+      def mi : sigH -> Int =
+      [return] yi.xh
+
+val J : sigJ =
+    bind
+      val myI : sigI = I
+    in
+    new ($l_J$ =>
+        var xj : sigH =
+          new($l_H$ =>
+            var xh : Int =17)
+          def mj(Unit) : Int =
+            [return] myI.mi(xj))
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\begin{itemize}
+\item Is module \lstinline{I} a resource?
+\item $l_J$ has authority over $l_H$
+\item $l_I$ gains authority over $l_H$ because $l_H$ is passed in as an argument into $l_I$'s method?
+\end{itemize}
+
+%\newpage
+
+\noindent\underline{\smash{\textbf{\textit{Method return:}}}}
+
+\vspace{10pt}
+
+\noindent\textbf{Scenario 4:}
+
+\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+resource module A : sigA
+  def ma(Unit) : typeOfB =
+    [return] new(B => var xb : Int = 42)
+    
+resource module C : sigC
+  require sigA as myA
+  def mc(Unit) : typeOfB =
+    myA.ma()
+\end{lstlisting}
+\end{minipage}
+&
+\hspace{-10ex}
+\begin{minipage}[t]{\textwidth}
+\begin{lstlisting}
+val A : sigA =
+    bind in
+    new ($l_A$ =>
+      def ma : Unit -> typeOfB =
+      [return] new($l_B$ => var xb : Int = 42))
+
+val C : sigA -> sigC = fn myA : sigA =>
+    bind in
+    new ($l_C$ =>
+          def mc: Unit -> typeOfB =
+            myA.ma())
+\end{lstlisting}
+\end{minipage}
+\end{tabular}
+
+\begin{itemize}
+\item $l_C$ gains authority over $l_B$
+\end{itemize}
 
 \bibliographystyle{plain}
 \bibliography{bibtex}
