@@ -235,17 +235,276 @@ derived instances of the subtyping judgement. Similar inductive
 schemes can be constructed for the \emph{Expansion}, \emph{Membership}, 
 \emph{Typing} and \emph{Reduction} judgements.
 
+For the following lemma, we define 
+$\Gamma; \Sigma \vdash \overline{\sigma} <:^* \overline{\sigma}'$
+as $\forall \sigma_i' \in \overline{\sigma}', \exists 
+\sigma_i \in \overline{\sigma}: 
+\Gamma; \Sigma \vdash \sigma_i <:^* \sigma_i'$.
 \begin{lemma}\label{lem:subtype:decl} 
-If 	$\Gamma; \Sigma \vdash S <: U, S \prec \overline{\sigma}, 
-	U \prec \overline{\sigma}'$ then
-	$\Gamma; \Sigma \vdash \overline{\sigma} <:^* \overline{\sigma}'$.
+If 	$\Gamma; \Sigma \vdash S <: U, S \prec_z \overline{\sigma}, 
+	U \prec_z \overline{\sigma}'$ then
+	$\Gamma, (z:S); \Sigma \vdash \overline{\sigma} <:^* \overline{\sigma}'$.
 \end{lemma}
 \begin{proof}
 By induction on the derivation of $\Gamma; \Sigma \vdash S <: U$.
 \begin{case}[\textsc{S-Refl}]
 \begin{mathpar}
+\inferrule
+  {S = T}
+  {}
+\end{mathpar}
+Trivial.
+\end{case}
+\begin{case}[\textsc{S-Rec}]
+\begin{mathpar}
+\inferrule
+  {S = \{z \Rightarrow \overline{\sigma}\} \\
+  	T = \{z \Rightarrow \overline{\sigma}'\}}
+  {}
+  \and
+\inferrule
+  {\forall \sigma_i' \in \overline{\sigma}', \; \exists \; \sigma_i \in \overline{\sigma} \; st \; \Gamma, z : \{z \Rightarrow \overline{\sigma}\}; \Sigma \vdash \sigma_i <:\; \sigma_i'}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\}\; <:\; \{z \Rightarrow \overline{\sigma}'\}}
+\end{mathpar}
+Follows immediately from our definition.
+\end{case}
+\begin{case}[\textsc{S-Select-Upper}]
+\begin{mathpar}
+\inferrule
+  {S = p.L}
+  {}
+  \and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S' .. U'\\
+  	\Gamma; \Sigma \vdash S' <: U' \\
+  	\Gamma; \Sigma \vdash U' <: T}
+  {\Gamma; \Sigma \vdash p.L\; <:\; T}
 \end{mathpar}
 \end{case}
+\begin{case}[\textsc{S-Select-Lower}]
+\begin{mathpar}
+\inferrule
+  {T = p.L}
+  {}
+  \and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S' .. U' \\
+  	\Gamma; \Sigma \vdash S' <: U' \\
+  	\Gamma; \Sigma \vdash S <: S'}
+  {\Gamma; \Sigma \vdash S \; <:\; p.L}
+\end{mathpar}
+\end{case}
+\begin{case}[\textsc{S-Top}]
+\begin{mathpar}
+\inferrule
+  {T = \top}
+  {}
+  \and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash T\; \texttt{<:}\; \top}
+\end{mathpar}
+\end{case}
+\begin{case}[\textsc{S-Bottom}]
+\begin{mathpar}
+\inferrule
+  {S = \bot}
+  {}
+\end{mathpar}
+\end{case}
+Since there is no expansion to $\bot$, we end up with a contradiction.
+\end{proof}
+\qed
+
+\begin{lemma} \label{lem:subst_type}
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash p : \Gamma(x)}
+  {	\Gamma; \Sigma \vdash [p/x]T <: T}
+\end{mathpar}
+\end{lemma}
+\begin{proof}
+By induction on $T$.
+\begin{case}[T-Rec]
+\begin{mathpar}
+\inferrule
+  {T = \{z \Rightarrow \overline{\sigma}\}}
+  {}
+\end{mathpar}
+By our induction hypothesis we assume that 
+$$.
+\end{case}
+\begin{case}[T-Sel]
+\begin{mathpar}
+\inferrule
+  {T = p.L}
+  {}
+\end{mathpar}
+\end{case}
+\begin{case}[T-Top]
+\begin{mathpar}
+\inferrule
+  {T = \top}
+  {}
+\end{mathpar}
+\end{case}
+\begin{case}[T-Bottom]
+\begin{mathpar}
+\inferrule
+  {T = \bot}
+  {}
+\end{mathpar}
+\end{case}
+\end{proof}
+\qed
+
+We restrict expression substition to path substitution as 
+the substitution of general expressions can lead to a loss 
+of soundness.Since selection types may also contain variables, 
+we need to setup a mutual induction scheme for the substituion 
+into both expressions and types.
+\begin{lemma} \label{lem:subst_exp}
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash e : T \\
+  	\Gamma; \Sigma \vdash p : \Gamma(x)}
+  {\Gamma; \Sigma \vdash [p/x]e : T}
+  \and
+\inferrule
+  {}
+  {	\Gamma; \Sigma \vdash [p/x]T <:^* T}
+\end{mathpar}
+\end{lemma}
+\begin{proof}
+By induction on the derivation of $\Gamma; \Sigma \vdash e : T$.
+\begin{case}[T-Var]
+\begin{mathpar}
+\inferrule
+  {e = y}
+  {}
+  \and
+\inferrule
+  {y \in dom(\Gamma)}
+  {	\Gamma; \Sigma \vdash y : \Gamma(y)}
+\end{mathpar}
+A base case for our induction, \textsc{T-Var} resolves trivially since 
+if $y = x$ then $[p/x]y = p$ 
+while if $y \neq x$ then $[p/x]y = y$. 
+In both cases the result holds by assumption.
+\end{case}
+
+\begin{case}[T-Loc]
+\begin{mathpar}
+\inferrule
+  {	l \in dom(\Sigma)}
+  {	\Gamma; \Sigma \vdash l : \Sigma(l)}
+\end{mathpar}
+\textsc{T-Loc} is another but base case, and again resolves trivially since 
+$[e'/x]l = l$.
+\end{case}
+
+\begin{case}[T-New]
+\begin{mathpar}
+\inferrule
+  {\Gamma, z : \{z \Rightarrow \overline{\sigma}\}; \Sigma 
+  \vdash \overline{d} : \overline{\sigma}}
+  {	\Gamma; \Sigma\vdash \texttt{new} \; \{z \Rightarrow \overline{d}\} : 
+  \{z \Rightarrow \overline{\sigma}\}}
+\end{mathpar}
+Our induction hypothesis assumes 
+$\Gamma, z : \{z \Rightarrow \overline{\sigma}\}; \Sigma \vdash [e'/x]\overline{d} : \overline{\sigma}$
+holds. Since 
+$[e'/x]\texttt{new} \; \{z \Rightarrow \overline{d}\} = 
+\texttt{new} \; \{z \Rightarrow [e'/x]\overline{d}\}$ it follows 
+from \textsc{T-New} that 
+$\Gamma; \Sigma\vdash [e'/x]\texttt{new} \; \{z \Rightarrow \overline{d}\} : 
+  \{z \Rightarrow \overline{\sigma}\}$.
+\end{case}
+
+\begin{case}[T-Meth]
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash e_0 \ni \texttt{def} \; m:S \rightarrow T \\
+  	\Gamma; \Sigma \vdash e_1 : S \\
+  	\Gamma; \Sigma \vdash T <: U}
+  {	\Gamma; \Sigma \vdash e_0.m_U(e_1) : U}
+\end{mathpar}
+We assume by our induction hypothesis that 
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash [e'/x]e_0 \ni \texttt{def} \; m:S' \rightarrow T' \\
+  	\Gamma; \Sigma \vdash S <: S', T' <: T \\
+  	\Gamma; \Sigma \vdash [e'/x]e_1 : S'}
+  {}
+\end{mathpar}
+Thus by \emph{Subtype Transitivity} 
+we get $\Gamma; \Sigma \vdash T' <: U$, and it follows by \textsc{T-Meth} 
+that $	\Gamma; \Sigma \vdash [e'/x](e_0.m_U(e_1)) : U$.
+
+\hl{TODO: include mutual induction scheme}
+\end{case}
+
+\begin{case}[T-Acc]
+\begin{mathpar}
+\inferrule
+  {%	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash e \ni \texttt{val} \; f:T}
+  {	\Gamma; \Sigma \vdash e.f : T}
+\end{mathpar}
+We assume by our mutual induction hypothesis that
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash [e'/x]e \ni \texttt{val} \; f:T' \\
+  	\Gamma; \Sigma \vdash T' <: T}
+  {}
+\end{mathpar}
+Therefore, by \textsc{T-Acc} we have 
+$\Gamma; \Sigma \vdash e.f : T'$, and by \textsc{T-Sub} 
+we get $\Gamma; \Sigma \vdash e.f : T$.
+\end{case}
+
+\begin{case}[T-Type]
+\begin{mathpar}
+\inferrule
+  {e = e_T \unlhd T}
+  {}
+  \and
+\inferrule
+  {	\Gamma; \Sigma \vdash e : T}
+  {	\Gamma; \Sigma \vdash e \unlhd T : T}
+\end{mathpar}
+By our mutual induction hypothesis we assume that
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash [e'/x]e : T}
+  {}
+\end{mathpar}
+\textsc{T-Type} gives us $\Gamma; \Sigma \vdash [e'/x]e \unlhd T : T$.
+\end{case}
+
+\begin{case}[T-Sub]
+\begin{mathpar}
+\inferrule
+  {	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash S <: T}
+  {	\Gamma; \Sigma \vdash e : T}
+\end{mathpar}
+By our mutual induction hypothesis we assume that
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash [e'/x]e : S}
+  {}
+\end{mathpar}
+Then, by \textsc{T-Sub} we get $\Gamma; \Sigma \vdash [e'/x]e : T$.
+\end{case}
+\end{proof}
+\qed
+
+\begin{lemma} \label{lem:subst}
+If $\Gamma; \Sigma \vdash p : \Gamma(x)$ then 
+$\Gamma; \Sigma \vdash [p/x]T <: T$.
+\end{lemma}
+\begin{proof}
 \end{proof}
 \qed
 
@@ -520,7 +779,7 @@ By our mutual induction hypothesis we assume that
 \end{mathpar}
 holds. By \textsc{S-Decl-Type}, we can infer that 
 $\Gamma, (x : S); \Sigma \vdash U'' <:^* U'$. Using 
-Lemma \ref{lem:subtype:decl}, we can show that 
+Lemma \ref{lem:subtype:decl} (\hl{TODO}), we can show that 
 $\exists \overline{\sigma}'': \Gamma, (x : S); \Sigma \vdash U'' \prec 
 \overline{\sigma}'', \; \overline{\sigma}'' <:^* \overline{\sigma}'$.
 Thus, we can show that 
@@ -566,7 +825,7 @@ From the mutually defined induction hypothesis, we assume
   	\overline{\sigma}' <:^* \overline{\sigma}}
   {}
 \end{mathpar}
-By Lemma \ref{lem:subtype:decl}, $\Gamma, (x : S); \Sigma \vdash T' \prec \overline{\sigma}''$ 
+By Lemma \ref{lem:subtype:decl} (\hl{TODO}), $\Gamma, (x : S); \Sigma \vdash T' \prec \overline{\sigma}''$ 
 and $\Gamma, (x : S); \Sigma \vdash \overline{\sigma}'' <:^* \overline{\sigma}'$. 
 We can now show that $\exists \sigma_i'' \in \overline{\sigma}'':
 \Gamma, (x : S); \Sigma \vdash \sigma_i'' <:^* \sigma_i$, and thus that 
@@ -1721,126 +1980,6 @@ have
 \end{mathpar}
 And by our induction hypothesis we assume $\Gamma; \Sigma \vdash l' : S'$ 
 where $\Gamma; \Sigma \vdash S' <: S$.
-\end{case}
-\end{proof}
-\qed
-
-\begin{lemma} \label{lem:subst}
-If $\Gamma; \Sigma \vdash e : T$ and 
-$\Gamma; \Sigma \vdash e': \Gamma(x)$ then 
-$\Gamma; \Sigma \vdash [e'/x]e: T$.
-\end{lemma}
-\begin{proof}
-By induction on the derivation of $\Gamma; \Sigma \vdash e : T$.
-\begin{case}[T-Var]
-\begin{mathpar}
-\inferrule
-  {x \in dom(\Gamma)}
-  {	\Gamma; \Sigma \vdash x : \Gamma(x)}
-\end{mathpar}
-A base case for our induction, \textsc{T-Var} resolves trivially since 
-$[e'/x]x = e'$.
-\end{case}
-
-\begin{case}[T-Loc]
-\begin{mathpar}
-\inferrule
-  {	l \in dom(\Sigma)}
-  {	\Gamma; \Sigma \vdash l : \Sigma(l)}
-\end{mathpar}
-\textsc{T-Loc} is another but base case, and again resolves trivially since 
-$[e'/x]l = l$.
-\end{case}
-
-\begin{case}[T-New]
-\begin{mathpar}
-\inferrule
-  {\Gamma, z : \{z \Rightarrow \overline{\sigma}\}; \Sigma 
-  \vdash \overline{d} : \overline{\sigma}}
-  {	\Gamma; \Sigma\vdash \texttt{new} \; \{z \Rightarrow \overline{d}\} : 
-  \{z \Rightarrow \overline{\sigma}\}}
-\end{mathpar}
-Our induction hypothesis assumes 
-$\Gamma, z : \{z \Rightarrow \overline{\sigma}\}; \Sigma \vdash [e'/x]\overline{d} : \overline{\sigma}$
-holds. Since 
-$[e'/x]\texttt{new} \; \{z \Rightarrow \overline{d}\} = 
-\texttt{new} \; \{z \Rightarrow [e'/x]\overline{d}\}$ it follows 
-from \textsc{T-New} that 
-$\Gamma; \Sigma\vdash [e'/x]\texttt{new} \; \{z \Rightarrow \overline{d}\} : 
-  \{z \Rightarrow \overline{\sigma}\}$.
-\end{case}
-
-\begin{case}[T-Meth]
-\begin{mathpar}
-\inferrule
-  {\Gamma; \Sigma \vdash e_0 \ni \texttt{def} \; m:S \rightarrow T \\
-  	\Gamma; \Sigma \vdash e_1 : S \\
-  	\Gamma; \Sigma \vdash T <: U}
-  {	\Gamma; \Sigma \vdash e_0.m_U(e_1) : U}
-\end{mathpar}
-We assume by our induction hypothesis that 
-\begin{mathpar}
-\inferrule
-  {\Gamma; \Sigma \vdash [e'/x]e_0 \ni \texttt{def} \; m:S' \rightarrow T' \\
-  	\Gamma; \Sigma \vdash S <: S', T' <: T \\
-  	\Gamma; \Sigma \vdash [e'/x]e_1 : S'}
-  {}
-\end{mathpar}
-Thus by \emph{Subtype Transitivity} 
-we get $\Gamma; \Sigma \vdash T' <: U$, and it follows by \textsc{T-Meth} 
-that $	\Gamma; \Sigma \vdash [e'/x](e_0.m_U(e_1)) : U$.
-
-\hl{TODO: include mutual induction scheme}
-\end{case}
-
-\begin{case}[T-Acc]
-\begin{mathpar}
-\inferrule
-  {%	\Gamma; \Sigma \vdash e : S \\
-  	\Gamma; \Sigma \vdash e \ni \texttt{val} \; f:T}
-  {	\Gamma; \Sigma \vdash e.f : T}
-\end{mathpar}
-We assume by our mutual induction hypothesis that
-\begin{mathpar}
-\inferrule
-  {\Gamma; \Sigma \vdash [e'/x]e \ni \texttt{val} \; f:T' \\
-  	\Gamma; \Sigma \vdash T' <: T}
-  {}
-\end{mathpar}
-Therefore, by \textsc{T-Acc} we have 
-$\Gamma; \Sigma \vdash e.f : T'$, and by \textsc{T-Sub} 
-we get $\Gamma; \Sigma \vdash e.f : T$.
-\end{case}
-
-\begin{case}[T-Type]
-\begin{mathpar}
-\inferrule
-  {	\Gamma; \Sigma \vdash e : T}
-  {	\Gamma; \Sigma \vdash e \unlhd T : T}
-\end{mathpar}
-By our mutual induction hypothesis we assume that
-\begin{mathpar}
-\inferrule
-  {\Gamma; \Sigma \vdash [e'/x]e : T}
-  {}
-\end{mathpar}
-\textsc{T-Type} gives us $\Gamma; \Sigma \vdash [e'/x]e \unlhd T : T$.
-\end{case}
-
-\begin{case}[T-Sub]
-\begin{mathpar}
-\inferrule
-  {	\Gamma; \Sigma \vdash e : S \\
-  	\Gamma; \Sigma \vdash S <: T}
-  {	\Gamma; \Sigma \vdash e : T}
-\end{mathpar}
-By our mutual induction hypothesis we assume that
-\begin{mathpar}
-\inferrule
-  {\Gamma; \Sigma \vdash [e'/x]e : S}
-  {}
-\end{mathpar}
-Then, by \textsc{T-Sub} we get $\Gamma; \Sigma \vdash [e'/x]e : T$.
 \end{case}
 \end{proof}
 \qed
