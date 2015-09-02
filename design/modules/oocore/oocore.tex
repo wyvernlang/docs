@@ -114,7 +114,7 @@ E & ::= & [~] & evaluation~ contexts\\
 \end{array}
 \]
 
-\noindent Notes:
+\noindent \textbf{Notes:}
 
 \begin{itemize}
 \item The $s$ tag indicates whether an object is stateful (i.e. captures mutable state) or pure (i.e. captures no mutable state).
@@ -129,11 +129,9 @@ l_2 \mapsto \{l_1,l_1,l_1\},~l_1 \mapsto \varnothing
 \item In the \textsc{DT-DefPure} rule, the argument $x$ may be stateful, but because all other variables in $\Gamma$ are pure, $x$ cannot be used (e.g. be assigned to a variable) inside $e$.
 \item In the preservation of types under substitution lemma, $y$ and $z$ have to be values because we don't have $\keyw{var} f:\tau = e; d$ and instead have a more restrictive $\keyw{var} f:\tau = l;d$.
 \item Substitution rules for $\keyw{bind}$ and $\keyw{let}$:
-
 \[
     [l/x](\keyw{bind} y = e_1~\keyw{in} e_2) = \keyw{bind} y = [l/x]e_1~\keyw{in} e_2
 \]
-
 \[
     [l/x](\keyw{let} y = e_1~\keyw{in} e_2) = 
 \begin{cases}
@@ -143,6 +141,11 @@ l_2 \mapsto \{l_1,l_1,l_1\},~l_1 \mapsto \varnothing
 \]
 
 Although the two constructs look similar, there is an important semantical difference between them. The $\keywadj{bind}$ construct is more restrictive as its body $e_2$ is type checked in the context that contains only the preamble $e_1$ (see \textsc{T-Bind}). Then in both cases, substitution of $l$ for $x$ happens only in the preamble $e_1$ and not in the body $e_2$. In contrast, in $\keywadj{let}$, when $x \not= y$, $l$ is substituted for $x$ in both the preamble $e_1$ and the body $e_2$, and when $x = y$, $l$ is substituted for $x$ in the preamble $e_1$, and then $y$ shadows $x$ in the body $e_2$, and thus $e_2$ does not change. 
+
+\item Encoding of $\keyw{let}$:
+\[
+\keyw{let} y = e_1~\keyw{in} e_2~~~\equiv~~~\keywadj{new}_s(x \Rightarrow \keyw{def} m(y) = e_2).m(e_1)
+\]
 
 \end{itemize}
 
@@ -1228,20 +1231,24 @@ new($l_D$ =>
 \noindent$e = E[\keywadj{new}(l_E \Rightarrow \keyw{var} x_e : Int = 5)]$, $e' = E[l_E]$
 
 \noindent$auth(l_D, e', \mu') = auth(l_D, e, \mu) \cup \{ l_E \}$
-\begin{align*}auth(l_D, e', \mu') &= auth_{store}(l_D, \mu') \cup auth_{stack}(l_D, e', \mu') & (\textsc{auth-config})\\
+\begin{align*}
+auth(l_D, e', \mu') &= auth_{store}(l_D, \mu') \cup auth_{stack}(l_D, e', \mu') & (\textsc{auth-config})\\
  &= auth_{store}(l_D, \mu') & (\textsc{auth-stack-nocall})\\
  &= pointsto(l_D, \mu') \cup pointsto(\keyw{var} x_d : typeOfE = l_E, \mu') & (\textsc{auth-store})\\
  &= \{ l_D \} \cup pointsto(\keyw{var} x_d : typeOfE = l_E, \mu') & (\textsc{pointsto-principal})\\
  &= \{ l_D \} \cup pointsto(l_E, \mu') & (\textsc{pointsto-varl, -emptydecl})\\
- &= \{ l_D \} \cup \{ l_E \} & (\textsc{pointsto-principal})\end{align*}
-\begin{align*}auth(l_D, e, \mu) &= auth_{store}(l_D, \mu) \cup auth_{stack}(l_D, e, \mu) & (\textsc{auth-config})\\
+ &= \{ l_D \} \cup \{ l_E \} & (\textsc{pointsto-principal})
+\end{align*}
+\begin{align*}
+auth(l_D, e, \mu) &= auth_{store}(l_D, \mu) \cup auth_{stack}(l_D, e, \mu) & (\textsc{auth-config})\\
  &= auth_{store}(l_D, \mu) & (\textsc{auth-stack-nocall})\\
  &= pointsto(l_D, \mu) \cup pointsto(\keyw{var} x_d : typeOfE = \keywadj{new}(l_E => ...), \mu) & (\textsc{auth-store})\\
  &= \{ l_D \} \cup pointsto(\keyw{var} x_d : typeOfE = \keywadj{new}(l_E => ...), \mu) & (\textsc{pointsto-principal})\\
  &= \{ l_D \} \cup pointsto(\keywadj{new}(l_E => \keyw{var} x_e : Int = 5), \mu) & (\textsc{pointsto-varx, -emptydecl})\\
  &= \{ l_D \} \cup pointsto(\keyw{var} x_e : Int = 5, \mu) & (\textsc{pointsto-new})\\
  &= \{ l_D \} \cup pointsto(5, \mu) & (\textsc{pointsto-varx, -emptydecl})\\
- &= \{ l_D \} & (\textsc{pointsto-data})\end{align*}
+ &= \{ l_D \} & (\textsc{pointsto-data})
+\end{align*}
 
 
 %\newpage
@@ -1283,20 +1290,24 @@ new($l_F$ =>
 \noindent$e = E[\keywadj{new}(l_G \Rightarrow \keyw{var} x_g : Int = 3)]$, $e' = E[l_G]$
 
 \noindent$auth(l_F, e', \mu') = auth(l_F, e, \mu) \cup \{ l_G \}$
-\begin{align*}auth(l_F, e', \mu') &= auth_{store}(l_F, \mu') \cup auth_{stack}(l_F, e', \mu') & (\textsc{auth-config})\\
+\begin{align*}
+auth(l_F, e', \mu') &= auth_{store}(l_F, \mu') \cup auth_{stack}(l_F, e', \mu') & (\textsc{auth-config})\\
  &= auth_{store}(l_F, \mu') & (\textsc{auth-stack-nocall})\\
  &= pointsto(l_F, \mu') \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = l_G, \mu') & (\textsc{auth-store})\\
  &= \{ l_F \} \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = l_G, \mu') & (\textsc{pointsto-principal})\\
  &= \{ l_F \} \cup pointsto(l_G, \mu') & (\textsc{pointsto-def, -emptydecl})\\
- &= \{ l_F \} \cup \{ l_G \} & (\textsc{pointsto-principal})\end{align*}
-\begin{align*}auth(l_F, e, \mu) &= auth_{store}(l_F, \mu) \cup auth_{stack}(l_F, e, \mu) & (\textsc{auth-config})\\
+ &= \{ l_F \} \cup \{ l_G \} & (\textsc{pointsto-principal})
+\end{align*}
+\begin{align*}
+auth(l_F, e, \mu) &= auth_{store}(l_F, \mu) \cup auth_{stack}(l_F, e, \mu) & (\textsc{auth-config})\\
  &= auth_{store}(l_F, \mu) & (\textsc{auth-stack-nocall})\\
  &= pointsto(l_F, \mu') \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = ...), \mu') & (\textsc{auth-store})\\
  &= \{ l_F \} \cup pointsto(\keyw{def} m_f : Unit \rightarrow typeOfG = \keywadj{new}(l_G \Rightarrow ...), \mu) & (\textsc{pointsto-principal})\\
  &= \{ l_F \} \cup pointsto(\keywadj{new}(l_G => \keyw{var} x_g : Int = 3), \mu) & (\textsc{pointsto-def, -emptydecl})\\
  &= \{ l_F \} \cup pointsto(\keyw{var} x_g : Int = 3, \mu) & (\textsc{pointsto-new})\\
  &= \{ l_F \} \cup pointsto(3, \mu) & (\textsc{pointsto-varx, -emptydecl})\\
- &= \{ l_F \} & (\textsc{pointsto-data})\end{align*}
+ &= \{ l_F \} & (\textsc{pointsto-data})
+\end{align*}
 
 
 \vspace{12pt}
