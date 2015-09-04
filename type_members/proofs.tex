@@ -3,10 +3,17 @@
 \usepackage{listings}
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
-%\usepackage{amsmath}
+\usepackage{amsmath}
 %\usepackage{amsthm}
 \usepackage{mathpartir}
 \usepackage{color,soul}
+
+
+\newtheorem{case1}{Case1}
+\newtheorem{subcase}{SubCase}
+\numberwithin{subcase}{case}
+\numberwithin{case}{theorem}
+\numberwithin{case}{lemma}
 
 
 
@@ -316,63 +323,57 @@ Since there is no expansion to $\bot$, we end up with a contradiction.
 \end{proof}
 \qed
 
-\begin{lemma} \label{lem:subst_type}
-\begin{mathpar}
-\inferrule
-  {\Gamma; \Sigma \vdash p : \Gamma(x)}
-  {	\Gamma; \Sigma \vdash [p/x]T <: T}
-\end{mathpar}
-\end{lemma}
-\begin{proof}
-By induction on $T$.
-\begin{case}[T-Rec]
-\begin{mathpar}
-\inferrule
-  {T = \{z \Rightarrow \overline{\sigma}\}}
-  {}
-\end{mathpar}
-By our induction hypothesis we assume that 
-$$.
-\end{case}
-\begin{case}[T-Sel]
-\begin{mathpar}
-\inferrule
-  {T = p.L}
-  {}
-\end{mathpar}
-\end{case}
-\begin{case}[T-Top]
-\begin{mathpar}
-\inferrule
-  {T = \top}
-  {}
-\end{mathpar}
-\end{case}
-\begin{case}[T-Bottom]
-\begin{mathpar}
-\inferrule
-  {T = \bot}
-  {}
-\end{mathpar}
-\end{case}
-\end{proof}
-\qed
+%\begin{lemma} \label{lem:subst_type}
+%\begin{mathpar}
+%\inferrule
+%  {\Gamma; \Sigma \vdash p : \Gamma(x)}
+%  {	\Gamma; \Sigma \vdash [p/x]T <: T}
+%\end{mathpar}
+%\end{lemma}
+%\begin{proof}
+%By induction on $T$.
+%\begin{case}[T-Rec]
+%\begin{mathpar}
+%\inferrule
+%  {T = \{z \Rightarrow \overline{\sigma}\}}
+%  {}
+%\end{mathpar}
+%By our induction hypothesis we assume that 
+%$\Gamma$.
+%\end{case}
+%\begin{case}[T-Sel]
+%\begin{mathpar}
+%\inferrule
+%  {T = p.L}
+%  {}
+%\end{mathpar}
+%\end{case}
+%\begin{case}[T-Top]
+%\begin{mathpar}
+%\inferrule
+%  {T = \top}
+%  {}
+%\end{mathpar}
+%\end{case}
+%\begin{case}[T-Bottom]
+%\begin{mathpar}
+%\inferrule
+%  {T = \bot}
+%  {}
+%\end{mathpar}
+%\end{case}
+%\end{proof}
+%\qed
 
 We restrict expression substition to path substitution as 
 the substitution of general expressions can lead to a loss 
-of soundness.Since selection types may also contain variables, 
-we need to setup a mutual induction scheme for the substituion 
-into both expressions and types.
-\begin{lemma} \label{lem:subst_exp}
+of soundness.
+\begin{lemma} \label{lem:subst}
 \begin{mathpar}
 \inferrule
   {\Gamma; \Sigma \vdash e : T \\
   	\Gamma; \Sigma \vdash p : \Gamma(x)}
-  {\Gamma; \Sigma \vdash [p/x]e : T}
-  \and
-\inferrule
-  {}
-  {	\Gamma; \Sigma \vdash [p/x]T <:^* T}
+  {\Gamma; \Sigma \vdash [p/x]e : [p/x]T}
 \end{mathpar}
 \end{lemma}
 \begin{proof}
@@ -1930,8 +1931,7 @@ previous case to the new subtype chain to show that $\Gamma \vdash S <: U$.
 \begin{lemma} \label{lem:path_type_preservation}
 If $\Gamma; \Sigma \vdash v : T$, 
 $\Sigma \vdash  \mu$ and $\mu \vdash v \leadsto l$ then 
-$\Gamma; \Sigma \vdash l : T'$ and
-$\Gamma; \Sigma \vdash T' <: T$.
+$\Gamma; \Sigma \vdash l : T$.
 \end{lemma}
 \begin{proof}
 By induction on the derivation of $\mu \vdash v \leadsto l$.
@@ -1960,8 +1960,7 @@ Since we know that $\Gamma; \Sigma \vdash v' \unlhd T: T$,
 by \textsc{T-Type} we can infer $\Gamma; \Sigma \vdash v' : T$.
 By our induction hypothesis, we assume that if 
 $\Gamma; \Sigma \vdash v' : T$ then 
-$\Gamma; \Sigma \vdash l : T'$ where 
-$\Gamma; \Sigma \vdash T' <: T$. This completes the case.
+$\Gamma; \Sigma \vdash l : T$. This completes the case.
 \end{case}
 \begin{case}[\textsc{L-Path}]
 \begin{mathpar}
@@ -1978,8 +1977,10 @@ have
   	\Gamma; \Sigma \vdash v' \ni \texttt{val} \; f:T}
   {	\Gamma; \Sigma \vdash v'.f : T}
 \end{mathpar}
-And by our induction hypothesis we assume $\Gamma; \Sigma \vdash l' : S'$ 
-where $\Gamma; \Sigma \vdash S' <: S$.
+By assumption $\Sigma \vdash \mu$, which implies $(z : \Sigma(l')); \Sigma 
+\vdash l : T$. Environment weakening gives us 
+$\Gamma; \Sigma \vdash l : T$
+%And by our induction hypothesis we assume $\Gamma; \Sigma \vdash l' : S$.
 \end{case}
 \end{proof}
 \qed
@@ -2134,7 +2135,7 @@ Let $\Sigma' = \Sigma, (l:\{z \Rightarrow \overline{\sigma}\})$.
 By Lemma \ref{lem:path_type_preservation}, we can show that 
 $\Gamma; \Sigma' \vdash \{\texttt{z} \Rightarrow \overline{d}\} :
 \{z \Rightarrow \overline{\sigma}\}$. Thus by \textsc{T-Loc} we get the result 
-$\Gamma; \Sigma \vdash l : \{z \Rightarrow \overline{\sigma}\}$.
+$\Gamma; \Sigma' \vdash l : \{z \Rightarrow \overline{\sigma}\}$.
 \end{case}
 
 \begin{case}[\textsc{R-Meth}]
@@ -2142,9 +2143,30 @@ $\Gamma; \Sigma \vdash l : \{z \Rightarrow \overline{\sigma}\}$.
 \inferrule
   {\mu \vdash v_1 \leadsto l \\
   	\mu(l) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
-  {\mu \; | \; v_1.m_U(v_2) \;\rightarrow \mu \; | \; [v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd U}
+  {\mu \; | \; v_1.m_U(v_2) \;\rightarrow \mu \; | \; [v_1/z,v_2 \unlhd S/x]e \unlhd U}
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash v_1 \ni \texttt{def} \; m:S' \rightarrow T' \\
+  	\Gamma; \Sigma \vdash v_1 : T_1 \\
+  	\Gamma; \Sigma \vdash v_2 : S' \\
+  	\Gamma; \Sigma \vdash T' <: U}
+  {	\Gamma; \Sigma \vdash v_1.m_U(v_2) : U}
 \end{mathpar}
-
+By Lemma \ref{lem:path_type_preservation} we know that 
+$\Gamma; \Sigma \vdash l : T_1$. From Lemma \ref{lem:subtype:decl} 
+we can show that $\Gamma; \Sigma \vdash [v_1/z](\texttt{def} \; m:S \rightarrow T) <:
+\texttt{def} \; m:S' \rightarrow T'$ which implies 
+$\Gamma; \Sigma \vdash [v_1/z] T <: T'$. Since 
+$\Gamma; \Sigma \vdash e : T$, by Lemma \ref{lem:subst} 
+we get $\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : [v_1/z,v_2 \unlhd S/x]T$.
+Since $T$ is well-formed in the absence of $x$, 
+$[v_1/z,v_2 \unlhd S/x]T = [v_1/z]T$. Thus we get 
+$\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : [v_1/z]T$, and by 
+\textsc{T-Sub} we have 
+$\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : T'$ and subsequently 
+$\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : U$. 
+Now, let $\Sigma' = \Sigma$, and by \textsc{T-Type} 
+we have $\Gamma; \Sigma' \vdash [v_1/z,v_2 \unlhd S/x]e \unlhd U : U$
 
 \end{case}
 \begin{case}[\textsc{R-Context}]
@@ -2153,6 +2175,42 @@ $\Gamma; \Sigma \vdash l : \{z \Rightarrow \overline{\sigma}\}$.
   {	\mu \; | \; e \; \rightarrow \; \mu' \; | \; e'}
   {\mu \; | \; E[e] \; \rightarrow \mu' \; | \; E[e']}
 \end{mathpar}
+By case analysis on $E[e]$.
+\begin{itemize}
+\item[]  \textit{Subcase 1} ($\mu \; | \; e.m(e_S) \; \rightarrow \mu' \; | \; e'.m(e_S)$):
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash e \ni \texttt{def} \; m:S' \rightarrow T' \\
+  	\Gamma; \Sigma \vdash e : T \\
+  	\Gamma; \Sigma \vdash e_S : S' \\
+  	\Gamma; \Sigma \vdash T' <: U}
+  {	\Gamma; \Sigma \vdash e.m_U(e_S) : U}
+\end{mathpar}
+By our induction hypothesis we assume 
+\item[]  \textit{Subcase 2} ($\mu \; | \; p.m(e) \; \rightarrow \mu' \; | \; p.m(e')$):
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{def} \; m:S \rightarrow T \\
+  	\Gamma; \Sigma \vdash p : T_p \\
+  	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash T <: U}
+  {	\Gamma; \Sigma \vdash p.m_U(e) : U}
+\end{mathpar}
+\item[]  \textit{Subcase 3} ($\mu \; | \; e.f \; \rightarrow \mu' \; | \; e'.f$):
+\begin{mathpar}
+\inferrule
+  {	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash e \ni \texttt{val} \; f:T}
+  {	\Gamma; \Sigma \vdash e.f : T}
+\end{mathpar}
+\item[]  \textit{Subcase 4} ($\mu \; | \; e \unlhd T \; \rightarrow \mu' \; | \; e' \unlhd T$):
+\begin{mathpar}
+\inferrule
+  {	\Gamma; \Sigma \vdash e : T}
+  {	\Gamma; \Sigma \vdash e \unlhd T : T}
+\end{mathpar}
+\end{itemize}
+
 \end{case}
 \end{proof}
 \qed
