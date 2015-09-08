@@ -848,7 +848,7 @@ e & ::= & ... & expressions \\
 \end{array}
 \]
 
-\noindent\textbf{Explanation and comments:}
+\noindent\textbf{Explanations and comments:}
 \begin{itemize}
 \item The program is an expression $e$, which is syntactic sugar for
 
@@ -914,9 +914,14 @@ $\keyw{fn} trans(filterRequires(\overline{i})) \Rightarrow~\keyw{bind} trans(fil
 
 \subsection{Rules}
 
-$\fbox{$~pointsto()~$}$
+\vspace{1pt}
+$\fbox{$~pointsto(e, \mu)~$}$
 \[
 \begin{array}{c}
+\infer[\textsc{(pointsto-var)}]
+  {pointsto(x,\mu) = \varnothing }
+  {}%\\[5ex]
+~~~~~~~~~~
 \infer[\textsc{(pointsto-new)}]
   {pointsto(\keywadj{new}_{s}(x \Rightarrow d),\mu) = pointsto(d,\mu) }
   {}\\[5ex]
@@ -932,13 +937,24 @@ $\fbox{$~pointsto()~$}$
 \infer[\textsc{(pointsto-call-principal)}]
   {pointsto(l.m(l') \rhd e,\mu) = \{l\} }
   {l \mapsto \{ x \Rightarrow d \}_\keywadj{stateful} \in \mu}\\[5ex]
-  
+
 \infer[\textsc{(pointsto-call-data)}]
   {pointsto(l.m(l') \rhd e,\mu) = pointsto(e,\mu)}
   {l \mapsto \{ x \Rightarrow d \}_\keywadj{pure} \in \mu}\\[5ex]
 
+\infer[\textsc{(pointsto-otherexp)}]
+  {pointsto(e,\mu) = \bigcup pointsto(subexprs(e),\mu) }
+  {\textit{$e$ is not one of the expression forms defined above}}\\[5ex]
+
+\end{array}
+\]
+
+\vspace{-6pt}
+$\fbox{$~pointsto(d, \mu)~$}$
+\[
+\begin{array}{c}
 \infer[\textsc{(pointsto-emptydecl)}]
-  {pointsto(d; \epsilon,\mu) = pointsto(d,\mu)}
+  {pointsto(\epsilon,\mu) = \varnothing}
   {}\\[5ex]
 
 \infer[\textsc{(pointsto-def)}]
@@ -953,13 +969,10 @@ $\fbox{$~pointsto()~$}$
   {pointsto(\keyw{var} f:\tau = l; d,\mu) = pointsto(l,\mu) \cup pointsto(d,\mu)}
   {}\\[5ex]
 
-\infer[\textsc{(pointsto-otherexp)}]
-  {pointsto(e,\mu) = pointsto(subexprs(e),\mu) }
-  {\textit{$e$ is not one of the expression forms defined above}}\\[5ex]
-
 \end{array}
 \]
 
+\vspace{-6pt}
 $\fbox{$~auth()~$}$
 \[
 \begin{array}{c}
@@ -970,7 +983,7 @@ $\fbox{$~auth()~$}$
 \infer[\textsc{(auth-stack-nocall)}]
   {auth_{stack}(l,e,\mu) = \varnothing}
   {l.m(l') \rhd e' \not\in e}\\[5ex]
-
+%~~~~~~~~~~
 \infer[\textsc{(auth-stack)}]
   {auth_{stack}(l, e, \mu) = pointsto(e',\mu) \cup auth_{stack}(l,e',\mu)}
   {e = E[l.m(l') \rhd e'] & l.m'(l'') \rhd E' \not\in E}\\[5ex]
@@ -984,7 +997,7 @@ $\fbox{$~auth()~$}$
 
 \newpage
 
-\noindent\textbf{Explanation and comments:}
+\noindent\textbf{Explanations and comments:}
 
 \begin{itemize}
 \item A \textit{principal} is a stateful object.
@@ -999,6 +1012,7 @@ $\fbox{$~auth()~$}$
 \item In the \textsc{auth-stack} rule, $l''$ represents the concrete argument that was passed in, and $l'$ can be arbitrary since it is substituted with $l''$ right away.  It is likely that $l$ is part of $e'$. In the conclusion, it is possible that the argument was not used, or it was used but is not being used any more, in which case, $l$ no longer has authority over $l'$. The premise makes sure that, as we go down the stack, we do not miss any calls to methods of $l$. (To see why, one could try applying the rule to a stack that has two calls and try to make it match the inner rather than the outer one. This is possible without the premise, but impossible with it.)
 
 \end{itemize}
+
 
 \subsection{Definitions}
 
