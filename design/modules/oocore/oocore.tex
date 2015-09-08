@@ -1325,62 +1325,213 @@ auth(l_p, e, \mu) &=  \{ l_p,~l_E\}&\\
 
 \noindent\underline{\smash{\textbf{\textit{Method call:}}}}
 
-\vspace{10pt}
+\vspace{16pt}
 
-\noindent\textbf{Scenario 3:}
-
-\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-resource signature sigH =
-  var xh : Int
-
-module I : sigI
-  def mi(yi : sigH) : Int =
-    [return] yi.xh
-    
-resource module J : sigJ
-  import sigI as myI
-  var xj : sigH = new(H =>
-    var xh : Int = 17)
-  def mj(Unit) : Int =
-    [return] myI.mi(xj)
+\noindent Program code:
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+new($l_p$ =>
+  def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
+    new($l_J$ =>
+      var xji : typeOfI = yi;
+      var xjh : typeOfH = yh;
+      def mj(Unit) : Int =
+        xjh.mh(xji)
+    ))
+.mp(new($l_I$ => var xi : Int = 3), new($l_H$ => def mh(y : typeOfI) : Int = y.xi))
+.mj()
 \end{lstlisting}
-\end{minipage}
-&
-\hspace{-10ex}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-resource signature sigH =
-  var xh : Int
 
-val I : sigI =
-    bind in
-    new ($l_I$ =>
-      def mi : sigH -> Int =
-      [return] yi.xh
+\vspace{12pt}
+\noindent Evaluation step 1 (form before: $E.m(e)$, going deeper):\\
+\indent\textit{Code same as above}
 
-val J : sigJ =
-    bind
-      val myI : sigI = I
-    in
-    new ($l_J$ =>
-        var xj : sigH =
-          new($l_H$ =>
-            var xh : Int =17)
-          def mj(Unit) : Int =
-            [return] myI.mi(xj))
+\vspace{12pt}
+\noindent Evaluation step 2 (form before: $E.m(e)$, rule applied: \textsc{E-New}):
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_p \rightarrow \{$   def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
+         new($l_J$ =>
+           var xji : typeOfI = yi;
+           var xjh : typeOfH = yh;
+           def mj(Unit) : Int =
+             xjh.mh(xji) $\}$
+
+$l_p$.mp(new($l_I$ => var xi : Int = 3), new($l_H$ => def mh(y : typeOfI) : Int = y.xi)).mj()
 \end{lstlisting}
-\end{minipage}
-\end{tabular}
 
-\begin{itemize}
-\item Is module \lstinline{I} a resource?
-\item $l_J$ has authority over $l_H$
-\item $l_I$ gains authority over $l_H$ because $l_H$ is passed in as an argument into $l_I$'s method?
-\end{itemize}
+\vspace{12pt}
+\noindent Evaluation step 3 (form before: $l.m(E, E)$, rule applied: \textsc{E-New} x2):
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_p \rightarrow \{$   def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
+         new($l_J$ =>
+           var xji : typeOfI = yi;
+           var xjh : typeOfH = yh;
+           def mj(Unit) : Int =
+             xjh.mh(xji) $\}$
+$l_I \rightarrow \{$ var xi : Int = 3 } // assume 3 is a location in memory representing the integer value
+$l_H \rightarrow \{$ def mh(y : typeOfI) : Int = y.xi $\}$
 
-%\newpage
+$l_p$.mp($l_I$, $l_H$).mj()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 4 (form before: $l.m(l, l)$, rule applied: \textsc{E-Meth}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+($l_p$.mp($l_I$, $l_H$) $\rhd$ new($l_J$ =>
+                    var xji : typeOfI = $l_I$;
+                    var xjh : typeOfH = $l_H$;
+                    def mj(Unit) : Int =
+                      xjh.mh(xji)))
+.mj()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 5 (form before: $l.m(l, l) \rhd E$, rule applied: \textsc{E-New}):\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_p \rightarrow \{$   def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
+         new($l_J$ =>
+           var xji : typeOfI = yi;
+           var xjh : typeOfH = yh;
+           def mj(Unit) : Int =
+             xjh.mh(xji) $\}$
+$l_I \rightarrow \{$ var xi : Int = 3 }
+$l_H \rightarrow \{$ def mh(y : typeOfI) : Int = y.xi $\}$
+$l_J \rightarrow \{$ var xji : typeOfI = $l_I$;
+        var xjh : typeOfH = $l_H$;
+        def mj(Unit) : Int =
+          xjh.mh(xji) $\}$
+
+($l_p$.mp($l_I$, $l_H$) $\rhd$ $l_J$).mj()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 6 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_J$.mj()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 7 (form before: $E.m(e)$, going a level up, $E$ is already fully evaluated):\\
+\indent\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 8 (form before: $l.m(E)$, a \lstinline{Unit} argument passed, $E$ is already fully evaluated):\\
+\indent\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 9 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_J$.mj() $\rhd$ xjh.mh(xji)
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 10 (form before: $l.m(l) \rhd E$, going deeper):\\
+\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 11 (form before: $E.m(e)$, substitution of concrete objects for variables x2):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_J$.mj() $\rhd$ $l_H$.mh($l_I$)
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 12 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_J$.mj() $\rhd$ ($l_H$.mh($l_I$) $\rhd$ $l_I$.xi)
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 13 (form before: $l.m(l) \rhd E$, rule applied: \textsc{E-Field}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_J$.mj() $\rhd$ ($l_H$.mh($l_I$) $\rhd$ 3)
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 14 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_J$.mj() $\rhd$ 3
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 15 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+3
+\end{lstlisting}
+
+
+\newpage
+
+\noindent\textbf{$l_H$ gains authority over $l_I$ through $l_J$ when $l_I$ is passed in as an argument to $m_h()$ in evaluation step 12 when \textsc{E-Meth} is applied:}\\
+
+\noindent ($l_H$ is pure; $l_I$ and $l_J$ are stateful)\\
+
+\noindent$e = E[l_H.m_h(l_I)]$, $e' = E[l_H.m_h(l_I) \rhd l_I.x_i]$\\
+
+\noindent$e = l_J.m_j() \rhd l_H.m_h(l_I)$, $e' = l_J.m_j() \rhd (l_H.m_h(l_I) \rhd l_I.x_i)$\\
+
+\noindent$auth(l_H, e', \mu') = auth(l_H, e, \mu) \cup \{ l_I \}$
+
+\begin{align*}
+auth(l_H, e', \mu') &= auth_{store}(l_H, \mu') \cup auth_{stack}(l_H, e', \mu') & (\textsc{auth-config})\\
+%\end{align*}
+%\begin{align*}
+auth_{store}(l_H, \mu') &= pointsto(l_H, \mu') \cup pointsto(\keyw{def} m_h~...~, \mu') & (\textsc{auth-store})\\
+ &= pointsto(\keyw{def} m_h(y : typeOfI) : Int = y.x_i, \mu') & (\textsc{pointsto-data})\\
+ &= pointsto(y.x_i, \mu') & (\textsc{pointsto-def, -emptydecl})\\
+ &= pointsto(y, \mu') & (\textsc{pointsto-otherexp})\\
+ &= \varnothing & (\textsc{pointsto-var})\\
+%\end{align*}
+%\begin{align*}
+auth_{stack}(l_H, e', \mu') &= pointsto(l_I.x_i, \mu') \cup auth_{stack}(l_H, l_I.x_i, \mu') & (\textsc{auth-stack})\\
+ &= pointsto(l_I.x_i, \mu') & (\textsc{auth-stack-nocall})\\
+ &= pointsto(l_I, \mu') & (\textsc{pointsto-otherexp})\\
+ &= \{ l_I \} & (\textsc{pointsto-principal})\\
+%\end{align*}
+%\begin{align*}
+auth(l_H, e', \mu') &= \{ l_I \} &\\
+\end{align*}
+\begin{align*}
+auth(l_H, e, \mu) &= auth_{store}(l_H, \mu) \cup auth_{stack}(l_H, e, \mu) & (\textsc{auth-config})\\
+auth_{store}(l_H, \mu) &= pointsto(l_H, \mu) \cup pointsto(\keyw{def} m_h~...~, \mu) & (\textsc{auth-store})\\
+ &= pointsto(\keyw{def} m_h(y : typeOfI) : Int = y.x_i, \mu) & (\textsc{pointsto-data})\\
+ &= pointsto(y.x_i, \mu) & (\textsc{pointsto-def, -emptydecl})\\
+ &= pointsto(y, \mu) & (\textsc{pointsto-otherexp})\\
+ &= \varnothing & (\textsc{pointsto-var})\\
+%\end{align*}
+%\begin{align*}
+auth_{stack}(l_H, e, \mu) &= \varnothing & (\textsc{auth-stack-nocall})\\
+auth(l_H, e, \mu) &=  \varnothing &\\
+\end{align*}
+
+
+\newpage
 
 \noindent\underline{\smash{\textbf{\textit{Method return:}}}}
 
