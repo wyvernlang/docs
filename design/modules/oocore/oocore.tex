@@ -1534,45 +1534,224 @@ auth(l_H, e, \mu) &=  \varnothing &\\
 
 \noindent\underline{\smash{\textbf{\textit{Method return:}}}}
 
-\vspace{10pt}
+\vspace{16pt}
 
-\noindent\textbf{Scenario 4:}
-
-\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-resource module A : sigA
-  def ma(Unit) : typeOfB =
-    [return] new(B => var xb : Int = 42)
-    
-resource module C : sigC
-  require sigA as myA
-  def mc(Unit) : typeOfB =
-    myA.ma()
+\noindent Program code:
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+new($l_p$ =>
+  def mp(y : typeOfA) : typeOfC =
+    new($l_C$ =>
+      var xca : typeOfA = y
+      def mc() : typeOfB =
+        xca.ma()))
+.mp(new($l_A$ => def ma() : typeOfB =
+                  new($l_B$ => var xb : Int = 42)))
+.mc()
 \end{lstlisting}
-\end{minipage}
-&
-\hspace{-10ex}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-val A : sigA =
-    bind in
-    new ($l_A$ =>
-      def ma : Unit -> typeOfB =
-      [return] new($l_B$ => var xb : Int = 42))
 
-val C : sigA -> sigC = fn myA : sigA =>
-    bind in
-    new ($l_C$ =>
-          def mc: Unit -> typeOfB =
-            myA.ma())
+\vspace{12pt}
+\noindent Evaluation step 1 (form before: $E.m(e)$, going deeper):\\
+\indent\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 2 (form before: $E.m(e)$, rule applied: \textsc{E-New}):
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
+         new($l_C$ =>
+           var xca : typeOfA = y
+           def mc() : typeOfB =
+             xca.ma()) $\}$
+$l_p$.mp(new($l_A$ => def ma() : typeOfB = new($l_B$ => var xb : Int = 42))).mc()
 \end{lstlisting}
-\end{minipage}
-\end{tabular}
 
-\begin{itemize}
-\item $l_C$ gains authority over $l_B$
-\end{itemize}
+\vspace{12pt}
+\noindent Evaluation step 3 (form before: $l.m(E)$, rule applied: \textsc{E-New}):
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
+         new($l_C$ =>
+           var xca : typeOfA = y
+           def mc() : typeOfB =
+             xca.ma()) $\}$
+$l_A \rightarrow \{$ def ma() : typeOfB =
+          new($l_B$ => var xb : Int = 42) $\}$
+
+$l_p$.mp($l_A$).mc()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 4 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+($l_p$.mp($l_A$) $\rhd$ new($l_C$ =>
+                var xca : typeOfA = $l_A$
+                def mc() : typeOfB =
+                  xca.ma())
+.mc()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 5 (form before: $l.m(l) \rhd E$, rule applied: \textsc{E-New}):
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
+         new($l_C$ =>
+           var xca : typeOfA = y
+           def mc() : typeOfB =
+             xca.ma()) $\}$
+$l_A \rightarrow \{$ def ma() : typeOfB =
+          new($l_B$ => var xb : Int = 42) $\}$
+$l_C \rightarrow \{$ var xca : typeOfA = $l_A$
+        def mc() : typeOfB =
+          xca.ma()) $\}$
+
+($l_p$.mp($l_A$) $\rhd$ $l_C$).mc()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 6 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_C$.mc()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 7 (form before: $E.m(e)$, $E$ is already evaluated to an object):\\
+\indent\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 8 (form before: $l.m(E)$, a \lstinline{Unit} argument passed, $E$ is already fully evaluated):\\
+\indent\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 9 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_C$.mc() $\rhd$ xca.ma()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 10 (form before: $l.m(l) \rhd E$, going deeper):\\
+\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 11 (form before: $E.m(e)$, substitution of concrete object for variable):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_C$.mc() $\rhd$ $l_A$.ma()
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 12 (form before: $l.m(E)$, a \lstinline{Unit} argument passed, $E$ is already fully evaluated):\\
+\indent\textit{Code same as above}
+
+\vspace{12pt}
+\noindent Evaluation step 13 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_C$.mc() $\rhd$ ($l_A$.ma() $\rhd$ new($l_B$ => var xb : Int = 42))
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 14 (form before: $l.m(l) \rhd E$, rule applied: \textsc{E-New}):
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
+         new($l_C$ =>
+           var xca : typeOfA = y
+           def mc() : typeOfB =
+             xca.ma()) $\}$
+$l_A \rightarrow \{$ def ma() : typeOfB =
+          new($l_B$ => var xb : Int = 42) $\}$
+$l_C \rightarrow \{$ var xca : typeOfA = $l_A$
+        def mc() : typeOfB =
+          xca.ma()) $\}$
+$l_B \rightarrow \{$ var xb : Int = 42 $\}$
+
+$l_C$.mc() $\rhd$ ($l_A$.ma() $\rhd$ $l_B$)
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 15 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_C$.mc() $\rhd$ $l_B$
+\end{lstlisting}
+
+\vspace{12pt}
+\noindent Evaluation step 16 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
+\vspace{-6pt}
+\indent\textit{Memory same as above}\\
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+$l_B$
+\end{lstlisting}
+
+
+\newpage
+
+\noindent\textbf{$l_C$ gains authority over $l_B$ due to a return from $l_A$'s method $m_a()$ in evaluation step 15 when \textsc{E-StackFrame} is applied:}\\
+
+\noindent ($l_A$, $l_B$ and $l_C$ are stateful)\\
+
+\noindent$e = E[l_A.m_a() \rhd l_B]$, $e' = E[l_B]$\\
+
+\noindent$e = l_C.m_c() \rhd (l_A.m_a() \rhd l_B)$, $e' = l_C.m_c() \rhd l_B$\\
+
+\noindent$auth(l_C, e', \mu') = auth(l_C, e, \mu) \cup \{ l_B \}$
+
+\begin{align*}
+auth(l_C, e', \mu') &= auth_{store}(l_C, \mu') \cup auth_{stack}(l_C, e', \mu') & (\textsc{auth-config})\\
+%\end{align*}
+%\begin{align*}
+auth_{store}(l_C, \mu') &= pointsto(l_C, \mu') \cup pointsto(\keyw{var} x_{ca}~...~, \mu') & (\textsc{auth-store})\\
+ &= \{ l_C \} \cup pointsto(\keyw{var} x_{ca} : typeOfA = l_A;~\keyw{def} m_c~...~, \mu') & (\textsc{pointsto-principal})\\
+ &= \{ l_C \} \cup pointsto(l_A, \mu) \cup pointsto(\keyw{def} m_c~...~, \mu') & (\textsc{pointsto-varl})\\
+ &= \{ l_C, l_A \} \cup pointsto(\keyw{def} m_c() : typeOfB = x_{ca}.m_a(), \mu') & (\textsc{pointsto-principal})\\
+ &= \{ l_C, l_A \} \cup pointsto(x_{ca}.m_a(), \mu') & (\textsc{pointsto-def, -emptydecl})\\
+ &= \{ l_C, l_A \} \cup pointsto(x_{ca}, \mu') & (\textsc{pointsto-otherexp, -data})\\
+ &= \{ l_C,~l_A \} & (\textsc{pointsto-var})\\
+%\end{align*}
+%\begin{align*}
+auth_{stack}(l_C, e', \mu') &= pointsto(l_B, \mu') \cup auth_{stack}(l_C, l_B, \mu') & (\textsc{auth-stack})\\
+ &= \{ l_B \} \cup auth_{stack}(l_C, l_B, \mu') & (\textsc{pointsto-principal})\\
+ &= \{ l_B \} & (\textsc{auth-stack-nocall})\\
+%\end{align*}
+%\begin{align*}
+auth(l_C, e', \mu') &= \{ l_C,~l_A,~l_B \} &\\
+\end{align*}
+\begin{align*}
+auth(l_C, e, \mu) &= auth_{store}(l_C, \mu) \cup auth_{stack}(l_C, e, \mu) & (\textsc{auth-config})\\
+auth_{store}(l_C, \mu) &= pointsto(l_C, \mu) \cup pointsto(\keyw{var} x_{ca}~...~, \mu) & (\textsc{auth-store})\\
+ &= \{ l_C \} \cup pointsto(\keyw{var} x_{ca} : typeOfA = l_A;~\keyw{def} m_c~...~, \mu) & (\textsc{pointsto-principal})\\
+ &= \{ l_C \} \cup pointsto(l_A, \mu) \cup pointsto(\keyw{def} m_c~...~, \mu) & (\textsc{pointsto-varl})\\
+ &= \{ l_C, l_A \} \cup pointsto(\keyw{def} m_c() : typeOfB = x_{ca}.m_a(), \mu) & (\textsc{pointsto-principal})\\
+ &= \{ l_C, l_A \} \cup pointsto(x_{ca}.m_a(), \mu) & (\textsc{pointsto-def, -emptydecl})\\
+ &= \{ l_C, l_A \} \cup pointsto(x_{ca}, \mu) & (\textsc{pointsto-otherexp, -data})\\
+ &= \{ l_C,~l_A \} & (\textsc{pointsto-var})\\
+%\end{align*}
+%\begin{align*}
+auth_{stack}(l_C, e, \mu) &= pointsto(l_A.m_a() \rhd l_B, \mu) \cup auth_{stack}(l_C, l_A.m_a() \rhd l_B, \mu) & (\textsc{auth-stack})\\
+ &= \{ l_A \} \cup auth_{stack}(l_C, l_A.m_a() \rhd l_B, \mu) & (\textsc{pointsto-call-principal})\\
+ &= \{ l_A \} & (\textsc{auth-stack-nocall})\\
+auth(l_C, e, \mu) &=  \{ l_C,~l_A\}&\\
+\end{align*}
+
+
 
 \bibliographystyle{plain}
 \bibliography{bibtex}
