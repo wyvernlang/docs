@@ -1,0 +1,66 @@
+Why we need Type Members in Wyvern
+==================================
+
+Generics
+--------
+
+Generics are useful.
+Type Members can encode generics.
+But type members are more expressive because you can talk about a type member t of a variable x if x is in scope, even if you don't have a parameter t in scope.  This saves you from exploding numbers of type parameters, and even supports some code you couldn't write otherwise.  Example:
+
+def copyCell(c:Cell)
+	new Cell
+		type t = c.t
+		val data : t = c.data
+
+rather than:
+
+def copyCell[T](c:Cell[T]) ...
+
+This avoids a lot of unnecessary type boilerplate.  Here's a more fundamental example:
+
+datatype DiverseTree
+	case type Leaf
+		type T
+		val v:T
+	case type Branch
+		val t1:DiverseTree
+		val t2:DiverseTree
+
+In this data structure there are type members at the leaves, and each type member can
+be bound to a different type.  In a system with generic types this can't be expressed
+(except with hacks like raw types in Java).  You have to either make all the types be
+the same (thus a HomogenousTree not a DiverseTree) or else you have to just make the type
+of v be top (or Object) rather than some T.
+
+An example of using this facility in a useful way is with hashtables and keys.  Imagine
+we have a table that needs a unique (but abstract) key type.  We want the type to be
+hidden from clients (thus abstract) but different for all tables so that we don't
+accidentally mix the keys for two different types.  In Java (or other languages with
+generic types) there's no way to make the key type abstract.  In languages with type
+members it is easy:
+
+type Table
+	type Key
+	type Value
+	def get(k:Key):Value
+	def add(v:Value):Key
+
+// the Key type of the returned table is abstract
+def newTable[ValueType]():Table[Value=ValueType]
+
+Now there is a guarantee that if you call tab.get(k) where k has type tab.Key, you are guaranteed to find a value (provided Table was implemented correctly), as the only way you could have gotten this key is by calling tab.add(...) on that particular table.  This example has been used to motivate ML modules...but in that case you are using a functor to create the table so it only works for "top-level" tables (i.e. global data structures) as there is no way in ML to instantiate a functor inside a function.
+
+Furthermore, once you are using type members for generics, it's very useful to have bounds on the type members so that you can get all the usual benefits of bounded polymorphism.
+
+
+
+Modules
+-------
+
+Many applications of modules benefit from type members.  In particular type members are the cleanest and most expressive way to define abstract data types.  But it's useful for modules to be first-class...see all sorts of prior work on this topic, e.g. by Derek Dreyer.
+
+One of the most important reasons to do this is framework code, which often needs to choose among plugin modules dynamically.
+
+For type members in an OO context, a bound on the abstract type is especially useful, because then you can do operations on objects of that abstract type.
+
