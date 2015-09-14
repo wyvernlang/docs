@@ -1,0 +1,187 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+%\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{color,soul}
+
+
+\newtheorem{subcase}{SubCase}
+\numberwithin{subcase}{case}
+\numberwithin{case}{theorem}
+\numberwithin{case}{lemma}
+
+
+
+
+\lstdefinestyle{custom_lang}{
+  xleftmargin=\parindent,
+  showstringspaces=false,
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries
+}
+
+\lstset{emph={%  
+    val, def, type, new, z%
+    },emphstyle={\bfseries \tt}%
+}
+
+\begin{document}
+
+\subsection{Syntax}
+
+\begin{figure}[h]
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & x & expression \\
+& | & \texttt{new} \; \{z \Rightarrow \overline{d}\}&\\
+%& | & \lambda x:T = e\\
+%& | & e(e)\\
+& | & e.m_T(e) &\\
+& | & e.f &\\
+%& | & e.f = e&\\
+& | & e \unlhd T&\\
+& | & l &\\
+&&\\
+p & ::= & x & paths \\
+& | & l &\\
+& | & p.f &\\
+& | & p \unlhd T &\\
+&&\\
+v & ::= & l & value \\
+& | & v.f &\\
+& | & v \unlhd T &\\
+&&\\
+d & ::= & \texttt{val} \; f : T = p & declaration \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
+  & |   & \texttt{type} \; L : T .. T&\\
+&&\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & Environment \\
+ \end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+%T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
+T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
+& | & p.L &\\
+%& | & T \wedge T & \\
+& | & \top & \\
+& | & \bot & \\
+&&\\
+\sigma & ::= & \texttt{val} \; f:T & decl \; type\\
+       & |   & \texttt{def} \; m:T \rightarrow T \\
+		 & |   & \texttt{type} \; L : T .. T &\\
+&&\\
+E & :: = & \bigcirc & eval \; context\\
+       & | & E.m(e)\\
+       & | & p.m(E)\\
+       & | & E.f\\
+%       & | & E.f = e\\
+%       & | & v.f = E\\
+       & | & E \unlhd T\\
+&&\\
+d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
+  & |   & \texttt{type} \; L : T .. T = T &\\
+%       & | & \texttt{var} \; x = \texttt{new} \; \{z \Rightarrow \overline{D}\} & eval \; context \\
+%&&\\
+%D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
+%  & |   & \texttt{def} \; m(x:T) = e : T &\\
+%  & |   & \texttt{type} \; L : T .. T &\\
+%&&\\
+%K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
+%\Delta & :: = & \varnothing \; | \; \Delta,\; x \mapsto l & substitution \; context \\
+%&&\\
+%\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : T & store \; context \\
+%&&\\
+%p & ::= & x & path \\
+%  & | & l & \\
+&&\\
+\mu & :: = & \varnothing \; | \; \mu,\; l \mapsto \{z \Rightarrow \overline{d}\} & store \\
+\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
+\end{array}
+\end{array}
+\]
+\caption{Syntax}
+\label{f:syntax}
+\end{figure}
+
+
+%\begin{figure}[h]
+%\begin{mathpar}
+%\end{mathpar}
+%\caption{Declaration Path Function}
+%\label{f:path}
+%\end{figure}
+%\begin{figure}[h]
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {narrow(x) = x \\ narrow(v \unlhd T) = narrow(v)}
+%\end{mathpar}
+%\caption{Narrow Function}
+%\label{f:narrow}
+%\end{figure}
+
+\subsection{Semantics}
+
+\begin{figure}[h]
+\hfill \fbox{$\mu \vdash v \leadsto l$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\mu \vdash l \leadsto l}
+  \quad (\textsc {L-Loc})
+	\and
+\inferrule
+  {\mu \vdash v \leadsto l}
+  {\mu \vdash v \unlhd T \leadsto l}
+  \quad (\textsc {L-Type})
+	\and
+\inferrule
+  {\mu \vdash v \leadsto l' \\
+	\mu(l') = \{z \Rightarrow ..., \texttt{val} f : T = l, ...\}}
+  {\mu \vdash v.f \leadsto l}
+  \quad (\textsc {L-Path})
+\end{mathpar}
+\hfill \fbox{$\mu \vdash d_v \leadsto d$}
+\begin{mathpar}
+\inferrule
+  {\mu \vdash v \leadsto l}
+  {\mu \vdash \texttt{val} \; f : T = v \leadsto \texttt{val} \; f : T = l}
+  \quad (\textsc {L-Val})
+	\and
+\inferrule
+  {}
+  {\mu \vdash \texttt{def} \; m : S(x:T) = e \leadsto \texttt{def} \; m(x:S) = e : T}
+  \quad (\textsc {L-Def})
+	\and
+\inferrule
+  {}
+  {\mu \vdash \texttt{type} \; L : S .. U \leadsto \texttt{type} \; L : S .. U}
+  \quad (\textsc {L-Type})
+\end{mathpar}
+\caption{Path Leads-to Judgement}
+\label{f:path}
+\end{figure}
+
+\input{subtype}
+
+\input{wf}
+
+\input{exp}
+
+%\subsubsection{Typing}
+
+\input{typing}
+
+\input{reduction}
+
+\bibliographystyle{plain}
+\bibliography{bib}
+
+\end{document} 

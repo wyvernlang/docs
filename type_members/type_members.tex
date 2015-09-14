@@ -29,95 +29,177 @@
 
 
 \section{Type Members}
-Type members are object members that describe types. 
-In the same way that an object can have a member that describes 
-a method or a field, with type members we can give
-objects the ability to define types, and subsequently use types. 
-Type members attempt to solve a similar problem to that of Generic type 
-parameters in a language like Java. Below is a simple example of 
-Java Generics.
+Type members are object members that are types. 
+In the same way that an object can have value or 
+method members, type members define types. Similar 
+to traditional method member declarations, type 
+members can be either abstract or concrete. That is, 
+types can include type members without specifying 
+a concrete type for that type member. Using a 
+familiar Java-like syntax, this can be seen below.
 \begin{lstlisting}[mathescape, style=custom_lang]
-public class Foo<T>{
-  T bar;
-  public Foo(T bar){
-    this.bar = bar;
-  }
+Pair = {
+  type F;
+  type S;
+  val F fst;
+  val S snd;
 
-  public void setBar(T bar){
-    this.bar = bar;
+  public void setFst(F fst){
+    this.fst = fst;
   }
-  public T getBar(){
-    return this.bar;
+  public void setSnd(S snd){
+    this.snd = snd;
   }
 }
 \end{lstlisting}
-If we introduced type members, this example could be rewritten as 
-follows.
+We have not specified a concrete type for \texttt{F},
+yet we can still use \texttt{F} to assign a value to 
+\texttt{fst}.
+As seen above, type members 
+can be used in much the same way as traditional Java 
+generic type parameters. The above example could be 
+written in Java Generics like this.
 \begin{lstlisting}[mathescape, style=custom_lang]
-public class Foo{
-  type T;
-  T bar;
-  public Foo(T bar){
-    this.bar = bar;
+public class Pair<F,S>{
+  F fst;
+  S snd;
+
+  public Pair(F fst, S snd){
+    this.fst = fst;
+    this.snd = snd;
   }
 
-  public void setBar(T bar){
-    this.bar = bar;
+  public void setFst(F fst){
+    this.fst = fst;
   }
-  public T getBar(){
-    return this.bar;
+  public void setSnd(S snd){
+    this.snd = snd;
   }
 }
 \end{lstlisting}
-While \emph{Java} does not support Type Members, \emph{Scala} does.
-This can be seen as an extension of the mechanisms already used in 
-a language such as Java. In Java we can define abstract method members, but 
-are unable to pass a method as a parameter. We can pass values as 
-parameters, but are unable to define abstract field members. We can pass 
-types as parameters, but are unable to define abstract type members.
-In Scala, all three can either be defined as members of a type, or 
-can be passed as parameters. 
+So then what are the differences between type members 
+and type parameters?
 
-In this document we present a a structurally typed language with type 
-members. In a structural type system, types are defined by their structure 
-as opposed to their name in nominal type systems. Normally this means the 
-field and method definitions they contain. When adding type members 
-we extend this to include types. This work is based on and extends 
-similar work done on type members in Scala \cite{Amin:2012}.
-While Amin et. al.\cite{Amin:2014} developed a big step semantics and 
-proved it sound, we hope to develop an altered type system in order to maintain 
-a small step semantics while providing sound type members. 
-
-Using Java Generics, we can define an upper bound in order to restrict 
-possible types used. We could easily conceive a similar bound being 
-used for type members. Below is an example using the syntax of the language 
-presented in this document.
+\subsection{Type members vs Type Parameters}
+When we use generic type parameters in the above example, 
+if we want to use Pair, we declare  
+concrete types for \texttt{F} and \texttt{S}.
 \begin{lstlisting}[mathescape, style=custom_lang]
-var o = new {z => type L : S .. U}
+Pair<Double, Double> p1 = new Pair<Double, Double>(1, 2);
 \end{lstlisting}
-We have created a new object \texttt{o} that has a single member, a type member 
-\texttt{L}. \texttt{L} is restricted by two bounds, a lower bound \texttt{S} 
-and an upper bound \texttt{U} (Where \texttt{S} and \texttt{U} are some types). 
-Using an access on \texttt{o} we can now refer to 
-\texttt{L}: \texttt{o.L}.
-We could allow type member accesses to not only be made on  
-an object, but a path \texttt{p} constructed from a series of field accesses.
-Below we can see that the type member \texttt{L} refers to 
-depends entirely on the path taken to retrieve it.
+Because of issues with contra-variance and co-variance, 
+generic type parameters are required to be invariant with 
+regard to subtyping. So the example below would result in 
+an error at compile time. 
 \begin{lstlisting}[mathescape, style=custom_lang]
-var o1 = new {z => type L : S .. U}
-var o2 = new {z => type L : S' .. U'}
+Pair<Integer, Integer> p2 = new Pair<Integer, Integer>(1, 2);
+p1 = p2; \\ Compile time error
 \end{lstlisting}
-Clearly \texttt{o1.L} $\neq$ \texttt{o2.L}
+If we didn't restrict this, we could make the following 
+ill-typed call on \texttt{p1}.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+p1 = p2;
+p1.setFst(1.1);
+\end{lstlisting}
+We can construct this example using type members.
+\begin{lstlisting}[mathescape, style=custom_lang]
+DoublePair = {
+  type F = Double;
+  type S = Double;
+  val F fst;
+  val S snd;
 
+  public void setFst(F fst){
+    this.fst = fst;
+  }
+  public void setSnd(S snd){
+    this.snd = snd;
+  }
+}
+IntegerPair = {
+  type F = Integer;
+  type S = Integer;
+  val F fst;
+  val S snd;
+
+  public void setFst(F fst){
+    this.fst = fst;
+  }
+  public void setSnd(S snd){
+    this.snd = snd;
+  }
+}
+...
+DoublePair p1 = new DoublePair{val fst = 1; val fst = 2};
+IntegerPair p2 = new IntegerPair{val fst = 1; val fst = 2};
+...
+\end{lstlisting}
+We can allow a co-variant subtyping relationship 
+on type members because type members allow us to 
+maintain type information at run time \cite{Bruce:1998}. So now %cite: A Statically Safe Alternative to Virtual Types
+\begin{lstlisting}[mathescape, style=custom_lang]
+p1 = p2;
+\end{lstlisting}
+is allowed, but if we subsequently make an ill-typed 
+write
+\begin{lstlisting}[mathescape, style=custom_lang]
+p1.setFst(1.1); \\ Runtime error
+\end{lstlisting}
+it can be caught at run time because objects maintain 
+generic type information in the form of type members.
+This allows us to write more expressive code. For example 
+we could construct a list of pairs without declaring 
+a concrete type that all pair elements should conform to.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class PairList{
+  ...
+  public void add(p : Pair){...}
+  public Pair get(i : integer){...}
+  ...
+}
+\end{lstlisting}
+Using type parameters we would have to declare all 
+types as the same (e.g. \texttt{List<Pair<Integer,Integer>>}) 
+which restricts us to elements only of that type. Otherwise 
+we could make all elements the top level type (\texttt{Object} 
+in Java) which doesn't allow us access to the members 
+of our elements.
+
+Type members also allow us to refer to generic types without explicitly 
+bringing them into scope, or know the actual concrete type 
+being used. As an example, suppose we want to write a method that copies  
+pairs.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+public Pair copyPair(p : Pair){
+  return new Pair{type F = p.F; 
+                  type F = p.F;
+                  val fst = p.fst; 
+                  val snd = p.snd;}
+}
+...
+\end{lstlisting}
+If we were to try to do the same using generic type parameters
+we get
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+public Pair<F,S> copyPair(p : Pair<F,S>){
+  return new Pair<F,S>(p.fst, p.snd);
+}
+...
+\end{lstlisting}
+Here we have to explicitly introduce a type parameter to the 
+method signature for each unknown generic type explicitly.
+So we can see how type parameters can result in large 
+numbers of type parameters  \cite{odersky:2009} %cite: http://www.artima.com/weblogs/viewpost.jsp?thread=270195
+depending on the unknown type variables being used.
 
 \subsection{Type Members in Wyvern}
-Wyvern is a structurally typed programming language being 
-developed concurrently with this work. Wyvern puts an emphasis 
-on secure web applications. The type members described here 
-is intended to be integrated into the wider development of the 
-Wyvern Programming language.
-
+Wyvern is a structurally typed object oriented language. We 
+include type members in the Wyvern type system to provide 
+generic polymorphism. Type members in Wyvern are based on 
+those in Scala \cite{Amin:2012}\cite{Amin:2014}.
 
 \section{Counter Examples to Preservation}
 	\label{s:examples}
@@ -395,160 +477,179 @@ c.m(a) $\rightarrow$ (val y = new {z $\Rightarrow$ val l : (a $\unlhd$ c.k.L).Y 
                             val m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
 \end{lstlisting}
 
-\section{Type System}
-	\label{s:type_sys}
+
+\newpage
 
 
-\subsection{Syntax}
+While \emph{Java} does not support Type Members, \emph{Scala} does.
+This can be seen as an extension of the mechanisms already used in 
+a language such as Java. In Java we can define abstract method members, but 
+are unable to pass a method as a parameter. We can pass values as 
+parameters, but are unable to define abstract field members. We can pass 
+types as parameters, but are unable to define abstract type members.
+In Scala, all three can either be defined as members of a type, or 
+can be passed as parameters. 
+
+\subsection{Why Type Members?}
+We use type members in Wyvern to allow for polymorphic types. 
+Languages like Java and C\# allow for type parameters to create 
+"generic" types that define an interface for a collection of types. 
+Below is a basic version of the common \texttt{List} example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class List<T>{
+  public boolean add(elem : T){
+    ...
+  }
+
+  public T get(){
+    ...
+  }
+}
+\end{lstlisting}
+Here we define a generic class for a collection of \texttt{List} 
+types. Now we can use it to initialize lists of \texttt{String} or 
+\texttt{Integer} types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+List<String> stringList = new List<String>();
+List<Integer> integerList = new List<Integer>();
+
+stringList.add("One");
+integerList.add(1);
+integerList.add("One"); \\Compilation Error
+\end{lstlisting}
+Below we use type members in place of type parametrization. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+type List : $\bot$ .. {z $\Rightarrow$ type T : $\bot$ .. $\top$
+                       def $\top$ add(elem : z.T){ ...}
+                       get z.L(){...}}
+
+def $\top$ createLists(){
+  stringList = new {z $\Rightarrow$ type T : String .. String
+                         def $\top$ add(elem : z.T){ ...}
+                         get z.L(){...}};
+
+  intergerList = new {z $\Rightarrow$ type T : Integer .. Integer
+                           def $\top$ add(elem : z.T){ ...}
+                           get z.L(){...}};
+
+  stringList.add("One");
+  integerList.add(1);
+  integerList.add("One"); \\Compilation Error
+}
+...
+\end{lstlisting}
 
 
-\begin{figure}[h]
-\[
-\begin{array}{lll}
-\begin{array}{lllr}
-e & ::= & x & expression \\
-& | & \texttt{new} \; \{z \Rightarrow \overline{d}\}&\\
-%& | & \lambda x:T = e\\
-%& | & e(e)\\
-& | & e.m_T(e) &\\
-& | & e.f &\\
-%& | & e.f = e&\\
-& | & e \unlhd T&\\
-& | & l &\\
-&&\\
-p & ::= & x & paths \\
-& | & l &\\
-& | & p.f &\\
-& | & p \unlhd T &\\
-&&\\
-v & ::= & l & value \\
-& | & v.f &\\
-& | & v \unlhd T &\\
-&&\\
-d & ::= & \texttt{val} \; f : T = p & declaration \\
-  & |   & \texttt{def} \; m(x:T) = e : T &\\
-  & |   & \texttt{type} \; L : T .. T&\\
-&&\\
-\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & Environment \\
- \end{array}
-& ~~~~~~
-&
-\begin{array}{lllr}
-%T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
-T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
-& | & p.L &\\
-& | & T \wedge T & \\
-& | & \top & \\
-& | & \bot & \\
-&&\\
-\sigma & ::= & \texttt{val} \; f:T & decl \; type\\
-       & |   & \texttt{def} \; m:T \rightarrow T \\
-		 & |   & \texttt{type} \; L : T .. T &\\
-&&\\
-E & :: = & \bigcirc & eval \; context\\
-       & | & E.m(e)\\
-       & | & p.m(E)\\
-       & | & E.f\\
-%       & | & E.f = e\\
-%       & | & v.f = E\\
-       & | & E \unlhd T\\
-&&\\
-d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
-  & |   & \texttt{def} \; m(x:T) = e : T &\\
-  & |   & \texttt{type} \; L : T .. T = T &\\
-%       & | & \texttt{var} \; x = \texttt{new} \; \{z \Rightarrow \overline{D}\} & eval \; context \\
-%&&\\
-%D & :: = & \texttt{val} \; f : T = E & decl \; eval \; context \\
-%  & |   & \texttt{def} \; m(x:T) = e : T &\\
-%  & |   & \texttt{type} \; L : T .. T &\\
-%&&\\
-%K & :: = & \varnothing \; | \; K, \; E & evaluation \; stack \\
-%\Delta & :: = & \varnothing \; | \; \Delta,\; x \mapsto l & substitution \; context \\
-%&&\\
-%\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : T & store \; context \\
-%&&\\
-%p & ::= & x & path \\
-%  & | & l & \\
-&&\\
-\mu & :: = & \varnothing \; | \; \mu,\; l \mapsto \{z \Rightarrow \overline{d}\} & store \\
-\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
-\end{array}
-\end{array}
-\]
-\caption{Syntax}
-\label{f:syntax}
-\end{figure}
+\subsection{Path Dependent Types}
 
 
-%\begin{figure}[h]
-%\begin{mathpar}
-%\end{mathpar}
-%\caption{Declaration Path Function}
-%\label{f:path}
-%\end{figure}
-%\begin{figure}[h]
-%\begin{mathpar}
-%\inferrule
-%  {}
-%  {narrow(x) = x \\ narrow(v \unlhd T) = narrow(v)}
-%\end{mathpar}
-%\caption{Narrow Function}
-%\label{f:narrow}
-%\end{figure}
+\subsection{Wyvern Type Members}
 
-\subsection{Semantics}
+In this document we present a a structurally typed language with type 
+members. In a structural type system, types are defined by their structure 
+as opposed to their name in nominal type systems. Normally this means the 
+field and method definitions they contain. When adding type members 
+we extend this to include types. This work is based on and extends 
+similar work done on type members in Scala \cite{Amin:2012}.
+While Amin et. al.\cite{Amin:2014} developed a big step semantics and 
+proved it sound, we hope to develop an altered type system in order to maintain 
+a small step semantics while providing sound type members. 
 
-\begin{figure}[h]
-\hfill \fbox{$\mu \vdash v \leadsto l$}
-\begin{mathpar}
-\inferrule
-  {}
-  {\mu \vdash l \leadsto l}
-  \quad (\textsc {L-Loc})
-	\and
-\inferrule
-  {\mu \vdash v \leadsto l}
-  {\mu \vdash v \unlhd T \leadsto l}
-  \quad (\textsc {L-Type})
-	\and
-\inferrule
-  {\mu \vdash v \leadsto l' \\
-	\mu(l') = \{z \Rightarrow ..., \texttt{val} f : T = l, ...\}}
-  {\mu \vdash v.f \leadsto l}
-  \quad (\textsc {L-Path})
-\end{mathpar}
-\hfill \fbox{$\mu \vdash d_v \leadsto d$}
-\begin{mathpar}
-\inferrule
-  {\mu \vdash v \leadsto l}
-  {\mu \vdash \texttt{val} \; f : T = v \leadsto \texttt{val} \; f : T = l}
-  \quad (\textsc {L-Val})
-	\and
-\inferrule
-  {}
-  {\mu \vdash \texttt{def} \; m : S(x:T) = e \leadsto \texttt{def} \; m(x:S) = e : T}
-  \quad (\textsc {L-Def})
-	\and
-\inferrule
-  {}
-  {\mu \vdash \texttt{type} \; L : S .. U \leadsto \texttt{type} \; L : S .. U}
-  \quad (\textsc {L-Type})
-\end{mathpar}
-\caption{Path Leads-to Judgement}
-\label{f:path}
-\end{figure}
+Using Java Generics, we can define an upper bound in order to restrict 
+possible types used. We could easily conceive a similar bound being 
+used for type members. Below is an example using the syntax of the language 
+presented in this document.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var o = new {z => type L : S .. U}
+\end{lstlisting}
+We have created a new object \texttt{o} that has a single member, a type member 
+\texttt{L}. \texttt{L} is restricted by two bounds, a lower bound \texttt{S} 
+and an upper bound \texttt{U} (Where \texttt{S} and \texttt{U} are some types). 
+Using an access on \texttt{o} we can now refer to 
+\texttt{L}: \texttt{o.L}.
+We could allow type member accesses to not only be made on  
+an object, but a path \texttt{p} constructed from a series of field accesses.
+Below we can see that the type member \texttt{L} refers to 
+depends entirely on the path taken to retrieve it.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var o1 = new {z => type L : S .. U}
+var o2 = new {z => type L : S' .. U'}
+\end{lstlisting}
+Clearly \texttt{o1.L} $\neq$ \texttt{o2.L}
 
-\input{subtype}
 
-\input{wf}
+\subsection{Type Members in Wyvern}
+Wyvern is a structurally typed programming language being 
+developed concurrently with this work. Wyvern puts an emphasis 
+on secure web applications. The type members described here 
+is intended to be integrated into the wider development of the 
+Wyvern Programming language.
 
-\input{exp}
 
-%\subsubsection{Typing}
 
-\input{typing}
 
-\input{reduction}
+\section{Type Members Examples}
+
+\subsection{Removing Environment Narrowing}
+
+A central issue in similar type systems thus far is maintaining 
+type soundness in the presence of environment narrowing. Our 
+proposed solution is to remove environment narrowing altogether.
+
+An environment is narrowed when during reduction a variable is 
+found to have a more precise type than originally assumed. This 
+is common when passing arguments to a method, or when returning 
+from a method call. In fact these are the two areas that environment 
+narrowing must be removed. Below is a small example where we attempt to 
+remove environment narrowing.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Food = {z $\Rightarrow$ type IsFood : $\bot$ ... $\top$}
+
+Recipe = {z $\Rightarrow$ type F : $\bot$ .. Food;
+               def cook(){ ... } : z.F;}
+               
+Sushi = {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
+              type IsSushi : $\bot$ .. $\top$}
+
+SushiRecipe = {z $\Rightarrow$ type F : $\bot$ .. Sushi;
+                    def cook()
+                    {
+                      new {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
+                                type IsSushi : $\bot$ .. $\top$}
+                    } : z.F;}
+\end{lstlisting}
+Above we have defined several types. In our current syntax 
+it is not possible to define types like this, we just use this 
+as short hand during the following examples for brevity. Bellow 
+is an example using the above types, demonstrating the evaluation 
+of method calls.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+def prepareFood (r : Recipe){
+  r.cook();
+} : Food;
+
+def main(){
+  prepareFood(new SushiRecipe());
+}: $\top$;
+...
+\end{lstlisting}
+We now look at the evaluation of above \texttt{main} method.
+\begin{center}
+\texttt{prepareFood(new SushiRecipe());} $\rightarrow$ \texttt{prepareFood($l$);}
+\end{center}
+where $l$ is the location in 
+the store containing the newly created \texttt{SushiRecipe} object.
+\begin{center}
+\texttt{prepareFood($l$);} $\rightarrow$ ($l\unlhd$\texttt{Recipe.cook()}) 
+$\unlhd$ \texttt{Food}
+\end{center}
+Here we have substituted the argument of the \texttt{prepareFood} method 
+into the method body. We attach a persistent upcast to $l$ of the original 
+argument type to avoid narrowing. We also do this to the entire returned body 
+of the method
+\subsection{Path Equality}
 
 
 

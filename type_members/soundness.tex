@@ -1,0 +1,214 @@
+ 
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+%\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{color,soul}
+
+%\theoremstyle{definition}
+%%\newtheorem{case1}{Case1}
+\spnewtheorem{casethm}{Case}[theorem]{\itshape}{\rmfamily}
+\spnewtheorem{subcase}{Subcase}{\itshape}{\rmfamily}
+\numberwithin{subcase}{casethm}
+\numberwithin{casethm}{theorem}
+\numberwithin{casethm}{lemma}
+
+
+
+
+\lstdefinestyle{custom_lang}{
+  xleftmargin=\parindent,
+  showstringspaces=false,
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries
+}
+
+\lstset{emph={%  
+    val, def, type, new, z%
+    },emphstyle={\bfseries \tt}%
+}
+
+\begin{document}
+\hl{*Note highlighted text implies more work is needed.}
+
+%---------------------- Preservation ----------------------%
+\begin{theorem}[Preservation]
+If $\Gamma; \Sigma \vdash e : T$, 
+   	$\mu \; | \; e \; \rightarrow \mu' \; | \; e'$ where
+	$\Sigma \vdash \mu \; \tt{\bf{wf}}$ then 
+ 	$\exists \Sigma'$ s.t. 
+	$\Sigma'$ extends $\Sigma$, 
+	$\Sigma' \vdash \mu' \; \tt{\bf{wf}}$, 
+	$\Gamma; \Sigma' \vdash e' : T$.
+\end{theorem}
+
+\begin{proof}
+By induction on the derivation of $\mu \; | \; e \; \rightarrow \mu' \; | \; e'$.
+\begin{casethm}[\textsc{R-New}]
+ \begin{mathpar}
+\inferrule
+  {\mu \vdash \overline{d_v} \leadsto \overline{d} \\
+  	l \notin dom(\mu) \\
+  	\mu' = \mu, l \mapsto \{\texttt{z} \Rightarrow \overline{d}\}}
+  {\mu \; | \; \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\} \; \rightarrow \mu' \; | \; l}
+	\and
+\inferrule
+	{\Gamma, z : \{z \Rightarrow \overline{\sigma}\}; \Sigma 
+	\vdash \overline{d_v} : \overline{\sigma} \\
+	y \notin dom(\Gamma)}
+	{\Gamma; \Sigma\vdash \texttt{new} \; \{z \Rightarrow \overline{d_v}\} : 
+	\{z \Rightarrow \overline{\sigma}\}}
+\end{mathpar}
+Let $\Sigma' = \Sigma, (l:\{z \Rightarrow \overline{\sigma}\})$.
+By Lemma \ref{lem:path_type_preservation}, we can show that 
+$\Gamma; \Sigma' \vdash \{\texttt{z} \Rightarrow \overline{d}\} :
+\{z \Rightarrow \overline{\sigma}\}$. Thus by \textsc{T-Loc} we get the result 
+$\Gamma; \Sigma' \vdash l : \{z \Rightarrow \overline{\sigma}\}$.
+\end{casethm}
+
+\begin{casethm}[\textsc{R-Meth}]
+\begin{mathpar}
+\inferrule
+  {\mu \vdash v_1 \leadsto l \\
+  	\mu(l) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
+  {\mu \; | \; v_1.m_U(v_2) \;\rightarrow \mu \; | \; [v_1/z,v_2 \unlhd S/x]e \unlhd U}
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash v_1 \ni \texttt{def} \; m:S' \rightarrow T' \\
+  	\Gamma; \Sigma \vdash v_1 : T_1 \\
+  	\Gamma; \Sigma \vdash v_2 : S' \\
+  	\Gamma; \Sigma \vdash T' <: U}
+  {	\Gamma; \Sigma \vdash v_1.m_U(v_2) : U}
+\end{mathpar}
+By Lemma \ref{lem:path_type_preservation} we know that 
+$\Gamma; \Sigma \vdash l : T_1$. From Lemma \ref{lem:subtype:decl} 
+we can show that $\Gamma; \Sigma \vdash [v_1/z](\texttt{def} \; m:S \rightarrow T) <:
+\texttt{def} \; m:S' \rightarrow T'$ which implies 
+$\Gamma; \Sigma \vdash [v_1/z] T <: T'$. Since 
+$\Gamma; \Sigma \vdash e : T$, by Lemma \ref{lem:subst} 
+we get $\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : [v_1/z,v_2 \unlhd S/x]T$.
+Since $T$ is well-formed in the absence of $x$, 
+$[v_1/z,v_2 \unlhd S/x]T = [v_1/z]T$. Thus we get 
+$\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : [v_1/z]T$, and by 
+\textsc{T-Sub} we have 
+$\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : T'$ and subsequently 
+$\Gamma; \Sigma \vdash [v_1/z,v_2 \unlhd S/x]e : U$. 
+Now, let $\Sigma' = \Sigma$, and by \textsc{T-Type} 
+we have $\Gamma; \Sigma' \vdash [v_1/z,v_2 \unlhd S/x]e \unlhd U : U$
+
+\end{casethm}
+\begin{casethm}[\textsc{R-Context}]
+\begin{mathpar}
+\inferrule
+  {	\mu \; | \; e \; \rightarrow \; \mu' \; | \; e'}
+  {\mu \; | \; E[e] \; \rightarrow \mu' \; | \; E[e']}
+\end{mathpar}
+By case analysis on $E[e]$.
+\begin{subcase}[$\mu \; | \; e.m_U(e_S) \; \rightarrow \mu' \; | \; e'.m_U(e_S)$]
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash e \ni \texttt{def} \; m:S' \rightarrow T' \\
+  	\Gamma; \Sigma \vdash e : T \\
+  	\Gamma; \Sigma \vdash e_S : S' \\
+  	\Gamma; \Sigma \vdash T' <: U}
+  {	\Gamma; \Sigma \vdash e.m_U(e_S) : U}
+\end{mathpar}
+By our induction hypothesis we assume 
+$\Gamma; \Sigma' \vdash e' : T$. We now need to investigate 
+method membership for $e'$. Since $e$ reduces to $e'$, we can be
+sure that $e$ is not a path. By inversion on 
+$\Gamma; \Sigma \vdash e \ni \texttt{def} \; m:S' \rightarrow T'$ it
+follows that since $e$ is not a path, $z \notin \texttt{def} \; m:S' \rightarrow T'$. 
+Thus $\Gamma; \Sigma' \vdash e' \ni \texttt{def} \; m:S' \rightarrow T'$, since 
+no substitution is required. By simple weakening of the store type (\hl{TODO?})
+the following hold.
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma' \vdash e_S : S' \\
+  	\Gamma; \Sigma' \vdash T' <: U}
+  {}
+\end{mathpar}
+By \textsc{T-Meth} we have $\Gamma; \Sigma' \vdash e.m_U(e_S) : U$
+\end{subcase}
+
+\begin{subcase}[$\mu \; | \; p.m_U(e) \; \rightarrow \mu' \; | \; p.m_U(e')$]
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{def} \; m:S \rightarrow T \\
+  	\Gamma; \Sigma \vdash p : T_p \\
+  	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash T <: U}
+  {	\Gamma; \Sigma \vdash p.m_U(e) : U}
+\end{mathpar}
+By our induction hypothesis we assume 
+$\exists \Sigma' : \Gamma; \Sigma \vdash e : S$, where 
+$\Sigma'$ extends $\Sigma$. By simple weakening of the store type (\hl{TODO?})
+we get
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma' \vdash p \ni \texttt{def} \; m:S \rightarrow T \\
+  	\Gamma; \Sigma' \vdash p : T_p \\
+  	\Gamma; \Sigma' \vdash T <: U}
+  {}
+\end{mathpar}
+Thus by 
+\textsc{T-Meth}, $\Gamma; \Sigma' \vdash p.m_U(e') : U$
+\end{subcase}
+
+\begin{subcase}[$\mu \; | \; e.f \; \rightarrow \mu' \; | \; e'.f$]
+\begin{mathpar}
+\inferrule
+  {	\Gamma; \Sigma \vdash e : S \\
+  	\Gamma; \Sigma \vdash e \ni \texttt{val} \; f:T}
+  {	\Gamma; \Sigma \vdash e.f : T}
+\end{mathpar}
+By our induction hypothesis we assume $\Gamma; \Sigma \vdash e' : S$. 
+Since $e$ reduces to $e'$ it follows that $e$ is not a path. By inversion 
+on the derivation of $\Gamma; \Sigma \vdash e \ni \texttt{val} \; f:T$, 
+$z \notin \texttt{val} \; f:T$, and it follows that 
+$\Gamma; \Sigma' \vdash e' \ni \texttt{val} \; f:T$. Now, by \textsc{T-Field} 
+we have $\Gamma; \Sigma' \vdash e'.f : S$
+\end{subcase}
+
+\begin{subcase}[$\mu \; | \; e \unlhd T \; \rightarrow \mu' \; | \; e' \unlhd T$]
+\begin{mathpar}
+\inferrule
+  {	\Gamma; \Sigma \vdash e : T}
+  {	\Gamma; \Sigma \vdash e \unlhd T : T}
+\end{mathpar}
+By our induction hypothesis we assume $\Gamma; \Sigma' \vdash e' : T$. 
+Now by the simple application of \textsc{T-Type} we have 
+$\Gamma; \Sigma' \vdash e' \unlhd : T$
+\end{subcase}
+
+\end{casethm}
+\end{proof}
+\qed
+
+%---------------------- Progress ----------------------%
+\subsection{Progress}
+\begin{theorem}[Progress]
+If $\Gamma \vdash e : T$, then either
+\begin{enumerate}
+\item e is a value, or
+\item $\forall \mu$ s.t.
+		   $\Gamma \vdash \mu$,
+         $\exists e'$ and $\mu'$ s.t. 
+         $\mu \; | \; e \; \rightarrow \mu' \; | \; e'$
+\end{enumerate}
+\end{theorem}
+\qed 
+
+
+
+
+
+
+\bibliographystyle{plain}
+\bibliography{bib}
+
+\end{document}
