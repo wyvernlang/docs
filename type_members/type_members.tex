@@ -3,9 +3,20 @@
 \usepackage{listings}
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
-%\usepackage{amsmath}
+\usepackage{amsmath}
 %\usepackage{amsthm}
 \usepackage{mathpartir}
+\usepackage{color,soul}
+\usepackage{graphicx}
+
+%\theoremstyle{definition}
+%%\newtheorem{case1}{Case1}
+\spnewtheorem{casethm}{Case}[theorem]{\itshape}{\rmfamily}
+\spnewtheorem{subcase}{Subcase}{\itshape}{\rmfamily}
+\numberwithin{subcase}{casethm}
+\numberwithin{casethm}{theorem}
+\numberwithin{casethm}{lemma}
+
 
 
 
@@ -651,6 +662,610 @@ argument type to avoid narrowing. We also do this to the entire returned body
 of the method
 \subsection{Path Equality}
 
+\newpage
+
+%---------------------------------------------------------------------------%
+\begin{figure}[h]
+\hfill \fbox{$\Sigma; \Gamma \vdash S <: T$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash T \texttt{<:} T}
+  \quad (\textsc {S-Refl})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash S \prec^{\uparrow}_z \overline{\sigma} \\
+	\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}' \\
+	\Gamma, (z : S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'}
+  {\Gamma; \Sigma \vdash S <: T}
+  \quad (\textsc {S-Exp})
+	\and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \bot\; \texttt{<:}\; T}
+  \quad (\textsc {S-Bottom})
+\end{mathpar}
+\hfill \fbox{$\Gamma; \Sigma \vdash \sigma <: \sigma'$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T}
+  \quad (\textsc {S-Decl-Val})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash T <: T' \\
+  	\Gamma; \Sigma \vdash S' <: S}
+  {\Gamma; \Sigma \vdash \texttt{def} \; m:S \rightarrow T <: \texttt{def} \; m:S' \rightarrow T'}
+  \quad (\textsc {S-Decl-Def})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash S' <: S \\
+  	\Gamma; \Sigma \vdash U <: U'}
+  {\Gamma; \Sigma \vdash \texttt{type} \; L : S .. U \; <:\; \texttt{type} \; L : S' .. U'}
+  \quad (\textsc {S-Decl-Type})
+\end{mathpar}
+\caption{Subtyping}
+\label{f:subtype_basics}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$\Gamma; \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma}$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\uparrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\uparrow$}-Rec})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash U \prec^{\uparrow}_z \overline{\sigma}}
+  {\Gamma; \Sigma \vdash p.L \prec^{\uparrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\uparrow$}-Sel})
+	\and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \top \prec^{\uparrow}_z \varnothing}
+  \quad (\textsc {E\textsuperscript{$\uparrow$}-Top})
+\end{mathpar}
+\caption{Upper Expansion}
+\label{f:up_exp}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\downarrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\downarrow$}-Rec})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash S \prec^{\downarrow}_z \overline{\sigma}}
+  {\Gamma; \Sigma \vdash p.L \prec^{\downarrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\downarrow$}-Sel})
+	\and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \top \prec^{\downarrow}_z \varnothing}
+  \quad (\textsc {E\textsuperscript{$\downarrow$}-Top})
+\end{mathpar}
+\caption{Lower Expansion}
+\label{f:low_exp}
+\end{figure}
+
+\begin{lemma}\label{lem:expansion_subtype} 
+If 	$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}, 
+                          T \prec^{\uparrow}_z \overline{\sigma}'$ then
+	$\Gamma, (z:T); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'$.
+\end{lemma}
+\begin{proof}
+By induction on $\Gamma; \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma}$.
+\begin{casethm}[\textsc {E\textsuperscript{$\uparrow$}-Rec}]
+\begin{mathpar}
+\inferrule
+  {T = \{z \Rightarrow \overline{\sigma}\}}
+  {}
+  \and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\uparrow}_z \overline{\sigma}}
+\end{mathpar}
+By inversion on 
+$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}$ we get
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\downarrow}_z \overline{\sigma}}
+\end{mathpar}
+By reflexivity we have 
+$\Gamma, (z:\{z \Rightarrow \overline{\sigma}\}); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}$
+\end{casethm}
+\begin{casethm}[\textsc {E\textsuperscript{$\uparrow$}-Sel}]
+\begin{mathpar}
+\inferrule
+  {T = p.L}
+  {}
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash U \prec^{\uparrow}_z \overline{\sigma}'}
+  {\Gamma; \Sigma \vdash p.L \prec^{\uparrow}_z \overline{\sigma}'}
+\end{mathpar}
+By inversion on 
+$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}$ we get
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash S \prec^{\downarrow}_z \overline{\sigma}}
+  {\Gamma; \Sigma \vdash p.L \prec^{\downarrow}_z \overline{\sigma}}
+\end{mathpar}
+From the well-formedness of $\texttt{type} \; L : S..U$ 
+we know $\Gamma; \Sigma \vdash S <: U$. We can now perfom a 
+case analysis on the derivation of $\Gamma; \Sigma \vdash S <: U$
+\begin{subcase}[S-Refl]
+\begin{mathpar}
+\inferrule
+  {S = U}
+  {}
+\end{mathpar}
+We assume by our induction hypothesis that 
+if $\Gamma; \Sigma \vdash U \prec^{\downarrow}_z \overline{\sigma}''$, 
+then $\Gamma (z : U); \Sigma \vdash \vdash \overline{\sigma}'' <: \overline{\sigma}$.
+Since $S = U$ and we have 
+$\Gamma; \Sigma \vdash S \prec^{\downarrow}_z \overline{\sigma}$, and thus
+\begin{mathpar}
+\inferrule
+  {\Gamma (z : S); \Sigma \vdash \vdash \overline{\sigma} <: \overline{\sigma}'}
+  {}
+\end{mathpar}
+\end{subcase}
+\begin{subcase}[S-Exp]
+\hl{Narrowing!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!}
+\end{subcase}
+\begin{subcase}[S-Bottom]
+\begin{mathpar}
+\inferrule
+  {S = \bot}
+  {}
+\end{mathpar}
+Since there is no expansion of $\bot$, this resolves trivially.
+\end{subcase}
+\end{casethm}
+\begin{casethm}[\textsc {E\textsuperscript{$\uparrow$}-Top}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \top \\
+	\Gamma; \Sigma \vdash \top \prec^{\uparrow}_z \varnothing}
+\end{mathpar}
+\end{casethm}
+Trivial since the lower expansion of $\top$ is 
+also $\varnothing$.
+\end{proof}
+\qed
+
+\begin{lemma}\label{lem:subtype:decl} 
+If 	$\Gamma; \Sigma \vdash S <: T, S \prec^{\uparrow}_z \overline{\sigma}, 
+	T \prec^{\uparrow}_z \overline{\sigma}'$ then
+	$\Gamma, (z:S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'$.
+\end{lemma}
+\begin{proof}
+By induction on the derivation of $\Gamma; \Sigma \vdash S <: U$.
+\begin{casethm}[\textsc{S-Refl}]
+\begin{mathpar}
+\inferrule
+  {S = T}
+  {}
+\end{mathpar}
+Trivial.
+\end{casethm}
+\begin{casethm}[\textsc{S-Exp}]
+\hl{Narrowing!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!}
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash S \prec^{\uparrow}_z \overline{\sigma} \\
+	\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}'' \\
+	\Gamma, (x : S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}''}
+  {\Gamma; \Sigma \vdash S <: T}
+\end{mathpar}
+By Lemma \ref{lem:expansion_subtype} we 
+can show that 
+$\Gamma, (x : T); \Sigma \vdash \overline{\sigma}'' <: \overline{\sigma}$.  
+By \hl{Narrowing} we can show that 
+$\Gamma, (x : S); \Sigma \vdash \overline{\sigma}'' <: \overline{\sigma}$.
+Now \hl{transitivity} gives us 
+$\Gamma, (x : S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'$
+\end{casethm}
+\begin{casethm}[\textsc{S-Bottom}]
+\begin{mathpar}
+\inferrule
+  {S = \bot}
+  {}
+\end{mathpar}
+\end{casethm}
+Since there is no expansion to $\bot$, we end up with a contradiction.
+\end{proof}
+\qed
+\begin{lemma}[Environment Narrowing*]\label{thm:narrowing}
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <: T' \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\Gamma, (x : S); \Sigma \vdash T <:^* T'}
+  \quad (\textsc {<:-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <:^* T' \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\Gamma, (x : S); \Sigma \vdash T <:^* T'}
+  \quad (\textsc {<:\textsuperscript{*}-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma} \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists \overline{\sigma}':
+  	\Gamma, (x : S); \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma}' \\
+  	\Gamma, (x : S); \Sigma \vdash \overline{\sigma}' <:^* \overline{\sigma}}
+  \quad (\textsc {$\prec^{\uparrow}$-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma} \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists \overline{\sigma}':
+  	\Gamma, (x : S); \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}' \\
+  	\Gamma, (x : S); \Sigma \vdash \overline{\sigma} <:^* \overline{\sigma}'}
+  \quad (\textsc {$\prec^{\downarrow}$-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p \ni \sigma \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists \sigma':
+  	\Gamma, (x : S); \Sigma \vdash p \ni \sigma' \\
+  	\Gamma, (x : S); \Sigma \vdash \sigma' <:^* \sigma}
+  \quad (\textsc {$\ni$-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists T':
+  	\Gamma, (x : S); \Sigma \vdash p : T' \\
+  	\Gamma, (x : S); \Sigma \vdash T' <:^* T}
+  \quad (\textsc {:-Narrowing*})
+\end{mathpar}
+\end{lemma}
+
+\begin{proof}
+We proceed by mutual structural induction on the of each of the judgements:
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <: T' \\
+  	\Gamma, (x : U); \Sigma \vdash T \prec \overline{\sigma} \\
+  	\Gamma, (x : U); \Sigma \vdash p \ni \sigma \\
+  	\Gamma, (x : U); \Sigma \vdash p : T}
+  {}
+\end{mathpar}
+That is, if for each judgment the base cases (those cases that 
+do not require the derivation of simpler judgments) are satisfied, 
+and assuming the result for all simpler sub-derivations the we can 
+show it holds for more complex cases, we can conclude it holds in 
+general. While not explicitly stated above, we also include the 
+relevant declaration forms of the above judgments.
+
+\subsubsection*{\textsc {$<:$-Narrowing*}:}
+
+\begin{casethm}[\textsc{S-Refl}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T' = T \\
+  	\Gamma, (x : U); \Sigma \vdash T\; \texttt{<:}\; T}
+\end{mathpar}
+In the reflexive base case \textsc{S-Refl}, $T' = T$. 
+It follows trivially from \textsc{S-Refl} that 
+$\Gamma, (x : S); \Sigma \vdash T\; \texttt{<:}\; T$.
+\end{casethm}
+\begin{casethm}[\textsc{S-Exp}]
+\begin{mathpar}
+\inferrule
+  {\Gamma,(x : U); \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma} \\
+	\Gamma,(x : U); \Sigma \vdash T' \prec^{\downarrow}_z \overline{\sigma}' \\
+	\Gamma,(x : U), (z : T); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'}
+  {\Gamma,(x : U); \Sigma \vdash T <: T'}
+\end{mathpar}
+\end{casethm}
+\begin{casethm}[\textsc{S-Bottom}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \bot \\
+  	\Gamma, (x : U); \Sigma \vdash \bot\; \texttt{<:}\; T'}
+\end{mathpar}
+The base case \textsc{S-Bottom} resolves trivially since 
+by \textsc{S-Bottom} $\Gamma, (x : S); \Sigma \vdash \bot\; \texttt{<:}\; T'$
+\end{casethm}
+\begin{casethm}[\textsc{S-Decl-Val}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\sigma = \texttt{val} \; f:T \\
+  	\sigma' = \texttt{val} \; f:T}
+  	\and
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T}
+\end{mathpar}
+The base case for declaration subtyping is resolves trivially by 
+\textsc{S-Decl-Val}: 
+$\Gamma, (x : S); \Sigma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T$
+\end{casethm}
+\begin{casethm}[\textsc{S-Decl-Def}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\sigma = \texttt{def} \; m:S' \rightarrow T \\
+  	\sigma' = \texttt{def} \; m:S'' \rightarrow T'}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <: T' \\
+  	\Gamma, (x : U); \Sigma \vdash S'' <: S'}
+  {\Gamma, (x : U); \Sigma \vdash \texttt{def} \; m:S' \rightarrow T <: \texttt{def} \; m:S'' \rightarrow T'}
+\end{mathpar}
+Using the \textsc {<:-Narrowing*} induction hypothesis 
+for argument and return type subtyping we 
+get $\Gamma, (x : S); \Sigma \vdash T <:^* T'$ and
+$\Gamma, (x : S); \Sigma \vdash S'' <:^* S'$. We can then 
+create a chain of declaration subtype judgments to show that 
+$\Gamma, (x : S); \Sigma \vdash \texttt{def} \; m:S' \rightarrow T <:^* \texttt{def} \; m:S'' \rightarrow T'$.
+\end{casethm}
+
+\begin{casethm}[\textsc{S-Decl-Type}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\sigma = \texttt{type} \; L : S' .. U' \\
+  	\sigma' = \texttt{type} \; L : S'' .. U''}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash S'' <: S' \\
+  	\Gamma, (x : U); \Sigma \vdash U' <: U''}
+  {\Gamma, (x : U); \Sigma \vdash \texttt{type} \; L : S' .. U' \; <:\; \texttt{type} \; L : S'' .. U''}
+\end{mathpar}
+Similar to the \textsc{S-Decl-Def} case, by the induction hypothesis, 
+if $\Gamma, (x : S); \Sigma \vdash S'' <:^* S'$ and
+$\Gamma, (x : S); \Sigma \vdash U' <:^* U''$ hold, it can be shown that 
+$\Gamma, (x : S); \Sigma \vdash \texttt{type} \; L : S' .. U' \; <:^* \; \texttt{type} \; L : S'' .. U''$ holds too.
+
+\end{casethm}
+
+\subsubsection*{\textsc {$\prec$-Narrowing*}:}
+
+\begin{casethm}[\textsc{E-Rec}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \{z \Rightarrow \overline{\sigma}\}}
+  	\and
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash 
+  		\{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}}
+\end{mathpar}
+The base case for expansion follows immediately from \textsc{E-Rec}:
+$\Gamma, (x : S); \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}$.
+\end{casethm}
+\begin{casethm}[\textsc{E-Select}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = p.L}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p \ni \texttt{type} \; L : S'..U' \\
+  	\Gamma, (x : U); \Sigma \vdash U' \prec_z \overline{\sigma}}
+  {\Gamma, (x : U); \Sigma \vdash p.L \prec_z \overline{\sigma}}
+\end{mathpar}
+By our mutual induction hypothesis we assume that
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p \ni \texttt{type} \; L : S''..U'', \;
+  	\texttt{type} \; L : S''..U'' <:^* \texttt{type} \; L : S'..U', \;
+  	U' \prec_z \overline{\sigma}', \;
+  	\overline{\sigma}' <:^* \overline{\sigma}}
+  {}
+\end{mathpar}
+holds. By \textsc{S-Decl-Type}, we can infer that 
+$\Gamma, (x : S); \Sigma \vdash U'' <:^* U'$. Using 
+Lemma \ref{lem:subtype:decl} (\hl{TODO}), we can show that 
+$\exists \overline{\sigma}'': \Gamma, (x : S); \Sigma \vdash U'' \prec 
+\overline{\sigma}'', \; \overline{\sigma}'' <:^* \overline{\sigma}'$.
+Thus, we can show that 
+$\Gamma, (x : S); \Sigma \vdash \overline{\sigma}'' <:^* \overline{\sigma}$ 
+which completes the case.
+
+\hl{ToDo: U = $\bot$?}
+\end{casethm}
+\begin{casethm}[\textsc{E-Top}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \top}
+  	\and
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash \top \prec_z \varnothing}
+\end{mathpar}
+The \textsc{E-Top} base case resolves trivially. By 
+\textsc{E-Top}, $\Gamma, (x : S); \Sigma \vdash \top \prec_z \varnothing$.
+\end{casethm}
+
+\subsubsection*{\textsc {$\ni$-Narrowing*}:}
+
+\begin{casethm}[\textsc{M-Path}]
+\begin{mathpar}
+\inferrule
+  {}
+  {e = p \\
+  	\sigma = [p/z]\sigma_i}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T \\
+  	\Gamma, (x : U); \Sigma \vdash T \prec_z \overline{\sigma}\\
+  	\sigma_i \in \overline{\sigma}}
+  {\Gamma, (x : U); \Sigma \vdash p \ni [p/z]\sigma_i}
+\end{mathpar}
+From the mutually defined induction hypothesis, we assume 
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p : T', \; T' <:^* T \\
+  	\Gamma, (x : S); \Sigma \vdash T \prec_z \overline{\sigma}', \;
+  	\overline{\sigma}' <:^* \overline{\sigma}}
+  {}
+\end{mathpar}
+By Lemma \ref{lem:subtype:decl} (\hl{TODO}), $\Gamma, (x : S); \Sigma \vdash T' \prec \overline{\sigma}''$ 
+and $\Gamma, (x : S); \Sigma \vdash \overline{\sigma}'' <:^* \overline{\sigma}'$. 
+We can now show that $\exists \sigma_i'' \in \overline{\sigma}'':
+\Gamma, (x : S); \Sigma \vdash \sigma_i'' <:^* \sigma_i$, and thus that 
+$\Gamma, (x : S); \Sigma \vdash [p/z]\sigma_i'' <:^* [p/z]\sigma_i$.
+
+\hl{ToDo: Show T' expanding \\ Substitution preserves subtype?}
+\end{casethm}
+\begin{casethm}[\textsc{M-Exp}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T \\
+  	\Gamma, (x : U); \Sigma \vdash T \prec_z \overline{\sigma}\\
+  	\sigma \in \overline{\sigma} \\
+  	z \notin \sigma}
+  {\Gamma, (x : U); \Sigma \vdash p \ni \sigma}
+\end{mathpar}
+We explicitly restrict the statement of the theorem to only include 
+membership of paths, as a result, this cases resolves as in \textsc{M-Path}.
+\end{casethm}
+
+\subsubsection*{\textsc {:-Narrowing*}:}
+We restrict Narrowing on expression typing to paths. This is done since for 
+a generic expression narrowing does not hold. For this reason the below cases only deal 
+with path expressions.
+\begin{casethm}[\textsc{T-Var}]
+\begin{mathpar}
+\inferrule
+  {}
+  {p = y \\
+  	T = \Gamma, (x : U)(y)}
+  	\and
+\inferrule
+  {y \in dom(\Gamma, (x : U))}
+  {	\Gamma, (y : U); \Sigma \vdash y : \Gamma(y)}
+\end{mathpar}
+\begin{itemize}
+\item[]  \textit{Subcase 1} ($y = x$):
+If $y = x$, then the result is immediate since by \textsc{T-Var} 
+$\Gamma,(x:S); \Sigma \vdash x : S$, and by assumption 
+$\Gamma; \Sigma \vdash S <: U$.
+\item[]  \textit{Subcase 2} ($y \neq x$):
+If $y \neq x$, then the type of $y$ remains the same and the result 
+is achieved by reflexive.
+\end{itemize}
+\end{casethm}
+\begin{casethm}[\textsc{T-Loc}]
+\begin{mathpar}
+\inferrule
+  {}
+  {p = l}
+  	\and
+\inferrule
+  {	l \in dom(\Sigma)}
+  {	\Gamma, (x : U); \Sigma \vdash l : \Sigma(l)}
+\end{mathpar}
+$\Gamma, (x : S); \Sigma \vdash l : \Sigma(l)$ follows immediately from \textsc{T-Loc}.
+\end{casethm}
+\begin{casethm}[\textsc{T-Acc}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : S \\
+  	\Gamma, (x : U); \Sigma \vdash p \ni \texttt{val} \; f:T}
+  {	\Gamma, (x : U); \Sigma \vdash p.f : T}
+\end{mathpar}
+By our mutual induction hypothesis we assume narrowing holds for the 
+smaller premises.
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p : S' \\
+  	\Gamma, (x : S); \Sigma \vdash S' <:^* S}
+  {}
+  	\and
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p \ni \texttt{val} \; f:T' \\
+  	\Gamma, (x : S); \Sigma \vdash T' <:^* T}
+  {}
+\end{mathpar}
+By \textsc{T-Acc}, we get
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p.f : T'}
+  {}
+\end{mathpar}
+completing the case.
+\end{casethm}
+\begin{casethm}[\textsc{T-Type}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T}
+  {	\Gamma, (x : U); \Sigma \vdash p \unlhd T : T}
+\end{mathpar}
+By the mutual induction hypothesis we assume narrowing holds 
+for the simpler expression typing premise.
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p : T' \\
+  	\Gamma, (x : S); \Sigma \vdash T' <:^* T}
+  {}
+\end{mathpar}
+By \textsc{T-Sub*}, we get $\Gamma, (x : S); \Sigma \vdash p : T$, 
+and subsequently by \textsc{T-Type} we get $\Gamma, (x : S); \Sigma \vdash p \unlhd T : T$.
+\end{casethm}
+
+\begin{casethm}[\textsc{T-Sub*}]
+\begin{mathpar}
+\inferrule
+  {	\Gamma, (x : U); \Sigma \vdash e : T' \\
+  	\Gamma, (x : U); \Sigma \vdash T' <:^* T}
+  {	\Gamma, (x : U); \Sigma \vdash e : T}
+\end{mathpar}
+From our mutual induction hypothesis, we assume 
+$\Gamma, (x : S); \Sigma \vdash e : T'', T'' <:^* T'$ and 
+$\Gamma, (x : S); \Sigma \vdash T' <:^* T$. This gives us 
+$\Gamma, (x : S); \Sigma \vdash T'' <:^* T$ and by \textsc{T-Sub} we
+get the desired result.
+\end{casethm}
+
+\subsubsection*{\textsc {$<:^*$-Narrowing*}:}
+\begin{casethm}[\textsc {S\textsuperscript{*}-Refl}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash S \; <:^* \; S}
+\end{mathpar}
+The base case for transitive subtyping is simple by \textsc{S\textsuperscript{*}-Refl}.
+\end{casethm}
+\begin{casethm}[\textsc {S\textsuperscript{*}-Trans}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T \; <:^* \; T' \\
+	\Gamma, (x : U); \Sigma \vdash T' \; <: \; T''}
+  {\Gamma, (x : U); \Sigma \vdash T \; <:^* \; T''}
+\end{mathpar}
+From our mutual induction hypothesis we get 
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash S \; <:^* \; T \\
+	\Gamma, (x : S); \Sigma \vdash T \; <:^* \; U}
+  {}
+\end{mathpar}
+This immediately gives us the desired result 
+$\Gamma, (x : S); \Sigma \vdash T \; <:^* \; T''$.
+\end{casethm}
+\qed
+\end{proof}
 
 
 
