@@ -1,0 +1,380 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+%\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{color,soul}
+\usepackage{graphicx}
+
+%\theoremstyle{definition}
+%%\newtheorem{case1}{Case1}
+\spnewtheorem{casethm}{Case}[theorem]{\itshape}{\rmfamily}
+\spnewtheorem{subcase}{Subcase}{\itshape}{\rmfamily}
+\numberwithin{subcase}{casethm}
+\numberwithin{casethm}{theorem}
+\numberwithin{casethm}{lemma}
+
+
+
+
+
+\lstdefinestyle{custom_lang}{
+  xleftmargin=\parindent,
+  showstringspaces=false,
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries
+}
+
+\lstset{emph={%  
+    val, def, type, new, z%
+    },emphstyle={\bfseries \tt}%
+}
+
+\begin{document}
+
+\section{Counter Examples to Preservation}
+	\label{s:examples}
+
+\subsection{Term Membership Restriction}
+	\label{s:term_mem}
+Figure \ref{f:mem} gives the \emph{Membership} judgement. 
+$\Gamma \vdash e \ni \sigma$ says that an expression $e$ 
+has $\sigma_i$ as a member of its type in environment $\Gamma$. 
+There are two rules for membership. By \textsc{M-Path} a 
+variable $x$ has a member of type $[x/\texttt{z}]\sigma_i$ 
+if $\sigma_i$ is a member of the type of $x$. By \textsc{M-Exp}
+an expression $e$ has member $\sigma_i$ if $\sigma_i$ is 
+a member of $e$'s type, and \texttt{z} does not occur 
+within $\sigma_i$.
+
+This is reasonable since we cannot substitute a non-value 
+expression into a selection type such as $\texttt{z}.L$. 
+This does however present a counter-example to preservation. 
+Given two types $X$ and $Y$,
+
+\begin{lstlisting}[mathescape, style=custom_lang]
+Y = {z $\Rightarrow$
+     val l : $\top$
+     def m : Y(y:Y){
+       val a = new {};
+       y
+     }
+    }
+\end{lstlisting}
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     type L : $\top$ .. $\top$
+     val l : z.L
+     def m : Y(y:Y){
+       y
+     }
+    }
+\end{lstlisting}
+
+the following expression is well typed.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val x = new X(l = z);
+val y = new Y(l = (val z = new {}; z));
+y.m(x).l
+\end{lstlisting}
+We can see that this is well-typed, and in particular that membership 
+holds for \texttt{y.m(x)} and \texttt{l}. This reduces to 
+\begin{lstlisting}[mathescape, style=custom_lang]
+(val a = new {}; x).l
+\end{lstlisting}
+which is not well-typed since \texttt{val a = new {}; x} has type 
+\texttt{X}, and \texttt{X.l} contains a \texttt{z} reference 
+\texttt{z.L}.
+
+After patching we allow expressions to maintain original type. 
+Expressions are then typed with respect to the original type.
+This is given in Figure \ref{f:syntax} as $e \unlhd T$ where 
+$T$ is the original type. The patched reduction is given in 
+Figure \ref{f:red}. The amended method reduction \textsc{R-Meth} is 
+shown below.
+\begin{mathpar}
+\inferrule
+  {\mu \vdash v_1 \leadsto l \\
+  	\mu(l) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
+  {\mu \; | \; v_1.m_U(v_2) \;\rightarrow \mu \; | \; [l/\texttt{z},v_2 \unlhd S/x]e \unlhd U}
+  \quad (\textsc {R-Meth})
+\end{mathpar}
+This is very similar to the standard method reduction. The two main 
+differences are the introduction of the $path$ function, and the 
+inclusion of the original types in the returned expression. For now 
+ignore the $path$ function, this is explained in \ref{s:patheq}.
+
+We retrieve the method for the receiver from the store, and substitute 
+the method parameter into the body. The method parameter retains it's 
+original type ($v_2 \unlhd S$) as does the entire returned body 
+$[v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T$. Using this rule we 
+can attempt to evaluate our original example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val x = new X(l = z);
+val y = new Y(l = (val z = new {}; z));
+y.m(x).l
+\end{lstlisting}
+reduces to
+\begin{lstlisting}[mathescape, style=custom_lang]
+((val a = new {}; (x $\unlhd$ Y))$\unlhd$ Y).l
+\end{lstlisting}
+Now we can treat the method body as having type \texttt{Y} and 
+we can determine membership of \texttt{l} for \texttt{Y} rather 
+than \texttt{X}.
+
+\subsection{Expansion Lost}
+For preservation to hold, we need to ensure that types are expandable 
+to lists of declarations. This is captured in Figure \ref{f:wfe}. It is 
+possible for expansion to be lost due to a combination of environment 
+narrowing and intersection types.
+First we informally define what we mean by intersection types. An intersection 
+type is the subtype intersection of two types. That is
+$S \wedge T <: S$ and $S \wedge T <: T$. Structurally this means 
+$S \wedge T$ contains a union of the members of $S$ and $T$ taking the 
+highest common subtype of any common members. 
+Loss of expansion is 
+shown in \cite{Amin:2012}, but is briefly covered again below along with 
+an example of our proposed fix.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     type A : $\bot$ .. z.B
+     type B : $\bot$ .. $\top$
+    }
+Y = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. z.A
+    }
+\end{lstlisting}
+While both these types are expandable, their intersection is not.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X $\wedge$ Y = {z $\Rightarrow$
+         type A : $\bot$ .. z.B
+         type B : $\bot$ .. z.A
+        }
+\end{lstlisting}
+While we could not type this normally, we can create this 
+scenario during environmental narrowing that results in 
+an a type without an expansion, providing a counter-example 
+to preservation.
+\begin{lstlisting}[mathescape, style=custom_lang]
+W = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. $\top$
+    }
+\end{lstlisting}
+Now we demonstrate how we can construct a well-typed expression 
+that becomes ill-formed as the result of evaluation.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val x = new {z $\Rightarrow$ type K : $\bot$ .. X};
+val y = new {z $\Rightarrow$ type L : $\bot$ .. Y};
+\end{lstlisting}
+We do this by first constructing two objects from the 
+\texttt{X} and \texttt{Y} types we previously defined.
+Now we construct another object using these types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val c = new {z $\Rightarrow$
+         def meth1 : $\top$ (i : {z $\Rightarrow$ type L : $\bot$ .. W}){
+           new {z $\Rightarrow$
+                  def meth2 : $\top$ (j : i.L $\wedge$ x.K){j}
+               }
+         }
+        };
+c.meth1(y)
+\end{lstlisting}
+Looking at the previous expression, we can see it is well-typed, 
+and the type \texttt{i.L} $\wedge$ \texttt{x.K} in particular is 
+well-formed and expanding.
+Evaluating the above expression results in the following.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new {z $\Rightarrow$ def meth2 : $\top$ (j : y.L $\wedge$ x.K){j}}
+\end{lstlisting}
+Now the type \texttt{y.L} $\wedge$ \texttt{x.K} gives us the loss of 
+expansion we were attempting to construct. In our new patched calculus, 
+this problem does not occur because the original type of the \texttt{i} 
+parameter is maintained. So if we re-evaluate the original expression 
+with our type system, we get the following.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val d = new {z $\Rightarrow$
+             def meth2 : $\top$ (j : (y $\unlhd$ {z $\Rightarrow$ type L : $\bot$ .. W}).L $\wedge$ x.K){j}}
+\end{lstlisting}
+The type \texttt{(y} $\unlhd$ \texttt{\{z} $\Rightarrow$ 
+\texttt{type L :} $\bot$ \texttt{.. W\}).L} $\wedge$ \texttt{x.K} is now 
+both well-formed and expanding because it is the original type 
+from our original expression.
+
+
+
+%\subsection{Expansion Lost Redux}
+%	\label{s:term_mem2}
+%First we define the following types.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%X = {z $\Rightarrow$
+%     def m(x : $\top$){var y = new {z $\Rightarrow$}}:$\top$
+%    }
+%Y = {z $\Rightarrow$
+%     type L : $\bot$ .. $\top$
+%     def m(x : $\top$){var y = new {z $\Rightarrow$}}:z.L
+%    }
+%\end{lstlisting}
+%Then we attempt to evaluate the following expression.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%var a = new {z $\Rightarrow$
+%              def meth(x:$\top$){val b = new Y}:X
+%            };
+%val c = new {z $\Rightarrow$};
+%a.meth(c).m(c)
+%\end{lstlisting}
+%This reduces to \texttt{a.meth(c).m(c)} which has type $\top$. 
+%Applying \textsc{R-Meth} we get \texttt{(val b = new Y $\unlhd$ X).m(c)}
+%which has type $\top$ and so is still well typed. This eventually reduces 
+%to \texttt{[z/b $\unlhd$ X](var y = new \{z $\Rightarrow$\}) $\unlhd$ z.L}.
+%Since during reduction on a method call of the form $v \unlhd T$
+%we retrieve the return type of the object ($v$) and 
+%not the type ($T$), the reduced expression has type \texttt{b $\unlhd$ X.L}. 
+%This type is allowed since \texttt{b $\unlhd$ X} is a path, but 
+%it does present a case of narrowing.
+
+\subsection{Well-Formedness Lost}
+
+We can also show that the combination of environment narrowing 
+and intersection types can result in a loss of type well-formedness. 
+For obvious reasons we enforce a subtype relationship on the lower 
+and upper bounds of type members. Environment narrowing 
+can cause perfectly well-formed types to become ill-formed by breaking 
+this subtype relationship during evaluation. First lets define a few 
+simple types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+S = {z $\Rightarrow$
+     type A : $\bot$ .. List
+    }
+T = {z $\Rightarrow$
+     type A : Integer .. $\top$
+    }
+\end{lstlisting}
+If we try and use the intersection of \texttt{S} and \texttt{T}
+we get. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+S $\wedge$ T = {z $\Rightarrow$
+         type A : Integer .. List
+        }
+\end{lstlisting}
+Clearly this is ill-formed. We might use it to conclude 
+that \texttt{Integer} subtypes \texttt{List}. We now show how 
+we can construct an example that appears to be well-formed, but 
+through evaluation we end up the this exact type. First define 
+three more types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+U = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+    }
+X = {z $\Rightarrow$
+     type B : $\bot$ .. U
+    }
+Y = {z $\Rightarrow$
+     type B : $\bot$ .. S
+    }
+\end{lstlisting}
+Since \texttt{S} subtypes \texttt{U}, it follows that 
+\texttt{Y} subtypes \texttt{X}.
+Now consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val a = new {z $\Rightarrow$
+              def badNarrow(x : X){
+                new {z $\Rightarrow$ type L : $\bot$ .. x.B $\wedge$ T}
+              }
+            };
+val y = new Y;
+a.badNarrow(y);
+\end{lstlisting}
+Initially \texttt{x.B $\wedge$ T} is well-formed when \texttt{x} 
+has type \texttt{X}. After a few steps of evaluation we end up with 
+\begin{lstlisting}[mathescape, style=custom_lang]
+new {z $\Rightarrow$ type L : $\bot$ .. y.B $\wedge$ T}
+\end{lstlisting}
+\texttt{y.B $\wedge$ T} now gives us the ill-formed type of 
+our earlier example.
+
+
+\subsection{Path Equality}
+\label{s:patheq}
+The example below illustrates the problem with path equality.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val b = new {z $\Rightarrow$
+             type L : $\top$ .. $\top$
+             val l : z.L = b};
+val a = new {z $\Rightarrow$
+             val i : {z $\Rightarrow$
+                      type L : $\bot$ .. $\top$
+                      val l : z.L} = b
+             def meth : $\top$ (x : z.i.L){x}};
+a.meth(a.i.l)
+\end{lstlisting}
+\texttt{a.i.l} reduces to \texttt{b.l} which has type \texttt{b.L}. 
+There is no way for us to ensure that \texttt{b.L} <: \texttt{a.i.L}.
+This presents a path equality problem for preservation.
+
+Typing paths correctly requires that we maintain some information 
+about the original paths. For this reason we don't evaluate paths 
+in the calculus. We still however need to retrieve the correct object 
+the path is pointing to during method reduction and object initialization. 
+This is done by the \emph{path} function given in Figure \ref{f:path}. 
+With a path and a store, we can find the object referenced by that path.
+Below is the evaluation of the above example without evaluating paths.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val b = new {z $\Rightarrow$
+             type L : $\top$ .. $\top$
+             val l : z.L = b};
+val a = new {z $\Rightarrow$
+             val i : {z $\Rightarrow$
+                      type L : $\bot$ .. $\top$
+                      val l : z.L} = b
+             def meth : $\top$ (x : z.i.L){x}};
+a.meth(a.i.l)
+\end{lstlisting}
+Reduces to \texttt{a.meth(a.i.l)} which type checks. \texttt{a.meth(a.i.l)}
+reduces to \texttt{a.i.l}
+
+\subsection{Path Equality Redux}
+\begin{lstlisting}[mathescape, style=custom_lang]
+val n = new {z $\Rightarrow$ type X : $\top$ .. $\top$};
+val a = new {z $\Rightarrow$
+             type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+             val i : z.Y = n};
+val b = new {z $\Rightarrow$
+             type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
+                                          {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+                                 val i : z.Y}
+             val j : z.L = a};
+val c = new {z $\Rightarrow$
+             val k : {z $\Rightarrow$
+                      type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
+                                                   {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+                                          val i : z.Y}
+                      val j : z.L} = b
+             def m : $\top$ (x : z.k.L){
+                 val y = new {z $\Rightarrow$ val l : x.Y = x.i 
+                            val m : x.i.X = new {z $\Rightarrow$}}; y
+             }};
+c.m(b.j)
+\end{lstlisting}
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%c.m(c.k.j) $\rightarrow$ c.m(b.j)
+%\end{lstlisting} 
+\texttt{b.j} has type \texttt{b.L}, therefore we need 
+$\texttt{b.L} <: \texttt{c.k.L}$
+\begin{lstlisting}[mathescape, style=custom_lang]
+c.m(b.j) $\rightarrow$ c.m(a)
+c.m(a) $\rightarrow$ (val y = new {z $\Rightarrow$ val l : (a $\unlhd$ c.k.L).Y = (a $\unlhd$ c.k.L).i 
+                            val m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
+\end{lstlisting}
+
+
+
+
+\bibliographystyle{plain}
+\bibliography{bib}
+
+\end{document}

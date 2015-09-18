@@ -274,8 +274,9 @@ Figure \ref{f:red}. The amended method reduction \textsc{R-Meth} is
 shown below.
 \begin{mathpar}
 \inferrule
-  {\mu(path(\mu, v_1)) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
-  {\mu \; | \; v_1.m(v_2) \;\rightarrow \mu \; | \; [v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T}
+  {\mu \vdash v_1 \leadsto l \\
+  	\mu(l) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
+  {\mu \; | \; v_1.m_U(v_2) \;\rightarrow \mu \; | \; [l/\texttt{z},v_2 \unlhd S/x]e \unlhd U}
   \quad (\textsc {R-Meth})
 \end{mathpar}
 This is very similar to the standard method reduction. The two main 
@@ -304,8 +305,16 @@ than \texttt{X}.
 \subsection{Expansion Lost}
 For preservation to hold, we need to ensure that types are expandable 
 to lists of declarations. This is captured in Figure \ref{f:wfe}. It is 
-possible for expansion to be lost during environment narrowing. This is 
-shown in \cite{Amin:2012}, but is briefly covered again below.
+possible for expansion to be lost due to a combination of environment 
+narrowing and intersection types.
+First we informally define what we mean by intersection types. An intersection 
+type is the subtype intersection of two types. That is
+$S \wedge T <: S$ and $S \wedge T <: T$. Structurally this means 
+$S \wedge T$ contains a union of the members of $S$ and $T$ taking the 
+highest common subtype of any common members. 
+Loss of expansion is 
+shown in \cite{Amin:2012}, but is briefly covered again below along with 
+an example of our proposed fix.
 \begin{lstlisting}[mathescape, style=custom_lang]
 X = {z $\Rightarrow$
      type A : $\bot$ .. z.B
@@ -316,7 +325,7 @@ Y = {z $\Rightarrow$
      type B : $\bot$ .. z.A
     }
 \end{lstlisting}
-While both these types are expandable, their union is not.
+While both these types are expandable, their intersection is not.
 \begin{lstlisting}[mathescape, style=custom_lang]
 X $\wedge$ Y = {z $\Rightarrow$
          type A : $\bot$ .. z.B
@@ -333,33 +342,31 @@ W = {z $\Rightarrow$
      type B : $\bot$ .. $\top$
     }
 \end{lstlisting}
-Looking at the following expression, we can see it is well-type, 
-and the type \texttt{i.L} $\wedge$ \texttt{x.K} in particular is 
-well-formed and expanding.
+Now we demonstrate how we can construct a well-typed expression 
+that becomes ill-formed as the result of evaluation.
 \begin{lstlisting}[mathescape, style=custom_lang]
 val x = new {z $\Rightarrow$ type K : $\bot$ .. X};
 val y = new {z $\Rightarrow$ type L : $\bot$ .. Y};
-val w = new {z $\Rightarrow$ type L : $\bot$ .. W};
+\end{lstlisting}
+We do this by first constructing two objects from the 
+\texttt{X} and \texttt{Y} types we previously defined.
+Now we construct another object using these types.
+\begin{lstlisting}[mathescape, style=custom_lang]
 val c = new {z $\Rightarrow$
          def meth1 : $\top$ (i : {z $\Rightarrow$ type L : $\bot$ .. W}){
-           val d = new {z $\Rightarrow$
-                        def meth2 : $\top$ (j : i.L $\wedge$ x.K){
-                          j
-                        }
-                       };
-           d
+           new {z $\Rightarrow$
+                  def meth2 : $\top$ (j : i.L $\wedge$ x.K){j}
+               }
          }
         };
 c.meth1(y)
 \end{lstlisting}
+Looking at the previous expression, we can see it is well-typed, 
+and the type \texttt{i.L} $\wedge$ \texttt{x.K} in particular is 
+well-formed and expanding.
 Evaluating the above expression results in the following.
 \begin{lstlisting}[mathescape, style=custom_lang]
-val d = new {z $\Rightarrow$
-             def meth2 : $\top$ (j : y.L $\wedge$ x.K){
-               j
-             }
-            };
-d
+new {z $\Rightarrow$ def meth2 : $\top$ (j : y.L $\wedge$ x.K){j}}
 \end{lstlisting}
 Now the type \texttt{y.L} $\wedge$ \texttt{x.K} gives us the loss of 
 expansion we were attempting to construct. In our new patched calculus, 
@@ -368,11 +375,7 @@ parameter is maintained. So if we re-evaluate the original expression
 with our type system, we get the following.
 \begin{lstlisting}[mathescape, style=custom_lang]
 val d = new {z $\Rightarrow$
-             def meth2 : $\top$ (j : (y $\unlhd$ {z $\Rightarrow$ type L : $\bot$ .. W}).L $\wedge$ x.K){
-               j
-             }
-            };
-d
+             def meth2 : $\top$ (j : (y $\unlhd$ {z $\Rightarrow$ type L : $\bot$ .. W}).L $\wedge$ x.K){j}}
 \end{lstlisting}
 The type \texttt{(y} $\unlhd$ \texttt{\{z} $\Rightarrow$ 
 \texttt{type L :} $\bot$ \texttt{.. W\}).L} $\wedge$ \texttt{x.K} is now 
@@ -381,38 +384,95 @@ from our original expression.
 
 
 
-\subsection{Expansion Lost Redux}
-	\label{s:term_mem2}
-First we define the following types.
-\begin{lstlisting}[mathescape, style=custom_lang]
-X = {z $\Rightarrow$
-     def m(x : $\top$){var y = new {z $\Rightarrow$}}:$\top$
-    }
-Y = {z $\Rightarrow$
-     type L : $\bot$ .. $\top$
-     def m(x : $\top$){var y = new {z $\Rightarrow$}}:z.L
-    }
-\end{lstlisting}
-Then we attempt to evaluate the following expression.
-\begin{lstlisting}[mathescape, style=custom_lang]
-var a = new {z $\Rightarrow$
-              def meth(x:$\top$){val b = new Y}:X
-            };
-val c = new {z $\Rightarrow$};
-a.meth(c).m(c)
-\end{lstlisting}
-This reduces to \texttt{a.meth(c).m(c)} which has type $\top$. 
-Applying \textsc{R-Meth} we get \texttt{(val b = new Y $\unlhd$ X).m(c)}
-which has type $\top$ and so is still well typed. This eventually reduces 
-to \texttt{[z/b $\unlhd$ X](var y = new \{z $\Rightarrow$\}) $\unlhd$ z.L}.
-Since during reduction on a method call of the form $v \unlhd T$
-we retrieve the return type of the object ($v$) and 
-not the type ($T$), the reduced expression has type \texttt{b $\unlhd$ X.L}. 
-This type is allowed since \texttt{b $\unlhd$ X} is a path, but 
-it does present a case of narrowing.
+%\subsection{Expansion Lost Redux}
+%	\label{s:term_mem2}
+%First we define the following types.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%X = {z $\Rightarrow$
+%     def m(x : $\top$){var y = new {z $\Rightarrow$}}:$\top$
+%    }
+%Y = {z $\Rightarrow$
+%     type L : $\bot$ .. $\top$
+%     def m(x : $\top$){var y = new {z $\Rightarrow$}}:z.L
+%    }
+%\end{lstlisting}
+%Then we attempt to evaluate the following expression.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%var a = new {z $\Rightarrow$
+%              def meth(x:$\top$){val b = new Y}:X
+%            };
+%val c = new {z $\Rightarrow$};
+%a.meth(c).m(c)
+%\end{lstlisting}
+%This reduces to \texttt{a.meth(c).m(c)} which has type $\top$. 
+%Applying \textsc{R-Meth} we get \texttt{(val b = new Y $\unlhd$ X).m(c)}
+%which has type $\top$ and so is still well typed. This eventually reduces 
+%to \texttt{[z/b $\unlhd$ X](var y = new \{z $\Rightarrow$\}) $\unlhd$ z.L}.
+%Since during reduction on a method call of the form $v \unlhd T$
+%we retrieve the return type of the object ($v$) and 
+%not the type ($T$), the reduced expression has type \texttt{b $\unlhd$ X.L}. 
+%This type is allowed since \texttt{b $\unlhd$ X} is a path, but 
+%it does present a case of narrowing.
 
 \subsection{Well-Formedness Lost}
 
+We can also show that the combination of environment narrowing 
+and intersection types can result in a loss of type well-formedness. 
+For obvious reasons we enforce a subtype relationship on the lower 
+and upper bounds of type members. Environment narrowing 
+can cause perfectly well-formed types to become ill-formed by breaking 
+this subtype relationship during evaluation. First lets define a few 
+simple types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+S = {z $\Rightarrow$
+     type A : $\bot$ .. List
+    }
+T = {z $\Rightarrow$
+     type A : Integer .. $\top$
+    }
+\end{lstlisting}
+If we try and use the intersection of \texttt{S} and \texttt{T}
+we get. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+S $\wedge$ T = {z $\Rightarrow$
+         type A : Integer .. List
+        }
+\end{lstlisting}
+Clearly this is ill-formed. We might use it to conclude 
+that \texttt{Integer} subtypes \texttt{List}. We now show how 
+we can construct an example that appears to be well-formed, but 
+through evaluation we end up the this exact type. First define 
+three more types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+U = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+    }
+X = {z $\Rightarrow$
+     type B : $\bot$ .. U
+    }
+Y = {z $\Rightarrow$
+     type B : $\bot$ .. S
+    }
+\end{lstlisting}
+Since \texttt{S} subtypes \texttt{U}, it follows that 
+\texttt{Y} subtypes \texttt{X}.
+Now consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val a = new {z $\Rightarrow$
+              def badNarrow(x : X){
+                new {z $\Rightarrow$ type L : $\bot$ .. x.B $\wedge$ T}
+              }
+            };
+val y = new Y;
+a.badNarrow(y);
+\end{lstlisting}
+Initially \texttt{x.B $\wedge$ T} is well-formed when \texttt{x} 
+has type \texttt{X}. After a few steps of evaluation we end up with 
+\begin{lstlisting}[mathescape, style=custom_lang]
+new {z $\Rightarrow$ type L : $\bot$ .. y.B $\wedge$ T}
+\end{lstlisting}
+\texttt{y.B $\wedge$ T} now gives us the ill-formed type of 
+our earlier example.
 
 
 \subsection{Path Equality}
@@ -602,64 +662,64 @@ Wyvern Programming language.
 
 \section{Type Members Examples}
 
-\subsection{Removing Environment Narrowing}
-
-A central issue in similar type systems thus far is maintaining 
-type soundness in the presence of environment narrowing. Our 
-proposed solution is to remove environment narrowing altogether.
-
-An environment is narrowed when during reduction a variable is 
-found to have a more precise type than originally assumed. This 
-is common when passing arguments to a method, or when returning 
-from a method call. In fact these are the two areas that environment 
-narrowing must be removed. Below is a small example where we attempt to 
-remove environment narrowing.
-\begin{lstlisting}[mathescape, style=custom_lang]
-Food = {z $\Rightarrow$ type IsFood : $\bot$ ... $\top$}
-
-Recipe = {z $\Rightarrow$ type F : $\bot$ .. Food;
-               def cook(){ ... } : z.F;}
-               
-Sushi = {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
-              type IsSushi : $\bot$ .. $\top$}
-
-SushiRecipe = {z $\Rightarrow$ type F : $\bot$ .. Sushi;
-                    def cook()
-                    {
-                      new {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
-                                type IsSushi : $\bot$ .. $\top$}
-                    } : z.F;}
-\end{lstlisting}
-Above we have defined several types. In our current syntax 
-it is not possible to define types like this, we just use this 
-as short hand during the following examples for brevity. Bellow 
-is an example using the above types, demonstrating the evaluation 
-of method calls.
-\begin{lstlisting}[mathescape, style=custom_lang]
-...
-def prepareFood (r : Recipe){
-  r.cook();
-} : Food;
-
-def main(){
-  prepareFood(new SushiRecipe());
-}: $\top$;
-...
-\end{lstlisting}
-We now look at the evaluation of above \texttt{main} method.
-\begin{center}
-\texttt{prepareFood(new SushiRecipe());} $\rightarrow$ \texttt{prepareFood($l$);}
-\end{center}
-where $l$ is the location in 
-the store containing the newly created \texttt{SushiRecipe} object.
-\begin{center}
-\texttt{prepareFood($l$);} $\rightarrow$ ($l\unlhd$\texttt{Recipe.cook()}) 
-$\unlhd$ \texttt{Food}
-\end{center}
-Here we have substituted the argument of the \texttt{prepareFood} method 
-into the method body. We attach a persistent upcast to $l$ of the original 
-argument type to avoid narrowing. We also do this to the entire returned body 
-of the method
+%\subsection{Removing Environment Narrowing}
+%
+%A central issue in similar type systems thus far is maintaining 
+%type soundness in the presence of environment narrowing. Our 
+%proposed solution is to remove environment narrowing altogether.
+%
+%An environment is narrowed when during reduction a variable is 
+%found to have a more precise type than originally assumed. This 
+%is common when passing arguments to a method, or when returning 
+%from a method call. In fact these are the two areas that environment 
+%narrowing must be removed. Below is a small example where we attempt to 
+%remove environment narrowing.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%Food = {z $\Rightarrow$ type IsFood : $\bot$ ... $\top$}
+%
+%Recipe = {z $\Rightarrow$ type F : $\bot$ .. Food;
+%               def cook(){ ... } : z.F;}
+%               
+%Sushi = {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
+%              type IsSushi : $\bot$ .. $\top$}
+%
+%SushiRecipe = {z $\Rightarrow$ type F : $\bot$ .. Sushi;
+%                    def cook()
+%                    {
+%                      new {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
+%                                type IsSushi : $\bot$ .. $\top$}
+%                    } : z.F;}
+%\end{lstlisting}
+%Above we have defined several types. In our current syntax 
+%it is not possible to define types like this, we just use this 
+%as short hand during the following examples for brevity. Bellow 
+%is an example using the above types, demonstrating the evaluation 
+%of method calls.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%...
+%def prepareFood (r : Recipe){
+%  r.cook();
+%} : Food;
+%
+%def main(){
+%  prepareFood(new SushiRecipe());
+%}: $\top$;
+%...
+%\end{lstlisting}
+%We now look at the evaluation of above \texttt{main} method.
+%\begin{center}
+%\texttt{prepareFood(new SushiRecipe());} $\rightarrow$ \texttt{prepareFood($l$);}
+%\end{center}
+%where $l$ is the location in 
+%the store containing the newly created \texttt{SushiRecipe} object.
+%\begin{center}
+%\texttt{prepareFood($l$);} $\rightarrow$ ($l\unlhd$\texttt{Recipe.cook()}) 
+%$\unlhd$ \texttt{Food}
+%\end{center}
+%Here we have substituted the argument of the \texttt{prepareFood} method 
+%into the method body. We attach a persistent upcast to $l$ of the original 
+%argument type to avoid narrowing. We also do this to the entire returned body 
+%of the method
 \subsection{Path Equality}
 
 \newpage
