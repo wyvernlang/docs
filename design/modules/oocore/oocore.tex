@@ -1103,94 +1103,47 @@ then one of the following must hold:
 
 \begin{pcases}
 \pcase[\textsc{E-New}]
-$e = E[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')]$; $e' = E[l']$; and $\mu' = \mu, l' \mapsto \{ x \Rightarrow d' \}_{\keywadj{stateful}}$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow d \}_{\keywadj{stateful}} \in \mu$. (Since $l'$ is a principal and $l$ created it, $l$ is a principal too.) As $l$ is the creator of $l'$ and by \textsc{lookupCaller}, in a broader context, the execution stack made the following step of evaluation: \mbox{$l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')] \longrightarrow l.m(l'') \rhd E'[l']$}. Since we are concerned only with \emph{direct} access (see definition in section~\ref{sec:definitions}), this is the only relevant evaluation context.\\
+$e = E[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')]$; $e' = E[l']$; and $\mu' = \mu, l' \mapsto \{ x \Rightarrow d' \}_{\keywadj{stateful}}$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow d \}_{\keywadj{stateful}} \in \mu$. (If $l$ can create a principle, it must be a principal itself.) By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')] \longrightarrow l.m(l'') \rhd E'[l']$}, where there are no method calls in $E'$. Since we are concerned only with \emph{direct} access (see definition in section~\ref{sec:definitions}), this is the \emph{only} relevant evaluation context.\\
 
-Let us consider $l$'s authority for the both states. In the initial state, we have:\\
+Let us consider $l$'s authority for the two states. In the initial state, we have:\\
 
-By \textsc{auth-config},
-\[
-auth(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu)
-\]
-By \textsc{auth-store},
-\[
-auth_{store}(l, \mu) = pointsto(l, \mu) \cup pointsto(d, \mu)
-\]
-By \textsc{pointsto-principal},
-\[
-auth_{store}(l, \mu) =  \{ l \} \cup pointsto(d, \mu)
-\]
-By \textsc{auth-stack},
+$auth(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu)$
+
+\vspace{-17pt}
+
 \begin{align*}
-auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) &= pointsto(E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu)\\
- &\cup auth_{stack}(l, E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu)
+&= auth_{store}(l, \mu) \cup auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) & (\textsc{auth-config})\\
+&= pointsto(l, \mu) \cup pointsto(d, \mu) \cup auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) & (\textsc{auth-store})\\
+&= \{ l \} \cup pointsto(d, \mu) \cup auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) & (\textsc{pointsto-principal})\\
+&= \{ l \} \cup pointsto(d, \mu) \cup pointsto(E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) & (\textsc{auth-stack})\\
+&\cup auth_{stack}(l, E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) & \\
+&= \{ l \} \cup pointsto(d, \mu) \cup pointsto(E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) & (\textsc{auth-stack-nocall})\\
+&= \{ l \} \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d'), \mu) & (\textsc{pointsto-otherexp})\\
+&= \{ l \} \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(d', \mu) & (\textsc{pointsto-new})
 \end{align*}
-By \textsc{pointsto-otherexp},
-\begin{align*}
-auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) &= pointsto(E', \mu) \cup pointsto(\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d'), \mu)\\
- &\cup auth_{stack}(l, E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu)
-\end{align*}
-By \textsc{pointsto-new},
-\begin{align*}
-auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) &= pointsto(E', \mu) \cup pointsto(d', \mu)\\
- &\cup auth_{stack}(l, E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu)
-\end{align*}
-By \textsc{lookupCaller}, there are no method calls in $E'$. Then by \textsc{auth-stack-nocall},
-\[
-auth_{stack}(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) = pointsto(E', \mu) \cup pointsto(d', \mu)
-\]
-Thus we get
-\[
-auth(l, l.m(l'') \rhd E[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) = \{ l \} \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(d', \mu)
-\]
+
 According to the $pointsto()$ rules for declarations, $pointsto(d, \mu)$ and $pointsto(d', \mu)$ equal to the $pointsto()$ function applied to the left-hand sides of their declarations. Since it was $l$ that created $l'$ and it could initialize the declarations of $l'$ only with expressions it had access to, $pointsto(d', \mu) \subset pointsto(d, \mu)$, and
 \[
 auth(l, l.m(l'') \rhd E[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) = \{ l \} \cup pointsto(d, \mu) \cup pointsto(E', \mu)
-\]\\
-
+\]
 
 In the final state, we have:\\
 
-By \textsc{auth-config},
-\[
-auth(l, l.m(l'') \rhd E'[l'], \mu') = auth_{store}(l, \mu') \cup auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu')
-\]
-By \textsc{auth-store},
-\[
-auth_{store}(l, \mu') = pointsto(l, \mu') \cup pointsto(d, \mu')
-\]
-Since $l'$ is a principal and $l$ created it, $l$ is a principal too. Then by \textsc{pointsto-principal},
-\[
-auth_{store}(l, \mu') =  \{ l \} \cup pointsto(d, \mu')
-\]
-By \textsc{auth-stack},
-\[
-auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(E'[l'], \mu') \cup auth_{stack}(l, E'[l'], \mu')
-\]
-By \textsc{pointsto-otherexp},
-\[
-auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(E', \mu') \cup pointsto(l', \mu') \cup auth_{stack}(l, E'[l'], \mu')
-\]
-By \textsc{pointsto-principal},
-\[
-auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(E', \mu') \cup \{ l' \} \cup auth_{stack}(l, E'[l'], \mu')
-\]
-By \textsc{lookupCaller}, there are no method calls in $E'$. Then by \textsc{auth-stack-nocall},
-\[
-auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(E', \mu') \cup \{ l' \}
-\]
-Thus we get
-\[
-auth(l, l.m(l'') \rhd E'[l'], \mu') = \{ l,~l' \} \cup pointsto(d, \mu') \cup pointsto(E', \mu')
-\]
+$auth(l, l.m(l'') \rhd E'[l'], \mu')$
 
-Let us consider $pointsto(d, \mu')$. There are two possibilities: if $l'$ was assigned to a field of $l$, then $pointsto(d, \mu') = \{ l' \} \cup pointsto(d, \mu)$ (by \textsc{pointsto-varl}); otherwise, $pointsto(d, \mu') = pointsto(d, \mu)$. In either case,
-\[
-auth(l, l.m(l'') \rhd E'[l'], \mu') = \{ l,~l' \} \cup pointsto(d, \mu) \cup pointsto(E', \mu')
-\]
-Since there are no method calls in $E'$ (by \textsc{lookupCaller}), $pointsto(E', \mu') = pointsto(E', \mu)$, and
-\[
-auth(l, l.m(l'') \rhd E'[l'], \mu') = \{ l,~l' \} \cup pointsto(d, \mu) \cup pointsto(E', \mu)
-\]\\
+\vspace{-17pt}
+
+\begin{align*}
+&= auth_{store}(l, \mu') \cup auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu') & (\textsc{auth-config})\\
+&= pointsto(l, \mu') \cup pointsto(d, \mu') \cup auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu') & (\textsc{auth-store})\\
+&= \{ l \} \cup pointsto(d, \mu') \cup auth_{stack}(l, l.m(l'') \rhd E'[l'], \mu') & (\textsc{pointsto-principal})\\
+&= \{ l \} \cup pointsto(d, \mu') \cup pointsto(E'[l'], \mu') \cup auth_{stack}(l, E'[l'], \mu') & (\textsc{auth-stack})\\
+&= \{ l \} \cup pointsto(d, \mu') \cup pointsto(E'[l'], \mu') & (\textsc{auth-stack-nocall})\\
+&= \{ l \} \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup pointsto(l', \mu') & (\textsc{pointsto-otherexp})\\
+&= \{ l,~l' \} \cup pointsto(d, \mu') \cup pointsto(E', \mu') & (\textsc{pointsto-principle})
+\end{align*}
+
+Since we are considering small-step semantics, within this evaluation step, there were no changes to $d$ and $E'$, and thus $pointsto(d, \mu) = pointsto(d, \mu')$ and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
 
 Thus, $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l' \}$ in compliance with the \textbf{\textit{object creation}} case of the theorem.
 \\
@@ -1241,43 +1194,6 @@ $e = l'.m(l_1) \rhd l_2$, $e' = l_2$, $\mu' = \mu$.
 \noindent...
 \end{proof}
 
-\fussy
-
-%\[
-%\begin{array}{c}
-%\infer[\textsc{(E-New)}]
-%  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow d \}_{s}}
-%  {l \not\in dom(\mu) & \keywadj{new}_{s}(x \Rightarrow d)~is~closed}\\[5ex]
-%
-%\infer[\textsc{(E-Meth)}]
-%  {l_1.m(l_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd [l_2/y][l_1/x]e~|~\mu}
-%  {l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau_2 = e \in d}\\[5ex]
-%
-%\infer[\textsc{(E-Field)}]
-%  {l.f~|~\mu \longrightarrow l_1~|~\mu}
-%  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d}\\[5ex]
-%
-%\infer[\textsc{(E-Assign)}]
-%  {l_1.f = l_2~|~\mu \longrightarrow l_2~|~\mu'}
-%  {\def\arraystretch{1.6}
-%  \begin{array}{c}
-%l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l \in d \\
-%d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]d~~~~~\mu' = [l_1 \mapsto \{ x \Rightarrow d' \}_{s}/l_1 \mapsto \{ x \Rightarrow d \}_{s}]\mu
-%  \end{array}}\\[5ex]
-%
-%\infer[\textsc{(E-Bind)}]
-%  {\keyw{bind} x = l_1~\keyw{in} e_2~|~\mu \longrightarrow [l_1/x]e_2~|~\mu}
-%  {}%\\[5ex]
-%~~~~~~~~~~
-%\infer[\textsc{(E-StackFrame)}]
-%  {l.m(l_1) \rhd l_2~|~\mu \longrightarrow l_2~|~\mu}
-%  {}\\[5ex]
-%  
-%\end{array}
-%\]
-
-
-
 
 \newpage
 
@@ -1322,9 +1238,6 @@ $l_p$.m($l_E$)
 \vspace{-6pt}
 \indent\textit{Memory same as above}\\
 \vspace{-6pt}
-%$l_p \rightarrow \{$ def m(y : typeOfD) : typeOfE =
-%          new($l_D$ => var xd : typeOfE = y) $\}$
-%$l_E \rightarrow \{$ var xe : Int = 5 }
 \begin{lstlisting}[xleftmargin=20pt]
 $l_p$.m($l_E$) $\rhd$ new($l_D$ => var xd : typeOfE = $l_E$)
 \end{lstlisting}
@@ -1346,10 +1259,6 @@ $l_p$.m($l_E$) $\rhd$ $l_D$
 \vspace{-6pt}
 \indent\textit{Memory same as above}\\
 \vspace{-6pt}
-%$l_p \rightarrow \{$ def m(y : typeOfD) : typeOfE =
-%          new($l_D$ => var xd : typeOfE = y) $\}$
-%$l_E \rightarrow \{$ var xe : Int = 5 $\}$
-%$l_D \rightarrow \{$ var xd : typeOfE = $l_E$ $\}$
 \begin{lstlisting}[xleftmargin=20pt]
 $l_D$
 \end{lstlisting}
@@ -1366,21 +1275,15 @@ $l_D$
 
 \begin{align*}
 auth(l_p, e', \mu') &= auth_{store}(l_p, \mu') \cup auth_{stack}(l_p, e', \mu') & (\textsc{auth-config})\\
-%\end{align*}
-%\begin{align*}
 auth_{store}(l_p, \mu') &= pointsto(l_p, \mu') \cup pointsto(\keyw{def} m~...~, \mu') & (\textsc{auth-store})\\
  &= \{ l_p \} \cup pointsto(\keyw{def} m(...) : typeOfE = \keywadj{new}(...), \mu') & (\textsc{pointsto-principal})\\
  &= \{ l_p \} \cup pointsto(\keywadj{new}(l_D \Rightarrow \keyw{var} x_d~...), \mu') & (\textsc{pointsto-def, -emptydecl})\\
  &= \{ l_p \} \cup pointsto(\keyw{var} x_d : typeOfE = l_E), \mu') & (\textsc{pointsto-new})\\
  &= \{ l_p \} \cup pointsto(l_E, \mu') & (\textsc{pointsto-varl, -emptydecl})\\ 
  &= \{ l_p,~l_E \} & (\textsc{pointsto-principal})\\
-%\end{align*}
-%\begin{align*}
 auth_{stack}(l_p, e', \mu') &= pointsto(l_D, \mu') \cup auth_{stack}(l_p, l_D, \mu') & (\textsc{auth-stack})\\
  &= \{ l_D \} \cup auth_{stack}(l_p, l_D, \mu') & (\textsc{pointsto-principal})\\
  &= \{ l_D \} & (\textsc{auth-stack-nocall})\\
-%\end{align*}
-%\begin{align*}
 auth(l_p, e', \mu') &= \{ l_p,~l_E,~l_D \} &\\
 \end{align*}
 \begin{align*}
@@ -1391,8 +1294,6 @@ auth_{store}(l_p, \mu) &= pointsto(l_p, \mu) \cup pointsto(\keyw{def} m~...~, \m
  &= \{ l_p \} \cup pointsto(\keyw{var} x_d : typeOfE = l_E), \mu) & (\textsc{pointsto-new})\\
  &= \{ l_p \} \cup pointsto(l_E, \mu) & (\textsc{pointsto-varl, -emptydecl})\\ 
  &= \{ l_p,~l_E \} & (\textsc{pointsto-principal})\\
-%\end{align*}
-%\begin{align*}
 auth_{stack}(l_p, e, \mu) &= pointsto(\keywadj{new}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E), \mu) &\\
  &\cup auth_{stack}(l_p, \keywadj{new}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E), \mu) & (\textsc{auth-stack})\\
  &= pointsto(\keywadj{new}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E), \mu) & (\textsc{auth-stack-nocall})\\
@@ -1581,21 +1482,15 @@ $l_J$.mj() $\rhd$ 3
 
 \begin{align*}
 auth(l_H, e', \mu') &= auth_{store}(l_H, \mu') \cup auth_{stack}(l_H, e', \mu') & (\textsc{auth-config})\\
-%\end{align*}
-%\begin{align*}
 auth_{store}(l_H, \mu') &= pointsto(l_H, \mu') \cup pointsto(\keyw{def} m_h~...~, \mu') & (\textsc{auth-store})\\
  &= pointsto(\keyw{def} m_h(y : typeOfI) : Int = y.x_i, \mu') & (\textsc{pointsto-data})\\
  &= pointsto(y.x_i, \mu') & (\textsc{pointsto-def, -emptydecl})\\
  &= pointsto(y, \mu') & (\textsc{pointsto-otherexp})\\
  &= \varnothing & (\textsc{pointsto-var})\\
-%\end{align*}
-%\begin{align*}
 auth_{stack}(l_H, e', \mu') &= pointsto(l_I.x_i, \mu') \cup auth_{stack}(l_H, l_I.x_i, \mu') & (\textsc{auth-stack})\\
  &= pointsto(l_I.x_i, \mu') & (\textsc{auth-stack-nocall})\\
  &= pointsto(l_I, \mu') & (\textsc{pointsto-otherexp})\\
  &= \{ l_I \} & (\textsc{pointsto-principal})\\
-%\end{align*}
-%\begin{align*}
 auth(l_H, e', \mu') &= \{ l_I \} &\\
 \end{align*}
 \begin{align*}
@@ -1605,8 +1500,6 @@ auth_{store}(l_H, \mu) &= pointsto(l_H, \mu) \cup pointsto(\keyw{def} m_h~...~, 
  &= pointsto(y.x_i, \mu) & (\textsc{pointsto-def, -emptydecl})\\
  &= pointsto(y, \mu) & (\textsc{pointsto-otherexp})\\
  &= \varnothing & (\textsc{pointsto-var})\\
-%\end{align*}
-%\begin{align*}
 auth_{stack}(l_H, e, \mu) &= \varnothing & (\textsc{auth-stack-nocall})\\
 auth(l_H, e, \mu) &=  \varnothing &\\
 \end{align*}
@@ -1798,8 +1691,6 @@ $l_B$
 
 \begin{align*}
 auth(l_C, e', \mu') &= auth_{store}(l_C, \mu') \cup auth_{stack}(l_C, e', \mu') & (\textsc{auth-config})\\
-%\end{align*}
-%\begin{align*}
 auth_{store}(l_C, \mu') &= pointsto(l_C, \mu') \cup pointsto(\keyw{var} x_{ca}~...~, \mu') & (\textsc{auth-store})\\
  &= \{ l_C \} \cup pointsto(\keyw{var} x_{ca} : typeOfA = l_A;~\keyw{def} m_c~...~, \mu') & (\textsc{pointsto-principal})\\
  &= \{ l_C \} \cup pointsto(l_A, \mu) \cup pointsto(\keyw{def} m_c~...~, \mu') & (\textsc{pointsto-varl})\\
@@ -1807,13 +1698,9 @@ auth_{store}(l_C, \mu') &= pointsto(l_C, \mu') \cup pointsto(\keyw{var} x_{ca}~.
  &= \{ l_C, l_A \} \cup pointsto(x_{ca}.m_a(), \mu') & (\textsc{pointsto-def, -emptydecl})\\
  &= \{ l_C, l_A \} \cup pointsto(x_{ca}, \mu') & (\textsc{pointsto-otherexp, -data})\\
  &= \{ l_C,~l_A \} & (\textsc{pointsto-var})\\
-%\end{align*}
-%\begin{align*}
 auth_{stack}(l_C, e', \mu') &= pointsto(l_B, \mu') \cup auth_{stack}(l_C, l_B, \mu') & (\textsc{auth-stack})\\
  &= \{ l_B \} \cup auth_{stack}(l_C, l_B, \mu') & (\textsc{pointsto-principal})\\
  &= \{ l_B \} & (\textsc{auth-stack-nocall})\\
-%\end{align*}
-%\begin{align*}
 auth(l_C, e', \mu') &= \{ l_C,~l_A,~l_B \} &\\
 \end{align*}
 \begin{align*}
@@ -1825,8 +1712,6 @@ auth_{store}(l_C, \mu) &= pointsto(l_C, \mu) \cup pointsto(\keyw{var} x_{ca}~...
  &= \{ l_C, l_A \} \cup pointsto(x_{ca}.m_a(), \mu) & (\textsc{pointsto-def, -emptydecl})\\
  &= \{ l_C, l_A \} \cup pointsto(x_{ca}, \mu) & (\textsc{pointsto-otherexp, -data})\\
  &= \{ l_C,~l_A \} & (\textsc{pointsto-var})\\
-%\end{align*}
-%\begin{align*}
 auth_{stack}(l_C, e, \mu) &= pointsto(l_A.m_a() \rhd l_B, \mu) \cup auth_{stack}(l_C, l_A.m_a() \rhd l_B, \mu) & (\textsc{auth-stack})\\
  &= \{ l_A \} \cup auth_{stack}(l_C, l_A.m_a() \rhd l_B, \mu) & (\textsc{pointsto-call-principal})\\
  &= \{ l_A \} & (\textsc{auth-stack-nocall})\\
