@@ -1,4 +1,8 @@
-Title: Guide to Programming in Wyvern
+Title		: Guide to Programming in Wyvern
+Author		: Jonathan Aldrich
+Affiliation	: Carnegie Mellon University
+Email		: jonathan.aldrich@cs.cmu.edu
+Heading Base: 2
 
 Package: math-cmds
 Package: proof
@@ -119,6 +123,7 @@ in the module's compound name.  We can then start the application by
 invoking the `start` method on the `myapplication` module.
 
 
+
 Reasoning about Security in Wyvern
 ==================================
 
@@ -163,3 +168,42 @@ modules explicitly and thread resources through them.
 **Note:** The logging example above does not run yet.  In
 particular, we have not yet implemented the `resource` keyword,
 the `instantiate` keyword, or the `List` module.
+
+
+
+Module Bodies
+=============
+
+Module bodies are made up of four kinds of core declarations: `val`,
+`var`, `def`, and `type`, as well as expressions.  The `val` and
+`var` declarations and the expressions in a module body are evaluated
+in sequence, and the variables defined earlier in the sequence are
+in scope in later declarations and expressions.  In contrast,
+`def` and `type` declarations do not evaluate, and therefore these
+declaration forms can be safely used to define mutually recursive
+functions and types.  Each sequence of declarations that consists
+exclusively of `def` and `type` is therefore treated as a mutually
+recursive block, so that the definition or type defined in each of
+the declarations is in scope in all the other declarations.
+
+To understand why we allow recursive `def` and `type` declarations
+but do not allow this for `val` and `var` declarations, consider
+the following example:
+
+	def foo() = baz()
+	val bar = foo()
+	def baz() = bar
+
+When we try to initialize the `bar` value, we call `foo()`, which in
+turn invokes `baz()`.  However, `baz()` reads the `bar` variable, which
+is what we are defining, so there is no well-defined result.  Languages
+such as Java handle this by initializing `bar` to `null` at first and
+then writing a permanent value to it after the initializer executes.
+However, in order to avoid null pointer errors, Wyvern does not allow
+`null` as a value.  Languages such as Haskell would use a special
+"black hole" value and signal a run-time error in cases such as the
+above.  We avoid this semantics as it adds complexity and means the
+program can fail at run time.  Of course, infinite loops can still
+exist in Wyvern, but they come from recursive functions, never
+recursively defined values.
+
