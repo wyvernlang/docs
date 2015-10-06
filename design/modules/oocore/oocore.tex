@@ -55,7 +55,7 @@
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expressions \\
-& | & \keywadj{new}_{s}(x \Rightarrow d) \\
+& | & \keywadj{new}_{s}(x \Rightarrow \overline{d}) \\
 & | & e.m(e)\\
 & | & e.f \\
 & | & e.f = e \\
@@ -66,20 +66,20 @@ e & ::= & x & expressions \\
 &&\\
 s & ::= & \keyw{stateful} | ~\keyw{pure} \\
 &&\\
-d & ::= & \epsilon & declarations \\
-  & |   & \keyw{def} m(x:\tau):\tau = e; d \\
-  & |   & \keyw{var} f:\tau = x; d \\
-  & |   & \keyw{var} f:\tau = l; d & (run\mbox{-}time~form)\\
+d & ::= & \keyw{def} m(x:\tau):\tau = e & declarations \\
+  & |   & \keyw{var} f:\tau = x \\
+  & |   & \keyw{var} f:\tau = l & (run\mbox{-}time~form)\\
 &&\\
 %d_v & ::= & \epsilon & decl.~values \\
 %  & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
 %  & |   & \keyw{var} f:\tau = l; d_v \\
 %&&\\
-\tau & ::= & \{ \sigma \}_{s} & types \\
+\tau & ::= & \{ \overline{\sigma_i} \}_{s} & types \\
 &&\\
-\sigma & ::= & \epsilon & decl.~ types \\
-       & |   & \keyw{def} m:\tau \rightarrow \tau; \sigma \\
-       & |   & \keyw{var} f:\tau; \sigma \\
+\sigma_i & ::= & \sigma_e & internal~decl.~ types \\
+       & |   & \keyw{var} f:\tau \\
+&&\\
+\sigma_e & ::= & \keyw{def} m:\tau \rightarrow \tau & external~decl.~ types \\
 &&\\
 \end{array}
 & ~~~~~~
@@ -90,7 +90,7 @@ d & ::= & \epsilon & declarations \\
 &&\\
 \mu & :: = & \varnothing & store\\
 %& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{s}\\
-& | & \mu,~l \mapsto \{ x \Rightarrow d \}_{s}\\
+& | & \mu,~l \mapsto \{ x \Rightarrow \overline{d} \}_{s}\\
 &&\\
 \Sigma & :: = & \varnothing & store~type\\
 & | & \Sigma,~l : \tau\\
@@ -163,20 +163,20 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
   {x : \tau \in \Gamma}%\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-New)}]
-	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow d) : \{ \sigma \}_{s}}
-	{x : \{ \sigma \}_{s}~|~\Sigma \vdash_s d : \sigma} \\[5ex]
+	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow \overline{d}) : \{ \overline{\sigma_e} \}_{s}}
+	{x : \{ \overline{\sigma_i} \}_{s}~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i} & \overline{\sigma_e} \subseteq \overline{\sigma_i}} \\[5ex]
 
 \infer[\textsc{(T-Meth)}]
 	{\Gamma~|~\Sigma \vdash e_1.m(e_2) : \tau_1} 
-	{\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
+	{\Gamma~|~\Sigma \vdash e_1 : \{ \overline{\sigma_i} \}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_i} & \Gamma~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
 
 \infer[\textsc{(T-Field)}]
 	{\Gamma~|~\Sigma \vdash  e.f : \tau} 
-	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f : \tau \in \sigma}\\[5ex]
+	{\Gamma~|~\Sigma \vdash e : \{ \overline{\sigma_i} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma_i}}\\[5ex]
 	
 \infer[\textsc{(T-Assign)}]
 	{\Gamma~|~\Sigma \vdash  e_1.f=e_2 : \tau} 
-	{\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s & \keyw{var}~ f : \tau \in \sigma & \Gamma~|~\Sigma \vdash e_2 : \tau}\\[5ex]
+	{\Gamma~|~\Sigma \vdash e_1 : \{ \overline{\sigma_i} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma_i} & \Gamma~|~\Sigma \vdash e_2 : \tau}\\[5ex]
 
 \infer[\textsc{(T-Bind)}]
   {\Gamma~|~\Sigma \vdash \keyw{bind} x = e_1~\keyw{in} e_2 : \tau_2}
@@ -188,7 +188,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 
 \infer[\textsc{(T-StackFrames)}]
 	{\Gamma~|~\Sigma \vdash l_1.m(l_2) \rhd e : \tau_1}
-	{\Gamma~|~\Sigma \vdash l_1 : \{\sigma\}_s & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma & \Gamma~|~\Sigma \vdash l_2 : \tau_2 & \Gamma~|~\Sigma \vdash e : \tau_1} \\[5ex]
+	{\Gamma~|~\Sigma \vdash l_1 : \{ \overline{\sigma_i} \}_s & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_i} & \Gamma~|~\Sigma \vdash l_2 : \tau_2 & \Gamma~|~\Sigma \vdash e : \tau_1} \\[5ex]
 
 \infer[\textsc{(T-Sub)}]
   {\Gamma~|~\Sigma \vdash e : \tau_2}
@@ -197,33 +197,47 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 \end{array}
 \]
 
-$\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
+$\fbox{$\Gamma~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i}$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Decls)}]
+  {\Gamma~|~\Sigma \vdash_{s} \overline{d}~:~\overline{\sigma_i}}
+  {\forall d \in \overline{d},~\forall \sigma_i \in \overline{\sigma_i}~|~\Gamma~|~\Sigma \vdash_{s} d : \sigma_i}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma_i$}$
 \[
 \begin{array}{c}
 
-\infer[\textsc{(DT-Empty)}]
-  {\Gamma~|~\Sigma \vdash_s \epsilon~; d~:~\epsilon~; \sigma}
-  {\Gamma~|~\Sigma \vdash_s d : \sigma}\\[3.5ex]
+%\infer[\textsc{(DT-Empty)}]
+%  {\Gamma~|~\Sigma \vdash_s \epsilon~; d~:~\epsilon~; \sigma}
+%  {\Gamma~|~\Sigma \vdash_s d : \sigma}\\[3.5ex]
 
+%\infer[\textsc{(DT-DefPure)}]
+%  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
+%  {\def\arraystretch{1.5}
+%  \begin{array}{c}
+%\Gamma_{stateful} = \{x : \{ \sigma \}_{\keywadj{stateful}} ~|~ x : \{ \sigma \}_{\keywadj{stateful}} \in \Gamma\} \\
+%\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~\Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~\Gamma~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
+%  \end{array}}\\[5ex]
+  
 \infer[\textsc{(DT-DefPure)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-  {\def\arraystretch{1.5}
-  \begin{array}{c}
-\Gamma_{stateful} = \{x : \{ \sigma \}_{\keywadj{stateful}} ~|~ x : \{ \sigma \}_{\keywadj{stateful}} \in \Gamma\} \\
-\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~\Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~\Gamma~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
-  \end{array}}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma_{stateful} = \{x : \{ \overline{\sigma_i} \}_{\keywadj{stateful}} ~|~ x : \{ \overline{\sigma_i} \}_{\keywadj{stateful}} \in \Gamma\} & \Gamma_{pure} = \Gamma \setminus \Gamma_{stateful} & \Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2}\\[5ex]
 
 \infer[\textsc{(DT-DefStateful)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-  {\Gamma,~x : \tau_1~|~\Sigma \vdash e : \tau_2 & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma,~x : \tau_1~|~\Sigma \vdash e : \tau_2}\\[5ex]
 
 \infer[\textsc{(DT-Varx)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = x; d~:~\keyw{var} f : \tau; \sigma}
-  {\Gamma~|~\Sigma \vdash x : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
-
+  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = x~:~\keyw{var} f : \tau}
+  {\Gamma~|~\Sigma \vdash x : \tau}%\\[5ex]
+~~~~~~~~~~
 \infer[\textsc{(DT-Varl)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = l; d~:~\keyw{var} f : \tau; \sigma}
-  {\Gamma~|~\Sigma \vdash l : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = l~:~\keyw{var} f : \tau}
+  {\Gamma~|~\Sigma \vdash l : \tau}\\[5ex]
 
 \end{array}
 \]
@@ -231,47 +245,47 @@ $\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
 $\fbox{$\tau <: \tau'$}$
 \[
 \begin{array}{c}
-\infer[\textsc{(S-Refl)}]
+\infer[\textsc{(S-ReflT)}]
   {\tau <: \tau}
   {}%\\[5ex]
 ~~~~~~~~~~
-\infer[\textsc{(S-Trans)}]
+\infer[\textsc{(S-TransT)}]
   {\tau_1 <: \tau_3}
   {\tau_1 <: \tau_2 & \tau_2 <: \tau_3}\\[5ex]
 
 \infer[\textsc{(S-State)}]
-  {\{ \sigma \}_{\keyw{pure}} <: \{ \sigma' \}_{\keyw{stateful}}}
-  {\sigma <: \sigma'}%\\[5ex]  
+  {\{ \overline{\sigma_i} \}_{\keyw{pure}} <: \{ \overline{\sigma_i}' \}_{\keyw{stateful}}}
+  {\forall \sigma_i \in \overline{\sigma_i},~\forall \sigma_i' \in \overline{\sigma_i}'~|~\sigma_i <: \sigma_i'}%\\[5ex]  
 ~~~~~~~~~~
 \infer[\textsc{(S-Obj)}]
-  {\{ \sigma \}_{s} <: \{ \sigma' \}_{s}}
-  {\sigma <: \sigma'}\\[5ex]  
+  {\{ \overline{\sigma_i} \}_{s} <: \{ \overline{\sigma_i}' \}_{s}}
+  {\forall \sigma_i \in \overline{\sigma_i},~\forall \sigma_i' \in \overline{\sigma_i}'~|~\sigma_i <: \sigma_i'}\\[5ex]  
 
 \end{array}
 \]
 
-$\fbox{$\sigma <: \sigma'$}$
+$\fbox{$\sigma_i <: \sigma_i'$}$
 \[
 \begin{array}{c}
-\infer[\textsc{(S-Refl)}]
-  {\sigma <: \sigma}
+\infer[\textsc{(S-ReflS)}]
+  {\sigma_i <: \sigma_i}
   {}%\\[5ex]
 ~~~~~~~~~~
-\infer[\textsc{(S-Trans)}]
-  {\sigma_1 <: \sigma_3}
-  {\sigma_1 <: \sigma_2 & \sigma_2 <: \sigma_3}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(S-Eps)}]
-  {\sigma <: \epsilon}
-  {}\\[5ex]
+\infer[\textsc{(S-TransS)}]
+  {\sigma_{i1} <: \sigma_{i3}}
+  {\sigma_{i1} <: \sigma_{i2} & \sigma_{i2} <: \sigma_{i3}}\\[5ex]
+%~~~~~~~~~~
+%\infer[\textsc{(S-Eps)}]
+%  {\sigma <: \epsilon}
+%  {}\\[5ex]
 
 \infer[\textsc{(S-Def)}]
-  {\keyw{def} m:\tau_1 \rightarrow \tau_2; \sigma <: \keyw{def} m:\tau_1' \rightarrow \tau_2'; \sigma'}
-  {\tau_1' <: \tau_1 & \tau_2 <: \tau_2' & \sigma <: \sigma'}%\\[5ex]  
+  {\keyw{def} m:\tau_1 \rightarrow \tau_2 <: \keyw{def} m:\tau_1' \rightarrow \tau_2'}
+  {\tau_1' <: \tau_1 & \tau_2 <: \tau_2'}%\\[5ex]  
 ~~~~~~~~~~
 \infer[\textsc{(S-Var)}]
-  {\keyw{var} f:\tau; \sigma <: \keyw{var} f:\tau; \sigma'}
-  {\sigma <: \sigma'}\\[5ex]  
+  {\keyw{var} f:\tau <: \keyw{var} f:\tau'}
+  {\tau <: \tau'}\\[5ex]  
 
 \end{array}
 \]
@@ -285,8 +299,8 @@ $\fbox{$\mu : \Sigma$}$
   {}%\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-Store)}]
-  {\mu,~l \mapsto \{ x \Rightarrow d \}_s~:~\Sigma,~l : \{ \sigma \}_s}
-  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+  {\mu,~l \mapsto \{ x \Rightarrow \overline{d} \}_s~:~\Sigma,~l : \{ \overline{\sigma_i} \}_s}
+  {\mu : \Sigma & x : \{ \overline{\sigma_i} \}_s~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i}}\\[5ex]
 
 \end{array}
 \]
@@ -305,23 +319,23 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
 \[
 \begin{array}{c}
 \infer[\textsc{(E-New)}]
-  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow d \}_{s}}
-  {l \not\in dom(\mu) & \keywadj{new}_{s}(x \Rightarrow d)~is~closed}\\[5ex]
+  {\keywadj{new}_{s}(x \Rightarrow \overline{d})~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow \overline{d} \}_{s}}
+  {l \not\in dom(\mu) & \keywadj{new}_{s}(x \Rightarrow \overline{d})~is~closed}\\[5ex]
 
 \infer[\textsc{(E-Meth)}]
   {l_1.m(l_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd [l_2/y][l_1/x]e~|~\mu}
-  {l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau_2 = e \in d}\\[5ex]
-
+  {l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau_2 = e \in \overline{d}}\\[5ex]
+%~~~~~~~~~~
 \infer[\textsc{(E-Field)}]
   {l.f~|~\mu \longrightarrow l_1~|~\mu}
-  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d}\\[5ex]
+  {l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in \overline{d}}\\[5ex]
 
 \infer[\textsc{(E-Assign)}]
   {l_1.f = l_2~|~\mu \longrightarrow l_2~|~\mu'}
   {\def\arraystretch{1.6}
   \begin{array}{c}
-l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l \in d \\
-d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]d~~~~~\mu' = [l_1 \mapsto \{ x \Rightarrow d' \}_{s}/l_1 \mapsto \{ x \Rightarrow d \}_{s}]\mu
+l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l \in \overline{d} \\
+\overline{d}' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]\overline{d}~~~~~\mu' = [l_1 \mapsto \{ x \Rightarrow \overline{d}' \}_{s}/l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s}]\mu
   \end{array}}\\[5ex]
 
 \infer[\textsc{(E-Bind)}]
