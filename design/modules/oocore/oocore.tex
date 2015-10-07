@@ -55,7 +55,7 @@
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expressions \\
-& | & \keywadj{new}_{s}(x \Rightarrow d) \\
+& | & \keywadj{new}_{s}(x \Rightarrow \overline{d}) \\
 & | & e.m(e)\\
 & | & e.f \\
 & | & e.f = e \\
@@ -66,20 +66,20 @@ e & ::= & x & expressions \\
 &&\\
 s & ::= & \keyw{stateful} | ~\keyw{pure} \\
 &&\\
-d & ::= & \epsilon & declarations \\
-  & |   & \keyw{def} m(x:\tau):\tau = e; d \\
-  & |   & \keyw{var} f:\tau = x; d \\
-  & |   & \keyw{var} f:\tau = l; d & (run\mbox{-}time~form)\\
+d & ::= & \keyw{def} m(x:\tau):\tau = e & declarations \\
+  & |   & \keyw{var} f:\tau = x \\
+  & |   & \keyw{var} f:\tau = l & (run\mbox{-}time~form)\\
 &&\\
 %d_v & ::= & \epsilon & decl.~values \\
 %  & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
 %  & |   & \keyw{var} f:\tau = l; d_v \\
 %&&\\
-\tau & ::= & \{ \sigma \}_{s} & types \\
+\tau & ::= & \{ \overline{\sigma_i} \}_{s} & types \\
 &&\\
-\sigma & ::= & \epsilon & decl.~ types \\
-       & |   & \keyw{def} m:\tau \rightarrow \tau; \sigma \\
-       & |   & \keyw{var} f:\tau; \sigma \\
+\sigma_i & ::= & \sigma_e & internal~decl.~ types \\
+       & |   & \keyw{var} f:\tau \\
+&&\\
+\sigma_e & ::= & \keyw{def} m:\tau \rightarrow \tau & external~decl.~ types \\
 &&\\
 \end{array}
 & ~~~~~~
@@ -90,7 +90,7 @@ d & ::= & \epsilon & declarations \\
 &&\\
 \mu & :: = & \varnothing & store\\
 %& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{s}\\
-& | & \mu,~l \mapsto \{ x \Rightarrow d \}_{s}\\
+& | & \mu,~l \mapsto \{ x \Rightarrow \overline{d} \}_{s}\\
 &&\\
 \Sigma & :: = & \varnothing & store~type\\
 & | & \Sigma,~l : \tau\\
@@ -163,20 +163,20 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
   {x : \tau \in \Gamma}%\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-New)}]
-	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow d) : \{ \sigma \}_{s}}
-	{x : \{ \sigma \}_{s}~|~\Sigma \vdash_s d : \sigma} \\[5ex]
+	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow \overline{d}) : \{ \overline{\sigma_e} \}_{s}}
+	{x : \{ \overline{\sigma_i} \}_{s}~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i} & \overline{\sigma_e} \subseteq \overline{\sigma_i}} \\[5ex]
 
 \infer[\textsc{(T-Meth)}]
 	{\Gamma~|~\Sigma \vdash e_1.m(e_2) : \tau_1} 
-	{\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma & \Gamma~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
+	{\Gamma~|~\Sigma \vdash e_1 : \{ \overline{\sigma_e} \}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_e} & \Gamma~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
 
 \infer[\textsc{(T-Field)}]
 	{\Gamma~|~\Sigma \vdash  e.f : \tau} 
-	{\Gamma~|~\Sigma \vdash e : \{\sigma\}_s & \keyw{var}~ f : \tau \in \sigma}\\[5ex]
+	{\Gamma~|~\Sigma \vdash e : \{ \overline{\sigma_i} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma_i}}\\[5ex]
 	
 \infer[\textsc{(T-Assign)}]
 	{\Gamma~|~\Sigma \vdash  e_1.f=e_2 : \tau} 
-	{\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s & \keyw{var}~ f : \tau \in \sigma & \Gamma~|~\Sigma \vdash e_2 : \tau}\\[5ex]
+	{\Gamma~|~\Sigma \vdash e_1 : \{ \overline{\sigma_i} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma_i} & \Gamma~|~\Sigma \vdash e_2 : \tau}\\[5ex]
 
 \infer[\textsc{(T-Bind)}]
   {\Gamma~|~\Sigma \vdash \keyw{bind} x = e_1~\keyw{in} e_2 : \tau_2}
@@ -188,7 +188,7 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 
 \infer[\textsc{(T-StackFrames)}]
 	{\Gamma~|~\Sigma \vdash l_1.m(l_2) \rhd e : \tau_1}
-	{\Gamma~|~\Sigma \vdash l_1 : \{\sigma\}_s & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma & \Gamma~|~\Sigma \vdash l_2 : \tau_2 & \Gamma~|~\Sigma \vdash e : \tau_1} \\[5ex]
+	{\Gamma~|~\Sigma \vdash l_1 : \{ \overline{\sigma_e} \}_s & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_e} & \Gamma~|~\Sigma \vdash l_2 : \tau_2 & \Gamma~|~\Sigma \vdash e : \tau_1} \\[5ex]
 
 \infer[\textsc{(T-Sub)}]
   {\Gamma~|~\Sigma \vdash e : \tau_2}
@@ -197,33 +197,47 @@ $\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
 \end{array}
 \]
 
-$\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
+$\fbox{$\Gamma~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i}$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Decls)}]
+  {\Gamma~|~\Sigma \vdash_{s} \overline{d}~:~\overline{\sigma_i}}
+  {\forall d \in \overline{d},~\forall \sigma_i \in \overline{\sigma_i}~|~\Gamma~|~\Sigma \vdash_{s} d : \sigma_i}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma_i$}$
 \[
 \begin{array}{c}
 
-\infer[\textsc{(DT-Empty)}]
-  {\Gamma~|~\Sigma \vdash_s \epsilon~; d~:~\epsilon~; \sigma}
-  {\Gamma~|~\Sigma \vdash_s d : \sigma}\\[3.5ex]
+%\infer[\textsc{(DT-Empty)}]
+%  {\Gamma~|~\Sigma \vdash_s \epsilon~; d~:~\epsilon~; \sigma}
+%  {\Gamma~|~\Sigma \vdash_s d : \sigma}\\[3.5ex]
 
+%\infer[\textsc{(DT-DefPure)}]
+%  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
+%  {\def\arraystretch{1.5}
+%  \begin{array}{c}
+%\Gamma_{stateful} = \{x : \{ \sigma \}_{\keywadj{stateful}} ~|~ x : \{ \sigma \}_{\keywadj{stateful}} \in \Gamma\} \\
+%\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~\Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~\Gamma~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
+%  \end{array}}\\[5ex]
+  
 \infer[\textsc{(DT-DefPure)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-  {\def\arraystretch{1.5}
-  \begin{array}{c}
-\Gamma_{stateful} = \{x : \{ \sigma \}_{\keywadj{stateful}} ~|~ x : \{ \sigma \}_{\keywadj{stateful}} \in \Gamma\} \\
-\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~\Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~\Gamma~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
-  \end{array}}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma_{stateful} = \{x : \{ \overline{\sigma_i} \}_{\keywadj{stateful}} ~|~ x : \{ \overline{\sigma_i} \}_{\keywadj{stateful}} \in \Gamma\} & \Gamma_{pure} = \Gamma \setminus \Gamma_{stateful} & \Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2}\\[5ex]
 
 \infer[\textsc{(DT-DefStateful)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-  {\Gamma,~x : \tau_1~|~\Sigma \vdash e : \tau_2 & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma,~x : \tau_1~|~\Sigma \vdash e : \tau_2}\\[5ex]
 
 \infer[\textsc{(DT-Varx)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = x; d~:~\keyw{var} f : \tau; \sigma}
-  {\Gamma~|~\Sigma \vdash x : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
-
+  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = x~:~\keyw{var} f : \tau}
+  {\Gamma~|~\Sigma \vdash x : \tau}%\\[5ex]
+~~~~~~~~~~
 \infer[\textsc{(DT-Varl)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = l; d~:~\keyw{var} f : \tau; \sigma}
-  {\Gamma~|~\Sigma \vdash l : \tau & \Gamma~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = l~:~\keyw{var} f : \tau}
+  {\Gamma~|~\Sigma \vdash l : \tau}\\[5ex]
 
 \end{array}
 \]
@@ -231,47 +245,47 @@ $\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma$}$
 $\fbox{$\tau <: \tau'$}$
 \[
 \begin{array}{c}
-\infer[\textsc{(S-Refl)}]
+\infer[\textsc{(S-ReflT)}]
   {\tau <: \tau}
   {}%\\[5ex]
 ~~~~~~~~~~
-\infer[\textsc{(S-Trans)}]
+\infer[\textsc{(S-TransT)}]
   {\tau_1 <: \tau_3}
   {\tau_1 <: \tau_2 & \tau_2 <: \tau_3}\\[5ex]
 
 \infer[\textsc{(S-State)}]
-  {\{ \sigma \}_{\keyw{pure}} <: \{ \sigma' \}_{\keyw{stateful}}}
-  {\sigma <: \sigma'}%\\[5ex]  
+  {\{ \overline{\sigma_i} \}_{\keyw{pure}} <: \{ \overline{\sigma_i}' \}_{\keyw{stateful}}}
+  {\forall \sigma_i \in \overline{\sigma_i},~\forall \sigma_i' \in \overline{\sigma_i}'~|~\sigma_i <: \sigma_i'}%\\[5ex]  
 ~~~~~~~~~~
 \infer[\textsc{(S-Obj)}]
-  {\{ \sigma \}_{s} <: \{ \sigma' \}_{s}}
-  {\sigma <: \sigma'}\\[5ex]  
+  {\{ \overline{\sigma_i} \}_{s} <: \{ \overline{\sigma_i}' \}_{s}}
+  {\forall \sigma_i \in \overline{\sigma_i},~\forall \sigma_i' \in \overline{\sigma_i}'~|~\sigma_i <: \sigma_i'}\\[5ex]  
 
 \end{array}
 \]
 
-$\fbox{$\sigma <: \sigma'$}$
+$\fbox{$\sigma_i <: \sigma_i'$}$
 \[
 \begin{array}{c}
-\infer[\textsc{(S-Refl)}]
-  {\sigma <: \sigma}
+\infer[\textsc{(S-ReflS)}]
+  {\sigma_i <: \sigma_i}
   {}%\\[5ex]
 ~~~~~~~~~~
-\infer[\textsc{(S-Trans)}]
-  {\sigma_1 <: \sigma_3}
-  {\sigma_1 <: \sigma_2 & \sigma_2 <: \sigma_3}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(S-Eps)}]
-  {\sigma <: \epsilon}
-  {}\\[5ex]
+\infer[\textsc{(S-TransS)}]
+  {\sigma_{i1} <: \sigma_{i3}}
+  {\sigma_{i1} <: \sigma_{i2} & \sigma_{i2} <: \sigma_{i3}}\\[5ex]
+%~~~~~~~~~~
+%\infer[\textsc{(S-Eps)}]
+%  {\sigma <: \epsilon}
+%  {}\\[5ex]
 
 \infer[\textsc{(S-Def)}]
-  {\keyw{def} m:\tau_1 \rightarrow \tau_2; \sigma <: \keyw{def} m:\tau_1' \rightarrow \tau_2'; \sigma'}
-  {\tau_1' <: \tau_1 & \tau_2 <: \tau_2' & \sigma <: \sigma'}%\\[5ex]  
+  {\keyw{def} m:\tau_1 \rightarrow \tau_2 <: \keyw{def} m:\tau_1' \rightarrow \tau_2'}
+  {\tau_1' <: \tau_1 & \tau_2 <: \tau_2'}%\\[5ex]  
 ~~~~~~~~~~
 \infer[\textsc{(S-Var)}]
-  {\keyw{var} f:\tau; \sigma <: \keyw{var} f:\tau; \sigma'}
-  {\sigma <: \sigma'}\\[5ex]  
+  {\keyw{var} f:\tau <: \keyw{var} f:\tau'}
+  {\tau <: \tau'}\\[5ex]  
 
 \end{array}
 \]
@@ -285,8 +299,8 @@ $\fbox{$\mu : \Sigma$}$
   {}%\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-Store)}]
-  {\mu,~l \mapsto \{ x \Rightarrow d \}_s~:~\Sigma,~l : \{ \sigma \}_s}
-  {\mu : \Sigma & x : \{ \sigma \}_s~|~\Sigma \vdash_s d : \sigma}\\[5ex]
+  {\mu,~l \mapsto \{ x \Rightarrow \overline{d} \}_s~:~\Sigma,~l : \{ \overline{\sigma_i} \}_s}
+  {\mu : \Sigma & x : \{ \overline{\sigma_i} \}_s~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i}}\\[5ex]
 
 \end{array}
 \]
@@ -305,23 +319,23 @@ $\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
 \[
 \begin{array}{c}
 \infer[\textsc{(E-New)}]
-  {\keywadj{new}_{s}(x \Rightarrow d)~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow d \}_{s}}
-  {l \not\in dom(\mu) & \keywadj{new}_{s}(x \Rightarrow d)~is~closed}\\[5ex]
+  {\keywadj{new}_{s}(x \Rightarrow \overline{d})~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow \overline{d} \}_{s}}
+  {l \not\in dom(\mu) & \keywadj{new}_{s}(x \Rightarrow \overline{d})~is~closed}\\[5ex]
 
 \infer[\textsc{(E-Meth)}]
   {l_1.m(l_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd [l_2/y][l_1/x]e~|~\mu}
-  {l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau_2 = e \in d}\\[5ex]
-
+  {l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau_2 = e \in \overline{d}}\\[5ex]
+%~~~~~~~~~~
 \infer[\textsc{(E-Field)}]
   {l.f~|~\mu \longrightarrow l_1~|~\mu}
-  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in d}\\[5ex]
+  {l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in \overline{d}}\\[5ex]
 
 \infer[\textsc{(E-Assign)}]
   {l_1.f = l_2~|~\mu \longrightarrow l_2~|~\mu'}
   {\def\arraystretch{1.6}
   \begin{array}{c}
-l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l \in d \\
-d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]d~~~~~\mu' = [l_1 \mapsto \{ x \Rightarrow d' \}_{s}/l_1 \mapsto \{ x \Rightarrow d \}_{s}]\mu
+l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l \in \overline{d} \\
+\overline{d}' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]\overline{d}~~~~~\mu' = [l_1 \mapsto \{ x \Rightarrow \overline{d}' \}_{s}/l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s}]\mu
   \end{array}}\\[5ex]
 
 \infer[\textsc{(E-Bind)}]
@@ -917,7 +931,6 @@ $\keyw{fn} trans(filterRequires(\overline{i})) \Rightarrow~\keyw{bind} trans(fil
 
 \subsection{Rules}
 
-\vspace{1pt}
 $\fbox{$~pointsto(e, \mu)~$}$
 \[
 \begin{array}{c}
@@ -926,24 +939,24 @@ $\fbox{$~pointsto(e, \mu)~$}$
   {}%\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(pointsto-new)}]
-  {pointsto(\keywadj{new}_{s}(x \Rightarrow d),\mu) = pointsto(d,\mu) }
+  {pointsto(\keywadj{new}_{s}(x \Rightarrow \overline{d}),\mu) = pointsto(\overline{d},\mu) }
   {}\\[5ex]
 
 \infer[\textsc{(pointsto-principal)}]
-  {pointsto(l,\mu) = \{ l \}}
-  {l \mapsto \{ x \Rightarrow d \}_\keywadj{stateful} \in \mu}%\\[5ex]
+  {pointsto(l,\mu) = \{ l \} \cup pointsto(\overline{d}, \mu)}
+  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{stateful} \in \mu}%\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(pointsto-data)}]
   {pointsto(l,\mu) = \varnothing }
-  {l \mapsto \{ x \Rightarrow d \}_\keywadj{pure} \in \mu}\\[5ex]
+  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{pure} \in \mu}\\[5ex]
 
 \infer[\textsc{(pointsto-call-principal)}]
-  {pointsto(l.m(l') \rhd e,\mu) = \{l\} }
-  {l \mapsto \{ x \Rightarrow d \}_\keywadj{stateful} \in \mu}\\[5ex]
+  {pointsto(l.m(l') \rhd e,\mu) = pointsto(l, \mu) }
+  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{stateful} \in \mu}\\[5ex]
 
 \infer[\textsc{(pointsto-call-data)}]
   {pointsto(l.m(l') \rhd e,\mu) = pointsto(e,\mu)}
-  {l \mapsto \{ x \Rightarrow d \}_\keywadj{pure} \in \mu}\\[5ex]
+  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{pure} \in \mu}\\[5ex]
 
 \infer[\textsc{(pointsto-otherexp)}]
   {pointsto(e,\mu) = \bigcup pointsto(subexps(e),\mu) }
@@ -952,24 +965,33 @@ $\fbox{$~pointsto(e, \mu)~$}$
 \end{array}
 \]
 
-\vspace{-6pt}
+$\fbox{$~pointsto(\overline{d}, \mu)~$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(pointsto-decls)}]
+  {pointsto(\overline{d}, \mu) = \bigcup_{d \in \overline{d}} pointsto(d, \mu)}
+  {}\\[5ex]
+  
+\end{array}
+\]
+
 $\fbox{$~pointsto(d, \mu)~$}$
 \[
 \begin{array}{c}
-\infer[\textsc{(pointsto-emptydecl)}]
-  {pointsto(\epsilon,\mu) = \varnothing}
-  {}\\[5ex]
+%\infer[\textsc{(pointsto-emptydecl)}]
+%  {pointsto(\epsilon,\mu) = \varnothing}
+%  {}\\[5ex]
 
 \infer[\textsc{(pointsto-def)}]
-  {pointsto(\keyw{def} m(x:\tau):\tau = e; d,\mu) = pointsto(e,\mu) \cup pointsto(d,\mu)}
+  {pointsto(\keyw{def} m(x:\tau):\tau = e, \mu) = pointsto(e, \mu)}
   {}\\[5ex]
   
 \infer[\textsc{(pointsto-varx)}]
-  {pointsto(\keyw{var} f:\tau = x; d,\mu) = pointsto(d,\mu)}
+  {pointsto(\keyw{var} f:\tau = x,\mu) = \varnothing}
   {}\\[5ex]
-
+%~~~~~~~~~~
 \infer[\textsc{(pointsto-varl)}]
-  {pointsto(\keyw{var} f:\tau = l; d,\mu) = pointsto(l,\mu) \cup pointsto(d,\mu)}
+  {pointsto(\keyw{var} f:\tau = l,\mu) = pointsto(l,\mu)}
   {}\\[5ex]
 
 \end{array}
@@ -993,8 +1015,8 @@ $\fbox{$~auth()~$}$
 \[
 \begin{array}{c}
 \infer[\textsc{(auth-store)}]
-  {auth_{store}(l,\mu) = pointsto(l, \mu) \cup pointsto(d,\mu)}
-  {l \mapsto \{ x \Rightarrow d \}_{s} \in \mu}\\[5ex]
+  {auth_{store}(l,\mu) = pointsto(l, \mu) \cup pointsto(\overline{d},\mu)}
+  {l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu}\\[5ex]
 
 \infer[\textsc{(auth-stack-nocall)}]
   {auth_{stack}(l,e,\mu) = \varnothing}
@@ -1021,7 +1043,6 @@ $\fbox{$~lookupCaller(E)~$}$
 \end{array}
 \]
 
-%\newpage
 
 \subsection{Definitions}
 \label{sec:definitions}
@@ -1078,7 +1099,7 @@ $\fbox{$~lookupCaller(E)~$}$
 \begin{lemma}
 For an expressions of the form $l.m(l') \rhd E[e]$, such that $E$ contains no method call stack frames,
 \[
-auth(l, l.m(l') \rhd E[e], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu).
+auth(l, l.m(l') \rhd E[e], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu).
 \]
 \end{lemma}
 
@@ -1088,10 +1109,10 @@ auth(l, l.m(l') \rhd E[e], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup po
 
 \begin{align*}
 &= auth_{store}(l, \mu) \cup auth_{stack}(l, l.m(l') \rhd E[e], \mu) & (\textsc{auth-config})\\
-&= pointsto(l, \mu) \cup pointsto(d, \mu) \cup auth_{stack}(l, l.m(l') \rhd E[e], \mu) & (\textsc{auth-store})\\
-&= pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E[e], \mu) \cup auth_{stack}(l, E[e], \mu) & (\textsc{auth-stack})\\
-&= pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E[e], \mu) & (\textsc{auth-stack-nocall})\\
-&= pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu) & (\textsc{pointsto-context-exp})
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup auth_{stack}(l, l.m(l') \rhd E[e], \mu) & (\textsc{auth-store})\\
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E[e], \mu) \cup auth_{stack}(l, E[e], \mu) & (\textsc{auth-stack})\\
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E[e], \mu) & (\textsc{auth-stack-nocall})\\
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu) & (\textsc{pointsto-context-exp})
 \end{align*}\qed
 
 \end{proof}
@@ -1109,14 +1130,14 @@ $auth(l, l.m(l') \rhd E[e], \mu)$ and $auth(l, l.m(l') \rhd E[e'], \mu')$ differ
 
 \begin{proof} By Lemma 4, in the initial state, we have
 \[
-auth(l, l.m(l') \rhd E[e], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu)
+auth(l, l.m(l') \rhd E[e], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu)
 \]
 and in the final state, we have
 \[
-auth(l, l.m(l') \rhd E[e'], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E, \mu') \cup pointsto(e', \mu')
+auth(l, l.m(l') \rhd E[e'], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E, \mu') \cup pointsto(e', \mu')
 \]
 
-Since we are considering small-step semantics, within this evaluation step, there were no changes to $l$, $d$ and $E$, and thus $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(d, \mu) = pointsto(d, \mu')$ and $pointsto(E, \mu) = pointsto(E, \mu')$. Therefore, $auth(l, l.m(l') \rhd E[e'], \mu')$ differ only by the values of $pointsto(e, \mu)$ and $pointsto(e', \mu')$. \qed
+Since we are considering small-step semantics, within this evaluation step, there were no changes to $l$, $\overline{d}$ and $E$, and thus $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$ and $pointsto(E, \mu) = pointsto(E, \mu')$. Therefore, $auth(l, l.m(l') \rhd E[e'], \mu')$ differ only by the values of $pointsto(e, \mu)$ and $pointsto(e', \mu')$. \qed
 
 \end{proof}
 
@@ -1133,7 +1154,7 @@ then one of the following must hold:
 \begin{itemize}
   \item \textbf{Object creation:}
   \begin{enumerate}
-  \item $e = E[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')]$, $e' = E[l']$,
+  \item $e = E[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow \overline{d}')]$, $e' = E[l']$,
   \item $lookupCaller(E) = l$, {\emph{~~~~~~~~~~[The creator was $l$]}}
   \item $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l' \}$.\\
   \end{enumerate}
@@ -1164,84 +1185,91 @@ then one of the following must hold:
 
 \begin{pcases}
 \pcase[\textsc{E-New}]
-$e = E[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')]$; $e' = E[l']$; and $\mu' = \mu, l' \mapsto \{ x \Rightarrow d' \}_{\keywadj{stateful}}$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow d \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')]~|~\mu \longrightarrow l.m(l'') \rhd E'[l']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
+$e = E[\keywadj{new}_s(x \Rightarrow \overline{d}')]$; $e' = E[l']$; and $\mu' = \mu, l' \mapsto \{ x \Rightarrow \overline{d}' \}_s$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m(l'') \rhd E'[\keywadj{new}_s(x \Rightarrow \overline{d}')]~|~\mu \longrightarrow l.m(l'') \rhd E'[l']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
 
 Let us consider $l$'s authority for the two states. By Lemma 4, in the initial state, we have:
 \[
-auth(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d'), \mu)\]
+auth(l, l.m(l'') \rhd E'[\keywadj{new}_s(x \Rightarrow \overline{d}')], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(\keywadj{new}_s(x \Rightarrow \overline{d}'), \mu)\]
 and by \textsc{pointsto-new},
 \[
-auth(l, l.m(l'') \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow d')], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(d', \mu)
+auth(l, l.m(l'') \rhd E'[\keywadj{new}_s(x \Rightarrow \overline{d}')], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(\overline{d}', \mu)
 \]
 
-\todo{Prove that $pointsto(d', \mu)$ does not increase authority of $l$: $pointsto(d', \mu)$ is either in $pointsto(d, \mu)$ (i.e. it comes from $l$'s fields) or $pointsto(E', \mu)$ (i.e. it was passed into $m()$).}\\
+\todo{Prove that $pointsto(\overline{d}', \mu)$ does not increase authority of $l$: $pointsto(\overline{d}', \mu)$ is either in $pointsto(\overline{d}, \mu)$ (i.e. it comes from $l$'s fields) or $pointsto(E', \mu)$ (i.e. it was passed into $m()$).}\\
 
 By Lemma 4, in the final state, we have:
 \[
-auth(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup pointsto(l', \mu')
+auth(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu') \cup pointsto(l', \mu').
 \]
-and by \textsc{pointsto-principal},
+Depending on whether $l'$ is a principal, there are two possibilities.
+
+\begin{enumerate}
+\item[] \textit{Case $l'$ is a principal:} By \textsc{pointsto-principal}, we get:
 \[
-auth(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup \{ l' \}
+auth(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu') \cup \{ l' \} \cup pointsto(\overline{d}', \mu')
 \]
+Although the memory was extended with the new object, since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $\overline{d}$, $\overline{d}'$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, $pointsto(\overline{d}', \mu) = pointsto(\overline{d}', \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
 
-Although the memory was extended with the new object, since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $d$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(d, \mu) = pointsto(d, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
+Thus, $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l' \}$ in compliance with the \textbf{\textit{object creation}} case of the theorem.
+\\
+\item[] \textit{Case $l'$ is pure:} By \textsc{pointsto-data}, we get:
+\[
+auth(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu')
+\]
+Although the memory was extended with the new object, since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $\overline{d}$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
 
-Thus, $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l' \}$ in compliance with the \textbf{\textit{object creation}} case of the theorem.\\
+Thus, $auth(l, e', \mu') = auth(l, e, \mu)$ in compliance with the theorem.\\
+\end{enumerate}
 
 \todo{Consider the case when the $\keywadj{new}$ is top-level, and thus there is no creator.}
-
-\todo{Consider the case when $l'$ is pure.}
 \\
 \pcase[\textsc{E-Field}]
-$e = E[l'.f]$, $e' = E[l'']$, and $\mu' = \mu$. From the premise, we get $l' \mapsto \{ x \Rightarrow d' \}_{s} \in \mu$ and $\keyw{var} f : \tau = l'' \in d'$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow d \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m(l''') \rhd E'[l'.f]~|~\mu \longrightarrow l.m(l''') \rhd E'[l'']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
+$e = E[l.f]$, $e' = E[l']$, and $\mu' = \mu$. From the premise, we get $l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$ and $\keyw{var} f : \tau = l' \in \overline{d}$. Since object fields are private and thus accessible only within the object, $lookupCaller(E) = l$, i.e. for this step to execute the caller must be the object whose field is being evaluated. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m(l'') \rhd E'[l.f]~|~\mu \longrightarrow l.m(l'') \rhd E'[l']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
 
 Let us consider $l$'s authority for the two states. By Lemma 4, in the initial state, we have:
 \[
-auth(l, l.m(l''') \rhd E'[l'.f], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(l'.f, \mu)
+auth(l, l.m(l'') \rhd E'[l.f], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(l.f, \mu)
 \]
 and by \textsc{pointsto-otherexp},
 \[
-auth(l, l.m(l''') \rhd E'[l'.f], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(l', \mu)
+auth(l, l.m(l'') \rhd E'[l.f], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu)
 \]
-
-\todo{Prove that $pointsto(l', \mu)$ does not increase authority of $l$: $pointsto(l', \mu)$ is either $pointsto(l, \mu)$ (i.e. $l' = l$), or it is in $pointsto(d, \mu)$ (i.e. it comes from $l$'s fields), or it is in $pointsto(E', \mu)$ (i.e. it was passed into $m()$).}\\
 
 By Lemma 4, in the final state, we have:
 \[
-auth(l, l.m(l''') \rhd E'[l''], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup pointsto(l'', \mu')
+auth(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu') \cup pointsto(l', \mu')
 \]
-\todo{Prove that $pointsto(l'', \mu)$ does not increase authority of $l$.}\\
 
-Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $d$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(d, \mu) = pointsto(d, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
+As $\keyw{var} f : \tau = l' \in \overline{d}$, by \textsc{pointsto-decls} and \textsc{pointsto-varl}, $pointsto(l', \mu') \subset pointsto(\overline{d}, \mu')$ and
+\[
+auth(l, l.m(l'') \rhd E'[l'], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu')
+\]
+
+Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $\overline{d}$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
 
 Thus, $auth(l, e', \mu') = auth(l, e, \mu)$ in compliance with the theorem.
 \\
 \pcase[\textsc{E-StackFrame}]
-$e = E[l'.m(l'') \rhd l''']$, $e' = E[l''']$, and $\mu' = \mu$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow d \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m'(l_0) \rhd E'[l'.m(l'') \rhd l''']~|~\mu \longrightarrow l.m'(l_0) \rhd E'[l''']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
+$e = E[l'.m(l'') \rhd l''']$, $e' = E[l''']$, and $\mu' = \mu$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m'(l_0) \rhd E'[l'.m(l'') \rhd l''']~|~\mu \longrightarrow l.m'(l_0) \rhd E'[l''']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
 
 Let us consider $l$'s authority for the two states. By Lemma 4, in the final state, we have:
 \[
-auth(l, l.m'(l_0) \rhd E'[l'''], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup pointsto(l''', \mu')
-\]
-and since $l'''$ is a principal,
-\[
-auth(l, l.m'(l_0) \rhd E'[l'''], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup \{ l''' \}
+auth(l, l.m'(l_0) \rhd E'[l'''], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu') \cup pointsto(l''', \mu')
 \]
 By Lemma 4, in the initial state, we have:
 \[
-auth(l, l.m'(l_0) \rhd E'[l'.m(l'') \rhd l'''], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(l'.m(l'') \rhd l''', \mu).
+auth(l, l.m'(l_0) \rhd E'[l'.m(l'') \rhd l'''], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(l'.m(l'') \rhd l''', \mu).
 \]
 Depending on whether $l'$ is a principal, there are two possibilities.
 
 \begin{enumerate}
 \item[] \textit{Case $l'$ is a principal:} By \textsc{pointsto-call-principal}, we get:
 \[
-auth(l, l.m'(l_0) \rhd E'[l'.m(l'') \rhd l'''], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup \{ l' \}.
+auth(l, l.m'(l_0) \rhd E'[l'.m(l'') \rhd l'''], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(l', \mu).
 \]
-\todo{Prove that $\{ l' \}$ does not increase authority of $l$: $\{ l' \}$ is either $pointsto(l, \mu)$ (i.e. $l' = l$), or it is in $pointsto(d, \mu)$ (i.e. it comes from $l$'s fields), or it is in $pointsto(E', \mu)$ (i.e. it was passed into $m'()$).}\\
+\todo{Prove that $\{ l' \}$ does not increase authority of $l$: $\{ l' \}$ is either $pointsto(l, \mu)$ (i.e. $l' = l$), or it is in $pointsto(\overline{d}, \mu)$ (i.e. it comes from $l$'s fields), or it is in $pointsto(E', \mu)$ (i.e. it was passed into $m'()$).}\\
 
-Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $d$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(d, \mu) = pointsto(d, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
+Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $\overline{d}$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
 
 \todo{Add the condition that $l'$ is a principal to the method return case of the theorem?}\\
 
@@ -1250,34 +1278,30 @@ Thus, $auth(l, e', \mu') = auth(l, e, \mu) \cup \{ l''' \}$ in compliance with t
 
 \item[] \textit{Case $l'$ is pure:} By \textsc{pointsto-call-data}, we get:
 \[
-auth(l, l.m'(l_0) \rhd E'[l'.m(l'') \rhd l'''], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(l''', \mu).
+auth(l, l.m'(l_0) \rhd E'[l'.m(l'') \rhd l'''], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(l''', \mu).
 \]
-and since $l'''$ is a principal,
-\[
-auth(l, l.m'(l_0) \rhd E'[l'.m(l'') \rhd l'''], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup \{ l''' \}.
-\]
-Since we are considering small-step semantics, within this evaluation step, there were no changes to $l$, $d$, and $E'$, and thus $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(d, \mu) = pointsto(d, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
+Since we are considering small-step semantics, within this evaluation step, there were no changes to $l$, $\overline{d}$, and $E'$, and thus $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
 
 Thus, $auth(l, e', \mu') = auth(l, e, \mu)$ in compliance with the theorem.
 \\
 \end{enumerate}
 
 \pcase[\textsc{E-Meth}]
-$e = E[l'.m(l'')]$, $e' = E[l'.m(l'') \rhd [l''/y] [l'/x] e'']$, and $\mu' = \mu$. From the premise, we get $l' \mapsto \{ x \Rightarrow d' \}_{s} \in \mu$ and $\keyw{def} m(y : \tau_1) : \tau_2 = e'' \in d'$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow d \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m'(l_0) \rhd E'[l'.m(l'')]~|~\mu \longrightarrow l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e'']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
+$e = E[l'.m(l'')]$, $e' = E[l'.m(l'') \rhd [l''/y] [l'/x] e'']$, and $\mu' = \mu$. From the premise, we get $l' \mapsto \{ x \Rightarrow \overline{d}' \}_{s} \in \mu$ and $\keyw{def} m(y : \tau_1) : \tau_2 = e'' \in \overline{d}'$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m'(l_0) \rhd E'[l'.m(l'')]~|~\mu \longrightarrow l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e'']~|~\mu'$}, where there are no method call stack frames in $E'$.\\
 
 Let us consider $l$'s authority for the two states. By Lemma 4, in the initial state, we have:
 \[
-auth(l, l.m'(l_0) \rhd E'[l'.m(l'')], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(l'.m(l''), \mu)\]
+auth(l, l.m'(l_0) \rhd E'[l'.m(l'')], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(l'.m(l''), \mu)\]
 and by \textsc{pointsto-otherexp},
 \[
-auth(l, l.m'(l_0) \rhd E'[l'.m(l'')], \mu) = pointsto(l, \mu) \cup pointsto(d, \mu) \cup pointsto(E', \mu) \cup pointsto(l', \mu) \cup pointsto(l'', \mu)
+auth(l, l.m'(l_0) \rhd E'[l'.m(l'')], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E', \mu) \cup pointsto(l', \mu) \cup pointsto(l'', \mu)
 \]
 
-\todo{Prove that $pointsto(l'', \mu)$ does not increase authority of $l$: $pointsto(l'', \mu)$ is either $pointsto(l, \mu)$ (i.e. $l'' = l$), or it is in $pointsto(d, \mu)$ (i.e. it comes from $l$'s fields), or it is in $pointsto(E', \mu)$ (i.e. it was passed into $m'()$).}\\
+\todo{Prove that $pointsto(l'', \mu)$ does not increase authority of $l$: $pointsto(l'', \mu)$ is either $pointsto(l, \mu)$ (i.e. $l'' = l$), or it is in $pointsto(\overline{d}, \mu)$ (i.e. it comes from $l$'s fields), or it is in $pointsto(E', \mu)$ (i.e. it was passed into $m'()$).}\\
 
 By Lemma 4, in the final state, we have:
 \begin{align*}
-auth(l, l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e''], \mu') &= pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \\
+auth(l, l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e''], \mu') &= pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu') \\
 &\cup pointsto(l'.m(l'') \rhd [l''/y] [l'/x] e'', \mu')
 \end{align*}
 
@@ -1286,34 +1310,30 @@ Depending on whether $l'$ is a principal, there are two possibilities.
 \begin{enumerate}
 \item[] \textit{Case $l'$ is a principal:} By \textsc{pointsto-call-principal}, we get:
 \[
-auth(l, l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e''], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup \{ l' \}.
-\]
-and by \textsc{pointsto-principal},
-\[
-auth(l, l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e''], \mu') = pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \cup pointsto(l', \mu')
+auth(l, l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e''], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu') \cup pointsto(l', \mu')
 \]
 
-Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $d$, $E'$, or $l'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(d, \mu) = pointsto(d, \mu')$, $pointsto(E', \mu) = pointsto(E', \mu')$, and $pointsto(l', \mu) = pointsto(l', \mu')$.\\
+Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $\overline{d}$, $E'$, or $l'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, $pointsto(E', \mu) = pointsto(E', \mu')$, and $pointsto(l', \mu) = pointsto(l', \mu')$.\\
 
 Thus, $auth(l, e', \mu') = auth(l, e, \mu)$ in compliance with the theorem.
 \\
 
 \item[] \textit{Case $l'$ is pure:} By \textsc{pointsto-call-data}, we get:
 \begin{align*}
-auth(l, l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e''], \mu') &= pointsto(l, \mu') \cup pointsto(d, \mu') \cup pointsto(E', \mu') \\
+auth(l, l.m(l_0) \rhd E'[l'.m(l'') \rhd [l''/y] [l'/x] e''], \mu') &= pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E', \mu') \\
 &\cup pointsto([l''/y] [l'/x] e'', \mu')
 \end{align*}
 
 \todo{$pointsto([l''/y] [l'/x] e'', \mu') = \varnothing$? Introduce a new rule? Or $pointsto([l''/y] [l'/x] e'', \mu') = pointsto(l'', \mu') \cup pointsto(l', \mu')$ (\textsc{pointsto-otherexp})?}\\
 
-Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $d$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(d, \mu) = pointsto(d, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
+Since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $\overline{d}$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$.\\
 
 Thus, $auth(l, e', \mu') = auth(l, e, \mu)$ in compliance with the theorem.
 \\
 \end{enumerate}
 
 \pcase[\textsc{E-Assign}]
-$e = l_1.f = l_2$, $e' = l_2$, $\mu' = [l_1 \mapsto \{ x \Rightarrow d' \}_{s}/l_1 \mapsto \{ x \Rightarrow d \}_{s}]\mu$, where $d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]d$, and from the premise, we get $l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ and $\keyw{var} f:\tau = l \in d$.
+$e = l_1.f = l_2$, $e' = l_2$, $\mu' = [l_1 \mapsto \{ x \Rightarrow \overline{d}' \}_{s}/l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s}]\mu$, where $\overline{d}' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]\overline{d}$, and from the premise, we get $l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$ and $\keyw{var} f:\tau = l \in \overline{d}$.
 
 \hspace{12pt} Let us consider $auth(l, e, \mu)$. By \textsc{auth-config}, $auth(l, e, \mu) = auth_{store}(l, \mu) \cup auth_{stack}(l,e,\mu)$. By \textsc{auth-stack-nocall}, $auth_{stack}(l, e, \mu) = \varnothing$. Then, $auth(l, e, \mu) = auth_{store}(l, \mu)$.
 
