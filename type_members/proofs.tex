@@ -2374,6 +2374,72 @@ and $\varnothing; \Sigma; \Gamma \vdash S <: S' \dashv \Gamma$
 
 \newpage
 
+Now we present the proof for expression substitution. 
+During method call reduction we need to substitute 
+method parameters with arguments into the method body.
+We want the
+substitution of paths to maintain the expression 
+typing relation. That is, if $e$ has type $T$, then 
+$[p\unlhd U/x]e$ has type $[p\unlhd U/x]T$, where $U$ is 
+the type of $x$ in the current environment.
+Since types may contain 
+variables as part of a selection type we must also 
+perform a substitution on the environment and the assumption context. 
+The full lemma is stated below.
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash e : T \\
+  	x \notin \, \Gamma_1\\
+  	A; \Sigma; \Gamma_1 \vdash p : S \\
+  	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
+  {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]e : [p \unlhd U/x]T}
+  \quad (\textsc {$:$ - Substitution})
+\end{mathpar}
+If we have an expression $e$ that has type $T$ in an environment
+containing a variable $x$ of type $U$, then the substitution 
+of a path $p$ of the appropriate type maintains the 
+typing relation assuming the correct substitutions 
+are made in the environment and assumption context.
+We make the restriction that $p$ be well-typed in the 
+absence of $x$. Since the typing relation is defined in a mutually 
+dependent manner with the subtyping, membership and 
+expansion relations, we must perform a mutual induction
+on these relations. We now need to construct a similar 
+lemma for each of these relations.
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash T <: T' \dashv\Gamma_1, (x : U), \Gamma_2' \\
+  	x \notin \, \Gamma_1\\\\
+  	A; \Sigma; \Gamma_1 \vdash p : S \\
+  	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
+  {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]T <: [p \unlhd U/x]T' \dashv \Gamma_1, [p \unlhd U/x]\Gamma_2'}
+  \quad (\textsc {$<:$ - Substitution})
+  \and
+\inferrule
+  {A; \Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash e \ni \sigma \\
+  	x \notin \, \Gamma_1\\
+  	A; \Sigma; \Gamma_1 \vdash p : S \\
+  	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
+  {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]e \ni [p \unlhd U/x]\sigma}
+  \quad (\textsc {$\ni$ - Substitution})
+  \and
+\inferrule
+  {A; \Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash T \prec_z \overline{\sigma} \\
+  	x \notin \, \Gamma_1\\
+  	A; \Sigma; \Gamma_1 \vdash p : S \\
+  	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
+  {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]T \prec_z [p \unlhd U/x]\overline{\sigma}}
+  \quad (\textsc {$\prec$ - Substitution})
+\end{mathpar}
+Each of these lemmas is just a similar statement of expression 
+substitution for each relation. The only major difference is 
+for \textsc{$<:$ - Substitution}. Since we work with a double 
+headed subtyping relation that maintains two environments, 
+we have two different environments in the statement of this
+lemma. While we don't use different environments in any other 
+parts of the type system, this is done for the purposes of 
+induction that can be seen in case \ref{case:subst:s-rec} below.
+
 \begin{lemma}[Expression Substitution]\label{lem:subst}
 \begin{mathpar}
 \inferrule
@@ -2382,13 +2448,15 @@ and $\varnothing; \Sigma; \Gamma \vdash S <: S' \dashv \Gamma$
   	A; \Sigma; \Gamma_1 \vdash p : S \\
   	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
   {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]e : [p \unlhd U/x]T}
+  \quad (\textsc {$:$ - Substitution})
   \and
 \inferrule
   {A; \Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash T <: T' \dashv\Gamma_1, (x : U), \Gamma_2' \\
-  	x \notin \, \Gamma_1\\
+  	x \notin \, \Gamma_1\\\\
   	A; \Sigma; \Gamma_1 \vdash p : S \\
   	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
   {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]T <: [p \unlhd U/x]T' \dashv \Gamma_1, [p \unlhd U/x]\Gamma_2'}
+  \quad (\textsc {$<:$ - Substitution})
   \and
 \inferrule
   {A; \Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash e \ni \sigma \\
@@ -2396,6 +2464,15 @@ and $\varnothing; \Sigma; \Gamma \vdash S <: S' \dashv \Gamma$
   	A; \Sigma; \Gamma_1 \vdash p : S \\
   	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
   {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]e \ni [p \unlhd U/x]\sigma}
+  \quad (\textsc {$\ni$ - Substitution})
+  \and
+\inferrule
+  {A; \Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash T \prec_z \overline{\sigma} \\
+  	x \notin \, \Gamma_1\\
+  	A; \Sigma; \Gamma_1 \vdash p : S \\
+  	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1}
+  {[p \unlhd U/x]A; \Sigma; , \Gamma_1, [p \unlhd U/x]\Gamma_2 \vdash [p \unlhd U/x]T \prec_z [p \unlhd U/x]\overline{\sigma}}
+  \quad (\textsc {$\prec$ - Substitution})
 \end{mathpar}
 \end{lemma}
 \begin{proof}
@@ -2548,7 +2625,7 @@ $[p\unlhd U/x]A;\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]e \u
 Trivial.
 \end{casethm}
 
-\begin{casethm}[\textsc{S-Rec}]
+\begin{casethm}[\textsc{S-Rec}]\label{case:subst:s-rec}
 \begin{mathpar}
 \inferrule
   {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2, z : \{z \Rightarrow \overline{\sigma}\} \vdash \overline{\sigma} <:\; \overline{\sigma}'  \dashv \Gamma_1, (x : U), \Gamma_2', z : \{z \Rightarrow \overline{\sigma}'\}}
@@ -2571,31 +2648,80 @@ It then follows by \textsc{S-Rec}
 \begin{casethm}[\textsc{S-Select-Refl}]
 \begin{mathpar}
 \inferrule
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p \ni \texttt{type} \; L : S_1 .. U_1\\
-  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash p \ni \texttt{type} \; L : S_2 .. U_2\\
-  	A,(p.L <: p.L); 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash S_2 \; \texttt{<:}\; S_1 \dashv \Gamma_1, (x : U), \Gamma_2 \\
-  	A,(p.L <: p.L); 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash U_1 \; \texttt{<:}\; U_2 \dashv \Gamma_1, (x : U), \Gamma_2'}
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p.L \; \texttt{<:}\; p.L \dashv \Gamma_1, (x : U), \Gamma_2'}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p' \ni \texttt{type} \; L : S_1 .. U_1\\
+  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash p' \ni \texttt{type} \; L : S_2 .. U_2\\
+  	A,(p'.L <: p'.L); 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash S_2 \; \texttt{<:}\; S_1 \dashv \Gamma_1, (x : U), \Gamma_2 \\
+  	A,(p'.L <: p'.L); 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash U_1 \; \texttt{<:}\; U_2 \dashv \Gamma_1, (x : U), \Gamma_2'}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p'.L \; \texttt{<:}\; p'.L \dashv \Gamma_1, (x : U), \Gamma_2'}
+\end{mathpar}
+By our induction hypothesis we assume
+\begin{mathpar}
+\inferrule
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash p' \ni [p\unlhd U/x](\texttt{type} \; L : S_1 .. U_1)\\
+  	[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2' \vdash p' \ni [p\unlhd U/x](\texttt{type} \; L : S_2 .. U_2)\\
+  	[p\unlhd U/x](A,(p'.L <: p'.L)); 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2' \vdash [p\unlhd U/x]S_2 \; \texttt{<:}\; [p\unlhd U/x]S_1 \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2 \\
+  	[p\unlhd U/x](A,(p'.L <: p'.L)); 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]U_1 \; \texttt{<:}\; [p\unlhd U/x]U_2 \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2'}
+  {}
+\end{mathpar}
+Since 
+\begin{mathpar}
+\inferrule
+  {[p\unlhd U/x](A,(p'.L <: p'.L)) = [p\unlhd U/x]A,([p\unlhd U/x]p'.L <: [p\unlhd U/x]p'.L)}
+  {}
+\end{mathpar}
+it then follows by \textsc{S-Select-Refl},
+\begin{mathpar}
+\inferrule
+  {}
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]p'.L \; \texttt{<:}\; [p\unlhd U/x]p'.L \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2'}
 \end{mathpar}
 \end{casethm}
 
-\begin{casethm}[\textsc{S-Select-Upper}]
+\begin{casethm}[\textsc{S-Select-Upper}] 
 \begin{mathpar}
 \inferrule
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p \ni \texttt{type} \; L : S .. U\\
-  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash S <: U \dashv \Gamma_1, (x : U), \Gamma_2 \\
-  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash U <: U' \dashv \Gamma_1, (x : U), \Gamma_2'}
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p.L\; <:\; U' \dashv \Gamma_1, (x : U), \Gamma_2'}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p' \ni \texttt{type} \; L : S' .. U'\\
+  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash S' <: U' \dashv \Gamma_1, (x : U), \Gamma_2 \\
+  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash U' <: T \dashv \Gamma_1, (x : U), \Gamma_2'}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p'.L\; <:\; T \dashv \Gamma_1, (x : U), \Gamma_2'}
+\end{mathpar}
+By our induction hypothesis we assume
+\begin{mathpar}
+\inferrule
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]p' \ni [p\unlhd U/x](\texttt{type} \; L : S' .. U')\\
+  	[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]S' <: [p\unlhd U/x]U' \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2 \\
+  	[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]U' <: [p\unlhd U/x]T \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2'}
+  {}
+\end{mathpar}
+It then follows by \textsc{S-Select-Upper},
+\begin{mathpar}
+\inferrule
+  {}
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]p'.L\; <:\; [p\unlhd U/x]T \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2'}
 \end{mathpar}
 \end{casethm}
 
 \begin{casethm}[\textsc{S-Select-Lower}]
 \begin{mathpar}
 \inferrule
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash p \ni \texttt{type} \; L : S .. U \\
-  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash S <: U \dashv \Gamma_1, (x : U), \Gamma_2' \\
-  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash S' <: S \dashv \Gamma_1, (x : U), \Gamma_2'}
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash S'\; <:\; p.L \dashv \Gamma_1, (x : U), \Gamma_2'}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash p' \ni \texttt{type} \; L : S' .. U' \\
+  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2' \vdash S' <: U' \dashv \Gamma_1, (x : U), \Gamma_2' \\
+  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash S <: S' \dashv \Gamma_1, (x : U), \Gamma_2'}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash S\; <:\; p'.L \dashv \Gamma_1, (x : U), \Gamma_2'}
+\end{mathpar}
+By our induction hypothesis we assume
+\begin{mathpar}
+\inferrule
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2' \vdash [p\unlhd U/x]p' \ni [p\unlhd U/x](\texttt{type} \; L : S' .. U') \\
+  	[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2' \vdash [p\unlhd U/x]S' <: [p\unlhd U/x]U' \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2' \\
+  	[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]S <: [p\unlhd U/x]S' \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2'}
+  {}
+\end{mathpar}
+It then follows by \textsc{S-Select-Lower},
+\begin{mathpar}
+\inferrule
+  {}
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]S'\; <:\; [p\unlhd U/x]p.L \dashv \Gamma_1, [p\unlhd U/x]\Gamma_2'}
 \end{mathpar}
 \end{casethm}
 
@@ -2620,11 +2746,27 @@ Trivial.
 \begin{casethm}[\textsc{M-Path}]
 \begin{mathpar}
 \inferrule
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p : T \\
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p' : T \\
   	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash T \prec_z \overline{\sigma}\\
   	\sigma_i \in \overline{\sigma}}
-  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p \ni [p/z]\sigma_i}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p' \ni [p'/z]\sigma_i}
 \end{mathpar}
+By our induction hypothesis we assume
+\begin{mathpar}
+\inferrule
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]p' : [p\unlhd U/x]T \\
+  	[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]T \prec_z [p\unlhd U/x]\overline{\sigma}\\
+  	[p\unlhd U/x]\sigma_i \in [p\unlhd U/x]\overline{\sigma}}
+  {}
+\end{mathpar}
+It then follows by \textsc{M-Path} that
+\begin{mathpar}
+\inferrule
+  {}
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]p' \ni [[p\unlhd U/x]p'/z]([p\unlhd U/x]\sigma_i)}
+\end{mathpar}
+Since $[[p\unlhd U/x]p'/z]([p\unlhd U/x]\sigma_i) = [p\unlhd U/x]([p'/z]\sigma_i)$
+we have the desired result. \hl{Do we? ... Substitution?}
 \end{casethm}
 
 \begin{casethm}[\textsc{M-Exp}]
@@ -2636,6 +2778,49 @@ Trivial.
   	z \notin \sigma_i}
   {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash e \ni \sigma_i}
 \end{mathpar}
+By our induction hypothesis we assume
+\begin{mathpar}
+\inferrule
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]e : [p\unlhd U/x]T \\
+  	[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]T \prec_z [p\unlhd U/x]\overline{\sigma}\\
+  	[p\unlhd U/x]\sigma_i \in [p\unlhd U/x]\overline{\sigma} \\
+  	z \notin [p\unlhd U/x]\sigma_i}
+  {}
+\end{mathpar}
+It then follows by \textsc{M-Exp} that
+\begin{mathpar}
+\inferrule
+  {}
+  {[p\unlhd U/x]A; 	\Sigma; \Gamma_1, [p\unlhd U/x]\Gamma_2 \vdash [p\unlhd U/x]e \ni [p\unlhd U/x]\sigma_i}
+\end{mathpar}
+\hl{Work needed to show $z$ is not in $[p\unlhd U/x]$}
+\end{casethm}
+
+\begin{casethm}[E-Rec]
+\begin{mathpar}
+\inferrule
+  {}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash \{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}}
+\end{mathpar}
+Trivial.
+\end{casethm}
+
+\begin{casethm}[E-Rec]
+\begin{mathpar}
+\inferrule
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p \ni \texttt{type} \; L : S..U \\
+  	A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash U \prec_z \overline{\sigma}}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash p.L \prec_z \overline{\sigma}}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[E-Rec]
+\begin{mathpar}
+\inferrule
+  {}
+  {A; 	\Sigma; \Gamma_1, (x : U), \Gamma_2 \vdash \top \prec_z \varnothing}
+\end{mathpar}
+Trivial.
 \end{casethm}
 
 \end{proof}
