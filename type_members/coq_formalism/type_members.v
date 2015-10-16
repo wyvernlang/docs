@@ -18,7 +18,6 @@ Inductive label : Type :=
 Inductive type : Type :=
   | t_rec   : list type_d -> type
   | t_sel   : exp -> label -> type
-(*  | t_union : type -> type -> type*)
   | t_top   : type
   | t_bot   : type
 
@@ -56,8 +55,9 @@ Inductive is_value : exp -> Prop :=
               is_value (e_type v T).
 
 Inductive is_value_d : decl -> Prop :=
-  | DV_Val : forall f T l,
-             is_value_d (d_val f T (e_loc l))
+  | DV_Val : forall f T v,
+             is_value v ->
+             is_value_d (d_val f T v)
   | DV_Def : forall m x S e T,
              is_value_d (d_def m x S e T)
   | DV_Type : forall L S U,
@@ -238,142 +238,147 @@ Fixpoint lookup {A : Type} (n : nat) (l : list A) : option A :=
             end
 end.
 
-Inductive typing : list (var * type) -> list type -> exp -> type -> Prop :=
-  | T_Var : forall G E x T,
+Inductive typing : list type -> list (var * type) -> exp -> type -> Prop :=
+  | T_Var : forall E G x T,
             In (x,T) G ->
-            typing G E (e_var x) T
+            typing E G (e_var x) T
 
-  | T_Loc : forall G E l T,
+  | T_Loc : forall E G l T,
             lookup l E = Some T ->
-            typing G E (e_loc l) T
+            typing E G (e_loc l) T
 
-  | T_New : forall G E d_ e T,
-            (exists2 D_, typings_d ((self, t_rec D_)::G) E d_ D_ &
-                         typing ((self, t_rec D_)::G) E e T) ->
-            typing G E (e_new d_) T
+  | T_New : forall E G d_ e T,
+            (exists2 D_, typings_d E ((self, t_rec D_)::G) d_ D_ &
+                         typing E ((self, t_rec D_)::G) e T) ->
+            typing E G (e_new d_) T
 
-  | T_Meth : forall G E e0 m U e1 T0 S T,
-             member G E e0 (t_def m S T) ->
-             typing G E e0 T0 ->
-             typing G E e1 S ->
-             sub G E T U ->
-             typing G E (e_meth e0 m U e1) U
+  | T_Meth : forall E G e0 m U e1 T0 S T,
+             member E G e0 (t_def m S T) ->
+             typing E G e0 T0 ->
+             typing E G e1 S ->
+             sub E G T U G ->
+             typing E G (e_meth e0 m U e1) U
 
-  | T_Acc : forall G E e0 f T0 T,
-            typing G E e0 T0 ->
-            member G E e0 (t_val f T) ->
-            typing G E (e_field e0 f) T
+  | T_Acc : forall E G e0 f T0 T,
+            typing E G e0 T0 ->
+            member E G e0 (t_val f T) ->
+            typing E G (e_field e0 f) T
 
-  | T_Wide : forall G E e T,
-             subtyping G E e T ->
-             typing G E (e_type e T) T
+  | T_Wide : forall E G e T,
+             subtyping E G e T ->
+             typing E G (e_type e T) T
 
-with subtyping : list (var * type) -> list type -> exp -> type -> Prop :=
-  | T_Sub : forall G E e S T,
-            typing G E e S ->
-            sub G E S T ->
-            subtyping G E e T
+with subtyping : list type -> list (var * type) -> exp -> type -> Prop :=
+  | T_Sub : forall E G e S T,
+            typing E G e S ->
+            sub E G S T G ->
+            subtyping E G e T
 
-with typing_d : list (var * type) -> list type -> decl -> type_d -> Prop :=
-  | TD_Val_x : forall G E f T e,
-             typing G E e T ->
-             typing_d G E (d_val f T e) (t_val f T)
+with typing_d : list type -> list (var * type) -> decl -> type_d -> Prop :=
+  | TD_Val_x : forall E G f T e,
+             typing E G e T ->
+             typing_d E G (d_val f T e) (t_val f T)
 
-  | TD_Def : forall G E m x S e T,
-             typing ((x,S)::G) E e T ->
-             typing_d G E (d_def m x S e T) (t_def m S T)
+  | TD_Def : forall E G m x S e T,
+             typing E ((x,S)::G) e T ->
+             typing_d E G (d_def m x S e T) (t_def m S T)
 
-  | TD_Type : forall G E L S U,
-              sub G E S U ->
-              typing_d G E (d_type L S U) (t_type L S U)
+  | TD_Type : forall E G L S U,
+              sub E G S U G ->
+              typing_d E G (d_type L S U) (t_type L S U)
 
-with typings_d : list (var * type) -> list type -> list decl -> list type_d -> Prop :=
-  | TD_Nil : forall G E, typings_d G E nil nil
+with typings_d : list type -> list (var * type) -> list decl -> list type_d -> Prop :=
+  | TD_Nil : forall E G, typings_d E G nil nil
 
-  | TD_Head : forall G E d D d_ D_,
-              typing_d G E d D ->
-              typings_d G E d_ D_ ->
-              typings_d G E (d::d_) (D::D_)
+  | TD_Head : forall E G d D d_ D_,
+              typing_d E G d D ->
+              typings_d E G d_ D_ ->
+              typings_d E G (d::d_) (D::D_)
 
-with subtyping_d : list (var * type) -> list type -> decl -> type_d -> Prop :=
-  | TD_Sub : forall G E d D D',
-             typing_d G E d D ->
-             sub_d G E D D' ->
-             subtyping_d G E d D'
+with subtyping_d : list type -> list (var * type) -> decl -> type_d -> Prop :=
+  | TD_Sub : forall E G d D D',
+             typing_d E G d D ->
+             sub_d E G D D' G ->
+             subtyping_d E G d D'
 
-with subtypings_d : list (var * type) -> list type -> list decl -> list type_d -> Prop :=
-  | Sub_TD_Nil  : forall G E, subtypings_d G E nil nil
+with subtypings_d : list type -> list (var * type) -> list decl -> list type_d -> Prop :=
+  | Sub_TD_Nil  : forall E G, subtypings_d E G nil nil
 
-  | Sub_TD_Head : forall G E d D d_ D_,
-                  subtyping_d G E d D ->
-                  subtypings_d G E d_ D_ ->
-                  subtypings_d G E (d::d_) (D::D_)
+  | Sub_TD_Head : forall E G d D d_ D_,
+                  subtyping_d E G d D ->
+                  subtypings_d E G d_ D_ ->
+                  subtypings_d E G (d::d_) (D::D_)
 
-with sub : list (var * type) -> list type -> type -> type -> Prop :=
-  | S_Refl      : forall G E T, sub G E T T
+with sub : list type -> list (var * type) -> type -> type -> list (var * type) -> Prop :=
+  | S_Rec       : forall E G1 G2 D_ D_',
+                  subs_d E ((self,(t_rec D_))::G1) D_ D_' ((self,(t_rec D_'))::G2) ->
+                  sub E G1 (t_rec D_) (t_rec D_') G2
 
-  | S_Rec       : forall G E D_ D_',
-                  subs_d G E D_ D_' ->
-                  sub G E (t_rec D_) (t_rec D_')
+  | S_Sel_Refl : forall E G1 G2 p L S1 S2 U1 U2,
+                  member E G1 p (t_type L S1 U2) ->
+                  member E G2 p (t_type L S1 U2) ->
+                  sub E G1 U1 U2 G2 ->
+                  sub E G2 S2 S1 G1 ->
+                  sub E G1 (t_sel p L) (t_sel p L) G2
 
-  | S_Sel_Upper : forall G E p L S U U',
-                  sub G E U U' ->
-                  member G E p (t_type L S U) ->
-                  sub G E (t_sel p L) U'
+  | S_Sel_Upper : forall G1 G2 E p L S U U',
+                  member E G1 p (t_type L S U) ->
+                  sub E G1 U U' G2 ->
+                  sub E G1 (t_sel p L) U' G2
 
-  | S_Sel_Lower : forall G E p L S U S',
-                  sub G E S' S ->
-                  member G E p (t_type L S U) ->
-                  sub G E S' (t_sel p L)
+  | S_Sel_Lower : forall E G1 G2 p L S U S',
+                  member E G2 p (t_type L S U) ->
+                  sub E G1 S' S G2 ->
+                  sub E G1 S' (t_sel p L) G2
 
-  | S_Top       : forall G E T,
-                  sub G E T t_top
+  | S_Top       : forall E G1 G2 T,
+                  sub E G1 T t_top G2
 
-  | S_Bot       : forall G E T,
-                  sub G E t_bot T
+  | S_Bot       : forall E G1 G2 T,
+                  sub E G1 t_bot T G2
 
-with sub_d : list (var * type) -> list type -> type_d -> type_d -> Prop :=
-  | SD_Var  : forall G E f S T,
-              sub G E S T ->
-              sub_d G E (t_val f S) (t_val f T)
-  | SD_Def  : forall G E m S T S' T',
-              sub G E S' S ->
-              sub G E T T' ->
-              sub_d G E (t_def m S T) (t_def m S' T')
-  | SD_Type : forall G E L S U S' U',
-              sub G E S' S ->
-              sub G E U U' ->
-              sub_d G E (t_type L S U) (t_type L S' U')
+with sub_d : list type -> list (var * type) -> type_d -> type_d -> list (var * type) -> Prop :=
+  | SD_Var  : forall E G1 G2 f S T,
+              sub E G1 S T G2 ->
+              sub_d E G1 (t_val f S) (t_val f T) G2
+  | SD_Def  : forall E G1 G2 m S T S' T',
+              sub E G1 S' S G2 ->
+              sub E G1 T T' G2 ->
+              sub_d E G1 (t_def m S T) (t_def m S' T') G2
+  | SD_Type : forall E G1 G2 L S U S' U',
+              sub E G1 S' S G2 ->
+              sub E G1 U U' G2 ->
+              sub_d E G1 (t_type L S U) (t_type L S' U') G2
 
-with subs_d : list (var * type) -> list type -> list type_d -> list type_d -> Prop :=
-  | SD_Nil  : forall G E D_,
-              subs_d G E D_ nil
-  | SD_list  : forall G E D_ D_' D D',
-              sub_d G E D D' ->
-              subs_d G E D_ D_' ->
-              subs_d G E (D::D_) (D'::D_')
+with subs_d : list type -> list (var * type) -> list type_d -> list type_d -> list (var * type) -> Prop :=
+  | SD_Nil  : forall E G1 G2 D_,
+              subs_d E G1 D_ nil G2
+  | SD_list  : forall E G1 G2 D_ D_' D D',
+              sub_d E G1 D D' G2 ->
+              subs_d E G1 D_ D_' G2 ->
+              subs_d E G1 (D::D_) (D'::D_') G2
 
-with expansion : list (var * type) -> list type -> type -> list type_d -> Prop:=
-  | E_Rec : forall G E D_,
-            expansion G E (t_rec D_) D_
-  | E_Sel : forall G E p L S U D_,
+with expansion : list type -> list (var * type) -> type -> list type_d -> Prop:=
+  | E_Rec : forall E G D_,
+            expansion E G (t_rec D_) D_
+  | E_Sel : forall E G p L S U D_,
             is_path p ->
-            member G E p (t_type L S U) ->
-            expansion G E U D_ ->
-            expansion G E (t_sel p L) D_
+            member E G p (t_type L S U) ->
+            expansion E G U D_ ->
+            expansion E G (t_sel p L) D_
 
-with member : list (var * type) -> list type -> exp -> type_d -> Prop:=
-  | M_Path : forall G E p T D_ D,
-             typing G E p T ->
-             expansion G E T D_ ->
+with member : list type -> list (var * type) -> exp -> type_d -> Prop:=
+  | M_Path : forall E G p T D_ D,
+             typing E G p T ->
+             expansion E G T D_ ->
              In D D_ ->
-             member G E p (subst_D self p D)
-  | M_Exp : forall G E e T D_ D,
-            typing G E e T ->
-            expansion G E T D_ ->
+             member E G p (subst_D self p D)
+  | M_Exp : forall E G e T D_ D,
+            typing E G e T ->
+            expansion E G T D_ ->
             In D D_ ->
             notin_D self D ->
-            member G E e D.
+            member E G e D.
 
 Hint Constructors typing subtyping typing_d typings_d subtyping_d subtypings_d sub sub_d subs_d expansion member.
 
