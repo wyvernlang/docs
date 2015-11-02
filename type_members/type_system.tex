@@ -129,72 +129,109 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
 %\label{f:narrow}
 %\end{figure}
 
+\newpage
+
 \section{Semantics}
 
 \begin{figure}[h]
-\hfill \fbox{$\mu \vdash v \leadsto l$}
+\hfill \fbox{$\mu; \Sigma \vdash v \leadsto l$}
 \begin{mathpar}
 \inferrule
   {}
-  {\mu \vdash l \leadsto l}
-  \quad (\textsc {L-Loc})
+  {\mu; \Sigma \vdash l \leadsto l }
+  \quad (\textsc {P-Loc})
 	\and
 \inferrule
-  {\mu \vdash v \leadsto l}
-  {\mu \vdash v \unlhd T \leadsto l}
+  {\mu; \Sigma \vdash v \leadsto v'}
+  {\mu; \Sigma \vdash v \unlhd T \leadsto v' \unlhd T}
   \quad (\textsc {L-Type})
 	\and
 \inferrule
-  {\mu \vdash v \leadsto l' \\
-	\mu(l') = \{z \Rightarrow ..., \texttt{val} f : T = l, ...\}}
-  {\mu \vdash v.f \leadsto l}
+  {\mu; \Sigma \vdash v \leadsto v' \\
+   \mu; \Sigma \vdash v' \leadsto_{f} v_f}
+  {\mu; \Sigma \vdash v.f \leadsto v_f}
   \quad (\textsc {L-Path})
 \end{mathpar}
-\hfill \fbox{$\mu \vdash d_v \leadsto d$}
+\hfill \fbox{$\mu; \Sigma \vdash d_v \leadsto d$}
 \begin{mathpar}
 \inferrule
-  {\mu \vdash v \leadsto l}
-  {\mu \vdash \texttt{val} \; f : T = v \leadsto \texttt{val} \; f : T = l}
+  {\mu; \Sigma \vdash v \leadsto v'}
+  {\mu; \Sigma \vdash \texttt{val} \; f : T = v \leadsto \texttt{val} \; f : T = v'}
   \quad (\textsc {L-Val})
 	\and
 \inferrule
   {}
-  {\mu \vdash \texttt{def} \; m : S(x:T) = e \leadsto \texttt{def} \; m(x:S) = e : T}
+  {\mu; \Sigma \vdash \texttt{def} \; m : S(x:T) = e \leadsto \texttt{def} \; m(x:S) = e : T}
   \quad (\textsc {L-Def})
 	\and
 \inferrule
   {}
-  {\mu \vdash \texttt{type} \; L : S .. U \leadsto \texttt{type} \; L : S .. U}
+  {\mu; \Sigma \vdash \texttt{type} \; L : S .. U \leadsto \texttt{type} \; L : S .. U}
   \quad (\textsc {L-Type})
 \end{mathpar}
 \caption{Path Leads-to Judgement}
 \label{f:path}
 \end{figure}
 
-\hl{Notes:} Can we define subtyping as simply subtype of expansions? i.e.
+\begin{figure}[h]
+\hfill \fbox{$\mu; \Sigma \vdash v.f \leadsto_{f} v$}
 \begin{mathpar}
 \inferrule
-  {}
-  {\Gamma \vdash \bot <: T}
-  \quad (\textsc {S-Bottom})
+  {\mu(l) = \{z \Rightarrow ..., \texttt{val} f : T_f = v_f, ...\}}
+  {\mu; \Sigma \vdash l \leadsto_{f} v_f \unlhd [l/z] T_f}
+  \quad (\textsc {L\textsubscript{$f$}-Loc})
 	\and
 \inferrule
-  {\Gamma \vdash S \prec_z \overline{\sigma}, T \prec_z \overline{\sigma}' \\
-   \Gamma, (z : S) \vdash \overline{\sigma} <: \overline{\sigma}'}
-  {\Gamma \vdash S <: T}
-  \quad (\textsc {S-Exp})
+  {\mu; \Sigma \vdash v \leadsto_{f} v_f \\
+  	\varnothing; \Sigma; \varnothing \vdash v \unlhd T \ni \texttt{val} f : T_f}
+  {\mu; \Sigma \vdash v \unlhd T \leadsto_{f} v_f \unlhd T_f}
+  \quad (\textsc {L\textsubscript{$f$}-Type})
 \end{mathpar}
-No, because potentially 
+\caption{Field Leadsto Judgement}
+\label{f:path_field}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$v \leadsto_{\unlhd} l$}
 \begin{mathpar}
 \inferrule
   {}
-  {\Gamma \vdash S <: S' \\ 
-  	\Gamma \vdash S' \prec_z \overline{\sigma}\\
-  	\Gamma \vdash U \prec_z \overline{\sigma}'\\
-  	}
+  {l \leadsto_{\unlhd} l}
+  \quad (\textsc {L\textsubscript{$\unlhd$}-Loc})
+	\and
+\inferrule
+  {v \leadsto_{\unlhd} l}
+  {v \unlhd T \leadsto_{\unlhd} l}
+  \quad (\textsc {L\textsubscript{$\unlhd$}-Type})
 \end{mathpar}
+\caption{Cast Leadsto Judgement}
+\label{f:path_cast}
+\end{figure}
 
+%\hl{Notes:} Can we define subtyping as simply subtype of expansions? i.e.
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\Gamma \vdash \bot <: T}
+%  \quad (\textsc {S-Bottom})
+%	\and
+%\inferrule
+%  {\Gamma \vdash S \prec_z \overline{\sigma}, T \prec_z \overline{\sigma}' \\
+%   \Gamma, (z : S) \vdash \overline{\sigma} <: \overline{\sigma}'}
+%  {\Gamma \vdash S <: T}
+%  \quad (\textsc {S-Exp})
+%\end{mathpar}
+%No, because potentially 
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\Gamma \vdash S <: S' \\ 
+%  	\Gamma \vdash S' \prec_z \overline{\sigma}\\
+%  	\Gamma \vdash U \prec_z \overline{\sigma}'\\
+%  	}
+%\end{mathpar}
 
+\newpage
 
 
 \input{subtype}

@@ -1837,8 +1837,8 @@ previous case to the new subtype chain to show that $\Gamma \vdash S <: U$.
 
 \begin{lemma} \label{lem:path_type_preservation}
 If $\Gamma; \Sigma \vdash v : T$, 
-$\Sigma \vdash  \mu$ and $\mu \vdash v \leadsto l$ then 
-$\Gamma; \Sigma \vdash l : T$.
+$\Sigma \vdash  \mu$ and $\mu \vdash v \leadsto v'$ then 
+$\Gamma; \Sigma \vdash v' : T$.
 \end{lemma}
 \begin{proof}
 By induction on the derivation of $\mu \vdash v \leadsto l$.
@@ -1856,15 +1856,16 @@ Trivial.
 \end{casethm}
 \begin{casethm}[\textsc{L-Type}]
 \begin{mathpar}
-  {v = v' \unlhd T}
+  {v = v_1 \unlhd T}
   {}
   \and
 \inferrule
-  {\mu \vdash v' \leadsto l}
-  {\mu \vdash v' \unlhd T \leadsto l}
+  {\mu \vdash v_1 \leadsto v_2}
+  {\mu \vdash v_1 \unlhd T \leadsto v_2 \unlhd T}
 \end{mathpar}
-Since we know that $\Gamma; \Sigma \vdash v' \unlhd T: T$, 
-by \textsc{T-Type} we can infer $\Gamma; \Sigma \vdash v' : T$.
+Since we know that $\Gamma; \Sigma \vdash v_1 \unlhd T: T$, 
+by \textsc{T-Type} we can infer $A; \Sigma; \Gamma \vdash v_2 : T'$, 
+where $A; \Sigma; \Gamma \vdash T' <: T \dashv \Gamma$.
 By our induction hypothesis, we assume that if 
 $\Gamma; \Sigma \vdash v' : T$ then 
 $\Gamma; \Sigma \vdash l : T$. This completes the case.
@@ -2994,14 +2995,188 @@ Trivial.
 
 \newpage
 
-\begin{lemma}[Leadsto type Preservation] \label{lem:path_type_preservation}
-If $\varnothing; \Sigma; \Gamma \vdash v : T$, 
-$\Sigma \vdash  \mu$ and $\mu \vdash v \leadsto l$ then 
-$\varnothing; \Sigma; \Gamma \vdash l : S$ where
-$\varnothing; \Sigma; \Gamma \vdash S <: T \dashv \Gamma$.
+\begin{lemma}[Subtype Expansion] \label{lem:subtype_expansion}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma_1 \vdash S \prec_z \overline{\sigma}_1 \\
+   A; \Sigma; \Gamma_2 \vdash T \prec_z \overline{\sigma}_2 \\
+   A; \Sigma; \Gamma_1 \vdash S <: T \dashv \Gamma_2}
+  {A; \Sigma; \Gamma_1,(z:S) \vdash \overline{\sigma}_1 <:^* \overline{\sigma}_2 \dashv \Gamma_2, (z:T)}
+\end{mathpar}
 \end{lemma}
 \begin{proof}
-By induction on the derivation of $\mu \vdash v \leadsto l$.
+By induction on the derivation of $A; \Sigma; \Gamma_1 \vdash S <: T \dashv \Gamma_2$.
+\begin{casethm}[\textsc {S-Assume}]
+\begin{mathpar}
+\inferrule
+  {(S <: T) \in A}
+  {A; \Sigma; \Gamma_1 \vdash S\; \texttt{<:}\; T \dashv \Gamma_2}
+\end{mathpar}
+\hl{errrm ...}
+\end{casethm}
+\begin{casethm}[\textsc {S-Rec}]
+\begin{mathpar}
+\inferrule
+	{S = \{z \Rightarrow \overline{\sigma}_1\} \\
+	 T = \{z \Rightarrow \overline{\sigma}_2\}}
+	{}
+	\and
+\inferrule
+  {A; \Sigma; \Gamma_1, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <: \overline{\sigma}_2  \dashv \Gamma_2, z : \{z \Rightarrow \overline{\sigma}_2\}}
+  {A; \Sigma; \Gamma_1 \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}\dashv \Gamma_2}
+\end{mathpar}
+Trivial.
+\end{casethm}
+\begin{casethm}[\textsc {S-Select-Refl}]
+\begin{mathpar}
+\inferrule
+	{S = p.L \\
+	 T = p.L}
+	{}
+	\and
+\inferrule
+  {A; \Sigma; \Gamma_1 \vdash p \ni \texttt{type} \; L : S_1 .. U_1\\
+  	A; \Sigma; \Gamma_2 \vdash p \ni \texttt{type} \; L : S_2 .. U_2\\
+  	A, (p.L <: p.L); \Sigma; \Gamma_2 \vdash S_2 \; \texttt{<:}\; S_1 \dashv \Gamma_1 \\
+  	A, (p.L <: p.L); \Sigma; \Gamma_1 \vdash U_1 \; \texttt{<:}\; U_2 \dashv \Gamma_2}
+  {A; \Sigma; \Gamma_1 \vdash p.L \; \texttt{<:}\; p.L \dashv \Gamma_2}
+\end{mathpar}
+Inversion on the derivation of $A; \Sigma; \Gamma_1 \vdash S \prec_z \overline{\sigma}_1$ 
+gives us $A; \Sigma; \Gamma_1 \vdash U_1 \prec_z \overline{\sigma}_1$ by \textsc{E-Sel}.
+Similarly inversion on 
+$A; \Sigma; \Gamma_2 \vdash T \prec_z \overline{\sigma}_2$
+gives us $A; \Sigma; \Gamma_2 \vdash U_2 \prec_z \overline{\sigma}_2$ by \textsc{E-Sel}.
+Since $A, (p.L <: p.L); \Sigma; \Gamma_1 \vdash U_1 \; \texttt{<:}\; U_2 \dashv \Gamma_2$
+and by our induction hypothesis we assume
+$A; \Sigma; \Gamma_1 \vdash \overline{\sigma}_1 <:^* \overline{\sigma}_2 \dashv \Gamma_2$ 
+which proves the case.
+\end{casethm}
+\begin{casethm}[\textsc {S-Select-Upper}]
+\begin{mathpar}
+\inferrule
+	{S = p.L}
+	{}
+	\and
+\inferrule
+  {A; \Sigma; \Gamma_1 \vdash p \ni \texttt{type} \; L : S' .. U'\\
+  	A; \Sigma; \Gamma_1 \vdash S' <: U' \dashv \Gamma_1 \\
+  	A; \Sigma; \Gamma_1 \vdash U' <: T' \dashv \Gamma_2}
+  {A; \Sigma; \Gamma_1 \vdash p.L\; <:\; T \dashv \Gamma_2}
+\end{mathpar}
+Since $S = p.L$, by inversion on the derivation of 
+$A; \Sigma; \Gamma_1 \vdash S \prec_z \overline{\sigma}_1$, 
+we get $A; \Sigma; \Gamma_1 \vdash U' \prec_z \overline{\sigma}_1$.
+Since $A; \Sigma; \Gamma_1 \vdash U' <: T' \dashv \Gamma_2$ 
+and by our induction hypothesis we get 
+$A; \Sigma; \Gamma_1 \vdash \overline{\sigma}_1 <:^* \overline{\sigma}_2 \dashv \Gamma_2$ 
+which proves the case.
+\end{casethm}
+\begin{casethm}[\textsc {S-Select-Lower}]
+\begin{mathpar}
+\inferrule
+	{T = p.L}
+	{}
+	\and
+\inferrule
+  {A; \Sigma; \Gamma_2 \vdash p \ni \texttt{type} \; L : S' .. U' \\
+  	A; \Sigma; \Gamma_2 \vdash S' <: U' \dashv \Gamma_2 \\
+  	A; \Sigma; \Gamma_1 \vdash S <: S' \dashv \Gamma_2}
+  {A; \Sigma; \Gamma_1 \vdash S\; <:\; p.L \dashv \Gamma_2}
+\end{mathpar}
+Since $T = p.L$ and by inversion on the derivation of 
+$A; \Sigma; \Gamma_2 \vdash T \prec_z \overline{\sigma}_2$ 
+we have $A; \Sigma; \Gamma_2 \vdash U' \prec_z \overline{\sigma}_2$.
+Since the bounds of $p.L$ are well-formed, there exists 
+some $\overline{\sigma}$ such that 
+$A; \Sigma; \Gamma_2 \vdash S' \prec_z \overline{\sigma}$, and 
+thus by our induction hypothesis we assume 
+$A; \Sigma; \Gamma_1 \vdash \overline{\sigma}_1 <:^* \overline{\sigma} \dashv \Gamma_2$ and 
+$A; \Sigma; \Gamma_2 \vdash \overline{\sigma} <:^* \overline{\sigma}_2 \dashv \Gamma_2$. 
+It follows then that 
+$A; \Sigma; \Gamma_1 \vdash \overline{\sigma}_1 <:^* \overline{\sigma}_2 \dashv \Gamma_2$ 
+which proves the case.
+\end{casethm}
+\begin{casethm}[\textsc {S-Top}]
+\begin{mathpar}
+\inferrule
+	{T = \top}
+	{}
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma_1 \vdash S\; \texttt{<:}\; \top \dashv \Gamma_2}
+\end{mathpar}
+Trivial.
+\end{casethm}
+\begin{casethm}[\textsc {S-Bottom}]
+\begin{mathpar}
+\inferrule
+	{S = \bot}
+	{}
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma_1 \vdash \bot\; \texttt{<:}\; T \dashv \Gamma_2}
+\end{mathpar}
+Trivial.
+\end{casethm}
+\end{proof}
+\qed
+
+\newpage
+
+\begin{lemma}[Field Leadsto type Preservation] \label{lem:field_leadsto_preservation}
+If $\varnothing; \Sigma; \varnothing \vdash v : T$,
+$\varnothing; \Sigma; \varnothing \vdash v \ni \texttt{val} f : T'$, 
+$\Sigma \vdash  \mu$ and $\mu; \Sigma \vdash v \leadsto_f v_f$ then 
+$\varnothing; \Sigma; \varnothing \vdash v_f : T'$.
+\end{lemma}
+\begin{proof}
+By induction on the derivation of $\mu; \Sigma \vdash v \leadsto_f v_f$.
+\begin{casethm}[\textsc{L\textsubscript{$f$}-Loc}]
+\begin{mathpar}
+\inferrule
+  {v = l}
+  {}
+  \and
+\inferrule
+  {\mu(l) = \{z \Rightarrow ..., \texttt{val} f : T_f = v_f, ...\}}
+  {\mu; \Sigma \vdash l \leadsto_{f} v_f \unlhd [l/z]T_f}
+\end{mathpar}
+From $\varnothing; \Sigma; \varnothing \vdash v : T$, it follows that 
+$T = \Sigma(l)$, where 
+$\Sigma(l) = \{z \Rightarrow ..., \texttt{val} f : T_f, ...\}$. Now by 
+case analysis on the derivation of 
+$\varnothing; \Sigma; \varnothing \vdash v \ni \texttt{val} f : T_f$, we 
+can see that $T' = [l/z]T_f$.
+Further, by the well-formedness of $\mu$ we get
+$\varnothing; \Sigma; \varnothing \vdash v_f : S$ where 
+$\varnothing; \Sigma; \varnothing \vdash S <: [l/z]T_f \dashv \varnothing$. Therefore 
+by \textsc{T-Type} we get $\varnothing; \Sigma; \varnothing \vdash v_f\unlhd [l/z]T_f : [l/z]T_f$
+\end{casethm}
+\begin{casethm}[\textsc{L\textsubscript{$f$}-Type}]
+\begin{mathpar}
+\inferrule
+  {v = v' \unlhd T}
+  {}
+  \and
+\inferrule
+  {\mu; \Sigma \vdash v' \leadsto_{f} v_f \\
+  	\varnothing; \Sigma; \varnothing \vdash v' \unlhd T \ni \texttt{val} f : T_f}
+  {\mu; \Sigma \vdash v' \unlhd T \leadsto_{f} v_f \unlhd T_f}
+\end{mathpar}
+\hl{TODO: Subtpe membership}
+\end{casethm}
+\end{proof}
+\qed
+
+\begin{lemma}[Leadsto type Preservation] \label{lem:path_type_preservation}
+If $\varnothing; \Sigma; \varnothing \vdash v : T$, 
+$\Sigma \vdash  \mu$ and $\mu; \Sigma \vdash v \leadsto v'$ then 
+$\varnothing; \Sigma; \varnothing \vdash v' : T$.
+\end{lemma}
+\begin{proof}
+By induction on the derivation of $\mu; \Sigma \vdash v \leadsto v'$.
 \begin{casethm}[\textsc{L-Loc}]
 \begin{mathpar}
 \inferrule
@@ -3010,43 +3185,46 @@ By induction on the derivation of $\mu \vdash v \leadsto l$.
   \and
 \inferrule
   {}
-  {\mu \vdash l \leadsto l}
+  {\mu; \Sigma \vdash l \leadsto l}
 \end{mathpar}
 Trivial.
 \end{casethm}
 \begin{casethm}[\textsc{L-Type}]
 \begin{mathpar}
-  {v = v' \unlhd T}
+  {v = v_1 \unlhd T}
   {}
   \and
 \inferrule
-  {\mu \vdash v' \leadsto l}
-  {\mu \vdash v' \unlhd T \leadsto l}
+  {\mu; \Sigma \vdash v_1 \leadsto v_2}
+  {\mu; \Sigma \vdash v_1 \unlhd T \leadsto v_2 \unlhd T}
 \end{mathpar}
-Since we know that $\varnothing; \Sigma; \Gamma \vdash v' \unlhd T: T$, 
-by \textsc{T-Type} we can infer $\varnothing; \Sigma; \Gamma \vdash v' : S'$ 
-and $\varnothing; \Sigma; \Gamma \vdash S' <: T \dashv \Gamma$.
+Since we know that $\varnothing; \Sigma; \varnothing \vdash v_1 \unlhd T: T$, 
+by \textsc{T-Type} we can infer $\varnothing; \Sigma; \varnothing \vdash v_1 : S$ 
+and $\varnothing; \Sigma; \varnothing \vdash S <: T \dashv \varnothing$.
 By our induction hypothesis, we assume that if 
-$\varnothing; \Sigma; \Gamma \vdash v' : S'$ then 
-$\varnothing; \Sigma; \Gamma \vdash l : S$, where 
-$\varnothing; \Sigma; \Gamma \vdash S <: S' \dashv \Gamma$.
-By \hl{Subtype Transitivity} we have 
-$\varnothing; \Sigma; \Gamma \vdash S <: T \dashv \Gamma$.
+$\varnothing; \Sigma; \varnothing \vdash v_1 : S$ then 
+$\varnothing; \Sigma; \varnothing \vdash v_2 : S$.
+By \textsc{T-Type} we have 
+$\varnothing; \Sigma; \varnothing \vdash v_2 \unlhd T: T$.
 \end{casethm}
 \begin{casethm}[\textsc{L-Path}]
 \begin{mathpar}
 \inferrule
-  {\mu \vdash v' \leadsto l' \\
-	\mu(l') = \{z \Rightarrow ..., \texttt{val} f : T' = l, ...\}}
-  {\mu \vdash v'.f \leadsto l}
+  {v = v_1.f}
+  {}
+  \and
+\inferrule
+  {\mu; \Sigma \vdash v_1 \leadsto v_2 \\
+   \mu; \Sigma \vdash v_2 \leadsto_{f} v_f}
+  {\mu; \Sigma \vdash v_1.f \leadsto v_f}
 \end{mathpar}
-By inversion on the derivation of $\Gamma; \Sigma \vdash v'.f : T$ we 
+By inversion on the derivation of $\Gamma; \Sigma \vdash v_1.f : T$ we 
 have 
 \begin{mathpar}
 \inferrule
-  {	\varnothing; \Sigma; \Gamma \vdash v' : S' \\
-  	\varnothing; \Sigma; \Gamma \vdash v' \ni \texttt{val} \; f:T}
-  {	\varnothing; \Sigma; \Gamma \vdash v'.f : T}
+  {	\varnothing; \Sigma; \Gamma \vdash v_1 : S \\
+  	\varnothing; \Sigma; \Gamma \vdash v_1 \ni \texttt{val} \; f:T}
+  {	\varnothing; \Sigma; \Gamma \vdash v_1.f : T}
 \end{mathpar}
 By assumption $\Sigma \vdash \mu$, which implies $\varnothing; \Sigma; \varnothing 
 \vdash l : S$, where 

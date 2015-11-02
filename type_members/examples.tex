@@ -371,6 +371,159 @@ c.m(a) $\rightarrow$ (val y = new {z $\Rightarrow$ val l : (a $\unlhd$ c.k.L).Y 
                             val m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
 \end{lstlisting}
 
+\newpage
+
+\section{Contravariant Lower Bounds and Subtype Transitivity}
+Below is a simple example that demonstrates that 
+when you allow subtype contravariance on the lower bounds 
+of type members in the presence of two environments, 
+transitivity can fail, and subsequently so does preservation
+due to an ill-typed store. First we consider three types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+A = {z $\Rightarrow$ type N : $\bot$ .. $\top$}
+
+B = {z $\Rightarrow$ type N : $\bot$ .. $\top$
+          def meth1(x : $\top$){return new{z $\Rightarrow$}}:$\top$}
+         
+S = {z $\Rightarrow$ type L : A .. $\top$
+          type M : z.L .. $\top$
+          val f : A
+          def meth2(x : $\top$){...}:A}
+         
+T = {z $\Rightarrow$ type L : A .. $\top$
+          type M : z.L .. $\top$
+          val f : z.L
+          def meth2(x : $\top$){...}:z.L}
+         
+U = {z $\Rightarrow$ type L : B .. $\top$
+          type M : z.L .. $\top$
+          val f : z.L
+          def meth2(x : $\top$){...}:z.L}
+\end{lstlisting}
+Clearly $\texttt{B} <: \texttt{A}$, and subsequently
+$\texttt{S} <: \texttt{T}$ and $\texttt{T} <: \texttt{U}$. 
+However \texttt{S} does not subtype \texttt{U}, so subtyping 
+is not transitive. The following example demonstrates how this 
+can then lead to an ill-formed store. First we define another type
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$ val badField : U}
+\end{lstlisting}
+Now consider this program.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = new {z $\Rightarrow$ def createT (x : $\top$){
+                                  return new S{val f = new A}
+                                }:T}.createT(...)}
+\end{lstlisting}
+Evaluating this we can see that what initially 
+looks like a reasonable program that in fact type 
+checks fine actually results in a bad field assignment 
+and thus an ill-formed store. The above code fragment 
+evaluates to the following.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = l1.createT(...)}
+\end{lstlisting}
+Where \texttt{l1} is a location in the store 
+that contains the newly created object. At this 
+point the store is still fine.
+Further evaluation of the method call gives us this.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = (new S{val f = new A} $\unlhd$ T)}
+\end{lstlisting}
+We now evaluate the $new A$ and $new S$ expressions to get.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = (l3 $\unlhd$ T)}
+\end{lstlisting}
+Where \texttt{l3} and \texttt{l2} (which is not shown) 
+point to the new \texttt{S} and \texttt{A} objects 
+in the store respectively. Now one more step of completes
+the evaluation and results in the ill-formed store.
+\begin{lstlisting}[mathescape, style=custom_lang]
+l4
+\end{lstlisting}
+Where \texttt{l4} is the location in the store containing 
+the newly created \texttt{X} object. The type for \texttt{badField}
+in \texttt{X} is \texttt{U}, while the type of the object 
+it is initialized to (\texttt{l3}) is \texttt{S}, which as we showed 
+previously is not a subtype of \texttt{U}.
+
+Since this only affects the lower bounds on type members, 
+this should never result in an incorrect method or field call, 
+however it does violate the restrictions enforced by lower bounds.
+
+\subsection{Proposed Type Wrapper Solution}
+As mentioned previously, this does not cause 
+a problem with method and field accesses since 
+these are always checked against upper bounds which 
+will always be above any subtype. In the above 
+example the issue arises from the lower bounds 
+of the \texttt{L} type member in each type. So 
+while \texttt{A} does not subtype \texttt{z.L} 
+in \texttt{U}, it does subtype the upper bound of
+\texttt{z.L}, and there would be no way to construct 
+an example where it does not. So we know that 
+programs that are initially well-typed should all 
+behave in an expected manner even if they enter 
+an ill-typed state during evaluation. In order 
+to avoid this ill-typed state, we make use of our
+existing syntax, the explicit up-cast of expressions, 
+$e \unlhd T$. While transitivity in general does not 
+hold, we can try and avoid transitivity altogether.
+Below we re-assess the previous example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = new {z $\Rightarrow$ def createT (x : $\top$){
+                                  return new S{val f = new A}
+                                }:T}.createT(...)}
+\end{lstlisting}
+\begin{center}$\downarrow$\end{center}
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = l1.createT(...)}
+\end{lstlisting}
+\begin{center}$\downarrow$\end{center}
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = (new S{val f = new A} $\unlhd$ T)}
+\end{lstlisting}
+\begin{center}$\downarrow$\end{center}
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = (l3 $\unlhd$ T)}
+\end{lstlisting}
+At this point we would normally strip the type 
+\texttt{T} away from the field initializer before 
+storing it in the store. Now we leave it there. 
+If we were initializing \texttt{badField} with 
+a field access, we would insert an explicit 
+upcast to the type of the field. Below is an 
+example of this.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = new {z $\Rightarrow$ val fieldT : T}
+                             (val fieldT = new S(val f = new A)).fieldT}
+\end{lstlisting}
+Here we have initialized \texttt{badField} to a 
+field call \texttt{fieldT} on a new object. 
+Evaluation is similar to the previous example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = new {z $\Rightarrow$ val fieldT : T}
+                             (val fieldT = l1).fieldT}
+\end{lstlisting}
+Where \texttt{l1} is the location in the store containing the 
+new \texttt{S} object. Now this evaluates to
+\begin{lstlisting}[mathescape, style=custom_lang]
+new X {val badField = l2.fieldT}
+\end{lstlisting}
+Where \texttt{l2} is the location in the store 
+containing our new object that has the \texttt{fieldT} 
+field. Now continuing evaluation, normally we would simply 
+retrieve the location stored in \texttt{fieldT} and store
+it in \texttt{badField}, but now we rather retrieve 
+\texttt{l1} (the location stored in \texttt{fieldT}) 
+and explicitly upcast it to the type of \texttt{fieldT}, 
+\texttt{T}. Continuing evaluation we get the following 
+\begin{lstlisting}[mathescape, style=custom_lang]
+l3
+\end{lstlisting}
+Where \texttt{l3} is the location containing our new
+\texttt{X} object. The difference is that the expression 
+stored in \texttt{badField} is \texttt{l2 $\unlhd$ T}, 
+which means that the store is not ill-typed.
 
 
 
