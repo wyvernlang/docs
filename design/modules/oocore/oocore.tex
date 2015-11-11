@@ -845,12 +845,12 @@ $\keywadj{new}_s(x \Rightarrow \keyw{def} m(y : Unit) : \tau = e).m(\keywadj{new
 
 \subsection{Translation Rules}
 
-$\textit{trans}(\keyw{def} m(x : \tau_1) : \tau_2; \sigma) \equiv \keyw{def} m : \tau_1 \rightarrow \tau_2; trans(\sigma)$\\
+$\textit{trans}(\keyw{def} m(x : \tau_1) : \tau_2) \equiv \keyw{def} m : \tau_1 \rightarrow \tau_2$\\
 \\
-$\textit{trans}(\keyw{signature} M = \sigma) \equiv \keyw{signature} M = trans(\sigma)$ \\
-$\textit{trans}(\keyw{signature} \keyw{resource} M = \sigma) \equiv \keyw{signature} \keyw{resource} M = trans(\sigma)$ \\
+$\textit{trans}(\keyw{signature} M = \overline{\sigma}) \equiv \keyw{signature} M = trans(\overline{\sigma})$ \\
+$\textit{trans}(\keyw{signature} \keyw{resource} M = \overline{\sigma}) \equiv \keyw{signature} \keyw{resource} M = trans(\overline{\sigma})$ \\
 
-\noindent$trans(\keyw{module} M : \tau; d) \equiv \keyw{val} M : \tau = \keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow d)$
+\noindent$trans(\keyw{module} M : \tau; d) \equiv \keyw{val} M : \tau = \keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow \overline{d})$
 \\\\
 \noindent$\textit{trans}(\overline{i}) \equiv$\\
 \indent if $\keyw{import} M_1~\keyw{as} M; \overline{i'}$ then $\keyw{val} M = M_1; trans(\overline{i'})$\\
@@ -871,16 +871,19 @@ $filterImportsAndInstantiates(\overline{i}) = $\\
 
 \noindent$getTypes(\overline{x : \tau}) = $ if $\overline{x : \tau}$ is empty return $\keywadj{Unit}$, otherwise return $\overline{\tau}$\\
 
-\noindent$trans(\keyw{resource} \keyw{module} M : \tau; \overline{i}; d) \equiv$
+\noindent$trans(\keyw{resource} \keyw{module} M : \tau; \overline{i}; \overline{d}) \equiv$
 
 $\keyw{val} M : getTypes(trans(filterRequires(\overline{i}))) \rightarrow \tau = $
 
-$\keyw{fn} trans(filterRequires(\overline{i})) \Rightarrow~\keyw{bind} trans(filterImportsAndInstantiates(\overline{i})~\keyw{in} \keywadj{new}(M \Rightarrow d)$\\
+$\keyw{fn} trans(filterRequires(\overline{i})) \Rightarrow~\keyw{bind} trans(filterImportsAndInstantiates(\overline{i})~\keyw{in} \keywadj{new}(M \Rightarrow \overline{d})$\\
 
 \noindent If the module does not require or instantiate any modules, then its translation is simplified as follows:
 \\\\
-\noindent$trans(\keyw{resource} \keyw{module} M : \tau; d) \equiv \keyw{val} M : \keyw{Unit} \rightarrow \tau = \keyw{fn} \_ : \keyw{Unit} \Rightarrow~\keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow d)$
-
+\noindent$trans(\keyw{resource} \keyw{module} M : \tau; \overline{d}) \equiv \keyw{val} M : \keyw{Unit} \rightarrow \tau = \keyw{fn} \_ : \keyw{Unit} \Rightarrow~\keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow \overline{d})$
+\\\\
+Translation of module signatures: $\keyw{type} t = \tau~\keyw{in} e \equiv [\tau / t]e$
+\\\\
+Translation of $\keywadj{fn}$s in module objects: \mbox{$\keywadj{fn}_s~y : \tau \Rightarrow e \equiv \keywadj{new}_s(x \Rightarrow \keyw{def} apply(y : \tau) : \tau' = e)$}, where \\ \mbox{$\Gamma~|~\Sigma \vdash \keywadj{fn}_s~y : \tau \Rightarrow e~:~\tau'$}. Then $e(e') \equiv e.apply(e')$.
 
 \newpage
 
