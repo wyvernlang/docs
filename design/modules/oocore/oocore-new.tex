@@ -2637,6 +2637,136 @@ auth(l_C, e, \mu) &=  \{ l_C,~l_A\}&\\
 \end{align*}
 
 
+\newpage
+
+\begin{theorem}[Auxiliary]
+For all $l$, such that
+$E[l.m(l') \rhd E'[e]]~|~\mu \longrightarrow E[l.m(l') \rhd E'[e']]~|~\mu'$,
+if
+\begin{enumerate}
+\item $\exists l_0 \mapsto \{ x \Rightarrow \overline{d_0} \}_{\keywadj{stateful}}$, such that $pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}$
+\item $\forall l_1.m_1(l_1') \rhd E'' \in E'$, $l_1 \mapsto \{ x \Rightarrow \overline{d_1} \}_{\keyw{pure}}$
+\end{enumerate}
+then
+$auth(l, E[l.m(l') \rhd E'[e']], \mu') \setminus auth(l, E[l.m(l') \rhd E'[e]], \mu) = \{ l_0 \}$.
+\end{theorem}
+
+\begin{proof}
+The proof is by induction on the method call stack frames.\\
+
+\noindent\textit{\underline{Base case:}} $l'.m'(l'') \rhd E_1 \not\in E$ and $l'.m'(l'') \rhd E_1 \not\in E'$. 
+
+Let $auth(l, E[l.m(l') \rhd E'[e']], \mu') \setminus auth(l, E[l.m(l') \rhd E'[e]], \mu) \not= \{ l_0 \}$.
+
+Consider $l$'s authority in the two states. In the initial state, we have:
+
+\noindent$auth(l, E[l.m(l') \rhd E'[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu) \cup auth_{stack}(l, E[l.m(l') \rhd E'[e]], \mu) & (\textsc{auth-config})\\
+&= auth_{store}(l, \mu) \cup pointsto(E'[e], \mu) \cup auth_{stack}(l, E'[e], \mu) & (\textsc{auth-stack})\\
+&= auth_{store}(l, \mu) \cup pointsto(E'[e], \mu) & (\textsc{auth-stack-nocall})\\
+&= auth_{store}(l, \mu) \cup pointsto(e, \mu) \bigcup pointsto(subexps(E'), \mu) & (Lemma~8)
+\end{align*}
+Similarly, in the final state, we have:
+\[
+auth(l, E[l.m(l') \rhd E'[e']], \mu') = auth_{store}(l, \mu') \cup pointsto(e', \mu') \bigcup pointsto(subexps(E'), \mu')
+\]
+Since we are considering small-step semantics, there was no change to $l$ and $E'$, and $auth_{store}(l, \mu') = auth_{store}(l, \mu)$ and $\bigcup pointsto(subexps(E'), \mu') = \bigcup pointsto(subexps(E'), \mu)$. Therefore,
+\[
+auth(l, E[l.m(l') \rhd E'[e']], \mu') = auth_{store}(l, \mu) \cup pointsto(e', \mu') \bigcup pointsto(subexps(E'), \mu)
+\]
+Then, we get
+\[
+auth(l, E[l.m(l') \rhd E'[e']], \mu') \setminus auth(l, E[l.m(l') \rhd E'[e]], \mu) = pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}
+\]
+This contradicts our assumption, and thus the assumption is wrong and the theorem holds.\\
+
+\noindent\textit{\underline{Inductive case:}} Let us enumerate all method callers preceding $e$ and $e'$ on the stack starting from the method caller closest to $e$ and $e'$ on the stack:
+$E[l_i.m(l_i') \rhd E'[e]]~|~\mu \longrightarrow E[l_i.m(l_i') \rhd E'[e']]~|~\mu'$,
+where $1 \leq i \leq n$.
+
+Now consider $l_k$, such that
+\[
+E[l_k.m(l_k') \rhd E'[e]]~|~\mu \longrightarrow E[l_k.m(l_k') \rhd E'[e']]~|~\mu'
+\]
+where $1 \leq k \leq n$; for $i = 1 \dots k - 1$, $l_i.m_i(l_i') \rhd E'' \in E'$; and for $i = k + 1 \dots n$, $l_i.m_i(l_i') \rhd E'' \in E$. Then from the premise of the theorem, we have:
+
+\begin{enumerate}
+\item $\exists l_0 \mapsto \{ x \Rightarrow \overline{d_0} \}_{\keywadj{stateful}}$, such that $pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}$
+\item for $i = 1 \dots k - 1$, $ l_i.m_i(l_i') \rhd E'' \in E'$, $l_i \mapsto \{ x \Rightarrow \overline{d_i} \}_{\keyw{pure}}$
+\end{enumerate}
+
+Let $auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') \setminus auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) \not= \{ l_0 \}$.
+
+Consider $l_k$'s authority in the two states. In the initial state, we have:
+\begin{align*}
+auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) &= auth_{store}(l_k, \mu) \cup auth_{stack}(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) & (\textsc{auth-config})
+\end{align*}
+Without loss of generality, let $l_k.m(l_k') \rhd E'''$ be the leftmost method call stack frame where $l_k$'s method is called, i.e. let $l_k.m(l_k') \rhd E''' \not\in E$. Then we get:
+\begin{align*}
+auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) &= auth_{store}(l_k, \mu) \cup pointsto(E'[e], \mu) \cup auth_{stack}(l_k, E'[e], \mu) & (\textsc{auth-stack})
+\end{align*}
+If $l_k.m(l_k') \rhd E''' \in E'$, then if $pointsto(e, \mu) \in pointsto(E'[e], \mu)$, by Lemma 10, $pointsto(e, \mu) \in auth_{stack}(l_k, E'[e], \mu)$. Then, without loss of generality, assume $l_k.m(l_k') \rhd E''' \not\in E'$, and we get:
+\begin{align*}
+auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) &= auth_{store}(l_k, \mu) \cup pointsto(E'[e], \mu) & (\textsc{auth-stack-nocall})
+\end{align*}
+Unwinding $E'$, we have:
+
+\noindent$auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l_k, \mu) \cup pointsto(E_k[l_{k-1}.m_{k-1}(l_{k-1}') \rhd E_{k-1}[l_{k-2}.m_{k-2}(l_{k-2}') \rhd \dots \rhd E_1[e]] \dots ], \mu) & (\textsc{auth-stack-nocall})
+\end{align*}
+where for $i = 1 \dots k$, $l'.m(l'') \rhd E'' \not\in E_i$.
+
+Since for $i = 1 \dots k - 1$, $ l_i.m_i(l_i') \rhd E'' \in E'$, $l_i \mapsto \{ x \Rightarrow \overline{d_i} \}_{\keywadj{pure}}$,
+
+\noindent$auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l_k, \mu) \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu) & (\textsc{pointsto-call-data}~\times~k)
+\end{align*}
+Similarly, in the final state, we have:
+\begin{align*}
+auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') &= auth_{store}(l_k, \mu') \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu') \cup pointsto(e', \mu')
+\end{align*}
+Since we are considering small-step semantics, there was no change to $l$ and $E_i$s, and $auth_{store}(l_k, \mu') = auth_{store}(l_k, \mu)$ and $\bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu') = \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu)$. Therefore,
+\[
+auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') = auth_{store}(l_k, \mu) \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu) \cup pointsto(e', \mu')
+\]
+Then, we get
+\[
+auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') \setminus auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) = pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}
+\]
+This contradicts our assumption, and thus the assumption is wrong and the theorem holds.\qed
+\end{proof}
+
+\begin{lemma}
+If $l.m(l') \rhd E' \not\in E$, then $pointsto(E[e], \mu) = pointsto(e, \mu) \bigcup pointsto(subexps(E), \mu)$.
+\end{lemma}
+
+\begin{proof}
+Proof is by induction on $e$: we consider all possible types of $e$ and apply the $pointsto(e, \mu)$ rules.
+\end{proof}
+
+\begin{lemma}
+If for all $l.m(l') \rhd E' \in E$, $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{pure}}$, then $pointsto(e, \mu) \in pointsto(E[e], \mu)$.
+\end{lemma}
+
+\begin{proof}
+Consider $pointsto(E[e], \mu)$, and because all method callers are pure, \textsc{pointsto-call-data} will be applied ending with $pointsto(e, \mu)$.
+\end{proof}
+
+\begin{lemma}
+If $l.m(l') \rhd E' \in E$; for all method callers $l''$ preceding $l.m(l') \rhd E'$ on the stack, $l'' \mapsto \{ x \Rightarrow \overline{d''} \}_{\keywadj{pure}}$; and $pointsto(e, \mu) \in pointsto(E[e], \mu)$, then $pointsto(e, \mu) \in auth_{stack}(l, E[e], \mu)$.
+\end{lemma}
+
+\begin{proof}
+Consider $auth_{stack}(l, E[e], \mu)$, apply \textsc{auth-stack}, then use Lemma 9.
+\end{proof}
+
+
 
 \bibliographystyle{plain}
 \bibliography{bibtex}
