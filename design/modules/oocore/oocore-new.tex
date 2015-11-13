@@ -50,1083 +50,6 @@
 
 \begin{document}
 
-\section{Syntax}
-
-\[
-\begin{array}{lll}
-\begin{array}{lllr}
-e & ::= & x & expressions \\
-& | & \keywadj{new}_{s}(x \Rightarrow \overline{d}) \\
-& | & e.m(e)\\
-& | & e.f \\
-& | & e.f = e \\
-& | & \keyw{bind} x = e~\keyw{in} e \\
-& | & l & (run\mbox{-}time~forms)\\
-%& | & \keywadj{new}_{s}(x \Rightarrow d_v)\\
-& | & l.m(l) \rhd e \\
-&&\\
-s & ::= & \keyw{stateful} | ~\keyw{pure} \\
-&&\\
-d & ::= & \keyw{def} m(x:\tau):\tau = e & declarations \\
-  & |   & \keyw{var} f:\tau = x \\
-  & |   & \keyw{var} f:\tau = l & (run\mbox{-}time~form)\\
-&&\\
-%d_v & ::= & \epsilon & decl.~values \\
-%  & |   & \keyw{def} m(x:\tau):\tau = e; d_v \\
-%  & |   & \keyw{var} f:\tau = l; d_v \\
-%&&\\
-\tau & ::= & \{ \overline{\sigma_i} \}_{s} & types \\
-&&\\
-\sigma_i & ::= & \sigma_e & internal~decl.~ types \\
-       & |   & \keyw{var} f:\tau \\
-&&\\
-\sigma_e & ::= & \keyw{def} m:\tau \rightarrow \tau & external~decl.~ types \\
-&&\\
-\end{array}
-& ~~~~~~
-&
-\begin{array}{lllr}
-\Gamma & :: = & \varnothing & contexts\\
-& | & \Gamma,~x : \tau\\
-&&\\
-\mu & :: = & \varnothing & store\\
-%& | & \mu,~l \mapsto \{ x \Rightarrow d_v \}_{s}\\
-& | & \mu,~l \mapsto \{ x \Rightarrow \overline{d} \}_{s}\\
-&&\\
-\Sigma & :: = & \varnothing & store~type\\
-& | & \Sigma,~l : \tau\\
-&&\\
-E & ::= & [~] & evaluation~ contexts\\
-%  & |   & \keywadj{new}_{s}(x \Rightarrow D) \\
-%  & |   & \keywadj{new}_{s}(x \Rightarrow d) \\
-  & |   & E.m(e)\\
-  & |   & l.m(E)\\
-  & |   & E.f \\
-  & |   & E.f = e \\
-  & |   & \keyw{bind} x = E~\keyw{in} e \\
-  & |   & l.f = E \\
-  & |   & l.m(l) \rhd E \\
-&&\\
-%D & ::= & [~] & decl.~eval.~ contexts\\
-%  & |   & \keyw{def} m(x:\tau):\tau = e; D \\
-%  & |   & \keyw{var} f:\tau = E; d \\
-%  & |   & \keyw{var} f:\tau = l; D \\
-%&&\\
-\end{array}
-\end{array}
-\]
-
-\noindent \textbf{Notes:}
-
-\begin{itemize}
-\item The $s$ tag indicates whether an object is stateful (i.e. captures mutable state) or pure (i.e. captures no mutable state).
-\item Example of how to initialize and use object declarations (and potentially encode modules):
-\[
-\keywadj{new}_{s}(x \Rightarrow \keyw{def} m(y : \tau) : \tau' = \keywadj{new}_{s}(x \Rightarrow \keyw{var} f_1 : \tau = y;~\keyw{var} f_2 : \tau = y;~\keyw{var} f_3 : \tau = y)).m(\keywadj{new}_{s} (x \Rightarrow \epsilon))
-\]
-which in memory looks like 
-\[
-l_2 \mapsto \{l_1,l_1,l_1\},~l_1 \mapsto \varnothing
-\]
-\item In the \textsc{DT-DefPure} rule, the argument $x$ may be stateful, but because all other variables in $\Gamma$ are pure, $x$ cannot be used (e.g. be assigned to a variable) inside $e$.
-\item In the preservation of types under substitution lemma, $y$ and $z$ have to be values because we don't have $\keyw{var} f:\tau = e; d$ and instead have a more restrictive $\keyw{var} f:\tau = l;d$.
-\item Substitution rules for $\keyw{bind}$ and $\keyw{let}$:
-\[
-    [l/x](\keyw{bind} y = e_1~\keyw{in} e_2) = \keyw{bind} y = [l/x]e_1~\keyw{in} e_2
-\]
-\[
-    [l/x](\keyw{let} y = e_1~\keyw{in} e_2) = 
-\begin{cases}
-    \keyw{let} y = [l/x]e_1~\keyw{in} [l/x]e_2, & \text{if } x \not= y\\
-    \keyw{let} y = [l/x]e_1~\keyw{in} e_2, & \text{if } x = y
-\end{cases}
-\]
-
-Although the two constructs look similar, there is an important semantical difference between them. The $\keywadj{bind}$ construct is more restrictive as its body $e_2$ is type checked in the context that contains only the preamble $e_1$ (see \textsc{T-Bind}). Then in both cases, substitution of $l$ for $x$ happens only in the preamble $e_1$ and not in the body $e_2$. In contrast, in $\keywadj{let}$, when $x \not= y$, $l$ is substituted for $x$ in both the preamble $e_1$ and the body $e_2$, and when $x = y$, $l$ is substituted for $x$ in the preamble $e_1$, and then $y$ shadows $x$ in the body $e_2$, and thus $e_2$ does not change. 
-
-\item Encoding of $\keyw{let}$:
-\[
-\keyw{let} y = e_1~\keyw{in} e_2~~~\equiv~~~\keywadj{new}_s(x \Rightarrow \keyw{def} m(y) = e_2).m(e_1)
-\]
-
-\item There is no $\tau \rightarrow \tau$ type in $\tau$ because we don't want fields ($\keywadj{var}$s) to be able to store methods.
-
-\end{itemize}
-
-
-\newpage
-
-\section{Semantics}
-
-$\fbox{$\Gamma~|~\Sigma \vdash e : \tau$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(T-Var)}]
-  {\Gamma~|~\Sigma \vdash x : \tau}
-  {x : \tau \in \Gamma}\\[5ex]
-%~~~~~~~~~~
-\infer[\textsc{(T-New)}]
-	{\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow \overline{d}) : \{ \overline{\sigma_e} \}_{s}}
-	{x : \{ \overline{\sigma_i} \}_{s}~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i} & \forall~\keyw{def} m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_i},~\keyw{def} m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_e} & \overline{\sigma_e} \subseteq \overline{\sigma_i}} \\[5ex]
-
-\infer[\textsc{(T-Meth)}]
-	{\Gamma~|~\Sigma \vdash e_1.m(e_2) : \tau_1} 
-	{\Gamma~|~\Sigma \vdash e_1 : \{ \overline{\sigma_e} \}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_e} & \Gamma~|~\Sigma \vdash e_2 : \tau_2}\\[5ex]
-
-\infer[\textsc{(T-Field)}]
-	{\Gamma~|~\Sigma \vdash  e.f : \tau} 
-	{\Gamma~|~\Sigma \vdash e : \{ \overline{\sigma_i} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma_i}}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Assign)}]
-	{\Gamma~|~\Sigma \vdash  e_1.f=e_2 : \tau} 
-	{\Gamma~|~\Sigma \vdash e_1 : \{ \overline{\sigma_i} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma_i} & \Gamma~|~\Sigma \vdash e_2 : \tau}\\[5ex]
-
-\infer[\textsc{(T-Bind)}]
-  {\Gamma~|~\Sigma \vdash \keyw{bind} x = e_1~\keyw{in} e_2 : \tau_2}
-  {\Gamma~|~\Sigma \vdash e_1 : \tau_1 & x : \tau_1~|~\Sigma \vdash e_2 : \tau_2}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Loc)}]
-  {\Gamma~|~\Sigma \vdash l : \tau}
-  {l : \tau \in \Sigma}\\[5ex]
-
-\infer[\textsc{(T-StackFrames)}]
-	{\Gamma~|~\Sigma \vdash l_1.m(l_2) \rhd e : \tau_1}
-	{\Gamma~|~\Sigma \vdash l_1 : \{ \overline{\sigma_e} \}_s & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_e} & \Gamma~|~\Sigma \vdash l_2 : \tau_2 & \Gamma~|~\Sigma \vdash e : \tau_1} \\[5ex]
-
-\infer[\textsc{(T-Sub)}]
-  {\Gamma~|~\Sigma \vdash e : \tau_2}
-  {\Gamma~|~\Sigma \vdash e : \tau_1 & \tau_1 <: \tau_2}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$\Gamma~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i}$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(T-Decls)}]
-  {\Gamma~|~\Sigma \vdash_{s} \overline{d}~:~\overline{\sigma_i}}
-  {\forall j,~d_j \in \overline{d},~\sigma_{ij} \in \overline{\sigma_i},~\Gamma~|~\Sigma \vdash_{s} d_j : \sigma_{ij}}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$\Gamma~|~\Sigma \vdash_s d : \sigma_i$}$
-\[
-\begin{array}{c}
-
-%\infer[\textsc{(DT-Empty)}]
-%  {\Gamma~|~\Sigma \vdash_s \epsilon~; d~:~\epsilon~; \sigma}
-%  {\Gamma~|~\Sigma \vdash_s d : \sigma}\\[3.5ex]
-
-%\infer[\textsc{(DT-DefPure)}]
-%  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
-%  {\def\arraystretch{1.5}
-%  \begin{array}{c}
-%\Gamma_{stateful} = \{x : \{ \sigma \}_{\keywadj{stateful}} ~|~ x : \{ \sigma \}_{\keywadj{stateful}} \in \Gamma\} \\
-%\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~\Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~\Gamma~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
-%  \end{array}}\\[5ex]
-  
-\infer[\textsc{(DT-DefPure)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
-  {\Gamma_{stateful} = \{x : \{ \overline{\sigma_i} \}_{\keywadj{stateful}} ~|~ x : \{ \overline{\sigma_i} \}_{\keywadj{stateful}} \in \Gamma\} & \Gamma_{pure} = \Gamma \setminus \Gamma_{stateful} & \Gamma_{pure},~y : \tau_1~|~\Sigma \vdash e : \tau_2}\\[5ex]
-
-\infer[\textsc{(DT-DefStateful)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
-  {\Gamma,~x : \tau_1~|~\Sigma \vdash e : \tau_2}\\[5ex]
-
-\infer[\textsc{(DT-Varx)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = x~:~\keyw{var} f : \tau}
-  {\Gamma~|~\Sigma \vdash x : \tau}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(DT-Varl)}]
-  {\Gamma~|~\Sigma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = l~:~\keyw{var} f : \tau}
-  {\Gamma~|~\Sigma \vdash l : \tau}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$\{ \overline{\sigma_i} \}_s <: \{ \overline{\sigma_i}' \}_s$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(S-Refl1)}]
-  {\{ \overline{\sigma_i} \}_s <: \{ \overline{\sigma_i} \}_s}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(S-Trans1)}]
-  {\{ \overline{\sigma_i} \}_{s1} <: \{ \overline{\sigma_i} \}_{s3}}
-  {\{ \overline{\sigma_i} \}_{s1} <: \{ \overline{\sigma_i} \}_{s2} & \{ \overline{\sigma_i} \}_{s2} <: \{ \overline{\sigma_i} \}_{s3}}\\[5ex]
-
-\infer[\textsc{(S-State)}]
-  {\{ \overline{\sigma_e} \}_{\keyw{pure}} <: \{ \overline{\sigma_e} \}_{\keyw{stateful}}}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(S-Perm)}]
-  {\{ \sigma_{ij}^{j \in 1..n} \}_{s} <: \{ \sigma_{ij}'^{j \in 1..n} \}_{s}}
-  {\{ \sigma_{ij}^{j \in 1..n} \}_{s}~is~a~permutation~of~\{ \sigma_{ij}'^{j \in 1..n} \}_{s}}\\[5ex]
-
-\infer[\textsc{(S-Width)}]
-  {\{ \sigma_{ij}^{j \in 1..n + k} \}_{s} <: \{ \sigma_{ij}^{j \in 1..n} \}_{s}}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(S-Depth)}]
-  {\{ \sigma_{ij}^{j \in 1..n} \}_{s} <: \{ \sigma_{ij}^{j \in 1..n} \}_{s}}
-  {\forall j,~\sigma_{ij} <: \sigma_{ij}'}\\[5ex]
-
-\end{array}
-\]
-
-\vspace{-3pt}
-$\fbox{$\sigma_i <: \sigma_i'$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(S-Refl2)}]
-  {\sigma_i <: \sigma_i}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(S-Trans2)}]
-  {\sigma_{i1} <: \sigma_{i3}}
-  {\sigma_{i1} <: \sigma_{i2} & \sigma_{i2} <: \sigma_{i3}}\\[5ex]
-%~~~~~~~~~~
-%\infer[\textsc{(S-Eps)}]
-%  {\sigma <: \epsilon}
-%  {}\\[5ex]
-
-\infer[\textsc{(S-Def)}]
-  {\keyw{def} m:\tau_1 \rightarrow \tau_2 <: \keyw{def} m:\tau_1' \rightarrow \tau_2'}
-  {\tau_1' <: \tau_1 & \tau_2 <: \tau_2'}%\\[5ex]  
-~~~~~~~~~~
-\infer[\textsc{(S-Var)}]
-  {\keyw{var} f:\tau <: \keyw{var} f:\tau'}
-  {\tau <: \tau'}\\[5ex]  
-
-\end{array}
-\]
-
-$\fbox{$\mu : \Sigma$}$
-\[
-\begin{array}{c}
-
-\infer[\textsc{(T-StoreEmpty)}]
-  {\varnothing : \varnothing}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Store)}]
-  {\mu,~l \mapsto \{ x \Rightarrow \overline{d} \}_s~:~\Sigma,~l : \{ \overline{\sigma_i} \}_s}
-  {\mu : \Sigma & x : \{ \overline{\sigma_i} \}_s~|~\Sigma \vdash_s \overline{d} : \overline{\sigma_i}}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$E[e]~|~\mu \longrightarrow E[e']~|~\mu'$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(E-Congruence)}]
-  {E[e]~|~\mu \longrightarrow E[e']~|~\mu'}
-  {e~|~\mu \longrightarrow e'~|~\mu'}\\[5ex]  
-\end{array}
-\]
-
-
-$\fbox{$e~|~\mu \longrightarrow e'~|~\mu'$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(E-New)}]
-  {\keywadj{new}_{s}(x \Rightarrow \overline{d})~|~\mu \longrightarrow l~|~\mu, l \mapsto \{ x \Rightarrow \overline{d} \}_{s}}
-  {l \not\in dom(\mu) & \keywadj{new}_{s}(x \Rightarrow \overline{d})~is~closed}\\[5ex]
-
-\infer[\textsc{(E-Meth)}]
-  {l_1.m(l_2)~|~\mu \longrightarrow l_1.m(l_2) \rhd [l_2/y][l_1/x]e~|~\mu}
-  {l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu & \keyw{def} m(y : \tau_1) : \tau_2 = e \in \overline{d}}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(E-Field)}]
-  {l.f~|~\mu \longrightarrow l_1~|~\mu}
-  {l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu & \keyw{var} f:\tau = l_1 \in \overline{d}}\\[5ex]
-
-\infer[\textsc{(E-Assign)}]
-  {l_1.f = l_2~|~\mu \longrightarrow l_2~|~\mu'}
-  {\def\arraystretch{1.6}
-  \begin{array}{c}
-l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f:\tau = l \in \overline{d} \\
-\overline{d}' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]\overline{d}~~~~~\mu' = [l_1 \mapsto \{ x \Rightarrow \overline{d}' \}_{s}/l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s}]\mu
-  \end{array}}\\[5ex]
-
-\infer[\textsc{(E-Bind)}]
-  {\keyw{bind} x = l_1~\keyw{in} e_2~|~\mu \longrightarrow [l_1/x]e_2~|~\mu}
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(E-StackFrame)}]
-  {l.m(l_1) \rhd l_2~|~\mu \longrightarrow l_2~|~\mu}
-  {}\\[5ex]
-  
-\end{array}
-\]
-
-\newpage
-
-\section{Theorems}
-
-\subsection{Preservation}
-
-\begin{lemma}[Permutation]
-If $\Gamma~|~\varnothing \vdash e : \tau$ and $\Delta$ is a permutation of $\Gamma$, then $\Delta~|~\varnothing \vdash e : \tau$, and the latter derivation has the same depth as the former.
-\end{lemma}
-
-\begin{proof}
-Straightforward induction on typing derivations. \qed
-\end{proof}
-
-\vspace{8pt}
-
-\begin{lemma}[Weakening]
-If $\Gamma~|~\varnothing \vdash e : \tau$ and $x \not\in dom(\Gamma)$, then $\Gamma,~x : \tau'~|~\varnothing \vdash e : \tau$, and the latter derivation has the same depth as the former.
-\end{lemma}
-
-\begin{proof}
-Straightforward induction on typing derivations. \qed
-\end{proof}
-
-\vspace{8pt}
-
-\begin{lemma}[Preservation of types under substitution]
-If $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma~|~\Sigma \vdash e' : \tau'$, then $\Gamma~|~\Sigma \vdash [e'/z]e : \tau$. Furthermore, if $\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma$ and $\Gamma~|~\Sigma \vdash e' : \tau'$, then $\Gamma~|~\Sigma \vdash_s [e'/z]d : \sigma$.
-\end{lemma}
-
-\begin{proof} The proof is by simultaneous induction on a derivation of $\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau$ and $\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma$. For a given derivation, we proceed by cases on the final typing rule used in the proof:
-
-\begin{pcases}
-\pcase[\textsc{T-Var}]
-$e = x$, and from the premise, we get $x : \tau \in (\Gamma,~z : \tau')$. There are two subcases to consider, depending on whether $x$ is $z$ or another variable. If $x = z$, then $[e'/z]x = e'$. The required result is then $\Gamma~|~\Sigma \vdash e' : \tau'$, which is among the assumptions of the lemma. Otherwise, $[e'/z]x = x$, and the desired result is immediate.
-\\
-\pcase[\textsc{T-New}]
-$e = \keywadj{new}_{s}(x \Rightarrow d)$, and from the premise, we get
-\[
-x : \{ \sigma \}_{s},~z : \tau'~|~\Sigma \vdash_s d : \sigma
-\]
-By the induction hypothesis, $x : \{ \sigma \}_{s}~|~\Sigma \vdash_s [e'/z]d : \sigma$. Then, by \textsc{T-New}, $\Gamma~|~\Sigma \vdash \keywadj{new}_{s}(x \Rightarrow [e'/z]d) : \{ \sigma \}_{s}$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](\keywadj{new}_{s}(x \Rightarrow d)) : \{ \sigma \}_{s}$.
-\\
-\pcase[\textsc{T-Meth}]
-$e = e_1.m(e_2)$, and from the premise, we get
-\[
-\Gamma,~z : \tau'~|~\Sigma \vdash e_1 : \{\sigma\}_s~~~~~\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash e_2 : \tau_2
-\]
-By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e_1 : \{\sigma\}_s$ and $\Gamma~|~\Sigma \vdash [e'/z]e_2 : \tau_2$. Then, by \textsc{T-Meth}, $\Gamma~|~\Sigma \vdash [e'/z]e_1.m([e'/z]e_2) : \tau_1$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](e_1.m(e_2)) : \tau_1$.
-\\
-\pcase[\textsc{T-Field}]
-$e = e.f$, and from the premise, we get
-\[
-\Gamma,~z : \tau'~|~\Sigma \vdash e : \{\sigma\}_s~~~~~\keyw{var}~ f : \tau \in \sigma
-\]
-By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \{\sigma\}_s$. Then, by \textsc{T-Field}, $\Gamma~|~\Sigma \vdash ([e'/z]e).f : \tau$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](e.f) : \tau$.
-\\
-\pcase[\textsc{T-Assign}]
-$e = e_1.f=e_2$, and from the premise, we get
-\[
-\Gamma,~z : \tau'~|~\Sigma \vdash e_1 : \{\sigma\}_s~~~~~\keyw{var}~ f : \tau \in \sigma~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash e_2 : \tau
-\]
-By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e_1 : \{\sigma\}_s$ and $\Gamma~|~\Sigma \vdash [e'/z]e_2 : \tau$. Then, by \textsc{T-Assign}, $\Gamma~|~\Sigma \vdash  [e'/z]e_1.f = [e'/z]e_2 : \tau$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](e_1.f=e_2) : \tau$.
-\\
-\pcase[\textsc{T-Bind}]
-$e = \keyw{bind} x = e_1~\keyw{in} e_2 : \tau_2$, and $[e'/z](\keyw{bind} x = e_1~\keyw{in} e_2) = \keyw{bind} x = [e'/z]e_1~\keyw{in} e_2$. From the premise, we get $\Gamma,~z : \tau'~|~\Sigma \vdash e_1 : \tau_1$, and by the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e_1 : \tau_1$. Then, by \textsc{T-Bind}, $\Gamma~|~\Sigma \vdash \keyw{bind} x = [e'/z]e_1~\keyw{in} e_2 : \tau_2$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](\keyw{bind} x = e_1~\keyw{in} e_2) : \tau_2$.
-\\
-\pcase[\textsc{T-Loc}]
-$e = l$, $[e'/z]l = l$, and the desired result is immediate.
-\\
-\pcase[\textsc{T-StackFrame}]
-$e = l_1.m(l_2) \rhd e$, and from the premise, we get
-\[
-\Gamma,~z : \tau'~|~\Sigma \vdash l_1 : \{\sigma\}_s~~~~~\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash l_2 : \tau_2~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau_1
-\]
-Locations are not affected by the substitution, and by the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_1$. Then, by \textsc{T-StackFrame}, $\Gamma~|~\Sigma \vdash l_1.m(l_2) \rhd [e'/z]e : \tau_1$, i.e. $\Gamma~|~\Sigma \vdash [e'/z](l_1.m(l_2) \rhd e) : \tau_1$.
-\\
-\pcase[\textsc{T-Sub}]
-$e = e$, and from the premise, we get
-\[
-\Gamma,~z : \tau'~|~\Sigma \vdash e : \tau_1~~~~~\tau_1 <: \tau_2
-\]
-By the induction hypothesis, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_1$ and $\tau_1 <: \tau_2$. Then, by \textsc{T-Sub}, $\Gamma~|~\Sigma \vdash [e'/z]e : \tau_2$.
-\\
-
-\pcase[\textsc{DT-Empty}]
-$d = \epsilon$, i.e. an empty declaration. This is not affected by the substitution, and the desired result is immediate.
-\\
-\pcase[\textsc{DT-DefPure}]
-$d = \keyw{def} m(x : \tau_1) : \tau_2 = e$. There are two subcases depending on whether $z$ is in $\Gamma_{pure}$:
-\\
-\begin{itemize}
-\item[] \textit{Subcase $z \in \Gamma_{pure}$}: From the premise, we get
-\[
-\Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\}~~~~~\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}
-\]\[
-\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
-\]
-By the induction hypothesis, $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} [e'/z]d : \sigma$. Then, by \textsc{DT-DefPure}, $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
-\\
-\item[] \textit{Subcase $z \not\in \Gamma_{pure}$}: From the premise, we get
-\[
-\Gamma_{stateful} = \{x : \{ \sigma \}_{\keyw{stateful}} ~|~ x : \{ \sigma \}_{\keyw{stateful}} \in \Gamma\}~~~~~\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}
-\]\[
-\Gamma_{pure},~x : \tau_1,~z : \tau'~|~\Sigma \vdash e : \tau_2~~~~~~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_{\keywadj{pure}} d : \sigma
-\]
-By the induction hypothesis, $\Gamma_{pure},~x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_2$ and $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} [e'/z]d : \sigma$. Then, by \textsc{DT-DefPure}, $\Gamma~|~\Sigma \vdash_{\keywadj{pure}} \keyw{def} m(x : \tau_1) : \tau_2 = [e'/z]e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keyw{pure}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
-\\
-\end{itemize}
-
-Thus, in both cases, the type of $d$ is preserved under substitution.
-\\
-\pcase[\textsc{DT-DefStateful}]
-$d = \keyw{def} m(x : \tau_1) : \tau_2 = e$, and from the premise, we get
-\[
-\Gamma, x : \tau_1,~z : \tau'~|~\Sigma \vdash e : \tau_2~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
-\]
-By the induction hypothesis, $\Gamma, x : \tau_1~|~\Sigma \vdash [e'/z]e : \tau_2$ and $\Gamma~|~\Sigma \vdash_s [e'/z]d : \sigma$. Then, by \textsc{DT-DefStateful}, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = [e'/z]e; [e'/z]d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$, i.e. $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} [e'/z](\keyw{def} m(x : \tau_1) : \tau_2 = e; d)~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma$.
-\\
-\pcase[\textsc{DT-Varx}]
-$d = \keyw{var} f : \tau = x$, and from the premise, we get
-\[
-\Gamma,~z : \tau'~|~\Sigma \vdash x : \tau~~~~~\Gamma,~z : \tau'~|~\Sigma \vdash_s d : \sigma
-\]
-There are two subcases to consider, depending on whether $x$ is $z$ or another variable. If $x = z$, then
-$\Gamma,~z : \tau'~|~\Sigma \vdash [e'/z]x : \tau$ yields $\Gamma,~z : \tau'~|~\Sigma \vdash e' : \tau$ and $\tau = \tau'$. By the induction hypothesis, $\Gamma~|~\Sigma \vdash_s [e'/z]d : \sigma$. Thus, $\Gamma~|~\Sigma \vdash_{\keyw{stateful}} \keyw{var} f : \tau = e'; d~:~\keyw{var} f : \tau; \sigma$ as required. If $x \not = z$, then $\Gamma,~z : \tau'~|~\Sigma \vdash [e'/z]x : \tau$ yields $\Gamma,~z : \tau'~|~\Sigma \vdash x : \tau$, and the desired result is immediate.
-\\
-\pcase[\textsc{DT-Varl}]
-$d = \keyw{var} f : \tau = l$, i.e. the field is resolved to a location $l$. This is not affected by the substitution, and the desired result is immediate.
-
-\end{pcases}
-
-\noindent Thus, substituting terms in a well-typed expression preserves the typing. \qed
-\end{proof}
-
-\newpage
-
-\begin{theorem}[Preservation]
-If
-\begin{enumerate}
-\item $\Gamma~|~\Sigma \vdash e : \tau$,
-\item $\mu : \Sigma$, and
-\item $e~|~\mu \longrightarrow e'~|~\mu'$,
-\end{enumerate}
-then
-\begin{enumerate}
-\item $\exists \Sigma' \supseteq \Sigma$,
-\item $\mu' : \Sigma'$, and
-\item $\Gamma~|~\Sigma' \vdash e' : \tau$.
-\end{enumerate}
-
-\end{theorem}
-
-\begin{proof} The proof is by induction on a derivation of $\Gamma~|~\Sigma \vdash e : \tau$. At each step of the induction, we assume that the desired property holds for all subderivations and proceed by case analysis on the final rule in the derivation. The cases when $e$ is a variable (\textsc{T-Var}) or a location (\textsc{T-Loc}) cannot arise, since we assumed $e \longrightarrow e'$, and there are no evaluation rules corresponding to variables or locations. For the other cases, we argue as follows:
-
-\begin{pcases}
-\pcase[\textsc{T-New}]
-$e = \keywadj{new}_{s}(x \Rightarrow d)$, and by inversion on \textsc{T-New}, we get $x : \{ \sigma \}_{s}~|~\Sigma \vdash d : \sigma$. The store changes from $\mu$ to $\mu' = \mu,~l \mapsto \{ x \Rightarrow d \}_s$, i.e. the new store is the old store augmented with a new mapping for the location $l$, which was not in the old store. From the premise of the theorem, we know that $\mu : \Sigma$, and then by \textsc{T-Store}, we have $\mu,~l \mapsto \{ x \Rightarrow d \}_s~:~\Sigma,~l : \{ \sigma \}_s$, which implies that $\Sigma' = \Sigma,~l : \{ \sigma \}_s$. Finally, by \textsc{T-Loc}, $\Gamma~|~\Sigma \vdash l : \{ \sigma \}_s$. Hence, the right-hand side is well typed.
-\\
-\pcase[\textsc{T-Meth}]
-$e = e_1.m(e_2)$, and by the definition of the evaluation relation, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase} \textsc{E-Congruence}\textit{:} In this case, either $e_1 \longrightarrow e_1'$ or $e_1$ is a value and $e_2 \longrightarrow e_2'$. Then, the result follows from the induction hypothesis and \textsc{T-Meth}.
-\\
-\item[]  \textit{Subcase} \textsc{E-Meth}\textit{:} In this case, both $e_1$ and $e_2$ are values, namely locations $l_1$ and $l_2$ respectively. Then, by inversion on \textsc{T-Meth}, we get that $\Gamma~|~\Sigma \vdash l_1 : \{\sigma\}_s$, $\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma$, and $\Gamma~|~\Sigma \vdash l_2 : \tau_2$. The store $\mu$ does not change, and since \textsc{T-Store} has been applied throughout, the store is well typed, and thus, \mbox{$\Gamma~|~\Sigma \vdash_s \keyw{def}~ m(l_2 : \tau_2) : \tau_1 = e; d'~:~\keyw{def}~ m : \tau_2 \rightarrow \tau_1; \sigma'$}. Then, by inversion on both \textsc{DT-DefPure} and \textsc{DT-DefStateful}, we know that $\Gamma~|~\Sigma \vdash e : \tau_1$, and by \textsc{T-StackFrame}, we have $\Gamma~|~\Sigma \vdash l_1.m(l_2) \rhd e : \tau_1$. Finally, by the preservation under subsumption lemma, substituting locations for variables in $e$ preserve its type, and therefore, the right-hand side is well typed.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Field}]
-$e = e.f$, and by the definition of the evaluation relation, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase} \textsc{E-Congruence}\textit{:} In this case, $e \longrightarrow e'$, and the result follows from the induction hypothesis and \textsc{T-Field}.
-\\
-\item[]  \textit{Subcase} \textsc{E-Field}\textit{:} In this case, $e$ is a value, i.e. a location $l$. Then, by inversion on  \textsc{T-Field}, we have $\Gamma~|~\Sigma \vdash l : \{\sigma\}_s$ and $\keyw{var}~ f : \tau \in \sigma$. The store $\mu$ does not change, and since \textsc{T-Store} has been applied throughout, the store is well typed, and thus, \mbox{$\Gamma~|~\Sigma \vdash_s \keyw{var}~ f : \tau = l_1; d'~:~\keyw{var}~ f : \tau; \sigma'$}. Then, by inversion on \textsc{DT-Varl}, we know that $\Gamma~|~\Sigma \vdash l_1 : \tau$, and the right-hand side is well typed.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Assign}]
-$e = e_1.f=e_2$, and by the definition of the evaluation relation, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase} \textsc{E-Congruence}\textit{:} In this case, either $e_1 \longrightarrow e_1'$ or $e_1$ is a value and $e_2 \longrightarrow e_2'$. Then, the result follows from the induction hypothesis and \textsc{T-Assign}.
-\\
-\item[]  \textit{Subcase} \textsc{E-Assign}\textit{:} In this case, both $e_1$ and $e_2$ are values, namely locations $l_1$ and $l_2$ respectively. Then, by inversion on \textsc{T-Assign}, we get that $\Gamma~|~\Sigma \vdash l_1 : \{\sigma\}_s$, $\keyw{var}~ f : \tau \in \sigma$, and $\Gamma~|~\Sigma \vdash l_2 : \tau$. The store changes as follows: $\mu' = [l_1 \mapsto \{ x \Rightarrow d' \}_{s}/l_1 \mapsto \{ x \Rightarrow d \}_{s}]\mu$, where $d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]d$. However, since \textsc{T-Store} has been applied throughout and the substituted location has the type expected by \textsc{T-Store}, the new store is well typed (as well as the old store), and thus, \mbox{$\Gamma~|~\Sigma \vdash_s \keyw{var}~ f : \tau = l_2; d'~:~\keyw{var}~ f : \tau; \sigma'$}. Then, by inversion on \textsc{DT-Varl}, we know that $\Gamma~|~\Sigma \vdash l_2 : \tau$, and the right-hand side is well typed.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Bind}]
-$e = \keyw{bind} x = e_1~\keyw{in} e_2$, and by the definition of the evaluation relation, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase} \textsc{E-Congruence}\textit{:} In this case, $e_1 \longrightarrow e_1'$, and the result follows from the induction hypothesis and \textsc{T-Bind}.
-\\
-\item[]  \textit{Subcase} \textsc{E-Bind}\textit{:} In this case, $e_1$ is a value, namely a locations $l_1$, and the result follows directly from the inversion on \textsc{T-Bind} and the preservation of types under substitution lemma.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-StackFrame}]
-$e = l.m(l_1) \rhd e_2$, and by the definition of the evaluation relation, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase} \textsc{E-Congruence}\textit{:} In this case, $e \longrightarrow e'$, and the result follows from the induction hypothesis and \textsc{T-StackFrame}.
-\\
-\item[]  \textit{Subcase} \textsc{E-StackFrame}\textit{:} In this case, $e_2$ is a value, i.e. a location $l_2$, and the result follows directly from the inversion on \textsc{T-StackFrame}.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Sub}]
-The result follows directly from the induction hypothesis.
-\\
-\end{pcases}
-
-\noindent Thus, the program written in this language is always well typed. \qed
-
-\end{proof}
-
-
-\subsection{Progress}
-
-\begin{theorem}[Progress]
-If $\varnothing~|~\Sigma \vdash e : \tau$ (i.e. $e$ is a closed, well-typed expression), then either
-\begin{enumerate}
-\item $e$ is a value (i.e. a location) or
-\item $\forall \mu$ such that $\mu : \Sigma$,
-   $\exists e', \mu'$ such that $e~|~\mu \longrightarrow e'~|~\mu'$.
-\end{enumerate}
-\end{theorem}
-\begin{proof} The proof is by induction on the derivation of $\Gamma~|~\Sigma \vdash e : \tau$, with a case analysis on the last typing rule used. The case when $e$ is a variable (\textsc{T-Var}) cannot occur, and the case when $e$ is a location (\textsc{T-Loc}) is immediate, since in that case $e$ is a value. For the other cases, we argue as follows:
-
-\begin{pcases}
-\pcase[\textsc{T-New}]
-$e = \keywadj{new}_{s}(x \Rightarrow d)$, and by \textsc{E-New}, $e$ can make a step of evaluation if the $\keyw{new}$ expression is closed and there is a location available that is not in the current store $\mu$. From the theorem premise, we know that the expression is closed, and there are infinitely many available new locations, and therefore, $e$ indeed can take a step and become a value (i.e. a location $l$). The new store $\mu'$ then is $\mu, l \mapsto \{ x \Rightarrow d \}_{s}$, and all the declarations $d$ inside the new objects are mapped in the new store.
-\\
-\pcase[\textsc{T-Meth}]
-$e = e_1.m(e_2)$, and by the induction hypothesis applied to $\Gamma~|~\Sigma \vdash e_1 : \{\sigma\}_s$, either $e_1$ is a value or else it can make a step of evaluation, and, similarly, by the induction hypothesis applied to $\Gamma~|~\Sigma \vdash e_2 : \tau_2$, either $e_2$ is a value or else it can make a step of evaluation. Then, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase $e_1 \longrightarrow e_1'$ or $e_1$ is a value and $e_2 \longrightarrow e_2'$:} If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step.
-\\
-\item[]  \textit{Subcase $e_1$ and $e_2$ are values:} If both $e_1$ and $e_2$ are values, i.e. they are locations $l_1$ and $l_2$ respectively, then by inversion on \textsc{T-Meth}, we have $\Gamma~|~\Sigma \vdash l_1 : \{\sigma\}_s$ and $\keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \sigma$. By inversion on \textsc{T-Loc}, we know that the store contains an appropriate mapping for the location $l_1$, and since \textsc{T-Store} has been applied throughout, the store is well typed and $l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ with $\keyw{def} m(y : \tau_1) : \tau_2 = e \in d$. Therefore, the rule \textsc{E-Meth} applies to $e$, $e$ can take a step, and $\mu' = \mu$.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Field}]
-$e = e_1.f$, and by the induction hypothesis, either $e_1$ can make a step of evaluation or it is a value. Then, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase $e_1 \longrightarrow e_1'$:} If $e_1$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step.
-\\
-\item[]  \textit{Subcase $e_1$ is a value:} If $e_1$ is a value, i.e. a location $l$, then by inversion on \textsc{T-Field}, we have $\Gamma~|~\Sigma \vdash l : \{\sigma\}_s$ and $\keyw{var}~ f : \tau \in \sigma
-$. By inversion on \textsc{T-Loc}, we know that the store contains an appropriate mapping for the location $l$, and since \textsc{T-Store} has been applied throughout, the store is well typed and $l \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ with $\keyw{var} f : \tau = l_1 \in d$. Therefore, the rule \textsc{E-Field} applies to $e$, $e$ can take a step, and $\mu' = \mu$.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Assign}]
-$e = e_1.f=e_2$, and by the induction hypothesis, either $e_1$ is a value or else it can make a step of evaluation, and likewise $e_2$. Then, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase $e_1 \longrightarrow e_1'$ or $e_1$ is a value and $e_2 \longrightarrow e_2'$:} If $e_1$ can take a step or if $e_1$ is a value and $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step.
-\\
-\item[]  \textit{Subcase $e_1$ and $e_2$ are values:} If both $e_1$ and $e_2$ are values, i.e. they are locations $l_1$ and $l_2$ respectively, then by inversion on \textsc{T-Assign}, we have $\Gamma~|~\Sigma \vdash l_1 : \{\sigma\}_s$, $\keyw{var}~ f:\tau \in \sigma$, and $\Gamma~|~\Sigma \vdash l_2 : \tau$. By inversion on \textsc{T-Loc}, we know that the store contains an appropriate mapping for the locations $l_1$ and $l_2$, and 
-since \textsc{T-Store} has been applied throughout, the store is well typed and $l_1 \mapsto \{ x \Rightarrow d \}_{s} \in \mu$ with $\keyw{var} f:\tau = l \in d$. A new well-typed store can be created as follows: $\mu' = [l_1 \mapsto \{ x \Rightarrow d' \}_{s}/l_1 \mapsto \{ x \Rightarrow d \}_{s}]\mu$, where $d' = [\keyw{var} f:\tau = l_2/\keyw{var} f:\tau = l]d$. Then, the rule \textsc{E-Assign} applies to $e$, and $e$ can take a step.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Bind}]
-$e =  \keyw{bind} x = e_1~\keyw{in} e_2$, and by the induction hypothesis, either $e_1$ can make a step of evaluation or it is a value. Then, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase $e_1 \longrightarrow e_1'$:} If $e_1$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step.
-\\
-\item[]  \textit{Subcase $e_1$ is a value:} If $e_1$ is a value, i.e. a location $l_1$, the rule \textsc{E-Bind} applies, and $e$ can take a step.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-StackFrame}]
-$e = l.m(l_1) \rhd e_2$, and by the induction hypothesis, either $e_2$ can make a step of evaluation or it is a value. Then, there are two subcases:
-\\
-\begin{itemize}
-\item[]  \textit{Subcase $e_2 \longrightarrow e_2'$:} If $e_2$ can take a step, then rule \textsc{E-Congruence} applies to $e$, and $e$ can take a step.
-\\
-\item[]  \textit{Subcase $e_2$ is a value:} If $e_2$ is a value, i.e. a location $l_2$, the rule \textsc{E-StackFrame} applies, and $e$ can take a step.
-\\
-\end{itemize}
-
-\pcase[\textsc{T-Sub}]
-The result follows directly from the induction hypothesis.
-
-\end{pcases}
-
-\noindent Thus, the program written in this language never gets stuck. \qed
-
-\end{proof}
-
-\newpage
-
-\section{Module Translation}
-
-\subsection{Code Example 1}
-
-\begin{tabular}{p{0.53\textwidth}p{0.47\textwidth}}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-resource signature sigA =
-  var f : Int
-  def m(y : Int) : Int
-
-resource signature sigB =
-  var k : Int
-
-resource signature sigC =
-  def n(Unit) : Int
-
-resource signature sigD =
-  def m(y : Int) : Int
-
-resource module A : sigA
-  var f : Int = 3
-  def m(y : Int) : Int = y
-
-module D : sigD
-  def m(y : Int) : Int = 42
-
-resource module B : sigB
-  import D as myD
-  require sigA as myA
-  var k : Int = myA.m(3)
-
-resource module C : sigC
-  require sigA as myA
-  def n(Unit) : Int = myA.m(5)
-
-resource module Main
-  instantiate A() as copyOfAForB 
-  instantiate A() as copyOfAForC 
-  instantiate B(copyOfAForB)
-  instantiate C(copyOfAForC)
-
-\end{lstlisting}
-\end{minipage}
-&
-\hspace{-10ex}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-resource signature sigA =
-  var f : Int
-  def m : Int -> Int
-
-resource signature sigB =
-  var k : Int
-
-resource signature sigC =
-  def n : Unit -> Int
-
-resource signature sigD =
-  def m : Int -> Int
-  
-val A : Unit -> sigA = fn _ : Unit =>
-    bind in
-    new (A =>
-        var f : Int = 3
-        def m(y : Int) : Int = y
-    )
-    
-val D : sigD =
-    bind in
-    new (D =>
-        def m(y : Int) : Int = 42
-    )
-
-val B : sigA -> sigB = fn myA : sigA =>
-  bind
-     val myD : sigD = D
-  in
-  new(B =>
-    var k : Int = myA.m(3)
-  )
-
-val C : sigA -> sigC = fn myA : sigA =>
-  bind in
-  new(C =>
-    def n (Unit) : Int = myA.m(5)
-  )
-
-val Main = fn _ : Unit =>
-    bind
-        val copyOfAForB = A()
-        val copyOfAForC = A()
-        val B = B(copyOfAForB)
-        val C = C(copyOfAForC)
-    in
-        // nothing
-        
-\end{lstlisting}
-\end{minipage}
-\end{tabular}
-
-\newpage
-
-\subsection{Code Example 2}
-
-\begin{tabular}{p{0.6\textwidth}p{0.6\textwidth}}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-signature sigA = 
-  def a(Unit) : Int
-
-signature sigB =
-  def b(y : Int) : Int
-
-resource signature sigC =
-  var c : Int
-
-resource signature sigD =
-  var d : Int
-
-resource signature sigE =
-  var e : Int
-  
-resource signature sigF =
-  def f(y : Int) : Int
-  
-resource signature sigG =
-  def g(Unit) : Int
-
-resource signature sigX =
-  def sumX(y : Int) : Int
-
-
-module A : sigA
-  def a(Unit) : Int = 42
-
-module B : sigB
-  def b(y : Int) : Int = y
-
-resource module C : sigC
-  var c : Int = 2
-
-resource module D : sigD
-  var d : Int = 0
-  
-\end{lstlisting}
-\end{minipage}
-&
-\hspace{-10ex}
-\begin{minipage}[t]{\textwidth}
-\begin{lstlisting}
-resource module X : sigX
-
-  resource module E : sigE
-    var e : Int = 5
-
-  resource module F : sigF
-    require sigE as myE
-    def f(y : Int) = y + myE.e
-
-  resource module G : sigG
-    require sig E as myE
-    def g(Unit) = myE.e
-
-  import sigA as myA
-  import sigB as myB
-  require sigC as myC
-  require sigD as myD
-  instantiate E() as myE
-  instantiate E() as eForF
-  instantiate E() as eForG
-  instantiate F(eForF) as myF
-  instantiate G(eForG) as myG
-
-  def sumX(y : Int) : Int = 
-      myA.a() + myB.b(y) + myC.c + myD.d
-      + myE.E + myF.f(y) + myG.g()
-
-
-resource module Main
-  instantiate C() as cForX
-  instantiate D() as dForX
-  instantiate X(cForX, dForX) as x
-// instantiate X(instantiate C(), instantiate D())
-
-
-
-\end{lstlisting}
-\end{minipage}
-\end{tabular}
-
-
-\newpage
-
-\subsection{Abstract Grammar}
-\[
-\begin{array}{cllr}
-p & ::= & e & program \\
-&&\\
-m & ::= & h~\overline{i}~\overline{d} & module \\
-&&\\
-h & ::= & [\keywadj{resource}]~\keyw{module} x : t & module~header \\
-&&\\
-i & ::= & \keyw{import} x~[\keyw{as} y] \\
-  & |   & \keyw{instantiate} x(\overline{y})~[\keyw{as} y] \\
-  & |   & \keyw{require} t~[\keyw{as} y]\\
-&&\\
-sm & ::= & [\keywadj{resource}]~\keyw{signature} x = \tau; sm &~~~signatures~module \\
-&&\\
-d & ::= & ... & declarations \\
-&&\\
-e & ::= & ... & expressions \\
-&&\\
-\end{array}
-\]
-
-\noindent\textbf{Notes:}
-\begin{itemize}
-\item The program is an expression $e$, which is syntactic sugar for
-
-$\keywadj{new}_s(x \Rightarrow \keyw{def} m(y : Unit) : \tau = e).m(\keywadj{new}_{\keywadj{pure}}(x \Rightarrow \epsilon))$.
-\item Declarations and expressions (static forms, except for $\keywadj{bind}$) are defined by regular Wyvern.
-\item $sm$ is a module that defines only module signatures.
-\item Signatures are translated to top-level type abbreviations.
-\item All module signatures are declared in the signatures module (even if the modules are nested).
-\item Module names ($x$s in the grammar) are specified by URIs.
-\item $t$ is a type variable.
-\item $\keywadj{import}$ is for non-resource modules whose implementation you specify directly.
-\item $\keywadj{instantiate}$ is for specifying the parameter of some parameterized module and for creating a resource module. (It is assumed that modules can call native code only if they are an FFI module.)
-\item In $\keywadj{instantiate}$, $\overline{y}$ must come either from $\keywadj{import}$s or $\keywadj{require}$s.
-\item $\keyw{instantiate} X(\keyw{instantiate} Y_1(), \keyw{instantiate} Y_2())$ can be used as a shorthand.
-\item $\keywadj{instantiate}$ can be used not only in the main module, but also in other modules, which provides a higher level of abstraction.
-\item $\keywadj{require}$ is used to specify module parameters; the $t$ is the module signature (type variable).
-
-\end{itemize}
-
-
-\newpage
-
-\subsection{Translation Rules}
-
-$\textit{trans}(\keyw{def} m(x : \tau_1) : \tau_2; \sigma) \equiv \keyw{def} m : \tau_1 \rightarrow \tau_2; trans(\sigma)$\\
-\\
-$\textit{trans}(\keyw{signature} M = \sigma) \equiv \keyw{signature} M = trans(\sigma)$ \\
-$\textit{trans}(\keyw{signature} \keyw{resource} M = \sigma) \equiv \keyw{signature} \keyw{resource} M = trans(\sigma)$ \\
-
-\noindent$trans(\keyw{module} M : \tau; d) \equiv \keyw{val} M : \tau = \keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow d)$
-\\\\
-\noindent$\textit{trans}(\overline{i}) \equiv$\\
-\indent if $\keyw{import} M_1~\keyw{as} M; \overline{i'}$ then $\keyw{val} M = M_1; trans(\overline{i'})$\\
-\indent if $\keyw{instantiate} M_1(\overline{M_2})~\keyw{as} M; \overline{i'}$ then $ \keyw{val} M = M_1(\overline{M_2}); trans(\overline{i'})$\\
-\indent if $\keyw{require} \tau~\keyw{as} M; \overline{i'}$ then $ M : \tau,~trans(\overline{i'})$\\
-\\
-$filterImportsAndInstantiates(\overline{i}) = $\\
-\indent if $\keyw{import} M_1~\keyw{as} M; \overline{i'}$ then return $\keyw{import} M_1~\keyw{as} M; filterImportsAndInstantiates(\overline{i'})$\\
-\indent if $\keyw{instantiate} M_1(\overline{M_2})~\keyw{as} M; \overline{i'}$ then return $\keyw{instantiate} M_1(\overline{M_2})~\keyw{as} M; filterImportsAndInstantiates(\overline{i'})$\\
-\indent if $\keyw{require} \tau~\keyw{as} M; \overline{i'}$ then return $filterImportsAndInstantiates(\overline{i'})$\\
-\indent if $\overline{i}$ is empty then return $\varnothing$ \\
-
-\noindent$filterRequires(\overline{i}) = $\\
-\indent if $\keyw{import} M_1~\keyw{as} M; \overline{i'}$ then return $filterRequires(\overline{i'})$\\
-\indent if $\keyw{instantiate} M_1(\overline{M_2})~\keyw{as} M; \overline{i'}$ then return $filterRequires(\overline{i'})$\\
-\indent if $\keyw{require} \tau~\keyw{as} M; \overline{i'}$ then return $\keyw{require} \tau~\keyw{as} M; filterRequires(\overline{i'})$\\
-\indent if $\overline{i}$ is empty then return $\keyw{require} \keyw{Unit} \keyw{as} \_$ \\
-
-\noindent$getTypes(\overline{x : \tau}) = $ if $\overline{x : \tau}$ is empty return $\keywadj{Unit}$, otherwise return $\overline{\tau}$\\
-
-\noindent$trans(\keyw{resource} \keyw{module} M : \tau; \overline{i}; d) \equiv$
-
-$\keyw{val} M : getTypes(trans(filterRequires(\overline{i}))) \rightarrow \tau = $
-
-$\keyw{fn} trans(filterRequires(\overline{i})) \Rightarrow~\keyw{bind} trans(filterImportsAndInstantiates(\overline{i})~\keyw{in} \keywadj{new}(M \Rightarrow d)$\\
-
-\noindent If the module does not require or instantiate any modules, then its translation is simplified as follows:
-\\\\
-\noindent$trans(\keyw{resource} \keyw{module} M : \tau; d) \equiv \keyw{val} M : \keyw{Unit} \rightarrow \tau = \keyw{fn} \_ : \keyw{Unit} \Rightarrow~\keyw{bind} \keyw{in} \keywadj{new}(M \Rightarrow d)$
-
-
-\newpage
-
-\section{Authority}
-
-\subsection{Rules}
-
-$\fbox{$~pointsto(e, \mu)~$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(pointsto-empty)}]
-  {pointsto([~],\mu) = \varnothing }
-  {}%\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(pointsto-var)}]
-  {pointsto(E[x],\mu) = \bigcup pointsto(subexps(E), \mu)}
-  {l.m(l') \rhd E' \not\in E}\\[5ex]
-%~~~~~~~~~~
-\infer[\textsc{(pointsto-new)}]
-  {pointsto(E[\keywadj{new}_{s}(x \Rightarrow \overline{d})],\mu) = pointsto(\overline{d},\mu) \bigcup pointsto(subexps(E), \mu)}
-  {l.m(l') \rhd E' \not\in E}\\[5ex]
-
-\infer[\textsc{(pointsto-method)}]
-  {pointsto(E[e.m(e')],\mu) = pointsto(e,\mu) \cup pointsto(e',\mu) \bigcup pointsto(subexps(E), \mu)}
-  {l.m(l') \rhd E' \not\in E}\\[5ex]
-
-\infer[\textsc{(pointsto-field)}]
-  {pointsto(E[e.f],\mu) = pointsto(e,\mu) \bigcup pointsto(subexps(E), \mu)}
-  {l.m(l') \rhd E' \not\in E}\\[5ex]
-
-\infer[\textsc{(pointsto-assign)}]
-  {pointsto(E[e.f = e'],\mu) = pointsto(e,\mu) \cup pointsto(e',\mu) \bigcup pointsto(subexps(E), \mu)}
-  {l.m(l') \rhd E' \not\in E}\\[5ex]
-
-\infer[\textsc{(pointsto-bind)}]
-  {pointsto(E[\keyw{bind} x = e~\keyw{in} e'],\mu) = pointsto(e,\mu) \cup pointsto(e',\mu) \bigcup pointsto(subexps(E), \mu)}
-  {l.m(l') \rhd E' \not\in E}\\[5ex]
-
-\infer[\textsc{(pointsto-principal)}]
-  {pointsto(E[l],\mu) = \{ l \} \bigcup pointsto(subexps(E), \mu)}
-  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{stateful} \in \mu & l'.m(l'') \rhd E' \not\in E}\\[5ex]
-%~~~~~~~~~~
-\infer[\textsc{(pointsto-data)}]
-  {pointsto(E[l],\mu) = \bigcup pointsto(subexps(E), \mu)}
-  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{pure} \in \mu & l'.m(l'') \rhd E' \not\in E}\\[5ex]
-
-\infer[\textsc{(pointsto-call-principal)}]
-  {pointsto(E[l.m(l') \rhd e],\mu) = \{ l \} \bigcup pointsto(subexps(E), \mu)}
-  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{stateful} \in \mu & l''.m'(l''') \rhd E' \not\in E}\\[5ex]
-
-\infer[\textsc{(pointsto-call-data)}]
-  {pointsto(E[l.m(l') \rhd e],\mu) = pointsto(e,\mu) \bigcup pointsto(subexps(E), \mu)}
-  {l \mapsto \{ x \Rightarrow \overline{d} \}_\keywadj{pure} \in \mu & l''.m'(l''') \rhd E' \not\in E}\\[5ex]
-
-%\infer[\textsc{(pointsto-otherexp)}]
-%  {pointsto(E[e],\mu) = \bigcup pointsto(subexps(e),\mu)}
-%  {\textit{$e$ is not one of the expression forms defined above}}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$~pointsto(\overline{d}, \mu)~$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(pointsto-decls)}]
-  {pointsto(\overline{d}, \mu) = \bigcup_{d \in \overline{d}} pointsto(d, \mu)}
-  {}\\[5ex]
-  
-\end{array}
-\]
-
-$\fbox{$~pointsto(d, \mu)~$}$
-\[
-\begin{array}{c}
-%\infer[\textsc{(pointsto-emptydecl)}]
-%  {pointsto(\epsilon,\mu) = \varnothing}
-%  {}\\[5ex]
-
-\infer[\textsc{(pointsto-def)}]
-  {pointsto(\keyw{def} m(x:\tau):\tau = e, \mu) = pointsto(e, \mu)}
-  {}\\[5ex]
-  
-\infer[\textsc{(pointsto-varx)}]
-  {pointsto(\keyw{var} f:\tau = x,\mu) = \varnothing}
-  {}\\[5ex]
-%~~~~~~~~~~
-\infer[\textsc{(pointsto-varl)}]
-  {pointsto(\keyw{var} f:\tau = l,\mu) = pointsto(l,\mu)}
-  {}\\[5ex]
-
-\end{array}
-\]
-
-%$\fbox{$~pointsto(E, \mu)~$}$
-%\[
-%\begin{array}{c}
-%\infer[\textsc{(pointsto-context-exp)}]
-%  {pointsto(E[e], \mu) = pointsto(E, \mu) \cup pointsto(e, \mu)}
-%  {}\\[5ex]
-%
-%\infer[\textsc{(pointsto-context)}]
-%  {pointsto(E, \mu) = \bigcup pointsto(subexps(E), \mu)}
-%  {}\\[5ex]
-%
-%\end{array}
-%\]
-
-$\fbox{$~auth()~$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(auth-store)}]
-  {auth_{store}(l,\mu) = pointsto(l, \mu) \cup pointsto(\overline{d},\mu)}
-  {l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu}\\[5ex]
-
-\infer[\textsc{(auth-stack-nocall)}]
-  {auth_{stack}(l,E[e],\mu) = \varnothing}
-  {E[l.m(l') \rhd e'] \not= E[e] & l''.m'(l''') \rhd E' \not\in E}\\[5ex]
-%~~~~~~~~~~
-\infer[\textsc{(auth-stack)}]
-  {auth_{stack}(l, E[l.m(l') \rhd e'], \mu) = pointsto(e',\mu) \cup auth_{stack}(l,e',\mu)}
-  {l.m'(l'') \rhd E' \not\in E}\\[5ex]
-  
-\infer[\textsc{(auth-config)}]
-  {auth(l,e, \mu) = auth_{store}(l,\mu) \cup auth_{stack}(l,e,\mu)}
-  {}\\[5ex]
-
-\end{array}
-\]
-
-$\fbox{$~lookupCaller(E)~$}$
-\[
-\begin{array}{c}
-\infer[\textsc{(lookupCaller)}]
-  {lookupCaller(E) = l}
-  {l.m(l') \rhd E' \in E & l''.m'(l''') \rhd E'' \not\in E'}\\[5ex]
-
-\end{array}
-\]
-
-\newpage
-\subsection{Definitions}
-\label{sec:definitions}
-
-\begin{itemize}
-\item A \textit{principal} is a stateful object.
-\item An object can \emph{directly access} a principal if the object either has a reference to the principal or can access the principal via methods (e.g. when the principal is passed in as a parameter).
-\item ``$pointsto(e, \mu) = \{ ... \}$'' means that, in the context of memory $\mu$, the expression $e$ can directly access principals identified (pointed to) by locations in $\{ ... \}$.
-\item ``$auth_{store}(l, \mu) = \{ ... \}$'' means that, in the context of memory $\mu$, the principal identified by $l$ can directly access the other principals identified by locations in $\{ ... \}$, by virtue of $l$'s (static) state.
-\item ``$auth_{stack}(l, e, \mu) = \{ ... \}$'' means that, in the context of memory $\mu$, the principal identified by $l$ can directly access the other principals identified by locations in $\{ ... \}$, by virtue of the execution state of methods of $l$ executing in $e$.
-\item The difference in meaning between $auth_{store}(l, \mu)$ and $pointsto(l, \mu)$ is that, in the latter, $l$ is treated as an expression, not a principal, and so the only location it can access is $l$.
-\item The difference between $auth_{store}()$ and $auth_{stack}()$ is that, in the latter: 1) arguments are concrete, and 2) the method body may have been re-written to something else that may have new principals (due to acquiring access to a new location pointing to a principal via a return, creating new temporary variables with such new locations (three address code), etc.).
-\item The expression $l.m(l_1) \rhd e$ means that we are currently executing a method $m$ of the receiver (object) $l$ having given it an argument $l_1$, and the method body is $e$. This expression was introduced to to keep track of that the LHS expression has access to.
-\item The \textsc{pointsto-otherexp} rule is a shorthand; the rest of the \textit{pointsto} rules for expressions are just congruence---look inside the $e$s.
-\item In the \textsc{auth-stack} rule, $l''$ represents the concrete argument that was passed in, and $l'$ can be arbitrary since it is substituted with $l''$ right away.  It is likely that $l$ is part of $e'$. In the conclusion, it is possible that the argument was not used, or it was used but is not being used any more, in which case, $l$ no longer has authority over $l'$. The premise makes sure that, as we go down the stack, we do not miss any calls to methods of $l$. (To see why, one could try applying the rule to a stack that has two calls and try to make it match the inner rather than the outer one. This is possible without the premise, but impossible with it.)
-\item Specification for $lookupCaller(E)$:
-\item[] \emph{Input:} evaluation context $E$
-\item[] \emph{Output:} Let $E''$ be the innermost evaluation context of $E$ that has the form $l.m(l') \rhd E'$. Return $l$.
-
-\end{itemize}
-
-
-\subsubsection{Authority safety}
-
-\begin{itemize}
-\item Authority can be possessed by either a principal (a stateful object) or an expression. (See $pointsto()$ rules.)
-
-\item Our definition of an \emph{object} comes directly from object-oriented programming and means an encapsulation of state and functionality. Then, having \emph{authority over a principal} means having access to the principal's state and functionality.
-
-\item \emph{Authority} is the upper bound on the set of principals (stateful objects) that a subject (another principal or an expression) can access and act upon.
-
-\item The \emph{authority of an object or an expression} is the union of the set of all principals (stateful objects) the current principal or expression has access to.
-
-\item The authority of an object can change due to actions performed by other objects. For example:
-\begin{itemize}
-\item If an object A creates a new object B, A gains authority over B.
-\item If a principal A, authority for which an object B does not have, is passed in as an argument to the object B's method by some caller object C, which has authority over A, then B (perhaps only temporarily) gains authority over A.
-\item If a principal A, authority for which an object B does not have, was returned from a method call that B initiated, then B gains authority over A.
-\end{itemize}
-
-\item The authority of an expression can change as the expression is being executed.
-
-\item The authority of an object (with respect to the store) can be statically determined by the code stored in the object. (See the \textsc{auth-store} rule.)
-
-\item A principal can lose authority and become a pure object, e.g. on a reassignment of a principal's field (if the field ceased to hold a principal) or on a return of a principal's method (if the method received some authority via arguments and did not save the authority within the principal).
-
-\end{itemize}
-
-
-\newpage
-
-\subsection{Theory}
 
 \begin{lemma}
 For an expressions of the form $l.m(l') \rhd E[e]$, such that $E$ contains no method call stack frames,
@@ -1227,8 +150,86 @@ Since we are considering small-step semantics, there were no changes to $l$, $l_
 Proof is by inductively applying Lemma 6 to the method call stack frames in $E$ starting from the right most one (closest to $l.m(l') \rhd E'[e]$).\qed
 \end{proof}
 
+\newpage
+
+\begin{theorem}[Authority Safety {[New]}] If
+\begin{enumerate}
+\item $e~|~\mu \longrightarrow e'~|~\mu'$,
+\item $l_1 \mapsto \{ x \Rightarrow \overline{d}_1 \}_{\keywadj{stateful}} \in \mu'$,
+\item $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{stateful}} \in \mu$, and
+\item $auth(l, e', \mu') \setminus auth(l, e, \mu) \supseteq \{ l_1 \}$,
+\end{enumerate}
+then one of the following must be true:
+\begin{itemize}
+\item \textbf{Object creation:}
+\begin{enumerate}
+\item $e = E[l.m(l_2) \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow \overline{d}_1)]]$ and
+\item $e' = E[l.m(l_2) \rhd E'[l_1]]$, where
+\item $\nexists l'$, such that $l' \mapsto \{ x \Rightarrow \overline{d'}\}_{\keywadj{stateful}} \in \mu$ and $l'.m'(l'') \rhd E'' \in E'$
+\end{enumerate}
+
+\item \textbf{Method call:}
+\begin{enumerate}
+\item $e = E[l.m(l_1)]$ and
+\item $e' = E[l.m(l_1) \rhd [l_1/y][l/x]e'']$
+\end{enumerate}
+
+\item \textbf{Method return:}
+\begin{enumerate}
+\item $e = E[l.m(l_2) \rhd E'[l_3.m'(l_4) \rhd l_1]]$ and
+\item $e' = E[l.m(l_2) \rhd E'[l_1]]$, where
+\item $\nexists l'$, such that $l' \mapsto \{ x \Rightarrow \overline{d'}\}_{\keywadj{stateful}} \in \mu$ and $l'.m''(l'') \rhd E'' \in E'$
+\end{enumerate}
+\end{itemize}
+
+\end{theorem}
+
+\begin{proof} The proof is by induction on a derivation of $e~|~\mu \longrightarrow e'~|~\mu'$. For a given derivation, we proceed by cases on the last evaluation rule used:\\
+
+\sloppy 
+
+\noindent\fbox{\parbox{\widthof{Case \textsc{E-Congruence}:}}{Case \textsc{E-Congruence}:}} The changes in authority when $E[e]~|~\mu \longrightarrow E[e']~|~\mu'$ depend on what expressions are in $e~|~\mu \longrightarrow e'~|~\mu'$. Let us consider all possible $e$ and $e'$.\\
+
+\noindent\fbox{\parbox{\widthof{Subcase \textsc{E-New}:}}{Subcase \textsc{E-New}:}}
+$e = \keywadj{new}_s(x \Rightarrow \overline{d}_1)$; $e' = l_1$; and $\mu' = \mu, l_1 \mapsto \{ x \Rightarrow \overline{d}_1 \}_s$.
+...
+\end{proof}
+
 
 \newpage
+
+\begin{theorem}[Authority Safety {[Including pure objects]}] If
+\begin{enumerate}
+\item $e~|~\mu \longrightarrow e'~|~\mu'$,
+\item $l_1 \mapsto \{ x \Rightarrow \overline{d}_1 \}_{\keywadj{stateful}} \in \mu'$,
+\item $l \mapsto \{ x \Rightarrow \overline{d} \}_s \in \mu$, and
+\item $auth(l, e', \mu') \setminus auth(l, e, \mu) \supseteq \{ l_1 \}$,
+\end{enumerate}
+then one of the following must be true:
+\begin{itemize}
+\item \textbf{Object creation:}
+
+$e = E[l.m(l_2) \rhd E'[\keywadj{new}_{\keywadj{stateful}}(x \Rightarrow \overline{d}_1)]]$, $e' = E[l.m(l_2) \rhd E'[l_1]]$, where
+\begin{enumerate}
+\item $\nexists l_0$, such that $l_0 \mapsto \{ x \Rightarrow \overline{d_0}\}_{\keywadj{stateful}}$ and $l_0.m_0(l_0') \rhd E'' \in E'$, and
+\item if $l \mapsto \{ x \Rightarrow \overline{d}\}_{\keywadj{stateful}}$, $\nexists l_0$, such that $l_0.m_0(l_0') \rhd E'' \in E$ and $auth(l_0, e', \mu') \setminus auth(l_0, e, \mu) = \{ l_1 \}$
+\end{enumerate}
+
+\item \textbf{Method call:}
+
+$e = E[l.m(l_1)]$, $e' = E[l.m(l_1) \rhd [l_1/y][l/x]e'']$
+
+\item \textbf{Method return:}
+
+$e = E[l.m(l_2) \rhd E'[l_3.m'(l_4) \rhd l_1]]$, $e' = E[l.m(l_2) \rhd E'[l_1]]$, where
+\begin{enumerate}
+\item $\nexists l_0$, such that $l_0 \mapsto \{ x \Rightarrow \overline{d_0}\}_{\keywadj{stateful}}$ and $l_0.m'(l_0') \rhd E'' \in E'$, and
+\item if $l \mapsto \{ x \Rightarrow \overline{d}\}_{\keywadj{stateful}}$, $\nexists l_0$, such that $l_0.m'(l_0') \rhd E'' \in E$ and $auth(l_0, e', \mu') \setminus auth(l_0, e, \mu) = \{ l_1 \}$
+\end{enumerate}
+\end{itemize}
+
+\end{theorem}
+
 
 \begin{theorem}[Authority Safety (Alternative)] If
 \begin{enumerate}
@@ -2042,526 +1043,132 @@ Thus, $auth(l, e', \mu') = auth(l, e, \mu)$ in compliance with the theorem.\\
 
 \newpage
 
-\subsection{Sample Scenarios}
+\begin{theorem}[Auxiliary]
+For all $l$, such that
+$E[l.m(l') \rhd E'[e]]~|~\mu \longrightarrow E[l.m(l') \rhd E'[e']]~|~\mu'$,
+if
+\begin{enumerate}
+\item $\exists l_0 \mapsto \{ x \Rightarrow \overline{d_0} \}_{\keywadj{stateful}} \in \mu'$, such that $pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}$
+\item $\forall l_1.m_1(l_1') \rhd E'' \in E'$, $l_1 \mapsto \{ x \Rightarrow \overline{d_1} \}_{\keywadj{pure}} \in \mu$
+\end{enumerate}
+then
+$auth(l, E[l.m(l') \rhd E'[e']], \mu') \setminus auth(l, E[l.m(l') \rhd E'[e]], \mu) = \{ l_0 \}$.
+\end{theorem}
 
-\noindent\underline{\smash{\textbf{\textit{Object creation:}}}}
+\begin{proof}
+The proof is by induction on the method call stack frames.\\
 
-\vspace{16pt}
+\noindent\textit{\underline{Base case:}} $l'.m'(l'') \rhd E_1 \not\in E$ and $l'.m'(l'') \rhd E_1 \not\in E'$. 
 
-\noindent Program code:
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-new($l_p$ =>
-  def m(y : typeOfD) : typeOfE =
-    new($l_D$ => var xd : typeOfE = y)
-).m(new($l_E$ => var xe : Int = 5))
-\end{lstlisting}
+Let $auth(l, E[l.m(l') \rhd E'[e']], \mu') \setminus auth(l, E[l.m(l') \rhd E'[e]], \mu) \not= \{ l_0 \}$.
 
-\vspace{12pt}
-\noindent Evaluation step 1 (form before: $E.m(e)$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$ def m(y : typeOfD) : typeOfE =
-          new($l_D$ => var xd : typeOfE = y) $\}$
+Consider $l$'s authority in the two states. In the initial state, we have:
 
-$l_p$.m(new($l_E$ => var xe : Int = 5)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 2 (form before: $l.m(E)$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$ def m(y : typeOfD) : typeOfE =
-          new($l_D$ => var xd : typeOfE = y) $\}$
-$l_E \rightarrow \{$ var xe : Int = 5 } // assume 5 is a location in memory representing the integer value
-
-$l_p$.m($l_E$)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 3 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p$.m($l_E$) $\rhd$ new($l_D$ => var xd : typeOfE = $l_E$)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 4 (form before: $l.m(l) \rhd E$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$ def m(y : typeOfD) : typeOfE =
-          new($l_D$ => var xd : typeOfE = y) $\}$
-$l_E \rightarrow \{$ var xe : Int = 5 $\}$
-$l_D \rightarrow \{$ var xd : typeOfE = $l_E$ $\}$
-
-$l_p$.m($l_E$) $\rhd$ $l_D$
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 5 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_D$
-\end{lstlisting}
-
-\newpage
-
-\noindent\textbf{$l_p$ gains authority over $l_D$ in evaluation step 4 when \textsc{E-New} is applied to create $l_D$:}\\
-
-\noindent$e = E[\keywadj{new}_{\keywadj{stateful}}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E)]$, $e' = E[l_D]$\\
-
-\noindent$e = l_p.m(l_E) \rhd \keywadj{new}_{\keywadj{stateful}}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E)$, $e' = l_p.m(l_E) \rhd l_D$\\
-
-\noindent$auth(l_p, e', \mu') = auth(l_p, e, \mu) \cup \{ l_D \}$
-
+\noindent$auth(l, E[l.m(l') \rhd E'[e]], \mu)$
+\vspace{-7pt}
 \begin{align*}
-auth(l_p, e', \mu') &= auth_{store}(l_p, \mu') \cup auth_{stack}(l_p, e', \mu') & (\textsc{auth-config})\\
-auth_{store}(l_p, \mu') &= pointsto(l_p, \mu') \cup pointsto(\keyw{def} m~...~, \mu') & (\textsc{auth-store})\\
- &= \{ l_p \} \cup pointsto(\keyw{def} m(...) : typeOfE = \keywadj{new}(...), \mu') & (\textsc{pointsto-principal})\\
- &= \{ l_p \} \cup pointsto(\keywadj{new}(l_D \Rightarrow \keyw{var} x_d~...), \mu') & (\textsc{pointsto-def, -emptydecl})\\
- &= \{ l_p \} \cup pointsto(\keyw{var} x_d : typeOfE = l_E), \mu') & (\textsc{pointsto-new})\\
- &= \{ l_p \} \cup pointsto(l_E, \mu') & (\textsc{pointsto-varl, -emptydecl})\\ 
- &= \{ l_p,~l_E \} & (\textsc{pointsto-principal})\\
-auth_{stack}(l_p, e', \mu') &= pointsto(l_D, \mu') \cup auth_{stack}(l_p, l_D, \mu') & (\textsc{auth-stack})\\
- &= \{ l_D \} \cup auth_{stack}(l_p, l_D, \mu') & (\textsc{pointsto-principal})\\
- &= \{ l_D \} & (\textsc{auth-stack-nocall})\\
-auth(l_p, e', \mu') &= \{ l_p,~l_E,~l_D \} &\\
+&= auth_{store}(l, \mu) \cup auth_{stack}(l, E[l.m(l') \rhd E'[e]], \mu) & (\textsc{auth-config})\\
+&= auth_{store}(l, \mu) \cup pointsto(E'[e], \mu) \cup auth_{stack}(l, E'[e], \mu) & (\textsc{auth-stack})\\
+&= auth_{store}(l, \mu) \cup pointsto(E'[e], \mu) & (\textsc{auth-stack-nocall})\\
+&= auth_{store}(l, \mu) \cup pointsto(e, \mu) \bigcup pointsto(subexps(E'), \mu) & (Lemma~8)
 \end{align*}
+Similarly, in the final state, we have:
+\[
+auth(l, E[l.m(l') \rhd E'[e']], \mu') = auth_{store}(l, \mu') \cup pointsto(e', \mu') \bigcup pointsto(subexps(E'), \mu')
+\]
+Since we are considering small-step semantics, there was no change to $l$ and $E'$, and $auth_{store}(l, \mu') = auth_{store}(l, \mu)$ and $\bigcup pointsto(subexps(E'), \mu') = \bigcup pointsto(subexps(E'), \mu)$. Therefore,
+\[
+auth(l, E[l.m(l') \rhd E'[e']], \mu') = auth_{store}(l, \mu) \cup pointsto(e', \mu') \bigcup pointsto(subexps(E'), \mu)
+\]
+Then, we get
+\[
+auth(l, E[l.m(l') \rhd E'[e']], \mu') \setminus auth(l, E[l.m(l') \rhd E'[e]], \mu) = pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}
+\]
+This contradicts our assumption, and thus the assumption is wrong and the theorem holds.\\
+
+\noindent\textit{\underline{Inductive case:}} Let us enumerate all method callers preceding $e$ and $e'$ on the stack starting from the method caller closest to $e$ and $e'$ on the stack:
+$E[l_i.m(l_i') \rhd E'[e]]~|~\mu \longrightarrow E[l_i.m(l_i') \rhd E'[e']]~|~\mu'$,
+where $1 \leq i \leq n$.
+
+Now consider $l_k$, such that
+\[
+E[l_k.m(l_k') \rhd E'[e]]~|~\mu \longrightarrow E[l_k.m(l_k') \rhd E'[e']]~|~\mu'
+\]
+where $1 \leq k \leq n$; for $i = 1 \dots k - 1$, $l_i.m_i(l_i') \rhd E'' \in E'$; and for $i = k + 1 \dots n$, $l_i.m_i(l_i') \rhd E'' \in E$. Then from the premise of the theorem, we have:
+
+\begin{enumerate}
+\item $\exists l_0 \mapsto \{ x \Rightarrow \overline{d_0} \}_{\keywadj{stateful}}$, such that $pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}$
+\item for $i = 1 \dots k - 1$, $ l_i.m_i(l_i') \rhd E'' \in E'$, $l_i \mapsto \{ x \Rightarrow \overline{d_i} \}_{\keyw{pure}}$
+\end{enumerate}
+
+Let $auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') \setminus auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) \not= \{ l_0 \}$.
+
+Consider $l_k$'s authority in the two states. In the initial state, we have:
 \begin{align*}
-auth(l_p, e, \mu) &= auth_{store}(l_p, \mu) \cup auth_{stack}(l_p, e, \mu) & (\textsc{auth-config})\\
-auth_{store}(l_p, \mu) &= pointsto(l_p, \mu) \cup pointsto(\keyw{def} m~...~, \mu) & (\textsc{auth-store})\\
- &= \{ l_p \} \cup pointsto(\keyw{def} m(...) : typeOfE = \keywadj{new}(...), \mu) & (\textsc{pointsto-principal})\\
- &= \{ l_p \} \cup pointsto(\keywadj{new}(l_D \Rightarrow \keyw{var} x_d~...), \mu) & (\textsc{pointsto-def, -emptydecl})\\
- &= \{ l_p \} \cup pointsto(\keyw{var} x_d : typeOfE = l_E), \mu) & (\textsc{pointsto-new})\\
- &= \{ l_p \} \cup pointsto(l_E, \mu) & (\textsc{pointsto-varl, -emptydecl})\\ 
- &= \{ l_p,~l_E \} & (\textsc{pointsto-principal})\\
-auth_{stack}(l_p, e, \mu) &= pointsto(\keywadj{new}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E), \mu) &\\
- &\cup auth_{stack}(l_p, \keywadj{new}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E), \mu) & (\textsc{auth-stack})\\
- &= pointsto(\keywadj{new}(l_D \Rightarrow \keyw{var} x_d : typeOfE = l_E), \mu) & (\textsc{auth-stack-nocall})\\
- &= pointsto(\keyw{var} x_d : typeOfE = l_E), \mu') & (\textsc{pointsto-new})\\
- &= pointsto(l_E, \mu') & (\textsc{pointsto-varl, -emptydecl})\\ 
- &= \{ l_E \} & (\textsc{pointsto-principal})\\
-auth(l_p, e, \mu) &=  \{ l_p,~l_E\}&\\
+auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) &= auth_{store}(l_k, \mu) \cup auth_{stack}(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) & (\textsc{auth-config})
 \end{align*}
-
-
-\newpage
-
-\noindent\underline{\smash{\textbf{\textit{Method call:}}}}
-
-\vspace{16pt}
-
-\noindent Program code:
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-new($l_p$ =>
-  def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
-    new($l_J$ =>
-      var xji : typeOfI = yi
-      var xjh : typeOfH = yh
-      def mj(Unit) : Int =
-        xjh.mh(xji)))
-.mp(new($l_I$ => var xi : Int = 3), new($l_H$ => def mh(y : typeOfI) : Int = y.xi))
-.mj()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 1 (form before: $E.m(e)$, going deeper):\\
-\indent\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 2 (form before: $E.m(e)$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$   def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
-         new($l_J$ =>
-           var xji : typeOfI = yi
-           var xjh : typeOfH = yh
-           def mj(Unit) : Int =
-             xjh.mh(xji)) $\}$
-
-$l_p$.mp(new($l_I$ => var xi : Int = 3), new($l_H$ => def mh(y : typeOfI) : Int = y.xi)).mj()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 3 (form before: $l.m(E, E)$, rule applied: \textsc{E-New} x2):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$   def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
-         new($l_J$ =>
-           var xji : typeOfI = yi
-           var xjh : typeOfH = yh
-           def mj(Unit) : Int =
-             xjh.mh(xji)) $\}$
-$l_I \rightarrow \{$ var xi : Int = 3 } // assume 3 is a location in memory representing the integer value
-$l_H \rightarrow \{$ def mh(y : typeOfI) : Int = y.xi $\}$
-
-$l_p$.mp($l_I$, $l_H$).mj()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 4 (form before: $l.m(l, l)$, rule applied: \textsc{E-Meth}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-($l_p$.mp($l_I$, $l_H$) $\rhd$ new($l_J$ =>
-                    var xji : typeOfI = $l_I$
-                    var xjh : typeOfH = $l_H$
-                    def mj(Unit) : Int =
-                      xjh.mh(xji)))
-.mj()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 5 (form before: $l.m(l, l) \rhd E$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$   def mp(yi : typeOfI, yh : typeOfH) : typeOfJ =
-         new($l_J$ =>
-           var xji : typeOfI = yi
-           var xjh : typeOfH = yh
-           def mj(Unit) : Int =
-             xjh.mh(xji)) $\}$
-$l_I \rightarrow \{$ var xi : Int = 3 }
-$l_H \rightarrow \{$ def mh(y : typeOfI) : Int = y.xi $\}$
-$l_J \rightarrow \{$ var xji : typeOfI = $l_I$
-        var xjh : typeOfH = $l_H$
-        def mj(Unit) : Int =
-          xjh.mh(xji) $\}$
-
-($l_p$.mp($l_I$, $l_H$) $\rhd$ $l_J$).mj()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 6 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_J$.mj()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 7 (form before: $E.m(e)$, $E$ is already evaluated to an object):\\
-\indent\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 8 (form before: $l.m(E)$, a \lstinline{Unit} argument passed, $E$ is already fully evaluated):\\
-\indent\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 9 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_J$.mj() $\rhd$ xjh.mh(xji)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 10 (form before: $l.m(l) \rhd E$, going deeper):\\
-\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 11 (forms before: $E.m(e)$, $l.m(E)$, substitution of concrete objects for variables x2):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_J$.mj() $\rhd$ $l_H$.mh($l_I$)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 12 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_J$.mj() $\rhd$ ($l_H$.mh($l_I$) $\rhd$ $l_I$.xi)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 13 (form before: $l.m(l) \rhd E$, rule applied: \textsc{E-Field}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_J$.mj() $\rhd$ ($l_H$.mh($l_I$) $\rhd$ 3)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 14 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_J$.mj() $\rhd$ 3
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 15 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-3
-\end{lstlisting}
-
-
-\newpage
-
-\noindent\textbf{$l_H$ gains authority over $l_I$ through $l_J$ when $l_I$ is passed in as an argument to $m_h()$ in evaluation step 12 when \textsc{E-Meth} is applied:}\\
-
-\noindent ($l_H$ is pure; $l_I$ and $l_J$ are stateful)\\
-
-\noindent$e = E[l_H.m_h(l_I)]$, $e' = E[l_H.m_h(l_I) \rhd l_I.x_i]$\\
-
-\noindent$e = l_J.m_j() \rhd l_H.m_h(l_I)$, $e' = l_J.m_j() \rhd (l_H.m_h(l_I) \rhd l_I.x_i)$\\
-
-\noindent$auth(l_H, e', \mu') = auth(l_H, e, \mu) \cup \{ l_I \}$
-
+Without loss of generality, let $l_k.m(l_k') \rhd E'''$ be the leftmost method call stack frame where $l_k$'s method is called, i.e. let $l_k.m(l_k') \rhd E''' \not\in E$. Then we get:
 \begin{align*}
-auth(l_H, e', \mu') &= auth_{store}(l_H, \mu') \cup auth_{stack}(l_H, e', \mu') & (\textsc{auth-config})\\
-auth_{store}(l_H, \mu') &= pointsto(l_H, \mu') \cup pointsto(\keyw{def} m_h~...~, \mu') & (\textsc{auth-store})\\
- &= pointsto(\keyw{def} m_h(y : typeOfI) : Int = y.x_i, \mu') & (\textsc{pointsto-data})\\
- &= pointsto(y.x_i, \mu') & (\textsc{pointsto-def, -emptydecl})\\
- &= pointsto(y, \mu') & (\textsc{pointsto-otherexp})\\
- &= \varnothing & (\textsc{pointsto-var})\\
-auth_{stack}(l_H, e', \mu') &= pointsto(l_I.x_i, \mu') \cup auth_{stack}(l_H, l_I.x_i, \mu') & (\textsc{auth-stack})\\
- &= pointsto(l_I.x_i, \mu') & (\textsc{auth-stack-nocall})\\
- &= pointsto(l_I, \mu') & (\textsc{pointsto-otherexp})\\
- &= \{ l_I \} & (\textsc{pointsto-principal})\\
-auth(l_H, e', \mu') &= \{ l_I \} &\\
+auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) &= auth_{store}(l_k, \mu) \cup pointsto(E'[e], \mu) \cup auth_{stack}(l_k, E'[e], \mu) & (\textsc{auth-stack})
 \end{align*}
+If $l_k.m(l_k') \rhd E''' \in E'$, then if $pointsto(e, \mu) \in pointsto(E'[e], \mu)$, by Lemma 10, $pointsto(e, \mu) \in auth_{stack}(l_k, E'[e], \mu)$. Then, without loss of generality, assume $l_k.m(l_k') \rhd E''' \not\in E'$, and we get:
 \begin{align*}
-auth(l_H, e, \mu) &= auth_{store}(l_H, \mu) \cup auth_{stack}(l_H, e, \mu) & (\textsc{auth-config})\\
-auth_{store}(l_H, \mu) &= pointsto(l_H, \mu) \cup pointsto(\keyw{def} m_h~...~, \mu) & (\textsc{auth-store})\\
- &= pointsto(\keyw{def} m_h(y : typeOfI) : Int = y.x_i, \mu) & (\textsc{pointsto-data})\\
- &= pointsto(y.x_i, \mu) & (\textsc{pointsto-def, -emptydecl})\\
- &= pointsto(y, \mu) & (\textsc{pointsto-otherexp})\\
- &= \varnothing & (\textsc{pointsto-var})\\
-auth_{stack}(l_H, e, \mu) &= \varnothing & (\textsc{auth-stack-nocall})\\
-auth(l_H, e, \mu) &=  \varnothing &\\
+auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) &= auth_{store}(l_k, \mu) \cup pointsto(E'[e], \mu) & (\textsc{auth-stack-nocall})
 \end{align*}
+Unwinding $E'$, we have:
 
-
-\newpage
-
-\noindent\underline{\smash{\textbf{\textit{Method return:}}}}
-
-\vspace{16pt}
-
-\noindent Program code:
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-new($l_p$ =>
-  def mp(y : typeOfA) : typeOfC =
-    new($l_C$ =>
-      var xca : typeOfA = y
-      def mc() : typeOfB =
-        xca.ma()))
-.mp(new($l_A$ => def ma() : typeOfB =
-                  new($l_B$ => var xb : Int = 42)))
-.mc()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 1 (form before: $E.m(e)$, going deeper):\\
-\indent\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 2 (form before: $E.m(e)$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
-         new($l_C$ =>
-           var xca : typeOfA = y
-           def mc() : typeOfB =
-             xca.ma()) $\}$
-$l_p$.mp(new($l_A$ => def ma() : typeOfB = new($l_B$ => var xb : Int = 42))).mc()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 3 (form before: $l.m(E)$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
-         new($l_C$ =>
-           var xca : typeOfA = y
-           def mc() : typeOfB =
-             xca.ma()) $\}$
-$l_A \rightarrow \{$ def ma() : typeOfB =
-          new($l_B$ => var xb : Int = 42) $\}$
-
-$l_p$.mp($l_A$).mc()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 4 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-($l_p$.mp($l_A$) $\rhd$ new($l_C$ =>
-                var xca : typeOfA = $l_A$
-                def mc() : typeOfB =
-                  xca.ma())
-.mc()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 5 (form before: $l.m(l) \rhd E$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
-         new($l_C$ =>
-           var xca : typeOfA = y
-           def mc() : typeOfB =
-             xca.ma()) $\}$
-$l_A \rightarrow \{$ def ma() : typeOfB =
-          new($l_B$ => var xb : Int = 42) $\}$
-$l_C \rightarrow \{$ var xca : typeOfA = $l_A$
-        def mc() : typeOfB =
-          xca.ma()) $\}$
-
-($l_p$.mp($l_A$) $\rhd$ $l_C$).mc()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 6 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_C$.mc()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 7 (form before: $E.m(e)$, $E$ is already evaluated to an object):\\
-\indent\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 8 (form before: $l.m(E)$, a \lstinline{Unit} argument passed, $E$ is already fully evaluated):\\
-\indent\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 9 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_C$.mc() $\rhd$ xca.ma()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 10 (form before: $l.m(l) \rhd E$, going deeper):\\
-\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 11 (form before: $E.m(e)$, substitution of concrete object for variable):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_C$.mc() $\rhd$ $l_A$.ma()
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 12 (form before: $l.m(E)$, a \lstinline{Unit} argument passed, $E$ is already fully evaluated):\\
-\indent\textit{Code same as above}
-
-\vspace{12pt}
-\noindent Evaluation step 13 (form before: $l.m(l)$, rule applied: \textsc{E-Meth}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_C$.mc() $\rhd$ ($l_A$.ma() $\rhd$ new($l_B$ => var xb : Int = 42))
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 14 (form before: $l.m(l) \rhd E$, rule applied: \textsc{E-New}):
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_p \rightarrow \{$ def mp(y : typeOfA) : typeOfC =
-         new($l_C$ =>
-           var xca : typeOfA = y
-           def mc() : typeOfB =
-             xca.ma()) $\}$
-$l_A \rightarrow \{$ def ma() : typeOfB =
-          new($l_B$ => var xb : Int = 42) $\}$
-$l_C \rightarrow \{$ var xca : typeOfA = $l_A$
-        def mc() : typeOfB =
-          xca.ma()) $\}$
-$l_B \rightarrow \{$ var xb : Int = 42 $\}$
-
-$l_C$.mc() $\rhd$ ($l_A$.ma() $\rhd$ $l_B$)
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 15 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_C$.mc() $\rhd$ $l_B$
-\end{lstlisting}
-
-\vspace{12pt}
-\noindent Evaluation step 16 (form before: $l.m(l) \rhd l$, rule applied: \textsc{E-StackFrame}):\\
-\vspace{-6pt}
-\indent\textit{Memory same as above}\\
-\vspace{-6pt}
-\begin{lstlisting}[xleftmargin=20pt]
-$l_B$
-\end{lstlisting}
-
-
-\newpage
-
-\noindent\textbf{$l_C$ gains authority over $l_B$ due to a return from $l_A$'s method $m_a()$ in evaluation step 15 when \textsc{E-StackFrame} is applied:}\\
-
-\noindent ($l_A$, $l_B$ and $l_C$ are stateful)\\
-
-\noindent$e = E[l_A.m_a() \rhd l_B]$, $e' = E[l_B]$\\
-
-\noindent$e = l_C.m_c() \rhd (l_A.m_a() \rhd l_B)$, $e' = l_C.m_c() \rhd l_B$\\
-
-\noindent$auth(l_C, e', \mu') = auth(l_C, e, \mu) \cup \{ l_B \}$
-
+\noindent$auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu)$
+\vspace{-7pt}
 \begin{align*}
-auth(l_C, e', \mu') &= auth_{store}(l_C, \mu') \cup auth_{stack}(l_C, e', \mu') & (\textsc{auth-config})\\
-auth_{store}(l_C, \mu') &= pointsto(l_C, \mu') \cup pointsto(\keyw{var} x_{ca}~...~, \mu') & (\textsc{auth-store})\\
- &= \{ l_C \} \cup pointsto(\keyw{var} x_{ca} : typeOfA = l_A;~\keyw{def} m_c~...~, \mu') & (\textsc{pointsto-principal})\\
- &= \{ l_C \} \cup pointsto(l_A, \mu) \cup pointsto(\keyw{def} m_c~...~, \mu') & (\textsc{pointsto-varl})\\
- &= \{ l_C, l_A \} \cup pointsto(\keyw{def} m_c() : typeOfB = x_{ca}.m_a(), \mu') & (\textsc{pointsto-principal})\\
- &= \{ l_C, l_A \} \cup pointsto(x_{ca}.m_a(), \mu') & (\textsc{pointsto-def, -emptydecl})\\
- &= \{ l_C, l_A \} \cup pointsto(x_{ca}, \mu') & (\textsc{pointsto-otherexp, -data})\\
- &= \{ l_C,~l_A \} & (\textsc{pointsto-var})\\
-auth_{stack}(l_C, e', \mu') &= pointsto(l_B, \mu') \cup auth_{stack}(l_C, l_B, \mu') & (\textsc{auth-stack})\\
- &= \{ l_B \} \cup auth_{stack}(l_C, l_B, \mu') & (\textsc{pointsto-principal})\\
- &= \{ l_B \} & (\textsc{auth-stack-nocall})\\
-auth(l_C, e', \mu') &= \{ l_C,~l_A,~l_B \} &\\
+&= auth_{store}(l_k, \mu) \cup pointsto(E_k[l_{k-1}.m_{k-1}(l_{k-1}') \rhd E_{k-1}[l_{k-2}.m_{k-2}(l_{k-2}') \rhd \dots \rhd E_1[e]] \dots ], \mu) & (\textsc{auth-stack-nocall})
 \end{align*}
+where for $i = 1 \dots k$, $l'.m(l'') \rhd E'' \not\in E_i$.
+
+Since for $i = 1 \dots k - 1$, $ l_i.m_i(l_i') \rhd E'' \in E'$, $l_i \mapsto \{ x \Rightarrow \overline{d_i} \}_{\keywadj{pure}}$,
+
+\noindent$auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu)$
+\vspace{-7pt}
 \begin{align*}
-auth(l_C, e, \mu) &= auth_{store}(l_C, \mu) \cup auth_{stack}(l_C, e, \mu) & (\textsc{auth-config})\\
-auth_{store}(l_C, \mu) &= pointsto(l_C, \mu) \cup pointsto(\keyw{var} x_{ca}~...~, \mu) & (\textsc{auth-store})\\
- &= \{ l_C \} \cup pointsto(\keyw{var} x_{ca} : typeOfA = l_A;~\keyw{def} m_c~...~, \mu) & (\textsc{pointsto-principal})\\
- &= \{ l_C \} \cup pointsto(l_A, \mu) \cup pointsto(\keyw{def} m_c~...~, \mu) & (\textsc{pointsto-varl})\\
- &= \{ l_C, l_A \} \cup pointsto(\keyw{def} m_c() : typeOfB = x_{ca}.m_a(), \mu) & (\textsc{pointsto-principal})\\
- &= \{ l_C, l_A \} \cup pointsto(x_{ca}.m_a(), \mu) & (\textsc{pointsto-def, -emptydecl})\\
- &= \{ l_C, l_A \} \cup pointsto(x_{ca}, \mu) & (\textsc{pointsto-otherexp, -data})\\
- &= \{ l_C,~l_A \} & (\textsc{pointsto-var})\\
-auth_{stack}(l_C, e, \mu) &= pointsto(l_A.m_a() \rhd l_B, \mu) \cup auth_{stack}(l_C, l_A.m_a() \rhd l_B, \mu) & (\textsc{auth-stack})\\
- &= \{ l_A \} \cup auth_{stack}(l_C, l_A.m_a() \rhd l_B, \mu) & (\textsc{pointsto-call-principal})\\
- &= \{ l_A \} & (\textsc{auth-stack-nocall})\\
-auth(l_C, e, \mu) &=  \{ l_C,~l_A\}&\\
+&= auth_{store}(l_k, \mu) \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu) & (\textsc{pointsto-call-data}~\times~k)
 \end{align*}
+Similarly, in the final state, we have:
+\begin{align*}
+auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') &= auth_{store}(l_k, \mu') \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu') \cup pointsto(e', \mu')
+\end{align*}
+Since we are considering small-step semantics, there was no change to $l$ and $E_i$s, and $auth_{store}(l_k, \mu') = auth_{store}(l_k, \mu)$ and $\bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu') = \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu)$. Therefore,
+\[
+auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') = auth_{store}(l_k, \mu) \bigcup^{k}_{i = 1} \bigcup pointsto(subexps(E_i), \mu) \cup pointsto(e', \mu')
+\]
+Then, we get
+\[
+auth(l_k, E[l_k.m(l_k') \rhd E'[e']], \mu') \setminus auth(l_k, E[l_k.m(l_k') \rhd E'[e]], \mu) = pointsto(e', \mu') \setminus pointsto(e, \mu) = \{ l_0 \}
+\]
+This contradicts our assumption, and thus the assumption is wrong and the theorem holds.\qed
+\end{proof}
+
+\begin{lemma}
+If $l.m(l') \rhd E' \not\in E$, then $pointsto(E[e], \mu) = pointsto(e, \mu) \bigcup pointsto(subexps(E), \mu)$.
+\end{lemma}
+
+\begin{proof}
+Proof is by induction on $e$: we consider all possible types of $e$ and apply the $pointsto(e, \mu)$ rules.
+\end{proof}
+
+\begin{lemma}
+If for all $l.m(l') \rhd E' \in E$, $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{pure}}$, then $pointsto(e, \mu) \in pointsto(E[e], \mu)$.
+\end{lemma}
+
+\begin{proof}
+Consider $pointsto(E[e], \mu)$, and because all method callers are pure, \textsc{pointsto-call-data} will be applied ending with $pointsto(e, \mu)$.
+\end{proof}
+
+\begin{lemma}
+If $l.m(l') \rhd E' \in E$; for all method callers $l''$ preceding $l.m(l') \rhd E'$ on the stack, $l'' \mapsto \{ x \Rightarrow \overline{d''} \}_{\keywadj{pure}}$; and $pointsto(e, \mu) \in pointsto(E[e], \mu)$, then $pointsto(e, \mu) \in auth_{stack}(l, E[e], \mu)$.
+\end{lemma}
+
+\begin{proof}
+Consider $auth_{stack}(l, E[e], \mu)$, apply \textsc{auth-stack}, then use Lemma 9.
+\end{proof}
 
 
 
