@@ -49,11 +49,11 @@ e & ::= & x & expression \\
 &&\\
 p & ::= & x & paths \\
 & | & l &\\
-& | & p.f &\\
+%& | & p.f &\\
 & | & p \unlhd T &\\
 &&\\
 v & ::= & l & value \\
-& | & v.f &\\
+%& | & v.f &\\
 & | & v \unlhd T &\\
 &&\\
 d & ::= & \texttt{val} \; f : T = p & declaration \\
@@ -70,7 +70,8 @@ A & :: = & \varnothing \; | \; A,\;  <: T & Assumption \; Context \\
 %T & ::= & \{\texttt{z} \Rightarrow \overline{\sigma}\} & type \\
 T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
 & | & p.L &\\
-%& | & T \wedge T & \\
+& | & T \wedge T & \\
+& | & T \vee T & \\
 & | & \top & \\
 & | & \bot & \\
 &&\\
@@ -129,11 +130,11 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
   {p_1 \equiv p_2}
   {p_1 \equiv p_2 \unlhd T}
   \quad (\textsc{Eq-Path})
-  \and
-\inferrule
-  {p_1 \equiv p_2}
-  {p_1.f \equiv p_2.f}
-  \quad (\textsc{Eq-Field})
+%  \and
+%\inferrule
+%  {p_1 \equiv p_2}
+%  {p_1.f \equiv p_2.f}
+%  \quad (\textsc{Eq-Field})
 \end{mathpar}
 \caption{Path Equivalence}
 \label{f:path_equiv}
@@ -267,24 +268,27 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
 	\and
 \inferrule
   {\varnothing; \Sigma; \varnothing \vdash v_1 : T \\
-  	T \not\equiv p.L \\
   	\varnothing; \Sigma; \varnothing \vdash p \ni \texttt{type} \; L : S .. U \\
+  	\varnothing; \Sigma; \varnothing \not\vdash T <: U \\
   	\mu; \Sigma \vdash v_1 \unlhd S \unlhd U \leadsto v_2}
   {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2}
   \quad (\textsc {L-Type-Select-Lower})
 	\and
 \inferrule
-  {\varnothing; \Sigma; \varnothing \vdash v_1 : p'.L \\
-   p' \equiv p \\
+  {\varnothing; \Sigma; \varnothing \vdash v_1 : T \\
   	\varnothing; \Sigma; \varnothing \vdash p \ni \texttt{type} \; L : S .. U \\
+  	\varnothing; \Sigma; \varnothing \vdash T <: U \\
   	\mu; \Sigma \vdash v_1 \unlhd U \leadsto v_2}
   {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2}
-  \quad (\textsc {L-Type-Select-Refl})
-	\and
-\inferrule
-  {\mu; \Sigma \vdash v_1 \leadsto_{f} v_2}
-  {\mu; \Sigma \vdash v_1.f \leadsto v_2}
-  \quad (\textsc {L-Field})
+  \quad (\textsc {L-Type-Select-Upper})
+%	\and
+%\inferrule
+%  {\varnothing; \Sigma; \varnothing \vdash v_1 : p'.L \\
+%   p' \equiv p \\
+%  	\varnothing; \Sigma; \varnothing \vdash p \ni \texttt{type} \; L : S .. U \\
+%  	\mu; \Sigma \vdash v_1 \unlhd U \leadsto v_2}
+%  {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2}
+%  \quad (\textsc {L-Type-Select-Refl})
 \end{mathpar}
 \caption{Leadsto Judgement}
 \label{f:leadsto}
@@ -295,13 +299,13 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
 \begin{mathpar}
 \inferrule
   {\mu(l) = \{z \Rightarrow ..., \texttt{val} \; f : T = v, ...\}}
-  {\mu; \Sigma \vdash l \leadsto_{f} v \unlhd T}
+  {\mu; \Sigma \vdash l \leadsto_{f} [l/z]v \unlhd T}
   \quad (\textsc {L\textsubscript{$f$}-Loc})
 	\and
 \inferrule
   {\mu; \Sigma \vdash v_1 \leadsto_{f} v_2 \\
   \texttt{val} \; f:T \in \overline{\sigma}}
-  {\mu; \Sigma \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{f} v_2 \unlhd T}
+  {\mu; \Sigma \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{f} v_2 \unlhd [v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} / z]T}
   \quad (\textsc {L\textsubscript{$f$}-Type})
 	\and
 \inferrule
@@ -311,40 +315,62 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
   \quad (\textsc {L\textsubscript{$f$}-Type-Select})
 	\and
 \inferrule
-  {\mu; \Sigma \vdash v_1 \leadsto_{f_1} v_2 \\
-  	\mu; \Sigma \vdash v_2 \leadsto_{f_2} v_3}
-  {\mu; \Sigma \vdash v_1.f_1 \leadsto_{f_2} v3}
-  \quad (\textsc {L\textsubscript{$f$}-Field})
+  {\varnothing; \Sigma; \varnothing \vdash v_1 : T \\
+  	\varnothing; \Sigma; \varnothing \vdash p \ni \texttt{type} \; L : S .. U \\
+  	\varnothing; \Sigma; \varnothing \not\vdash T <: U \\
+  	\mu; \Sigma \vdash v_1 \unlhd S \unlhd U \leadsto v_2}
+  {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2}
+  \quad (\textsc {L\textsubscript{$f$}-Type-Select-Lower})
+	\and
+\inferrule
+  {\varnothing; \Sigma; \varnothing \vdash v_1 : T \\
+  	\varnothing; \Sigma; \varnothing \vdash p \ni \texttt{type} \; L : S .. U \\
+  	\varnothing; \Sigma; \varnothing \vdash T <: U \\
+  	\mu; \Sigma \vdash v_1 \unlhd U \leadsto v_2}
+  {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2}
+  \quad (\textsc {L\textsubscript{$f$}-Type-Select-Upper})
+%	\and
+%\inferrule
+%  {\mu; \Sigma \vdash v_1 \leadsto_{f_1} v_2 \\
+%   v_2 \neq v_1.f_1 \\
+%  	\mu; \Sigma \vdash v_2 \leadsto_{f_2} v_3}
+%  {\mu; \Sigma \vdash v_1.f_1 \leadsto_{f_2} v3}
+%  \quad (\textsc {L\textsubscript{$f$}-Field})
+%	\and
+%\inferrule
+%  {\mu; \Sigma \vdash v_1 \leadsto_{f_1} v_1.f_1}
+%  {\mu; \Sigma \vdash v_1.f_1 \leadsto_{f_2} v_1.f_1.f_2}
+%  \quad (\textsc {L\textsubscript{$f$}-Field-Stop})
 \end{mathpar}
 \caption{Field Leadsto Judgement}
 \label{f:field_leadsto}
 \end{figure}
 
 \begin{figure}[h]
-\hfill \fbox{$\mu; \Sigma \vdash v_1 \leadsto_{m} e$}
+\hfill \fbox{$\mu; \Sigma \vdash v_1 \leadsto_{m(v_2)} e$}
 \begin{mathpar}
 \inferrule
   {\mu(l) = \{z \Rightarrow ..., \texttt{def} \; m (x : S) = e : T, ...\}}
-  {\mu; \Sigma \vdash l \leadsto_{m} e \unlhd T}
+  {\mu; \Sigma \vdash l \leadsto_{m(v_2)} [v_2 \unlhd S/x, l/z]e \unlhd T}
   \quad (\textsc {L\textsubscript{$m$}-Loc})
 	\and
 \inferrule
-  {\mu; \Sigma \vdash v_1 \leadsto_{m} e \\
+  {\mu; \Sigma \vdash v_1 \leadsto_{m(v_2 \unlhd S)} e \\
   \texttt{def} \; m : S \rightarrow T \in \overline{\sigma}}
-  {\mu; \Sigma \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{m} e \unlhd T}
+  {\mu; \Sigma \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{m(v_2)} e \unlhd T}
   \quad (\textsc {L\textsubscript{$m$}-Type})
 	\and
 \inferrule
   {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2 \\
-   \mu; \Sigma \vdash v_2 \leadsto_{m} v_3}
+   \mu; \Sigma \vdash v_2 \leadsto_{m(v_2)} v_3}
   {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto_{m} v_3}
   \quad (\textsc {L\textsubscript{$m$}-Type-Select})
-	\and
-\inferrule
-  {\mu; \Sigma \vdash v_1 \leadsto_{f} v_2 \\
-  	\mu; \Sigma \vdash v_2 \leadsto_{m} v_3}
-  {\mu; \Sigma \vdash v_1.f \leadsto_{m} v3}
-  \quad (\textsc {L\textsubscript{$m$}-Field})
+%	\and
+%\inferrule
+%  {\mu; \Sigma \vdash v_1 \leadsto_{f} v_2 \\
+%  	\mu; \Sigma \vdash v_2 \leadsto_{m} v_3}
+%  {\mu; \Sigma \vdash v_1.f \leadsto_{m} v3}
+%  \quad (\textsc {L\textsubscript{$m$}-Field})
 \end{mathpar}
 \caption{Method Leadsto Judgement}
 \label{f:meth_leadsto}
