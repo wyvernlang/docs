@@ -1,0 +1,214 @@
+%  Proof
+%
+%  Copyright (C) 2006 Didier Rémy
+%
+%  Author         : Didier Remy 
+%  Version        : 0.1
+%  Bug Reports    : to author
+%  Web Site       : http://pauillac.inria.fr/~remy/latex/
+% 
+%  Proof is free software; you can redistribute it and/or modify
+%  it under the terms of the GNU General Public License as published by
+%  the Free Software Foundation; either version 2, or (at your option)
+%  any later version.
+%  
+%  Proof is distributed in the hope that it will be useful,
+%  but WITHOUT ANY WARRANTY; without even the implied warranty of
+%  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%  GNU General Public License for more details 
+%  (http://pauillac.inria.fr/~remy/license/GPL).
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  File exercise.sty (LaTeX macros)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Identification
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{proof}
+         [2006/10/07 version 0.1 Proof]
+
+%% Preliminary declarations
+
+\RequirePackage {exercise}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\RequirePackage {hparen}
+\@ifundefined {hparenopen}{%
+  \newcommand{\hparenopen}
+        {\vskip -\smallskipamount\nobreak
+         \rightline{\hbox to \linewidth{\hrulefill}}\nobreak
+         \vskip -\smallskipamount}
+  \newcommand{\hparenclose}{\hparenopen}
+}{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\@ifundefined{proof}
+{\newenvironment {proof}
+  {\penalty 100\list{}{}\item \bgroup \small
+    \hparenopen
+    \nobreak
+   \trivlist \item [\hskip \labelsep \hskip -\leftmargin
+        {\underline {\ProofName}\ifproof@sketch\space (sketch)\fi:}]}
+  {%\penalty 100\hfill\rule{2mm}{2mm}%
+   \endtrivlist\@doendpe \nobreak
+   \egroup \nobreak 
+   \hparenclose
+   \endlist}}{}
+
+%\let \exercise\relax\let \endexercise\relax
+\RequirePackage {exercise}
+% should detect IEEE style automatically
+\iftrue
+\let \latex@thm \@thm
+\def \@thm #1#2{%
+  \refstepcounter {#1}%
+  \xdef \ThmName {\@currenvir}%
+  \xdef \ThmLabel {\@currentlabel}%
+  \@ifnextchar [{\@ythm {#1}{#2}}{\@xthm{#1}{#2}}%
+}
+\else %% IEEE style
+\let \latex@spythm \@spythm
+\def \@spythm #1#2#3#4{%
+  \xdef \ThmName {\@currenvir}%
+  \xdef \ThmLabel {\@currentlabel}%
+  \latex@spythm{#1}{#2}{#3}{#4}%
+}
+\let \latex@spxthm \@spxthm
+\def \@spxthm #1#2#3#4{%
+  \xdef \ThmName {\@currenvir}%
+  \xdef \ThmLabel {\@currentlabel}%
+  \latex@spxthm{#1}{#2}{#3}{#4}%
+}
+\fi
+
+\def \capitalize #1{\uppercase {#1}}
+
+\def\showlocalproof{show}
+\def\ptitcarre{
+ \hfill$\square$
+ \vskip 1em
+ \par
+}
+
+\def \ProofName {Proof}
+\def \Proof@Sketch {}
+\def\localproof#1{%
+ \def \arglocalproof{#1}%
+ \ifx \showlocalproof \arglocalproof%
+  {\itshape \rmfamily \ProofName: }
+  \let\endlocalproof\ptitcarre
+  \else%
+  {\bf \noindent The proof is folded here.}
+  \ptitcarre\setbox0 \vbox \bgroup%
+  \let\endlocalproof\egroup
+ \fi
+}
+
+
+\newif \ifproof@sketch
+\def \proof@check{1}
+\define@key {answer}{sketch}[]{\proof@sketchtrue}
+\define@key {answer}{checked}[]{\def\proof@check{2}}
+\define@key {answer}{check}[0]{\def\proof@check{#1}}
+
+\newif \if@answer@shortanchor \@answer@shortanchorfalse%
+\define@key {answer}{shortanchor}[]{\@answer@anchortrue}
+
+\let \answer@proof \proof 
+\let \answer@endproof \endproof
+
+\let \proof \relax \let \endproof \relax
+\newanswer{proof}
+  {See proof\ifproof@sketch\space sketch\fi\space in the Appendix }%
+  {\def \theExercise {\ThmName}\def \theQuestion {\ThmLabel}%
+   \if@answer@later
+     \if@answer@anchor
+       %%        \global \@someanswertrue 
+       %\AnswerLink{\hbox {\AnswerName}}
+       \if@answer@shortanchor
+         (See proof of \AnswerLink {\ThmName\space
+          p. \pageref{plbl-\ThmName.\ThmLabel}}.)% 
+       \else
+         \vskip -\lastskip
+         %\vskip \smallskipamount
+         \rightline 
+              {\ifcase\proof@check \setbox0 \hbox {\Large$\dagger\,$}\ht0
+              0em\box0\or\or $\sqrt{}\,$\fi 
+               \scriptsize                  
+               \AnswerLink {(Proof p. \pageref{plbl-\ThmName.\ThmLabel})}%
+               }%
+       \fi
+     \fi
+   \else \def \AnswerName {\ProofName}\fi
+   \exo@hypertarget {Thm-\ThmName.\ThmLabel}{}}
+  {\relax}
+  {\answer@proof}
+  {\answer@endproof}
+  {{\ThmName}{\ThmLabel}}
+  [2]
+  {\subsection* 
+        {\exo@hypertarget {Ans-#1.#2}{\ProofName} of 
+         \exo@hyperlink {Thm-#1.#2}{\capitalize #1 #2}%
+        }%
+   \label{plbl-#1.#2}%
+   \gdef \Endenv
+      {\unskip \ifhmode \unpenalty \penalty 100\fi\hfill \rule{2mm}{2mm}\relax
+       \gdef \Endenv{}}\nobreak
+   }
+  {\Endenv \endtrivlist \@doendpe}
+
+\DeclareOption{whizzy}
+  {\AtEndOfPackage {\csname WhizzyProofActivate\endcsname}}
+\ProcessOptions
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\@ifundefined{whizzy@version}{\endinput}{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Extra for WhizzyTeX 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\let \latex@proof \proof
+\newcount \whizzy@thm
+\def \ThmName {???}%
+\def \ThmLabel {*}%
+
+\def \WhizzyProofActivate
+{\def \proof 
+ {\@ifundefined {whizzy@linelimit}{}%
+  {\let \@do \relax
+   \global \advance \whizzy@thm by 1\relax
+   \expandafter \let \expandafter \@aux
+         \csname EndExoLine\ThmName\the\whizzy@thm\ThmLabel\endcsname
+   \ifx \@aux \relax \else 
+       \ifnum \the\inputlineno<\whizzy@line
+          \ifnum \whizzy@line<\@aux 
+            \def \@do {\@answerstrue\@answer@laterfalse \color{red}}%
+       \fi\fi
+   \fi \@do}%
+ \latex@proof}%
+%% \newif \ifenlarged
+%% \expandafter\g@addto@macro\csname now-proof\endcsname {\ifenlarged\Large\fi}
+\expandafter \let \expandafter \latex@endproof \csname endproof\endcsname
+ \def \whizzy@putproof {\whizzy@aux
+ {\string \putproof
+     {\ThmName\the\whizzy@thm}{\ThmLabel}{\the\inputlineno}}}
+ \def \endproof {\whizzy@putproof \latex@endproof}
+ \expandafter \let \expandafter \Endnowproof 
+         \csname endnow-proof\endcsname
+ \expandafter \def \csname endnow-proof\endcsname
+     {{\whizzy@putproof}\Endnowproof}%
+}
+ \def \putproof#1#2#3{\expandafter \let \expandafter \@tmp
+       \csname EndExoLine#1#2\endcsname  \ifx \@tmp \relax 
+        \expandafter \gdef \csname EndExoLine#1#2\endcsname {#3}%
+       \fi}
+
+\@ifundefined{while@writelineno}{}{%
+\@ifundefined{AtBeginAnswer}{}
+ {\def \setline@answer {\whizzy@makelineno \ans@write
+   {\string \SourceFile{\whizzy@curfile}\string\SetLineno{\the\whizzy@count}}%
+   }%
+  \AtBeginAnswer{\setline@answer}}
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
