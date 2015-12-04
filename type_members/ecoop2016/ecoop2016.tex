@@ -34,160 +34,17 @@
 }
 
 \begin{document}
-
 \section{Generic Wyvern}
-Wyvern is a new object oriented, structurally typed 
-web programming language being developed with an emphasis 
-on security. Wyvern is built upon a central core calculus. 
-Extensions to this such as classes 
-can be designed as transformations that make use of syntactic 
-sugar to represent useful language properties. If no such 
-transformation exists, we must extend the core calculus. 
-In this paper we describe our attempt to add generic types 
-to the core Wyvern calculus. 
+Wyvern is a new statically typed programming language being developed for secure web applications. There are two popular and well-documented methods \cite{Virtual Types stuff, generic java etc} for implementing generic types.
+\begin{itemize}
+\item \emph{Type Parameters}: Types are parametrised by generic type names that are defined at runtime. This allows programmers to reuse generic code. Many popular languages use generic type parameters such as \emph{Java}, \emph{C\#} and \emph{Scala}.
+\item \emph{Type Members}: Types and objects may contain type members in the same manner as normal field or method members. These can be subtyped by more precise types to provide generic behaviour.
+\end{itemize}
+There have long been attempts to formalise a sound small-step semantics for type members in a structural setting for Scala, which have as yet all been unsuccessful due to issues where well-typed expressions are lost during subject reduction. In 2014 Amin et.al. were able to formalise a big step semantics for Scala style type members. While this demonstrates the soundness of the kinds of programs we wish to type check, a small-step semantics offers powerful advantages when reasoning about the behaviour of programs. For this reason we formalise type members with a small step semantics.
+We build upon the work of Amin et. al. \cite{Scala stuff} to formalise type members in structurally typed languages using a small step semantics. 
 
-Generic types are popularly modelled in two different ways 
-that make use of different Object-Oriented philosophies. 
-
-\begin{enumerate}
-\item Type Parameters: Popularly in use in languages such as 
-\emph{Java} and \emph{C\#}, types are parametrized by bounded 
-types. 
-
-\item Type Members: Sometimes referred to as \emph{Virtual Types} 
-(\cite{1999 virtual types paper}), types may be included as members to 
-types in the same that method and field definitions are. Type members 
-are 
-\end{enumerate}
-
-\subsection{Background}
-
-\section{Wyvern Type Members}
-
-The Wyvern Type Members Calculus builds upon work 
-done in developing sound type members in \emph{Scala} (\cite{Scala Work}).
-The core Wyvern language is purely structurally 
-typed object oriented language. Objects consist of 
-sets of declarations, while types are sets of declaration 
-types. For type $S$ to subtype $T$, we expect 
-$S$ to contain a corresponding declaration type 
-for every type contained in $T$. So a simple list 
-type may look something like this.
-\begin{lstlisting}[mathescape, style=custom_lang]
-List = {z $\Rightarrow$ def add $\top$ $\rightarrow$ $\top$
-	def get Integer $\rightarrow$ $\top$
-	def remove Integer $\rightarrow$ $\top$}
-\end{lstlisting}
-Now any object that can add, get or remove an element
-can be considered as having this type. However, it isn't 
-a very expressive type. All elements have top level types, 
-and we can't know anything interesting about them. We 
-couldn't for instance use this type for a list of Numbers.
-\begin{lstlisting}[mathescape, style=custom_lang]
-NumberList = {z $\Rightarrow$ def add String $\rightarrow$ Number
-		def get Integer $\rightarrow$ Number
-		def remove Integer $\rightarrow$ Number}
-\end{lstlisting}
-This would violate contra-variance of the 
-\texttt{add} method parameter. These are the familiar 
-issues of generic types. Two solutions 
-exist to introduce generics in to object oriented 
-programming languages, type parameters and type members.
-
-\subsection{Type Parameters vs Type Members}
-Type parameters and type members offer solutions to 
-the same problems. Type parameters parametrize types 
-with bounded generic types. A small extension of 
-our previous list example demonstrates this.
-\begin{lstlisting}[mathescape, style=custom_lang]
-List<E $\triangleleft$ $\top$> = {z $\Rightarrow$	def add E $\rightarrow$ E
-		def get Integer $\rightarrow$ E
-		def remove Integer $\rightarrow$ E}
-\end{lstlisting}
-We have introduced a generic type parameter \texttt{E}, bounded 
-by $\top$. Now we can use \texttt{List<Number>} instead of 
-\texttt{NumberList}. Type members on the other hand allow types to 
-contain members that are themselves types.
-\begin{lstlisting}[mathescape, style=custom_lang]
-List = {z $\Rightarrow$ type E = $\bot$ .. $\top$
-	def add z.E $\rightarrow$ z.E
-	def get Integer $\rightarrow$ z.E
-	def remove Integer $\rightarrow$ z.E}
-\end{lstlisting}
-Above we rewrite the \texttt{List} type to include a type member 
-\texttt{E} that is bound by $\bot$ and $\top$, and is referred to 
-in the same way one might refer to a field or method. The bounds 
-of the type member represent lower and upper bounds or more precisely 
-bounds on contra-variant and covariant uses of the type. Arguments to
-the \texttt{add} method above must subtype the lower bound of \texttt{z.E}, 
-while we are guaranteed that an expression returned by \texttt{add} 
-subtypes the upper bound of \texttt{z.E}. NumberList can now be 
-rewriten as 
-\begin{lstlisting}[mathescape, style=custom_lang]
-NumberList = {z $\Rightarrow$ type E = $\bot$ .. Number
-	def add z.E $\rightarrow$ z.E
-	def get Integer $\rightarrow$ z.E
-	def remove Integer $\rightarrow$ z.E}
-\end{lstlisting}
-
-There are several differences between the two approaches 
-(\cite{1999 virtual types}). Type parameters are are 
-better suited to nominal type systems than structural 
-given the common initialization interface you receive 
-by being able to write \texttt{new List<Number>} and 
-\texttt{new List<String>}. In the absence of type names 
-this is not possible. Type parameters do however introduce 
-much top level type information. If we need to use a
-generic type parameter in a method, it must be introduced 
-in the method definition. With type parameters these can be 
-handled within objects. The following example demonstrates this.
-\begin{lstlisting}[mathescape, style=custom_lang]
-def E sum<E extends Number>(List<E> l){
-  ...
-}
-\end{lstlisting}
-Here we have to add type generic information to the method 
-declaration in order to use it in the method. With type 
-members the same example looks like this.
-\begin{lstlisting}[mathescape, style=custom_lang]
-def l.E sum(NumberList l){
-  ...
-}
-\end{lstlisting}
-Here all generic type information is handled by the parameter 
-\texttt{l}. While this may not seem significant here, you could 
-imagine a scenario where method declarations come with large numbers
-of type parameters. Another advantage is the ability to directly 
-access generic type information from an object.
-\begin{lstlisting}[mathescape, style=custom_lang]
-def List newList(List l){
-  return new {z $\Rightarrow$ type E = l.E
-		def add z.E $\rightarrow$ z.E
-		def get Integer $\rightarrow$ z.E
-		def remove Integer $\rightarrow$ z.E}()
-}
-\end{lstlisting}
-Since Wyvern is a structurally type language, we 
-chose type members as an alternative to type parameters 
-since it fits better with a structural philosophy. 
-If we expect types in general to be defined by their 
-structure then it makes sense to support genericity 
-in a structural manner.
-
-As has been documented in previous attempts at soundness 
-in similar type systems, there are several difficulties that 
-arise in type preservation during evaluation. Amin et. al. \cite{Amin and co} 
-managed to present a sound type system using a big step semantics, 
-but failed to prove one sound using a small step semantics.
-Difficulties in developing sound type members 
-with small step semantics arise from 
-two areas, the interplay between subtype transitivity and 
-what is referred to as environment narrowing, and 
-path equality during evaluation. We'll now
-discuss these two issues, and how we address them in 
-Wyvern.
-
-\subsection{Subtype Transitivity and Environment Narrowing}
+\subsection{What's the deal with type members?}
+\label{sec:trans_narow}
 Two properties that one might reasonably expect 
 to occur naturally in a structurally typed language are 
 \emph{Subtype Transitivity} and \emph{Environment Narrowing}
@@ -247,14 +104,14 @@ by using the subtype rule in Figure \ref{f:sub_amin}.
 \inferrule
   {\Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
   {\Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
-  \quad (\textsc {Record Subtyping})
+  \quad (\textsc {Structural Subtyping})
 \end{mathpar}
 \caption{Subtype Transitivity and Environment Narrowing}
 \label{f:trans_narrowing}
 \end{figure}
 
 \subsection{Path Equality}
-
+To further complicate matters, well-formedness can be lost when reducing field accesses. 
 
 
 \section{Type System}
@@ -269,18 +126,16 @@ in Figure \ref{f:syntax}.
 \begin{array}{lllr}
 e & ::= & x & expression \\
 & | & \texttt{new} \; \{z \Rightarrow \overline{d}\}&\\
-& | & e.m_T(e) &\\
+& | & e.m(e) &\\
 & | & e.f &\\
 & | & e \unlhd T&\\
 & | & l &\\
 &&\\
 p & ::= & x & paths \\
 & | & l &\\
-& | & p.f &\\
 & | & p \unlhd T &\\
 &&\\
 v & ::= & l & value \\
-& | & v.f &\\
 & | & v \unlhd T &\\
 &&\\
 d & ::= & \texttt{val} \; f : T = p & declaration \\
@@ -289,13 +144,15 @@ d & ::= & \texttt{val} \; f : T = p & declaration \\
 &&\\
 \Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & Environment \\
 &&\\
-A & :: = & \varnothing \; | \; A,\; T <: T & Assumption \; Context \\
+A & :: = & \varnothing \; | \; A,\;  <: T & Assumption \; Context \\
  \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
 T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
 & | & p.L &\\
+%& | & T \wedge T & \\
+%& | & T \vee T & \\
 & | & \top & \\
 & | & \bot & \\
 &&\\
@@ -303,15 +160,15 @@ T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
        & |   & \texttt{def} \; m:T \rightarrow T \\
 		 & |   & \texttt{type} \; L : T .. T &\\
 &&\\
-d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
-  & |   & \texttt{def} \; m(x:T) = e : T &\\
-  & |   & \texttt{type} \; L : T .. T = T &\\
-&&\\
 E & :: = & \bigcirc & eval \; context\\
        & | & E.m(e)\\
        & | & p.m(E)\\
        & | & E.f\\
        & | & E \unlhd T\\
+&&\\
+d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
+  & |   & \texttt{type} \; L : T .. T = T &\\
 &&\\
 \mu & :: = & \varnothing \; | \; \mu,\; l \mapsto \{z \Rightarrow \overline{d}\} & store \\
 \Sigma & :: = & \varnothing \; | \; \Sigma,\; l : \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
@@ -324,20 +181,15 @@ E & :: = & \bigcirc & eval \; context\\
 
 \textbf{Expressions} ($e$): Expressions are variables ($x$), new 
 expressions ($\texttt{new} \; \{z \Rightarrow \overline{d}\}$), 
-method calls ($e.m_T(e)$), field accesses ($e.f$), expression 
+method calls ($e.m(e)$), field accesses ($e.f$), expression 
 upcasts ($e \unlhd T$) and locations ($l$) in the store. The 
-only expressions that differ from tradition are the method 
-calls and the explicit upcasts on expressions. A method call 
-$e_1.m_T(e_2)$ differs from traditional method calls in that 
-the original return type $T$ of $m$ is maintained. Since the 
-type of the receiver $e_1$ may change during evaluation, and 
-thus the return type of $m$, we maintain the original return 
-type as the type of the expression in order to avoid narrowing. 
+only expression that differs from tradition is the explicit upcasts on expressions. 
+We use upcasts to avoid the narrowing issues described in Section
 We employ a similar strategy with regard to the explicitly 
 upcast expression $e \unlhd T$. Here $e$ may have a more precise 
 type than $T$, but to avoid narrowing we maintain the type $T$.
 
-\textbf{Types} ($T$): Types are restricted to record types 
+\textbf{Types} ($T$): Types are restricted to structural types 
 ($\{z \Rightarrow \overline{\sigma}\}$), type member selections on 
 paths ($p.L$), ($\top$) the top type at the top of the type lattice 
 that represents the empty type and $\bot$ the bottom type at the 
@@ -346,15 +198,9 @@ al possible declaration labels with $\top$ in the contra-variant
 type position, and $\bot$ in the covariant type position.
 
 \textbf{Paths} ($p$): Paths are expressions that type selections may be 
-made on. We restrict these to variables ($x$), locations ($l$), 
-field selections on paths ($p.f$) and upcast paths ($p \unlhd T$).
+made on. We restrict these to variables ($x$), locations ($l$) and upcast paths ($p \unlhd T$).
 
-\textbf{Values} ($v$): Values in our type system are locations ($l$), 
-field accesses on values ($v.f$) and upcast values ($v \unlhd T$). We 
-include field accesses as values because we do not reduce field accesses. 
-This is due to a typing problem where selection types will change 
-if paths change, leading to a loss of information when comparing the 
-equality of paths.
+\textbf{Values} ($v$): Values in our type system are locations ($l$) and upcast values ($v \unlhd T$). 
 
 \textbf{Declarations} ($d$): Declarations may be fields (\texttt{val}), 
 methods (\texttt{def}) or type members (\texttt{type}). These are all
@@ -378,208 +224,195 @@ that consists of a list of type pairs.
 In this section we describe the Wyvern Type Members semantics.
 \subsubsection{Path Functions}
 
-\hl{Julian: I'll describe these functions later once they are finalized.}
+\hl{Julian: I'll finish describing these functions later once they are finalized.}
 
 \begin{figure}[h]
-\hfill \fbox{$\mu; \Sigma \vdash v \leadsto l$}
 \begin{mathpar}
 \inferrule
   {}
-  {\mu; \Sigma \vdash l \leadsto l }
-  \quad (\textsc {P-Loc})
-	\and
+  {p \equiv p}
+  \quad (\textsc{Eq-Refl})
+  \and
 \inferrule
-  {\mu; \Sigma \vdash v \leadsto v'}
-  {\mu; \Sigma \vdash v \unlhd T \leadsto v' \unlhd T}
-  \quad (\textsc {L-Type})
-	\and
+  {p_1 \equiv p_2}
+  {p_2 \equiv p_1}
+  \quad (\textsc{Eq-Sym})
+  \and
 \inferrule
-  {\mu; \Sigma \vdash v \leadsto v' \\
-   \mu; \Sigma \vdash v' \leadsto_{f} v_f}
-  {\mu; \Sigma \vdash v.f \leadsto v_f}
-  \quad (\textsc {L-Path})
+  {p_1 \equiv p_2 \\
+   p_2 \equiv p_3}
+  {p_1 \equiv p_3}
+  \quad (\textsc{Eq-Trans})
+  \and
+\inferrule
+  {p_1 \equiv p_2}
+  {p_1 \equiv p_2 \unlhd T}
+  \quad (\textsc{Eq-Path})
 \end{mathpar}
-\hfill \fbox{$\mu; \Sigma \vdash d_v \leadsto d$}
-\begin{mathpar}
-\inferrule
-  {\mu; \Sigma \vdash v \leadsto v'}
-  {\mu; \Sigma \vdash \texttt{val} \; f : T = v \leadsto \texttt{val} \; f : T = v'}
-  \quad (\textsc {L-Val})
-	\and
-\inferrule
-  {}
-  {\mu; \Sigma \vdash \texttt{def} \; m : S(x:T) = e \leadsto \texttt{def} \; m(x:S) = e : T}
-  \quad (\textsc {L-Def})
-	\and
-\inferrule
-  {}
-  {\mu; \Sigma \vdash \texttt{type} \; L : S .. U \leadsto \texttt{type} \; L : S .. U}
-  \quad (\textsc {L-Type})
-\end{mathpar}
-\caption{Path Leads-to Judgement}
-\label{f:path}
+\caption{Path Equivalence}
+\label{f:path_equiv}
 \end{figure}
+In Figure \ref{f:path_equiv} we describe our path equivalence judgement. Two paths are equivalent if they wrap up the same variable or location. This is useful when trying to compare two types that are not technically the same types, but are derived from the same object.
 
-\begin{figure}[h]
-\hfill \fbox{$\mu; \Sigma \vdash v \leadsto_{m} \sigma_0, \sigma_1, ..., \sigma_i$}
-\begin{mathpar}
-\inferrule
-  {\mu(l) = \{z \Rightarrow ..., \texttt{val} f : T_f = v_f, ...\}}
-  {\mu; \Sigma \vdash l \leadsto_{f} v_f \unlhd [l/z] T_f}
-  \quad (\textsc {L\textsubscript{$m$}-Loc})
-	\and
-\inferrule
-  {\mu; \Sigma \vdash v \leadsto_{m} v_f \\
-  	\varnothing; \Sigma; \varnothing \vdash v \unlhd T \ni \texttt{val} f : T_f}
-  {\mu; \Sigma \vdash v \unlhd T \leadsto_{m} v_f \unlhd T_f}
-  \quad (\textsc {L\textsubscript{$m$}-Type})
-\end{mathpar}
-\caption{Field Leadsto Judgement}
-\label{f:path_field}
-\end{figure}
-
-\begin{figure}[h]
-\hfill \fbox{$v \leadsto_{\unlhd} l$}
-\begin{mathpar}
-\inferrule
-  {}
-  {l \leadsto_{\unlhd} l}
-  \quad (\textsc {L\textsubscript{$\unlhd$}-Loc})
-	\and
-\inferrule
-  {v \leadsto_{\unlhd} l}
-  {v \unlhd T \leadsto_{\unlhd} l}
-  \quad (\textsc {L\textsubscript{$\unlhd$}-Type})
-\end{mathpar}
-\caption{Cast Leadsto Judgement}
-\label{f:path_cast}
-\end{figure}
+%\begin{figure}[h]
+%\hfill \fbox{$\mu; \Sigma \vdash v \leadsto l$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\mu; \Sigma \vdash l \leadsto l }
+%  \quad (\textsc {P-Loc})
+%	\and
+%\inferrule
+%  {\mu; \Sigma \vdash v \leadsto v'}
+%  {\mu; \Sigma \vdash v \unlhd T \leadsto v' \unlhd T}
+%  \quad (\textsc {L-Type})
+%	\and
+%\inferrule
+%  {\mu; \Sigma \vdash v \leadsto v' \\
+%   \mu; \Sigma \vdash v' \leadsto_{f} v_f}
+%  {\mu; \Sigma \vdash v.f \leadsto v_f}
+%  \quad (\textsc {L-Path})
+%\end{mathpar}
+%\hfill \fbox{$\mu; \Sigma \vdash d_v \leadsto d$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu; \Sigma \vdash v \leadsto v'}
+%  {\mu; \Sigma \vdash \texttt{val} \; f : T = v \leadsto \texttt{val} \; f : T = v'}
+%  \quad (\textsc {L-Val})
+%	\and
+%\inferrule
+%  {}
+%  {\mu; \Sigma \vdash \texttt{def} \; m : S(x:T) = e \leadsto \texttt{def} \; m(x:S) = e : T}
+%  \quad (\textsc {L-Def})
+%	\and
+%\inferrule
+%  {}
+%  {\mu; \Sigma \vdash \texttt{type} \; L : S .. U \leadsto \texttt{type} \; L : S .. U}
+%  \quad (\textsc {L-Type})
+%\end{mathpar}
+%\caption{Path Leads-to Judgement}
+%\label{f:path}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu; \Sigma \vdash v \leadsto_{m} \sigma_0, \sigma_1, ..., \sigma_i$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu(l) = \{z \Rightarrow ..., \texttt{val} f : T_f = v_f, ...\}}
+%  {\mu; \Sigma \vdash l \leadsto_{f} v_f \unlhd [l/z] T_f}
+%  \quad (\textsc {L\textsubscript{$m$}-Loc})
+%	\and
+%\inferrule
+%  {\mu; \Sigma \vdash v \leadsto_{m} v_f \\
+%  	\varnothing; \Sigma; \varnothing \vdash v \unlhd T \ni \texttt{val} f : T_f}
+%  {\mu; \Sigma \vdash v \unlhd T \leadsto_{m} v_f \unlhd T_f}
+%  \quad (\textsc {L\textsubscript{$m$}-Type})
+%\end{mathpar}
+%\caption{Field Leadsto Judgement}
+%\label{f:path_field}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$v \leadsto_{\unlhd} l$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {l \leadsto_{\unlhd} l}
+%  \quad (\textsc {L\textsubscript{$\unlhd$}-Loc})
+%	\and
+%\inferrule
+%  {v \leadsto_{\unlhd} l}
+%  {v \unlhd T \leadsto_{\unlhd} l}
+%  \quad (\textsc {L\textsubscript{$\unlhd$}-Type})
+%\end{mathpar}
+%\caption{Cast Leadsto Judgement}
+%\label{f:path_cast}
+%\end{figure}
 
 \subsubsection{Subtyping}
 Subtyping is given in Figure \ref{f:subtype}. We use a 
-modified version of the double-headed subtyping relation 
-described by Amin et. al. \cite{Double Headed stuff}. 
-We include two environments in our subtype relation, one 
-for each type. $A; \Sigma; \Gamma_1 \vdash S <: T \dashv \Gamma_2$ 
-is read as given assumption context $A$ and store type $\Sigma$, 
-$S$ typed in $\Gamma_1$ subtypes $T$ typed in $\Gamma_2$. We 
-include the second environment to avoid introducing narrowing 
-when subtyping record types. Normally we might use the following 
-record subtype rule.
-\begin{mathpar}
-\inferrule
-  {A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <: \overline{\sigma}_2}
-  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\} <: \{z \Rightarrow \overline{\sigma}_2\}}
-  \quad (\textsc {S-Rec-Single-Head})
-\end{mathpar}
-This rule however introduces a narrowing of $z$ in 
-$\overline{\sigma}_2$. Since our strategy is to avoid 
-narrowing altogether, we maintain the original 
-environment in \textsc{S-Rec}. This means we needed to 
-extend this double head to all other subtype rules. 
-This simple in most cases as we only need to add a second 
-environment to each relevant sub-derivation. 
-\textsc{S-Select-Upper}, \textsc{S-Select-Lower}, 
-\textsc{S-Top} and \textsc{S-Bottom} all demonstrate this.
-
-\textsc{S-Select-Upper}: The upper bound of a selection 
-type must subtype a type for the selection type to subtype 
-that type. 
-
-\textsc{S-Select-Lower}: A type must subtype the lower bound 
-of a selection type in order to subtype the selection type.
-
-\textsc{S-Top} and \textsc{S-Bottom} are straight forward 
-rules for the extremes of the subtype lattice.
+modified version of the subtyping relation 
+described by Amin et. al. \cite{Scala stuff}. We remove the reflexivity rule, however this can be inferred from the other subtyping rules. We modify the \textsc{S-Struct} rule for structural subtyping by upcasting the self variable of the larger type to avoid narrowing. This can be seen in \textsc{S-Struct} in Figure \ref{f:subtype}.
+%\begin{figure}[h]
+%\begin{mathpar}
+%\inferrule
+%	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+%	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+%	\quad (\textsc {S-Struct})
+%\end{mathpar}
+%\caption{Structural Subtyping}
+%\label{f:struct_sub}
+%\end{figure}
+If we didn't do this, we would have to type check the declaration types of the larger type with a smaller receiver, resulting in narrowing. We also need to be able subtype two path equivalent selection types(\textsc{S-Path} in Figure \ref{f:subtype}). Since we can have two paths that are equivalent in that they lead to the same location or variable while having different types, we need a way to subtype path equivalent type selections. We require that they have the appropriate contra-variant and covariant relationships between their lower and upper bounds respectively. To deal with recursive types, we use an assumption context $A$ which we use to type check the bounds of the selection type. For this we introduce the \textsc{S-Assume} rule. \textsc{S-Select-Upper} and \textsc{S-Select-Lower} are our rules for subtyping selection types. To supertype or subtype a selection type, a type needs to supertype or subtype its upper or lower bounds respectively. We then use \textsc{S-Top} and \textsc{S-Bottom} to type check the subtyping and supertyping of the top ($\top$) and bottom ($\bot$) types.
 
 \begin{figure}[h]
-\hfill \fbox{$A; \Sigma; \Gamma_1 \vdash S <: T \dashv \Gamma_2$}
+\hfill \fbox{$A; \Sigma; \Gamma \vdash S <: T$}
 \begin{mathpar}
 \inferrule
   {(S <: T) \in A}
-  {A; \Sigma; \Gamma_1 \vdash S\; \texttt{<:}\; T \dashv \Gamma_2}
+  {A; \Sigma; \Gamma \vdash S\; \texttt{<:}\; T}
   \quad (\textsc {S-Assume})
 	\and
 \inferrule
-  {A; \Sigma; \Gamma_1, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2  \dashv \Gamma_2, z : \{z \Rightarrow \overline{\sigma}_2\}}
-  {A; \Sigma; \Gamma_1 \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}\dashv \Gamma_2}
-  \quad (\textsc {S-Rec})
+	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+	\quad (\textsc {S-Struct})
 	\and
 \inferrule
-  {A; \Sigma; \Gamma_1 \vdash p \ni \texttt{type} \; L : S_1 .. U_1\\
-  	A; \Sigma; \Gamma_2 \vdash p \ni \texttt{type} \; L : S_2 .. U_2\\
-  	A, (p.L <: p.L); \Sigma; \Gamma_2 \vdash S_2 \; \texttt{<:}\; S_1 \dashv \Gamma_1 \\
-  	A, (p.L <: p.L); \Sigma; \Gamma_1 \vdash U_1 \; \texttt{<:}\; U_2 \dashv \Gamma_2}
-  {A; \Sigma; \Gamma_1 \vdash p.L \; \texttt{<:}\; p.L \dashv \Gamma_2}
-  \quad (\textsc {S-Select})
+	{p_1 \equiv p_2 \\
+	 A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+	 A; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
+	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
+	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2}
+	{A; \Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
+	\quad (\textsc {S-Path})
 	\and
 \inferrule
-  {A; \Sigma; \Gamma_1 \vdash p \ni \texttt{type} \; L : S .. U\\
-  	A; \Sigma; \Gamma_1 \vdash S <: U \dashv \Gamma_1 \\
-  	A; \Sigma; \Gamma_1 \vdash U <: U' \dashv \Gamma_2}
-  {A; \Sigma; \Gamma_1 \vdash p.L\; <:\; U' \dashv \Gamma_2}
-  \quad (\textsc {S-Select-Upper})
+	{A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U\\
+	 A; \Sigma; \Gamma \vdash S <: U \\
+	 A; \Sigma; \Gamma \vdash U <: T}
+	{A; \Sigma; \Gamma \vdash p.L\; <:\; T}
+	\quad (\textsc {S-Select-Upper})
 	\and
 \inferrule
-  {A; \Sigma; \Gamma_2 \vdash p \ni \texttt{type} \; L : S .. U \\
-  	A; \Sigma; \Gamma_2 \vdash S <: U \dashv \Gamma_2 \\
-  	A; \Sigma; \Gamma_1 \vdash S' <: S \dashv \Gamma_2}
-  {A; \Sigma; \Gamma_1 \vdash S'\; <:\; p.L \dashv \Gamma_2}
-  \quad (\textsc {S-Select-Lower})
+	{A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+	 A; \Sigma; \Gamma \vdash S <: U \\
+	 A; \Sigma; \Gamma \vdash T <: S}
+	{A; \Sigma; \Gamma \vdash T \; <:\; p.L}
+	\quad (\textsc {S-Select-Lower})
 	\and
 \inferrule
-  {}
-  {A; \Sigma; \Gamma_1 \vdash T\; \texttt{<:}\; \top \dashv \Gamma_2}
-  \quad (\textsc {S-Top})
+	{}
+	{A; \Sigma; \Gamma \vdash T\; \texttt{<:}\; \top}
+	\quad (\textsc {S-Top})
 	\and
 \inferrule
-  {}
-  {A; \Sigma; \Gamma_1 \vdash \bot\; \texttt{<:}\; T \dashv \Gamma_2}
-  \quad (\textsc {S-Bottom})
+	{}
+	{A; \Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
+	\quad (\textsc {S-Bottom})
 \end{mathpar}
-\hfill \fbox{$A; \Sigma; \Gamma_1 \vdash \sigma <: \sigma' \dashv \Gamma_2$}
+\hfill \fbox{$A; \Sigma; \Gamma \vdash \sigma <: \sigma'$}
 \begin{mathpar}
 \inferrule
-  {}
-  {A; \Sigma; \Gamma_1 \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T \dashv \Gamma_2}
-  \quad (\textsc {S-Decl-Val})
+	{}
+	{A; \Sigma; \Gamma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T}
+	\quad (\textsc {S-Decl-Val})
 	\and
 \inferrule
-  {A; \Sigma; \Gamma_2 \vdash S' <: S \dashv \Gamma_1 \\
-  	A; \Sigma; \Gamma_1 \vdash T <: T' \dashv \Gamma_2}
-  {A; \Sigma; \Gamma_1 \vdash \texttt{def} \; m:S \rightarrow T <: \texttt{def} \; m:S' \rightarrow T' \dashv \Gamma_2}
-  \quad (\textsc {S-Decl-Def})
+	{A; \Sigma; \Gamma \vdash S' <: S \\
+	 A; \Sigma; \Gamma \vdash T <: T'}
+	{A; \Sigma; \Gamma \vdash \texttt{def} \; m:S \rightarrow T <: \texttt{def} \; m:S' \rightarrow T'}
+	\quad (\textsc {S-Decl-Def})
 	\and
 \inferrule
-  {A; \Sigma; \Gamma_2 \vdash S' <: S \dashv \Gamma_1 \\
-  	A; \Sigma; \Gamma_1 \vdash U <: U' \dashv \Gamma_2}
-  {A; \Sigma; \Gamma_1 \vdash \texttt{type} \; L : S .. U \; <:\; \texttt{type} \; L : S' .. U' \dashv \Gamma_2}
-  \quad (\textsc {S-Decl-Type})
+	{A; \Sigma; \Gamma \vdash S' <: S \\
+	 A; \Sigma; \Gamma \vdash U <: U'}
+	{A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; <:\; \texttt{type} \; L : S' .. U'}
+	\quad (\textsc {S-Decl-Type})
 \end{mathpar}
 \caption{Subtyping}
 \label{f:subtype}
 \end{figure}
-
-Subtyping becomes trickier when trying to translate 
-reflexivity since reflexivity can only be guaranteed when 
-both environments are then same. Traditional reflexivity 
-happens to be captured by the \textsc{S-Rec}, \textsc{S-Top} 
-and \textsc{S-Bottom} rules in the case of record, top and 
-bottom types. We introduce the \textsc{S-Select} rule to 
-deal with selection type comparisons across different 
-environments. For a selection type in one environment to 
-subtype the same selection in another environment, we 
-require the bounds in the first environment to lie inside 
-the bounds in the second environment. This is not as simple 
-as it would seem since we may end up with circular recursion 
-when comparing the two types. To avoid this we introduce 
-the assumption context described in \ref{s:syntax}. If we 
-assume $p.L <: p.L$, and the bounds of $p.L$ in one environment 
-lie within the bounds of $p.L$ in another, then it follows that 
-$p.L <: p.L$ in fact holds within the two environments. To 
-complete the subtype relation, we need to introduce the 
-\textsc{S-Assume} rule where if we get to a case of circularity 
-we can end it. 
 
 \subsubsection{Well-Formedness}
 
@@ -598,7 +431,7 @@ we can end it.
   {A; \Sigma; \Gamma,z:\{z \Rightarrow \overline{\sigma}\} \vdash \overline{\sigma} \; \textbf{wf} \\
   	\forall j \neq i, \; dom(\sigma_j) \neq dom(\sigma_i)}
   {A; \Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \; \textbf{wf}}
-  \quad (\textsc {WF-Rec})
+  \quad (\textsc {WF-Struct})
 	\and
 \inferrule
   {}
@@ -669,8 +502,7 @@ we can end it.
 
 \subsubsection{Type Expansion and Membership}
 
-We use the type expansion and membership definitions from 
-Amin et al \cite{Scala stuff}. 
+We use a modified version of the type expansion (Figure \ref{f:exp}) definition and the same membership (Figure \ref{f:mem}) definition from Amin et al \cite{Scala stuff}. Expansion of types is used to extract the set of declaration types for a type. \textsc{E-Struct} is the expansion rule for structural types. Structural types simply expand to their defined types. The expansion of selection types (\textsc{E-Sel}) are slightly more complicated. Selection types expand to the expansion of the upper bound. The expansion of the upper bound is type checked with a less precise type (the upper bound) that the selection type. As with our subtyping rule for structural types, we need to prevent narrowing of types at type expansion. For this reason we upcast the self variable $z$ to the original type $U$. The top type expands to the empty set (\textsc{E-Top}). The membership judgement is used to determine the membership of a declaration type for an expression. We type check the expression, expand the expression's type and in the case of path expansion, substitute out the self variable.
 
 \begin{figure}[h]
 \hfill \fbox{$A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}$}
@@ -678,12 +510,12 @@ Amin et al \cite{Scala stuff}.
 \inferrule
   {}
   {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}}
-  \quad (\textsc {E-Rec})
+  \quad (\textsc {E-Struct})
 	\and
 \inferrule
   {A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S..U \\
   	A; \Sigma; \Gamma \vdash U \prec_z \overline{\sigma}}
-  {A; \Sigma; \Gamma \vdash p.L \prec_z \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash p.L \prec_z [z \unlhd U/z]\overline{\sigma}}
   \quad (\textsc {E-Sel})
 	\and
 \inferrule
@@ -725,14 +557,11 @@ locations (\textsc{T-Loc})in the store type. New
 expressions (\textsc{T-New}) are typed as a collection 
 of declaration types that correspond to their declarations. 
 Method calls (\textsc{T-Meth}) are typed as their 
-upcast type provided the return type of the method for 
-the receiver subtypes the upcast type and the arguments 
+return type provided the arguments 
 subtype the method parameter types. Field accesses 
-(\textsc{T-Acc}) are typed as the field type for the receiver. 
+(\textsc{T-Field}) are typed as the field type for the receiver. 
 Upcasts (\textsc{T-Type}) are typed as the upcast type if the 
 upcast expression appropriately subtypes the upcast type.
-
-
 \begin{figure}[h]
 \hfill \fbox{$A; \Sigma; \Gamma \vdash e:T$}
 \begin{mathpar}
@@ -757,20 +586,19 @@ upcast expression appropriately subtypes the upcast type.
   {A; \Sigma; \Gamma \vdash e_0 \ni \texttt{def} \; m:S \rightarrow T \\
   	A; \Sigma; \Gamma \vdash e_0 : T_0 \\
   	A; \Sigma; \Gamma \vdash e_1 : S' \\
-  	A; \Sigma; \Gamma \vdash S' <: S \dashv \Gamma \\
-  	A; \Sigma; \Gamma \vdash T <: U \dashv \Gamma}
-  {A; 	\Sigma; \Gamma \vdash e_0.m_U(e_1) : U}
+  	A; \Sigma; \Gamma \vdash S' <: S}
+  {A; 	\Sigma; \Gamma \vdash e_0.m(e_1) : T}
   \quad (\textsc {T-Meth})
 	\and
 \inferrule
   {	A; \Sigma; \Gamma \vdash e : S \\
   	A; \Sigma; \Gamma \vdash e \ni \texttt{val} \; f:T}
   {	A; \Sigma; \Gamma \vdash e.f : T}
-  \quad (\textsc {T-Acc})
+  \quad (\textsc {T-Field})
 	\and
 \inferrule
   {A; \Sigma; \Gamma \vdash e : S \\
-   A; \Sigma; \Gamma \vdash S <: T \dashv \Gamma}
+   A; \Sigma; \Gamma \vdash S <: T}
   {A; \Sigma; \Gamma \vdash e \unlhd T : T}
   \quad (\textsc {T-Type})
 \end{mathpar}
@@ -778,55 +606,29 @@ upcast expression appropriately subtypes the upcast type.
 \label{f:e_typ}
 \end{figure}
 
-%\begin{figure}[h]
-%\hfill \fbox{$A; \Gamma; E \vdash d:\sigma$}
-%\begin{mathpar}
-%\inferrule
-%  {A; \Sigma; \Gamma \vdash p : T' \\
-%   A; \Sigma; \Gamma\vdash T' <: T \dashv \Gamma}
-%  {A; \Sigma; \Gamma \vdash \texttt{val} \; f:T = p : \texttt{val} \; f:T}
-%  \quad (\textsc {T-Decl-Var})
-%	\and
-%\inferrule
-%  {A; \Sigma; \Gamma, x : S \vdash e_0 : T' \\
-%   A; \Sigma; \Gamma, x : S \vdash T' <: T \dashv \Gamma, x : S}
-%  {A; \Sigma; \Gamma \vdash \texttt{def} \; m(x:S) = e : T : \texttt{def} \; m:S \rightarrow T}
-%  \quad (\textsc {T-Decl-Def})
-%	\and
-%\inferrule
-%  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf} }
-%  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U : \texttt{type} \; L : S .. U}
-%  \quad (\textsc {T-Decl-Type})
-%\end{mathpar}
-%\caption{Declaration Typing}
-%\label{f:d_typ}
-%\end{figure}
-
 \subsubsection{Reduction}
 
-Reduction is given in Figure \ref{f:red}. Since 
-we don't reduce field accesses, reduction is limited 
-to new (\textsc{R-New}), method (\textsc{R-meth}) and 
-context (\textsc{R-Context}) reduction. 
-
-
-
+Reduction is given in Figure \ref{f:red}. Reduction is new (\textsc{R-New}), method (\textsc{R-meth}), field (\textsc{R-Field}) and context (\textsc{R-Context}) reduction. New expressions are reduced (\textsc{R-New}) once field initializers are reduced to values. Method calls on values with a value type parameter are reduced (\textsc{R-Meth}) using the \emph{Leadsto\textsubscript{m}} judgement. We use the \emph{Leadsto\textsubscript{m}} judgement to extract the method body from the store, and wrap it up in well-formed type layers. Field reduction (\textsc{R-Field}) is performed the same way, using the \emph{Leadsto\textsubscript{f}} judgement. Context reduction (\textsc{R-Context}) is standard.
 \begin{figure}[h]
 \hfill \fbox{$\mu \; | \; e \; \rightarrow \mu' \; | \; e'$}
 \begin{mathpar}
 \inferrule
-  {\mu \vdash \overline{d_v} \leadsto \overline{d} \\
-  	l \notin dom(\mu) \\
-  	\mu' = \mu, l \mapsto \{\texttt{z} \Rightarrow \overline{d}\}}
+  {l \notin dom(\mu) \\
+  	\mu' = \mu, l \mapsto \{\texttt{z} \Rightarrow \overline{d_v}\}}
   {\mu \; | \; \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\} \; \rightarrow \mu' \; | \; l}
   \quad (\textsc {R-New})
   \and
 \inferrule
-  {\mu \vdash v_1 \leadsto v \\
-   v \to_{\unlhd} l \\
-  	\mu(l) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
-  {\mu \; | \; v_1.m_U(v_2) \;\rightarrow \mu \; | \; [l/\texttt{z},v_2 \unlhd S/x]e \unlhd U}
+  {\mu : \Sigma \\
+   \mu; \Sigma \vdash v_1 \leadsto_{m(v_2)} e}
+  {\mu \; | \; v_1.m(v_2) \;\rightarrow \mu \; | \; e}
   \quad (\textsc {R-Meth})
+  \and
+\inferrule
+  {\mu : \Sigma \\
+   \mu; \Sigma \vdash v_1 \leadsto_{f} v_2}
+  {\mu \; | \; v_1.f \;\rightarrow \mu \; | \; v_2}
+  \quad (\textsc {R-Field})
   \and
 \inferrule
   {	\mu \; | \; e \; \rightarrow \; \mu' \; | \; e'}
@@ -836,6 +638,13 @@ context (\textsc{R-Context}) reduction.
 \caption{Reduction}
 \label{f:red}
 \end{figure}
+
+\section{Future Work}
+As part of the development of Generic Wyvern, we simplified the concept of paths in the same way that Amin et. al. \cite{Amin 2014} did. This was due to the complexity of both the path equality and narrowing problems. In the future we hope to expand the notion of paths to include field accesses. We also intend to introduce \emph{Intersection} and \emph{Union} types. 
+
+\section{Conclusion}
+We have developed and proven sound a small-step semantics for type members in structurally type languages.
+
 
 \bibliographystyle{plain}
 \bibliography{bib}
