@@ -81,54 +81,15 @@ The proof is by induction over execution steps.
 \noindent\underline{\textit{Inductive case:}} The absence of method call stack frames in the method definitions and the bodies of the $\keywadj{bind}$ constructs is maintained by all evaluation rules. Cases of \textsc{E-Method} and \textsc{E-Bind} involve substitution; however, substituted expression is a value (location), and thus substitution preserves the property.\qed
 \end{proof}
 
-\vspace{10pt}
+\vspace{3pt}
 
 \begin{property}
 \label{prop:fields-private}
-Object fields are private. [Fields of an object can be directly accessed only by the object itself. Other objects can access the fields only via object's methods.]
+Object fields are private to the objects they belong to and access to them can occur only inside methods of the objects to which they belong.
 \end{property}
 
-\begin{proof}
-Typing rules for a field, \textsc{T-Field} and \textsc{T-Assign}, use $\sigma_i$, which contains types of field declarations and which is unavailable from outside the object (see \textsc{T-New}). \qed
-\end{proof}
+\noindent The typing rules contain information about what object is (or will be, in case of an object creation) the receiver of the enclosing method. Then from the \textsc{T-Field} and \textsc{T-Assign} rules, it can be seen that, for a field access to occur, the receiver must be the object to which the field belongs.
 
-%\vspace{20pt}
-%
-%\noindent\underline{\smash{\textbf{\textit{Field assignment:}}}}
-%
-%\vspace{16pt}
-%
-%\noindent Program code:
-%\vspace{-6pt}
-%\begin{lstlisting}[xleftmargin=20pt]
-%new($l_A$ =>
-%  def m(y : $\tau_1$) : $\tau_2$ =
-%    new($l_C$ => var $f$ : $\tau_1$ = y)
-%  ).m(new($l_B$ => var $f_1$ : $\tau_3$ = 10)).$f$ = new($l_B$ => var $f_1$ : $\tau_3$ = 8)
-%\end{lstlisting}
-%
-%\vspace{6pt}
-%\noindent Heap just before assignment:
-%\vspace{-6pt}
-%\begin{lstlisting}[xleftmargin=20pt]
-%$l_A \rightarrow \{$ def m(y : $\tau_1$) : $\tau_2$ =
-%          new($l_C$ => var $f$ : $\tau_1$ = y) $\}$
-%          
-%$l_C \rightarrow \{$ var $f$ : $\tau_1$ = $l_B$ $\}$
-%
-%$l_B \rightarrow \{$ var $f_1$ : $\tau_3$ = 10 $\}$
-%
-%$l_D \rightarrow \{$ var $f_1$ : $\tau_3$ = 8 $\}$
-%\end{lstlisting}
-%\[
-%\infer[\textsc{(E-Assign)}]
-%  {l_C.f = l_D~|~\mu \longrightarrow l_D~|~\mu'}
-%  {\def\arraystretch{1.6}
-%  \begin{array}{c}
-%l_C \mapsto \{ x \Rightarrow \overline{d_C} \}_{s} \in \mu~~~~~~~~~~~\keyw{var} f : \tau_1 = l_B \in \overline{d_C} \\
-%\overline{d_C}' = [\keyw{var} f : \tau_1 = l_D/\keyw{var} f : \tau_1 = l_B]\overline{d_C}~~~~~\mu' = [l_C \mapsto \{ x \Rightarrow \overline{d_C}' \}_{s}/l_C \mapsto \{ x \Rightarrow \overline{d_C} \}_{s}]\mu
-%  \end{array}}\\[5ex]
-%\]
 
 
 \newpage
@@ -785,7 +746,7 @@ E[e'] &= E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rh
 \end{align*}
 where
 \begin{enumerate}
-\item for $0 \leq i \leq k$, $l'.m(l'') \rhd E \not\in E_i$ \intuition{\hspace{150pt} [no method call stack frames in $E_i$]}
+\item for $0 \leq i \leq k$, $l'.m(l'') \rhd E' \not\in E_i$ \intuition{\hspace{150pt} [no method call stack frames in $E_i$]}
 \item $\forall i$, such that $l_i = l$, $i \in \{ q_1, q_2, \dots, q_{r_1} \}$, where $0 \leq r_1 \leq k$ \intuition{\newline [the set of indices of all method call stack frames where $l$ is the caller; this set can be empty]}
 \item $\forall i \in \{ q_1, q_2, \dots, q_{r_1} \}$, if $\exists j$, such that
 \begin{enumerate}
@@ -795,10 +756,6 @@ where
 $j \in \{ p_1, p_2, \dots, p_{r_2}\}$ where $0 \leq r_2 \leq r_1$
 \intuition{\newline [the maximal set of indices of principal callers immediately after method call stack frames where $l$ is the caller; this set can be smaller than the one above only by one element; this set can also be empty; such principals can be $l$ itself]}
 \end{enumerate}
-\intuition{[If $r_2 < r_1$, then there are only pure principals after the last method call stack frame where $l$ is the caller. In other words, $l$ was the last principal caller on the stack.\\
-If $r_2 = r_1$, then the last method call stack frame where $l$ is the caller is followed by a method call stack frame with a principal caller that is not $l$. If $r_2 = r_1 = 0$, then there are no method call stack frames with principal callers on the stack.\\
-Since the set in 3(b) can include indices of method call stack frames where the caller is $l$, the difference between $r_1$ and $r_2$ is at most $1$, i.e. $r_2 \le r_1 \le r_2 + 1$.]}
-
 Then
 \noindent$auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_2[l_2.m_2(l_2') \rhd E_1[l_1.m_1(l_1') \rhd E_0[e']] \dots ], \mu')$\\
 $\setminus~auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_2[l_2.m_2(l_2') \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
@@ -812,6 +769,9 @@ $\setminus~auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd
     \setminus~auth_{store}(l, \mu) \cup auth_{stack}(l, e, \mu)
 \end{cases} & (Lemma~\textit{\ref{l:a-diff}})
 \end{align*}
+\intuition{[If $r_2 < r_1$, then there are only pure principals after the last method call stack frame where $l$ is the caller. In other words, $l$ was the last principal caller on the stack.\\
+If $r_2 = r_1$, then the last method call stack frame where $l$ is the caller is followed by a method call stack frame with a principal caller that is not $l$. If $r_2 = r_1 = 0$, then there are no method call stack frames with principal callers on the stack.\\
+Since the set in 3(b) can include indices of method call stack frames where the caller is $l$, the difference between $r_1$ and $r_2$ is at most $1$, i.e. $r_2 \le r_1 \le r_2 + 1$.]}\\
 Thus the changes in authority when $E[e]~|~\mu \longrightarrow E[e']~|~\mu'$ depend on what expressions are in $e~|~\mu \longrightarrow e'~|~\mu'$. Let us consider all possible $e$ and $e'$.\\
 
 
@@ -819,7 +779,7 @@ Thus the changes in authority when $E[e]~|~\mu \longrightarrow E[e']~|~\mu'$ dep
 \mbox{$e = \keywadj{new}_s(x \Rightarrow \overline{d_a})$}, \mbox{$e' = l_a$}, and \mbox{$E[\keywadj{new}_s(x \Rightarrow \overline{d_a})]~|~\mu \longrightarrow E[l_a]~|~\mu'$}, where\\
 \mbox{$\mu' = \mu, l_a \mapsto \{ x \Rightarrow \overline{d_a} \}_s$}.
 
-By \textsc{auth-store}, $auth_{store}(l, \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu)$ and $auth_{store}(l, \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu')$. By \textsc{pointsto-principal}, \textsc{pointsto-data}, and \textsc{pointsto-empty}, $pointsto(l, \mu') = pointsto(l, \mu)$. By \textsc{pointsto-decls} and the $pointsto(d, \mu)$ rules, $pointsto(\overline{d}, \mu)$ depends only on what is in $\overline{d}$ and whether it is stateful. Then since the only change to the store was the addition of a new object $l_a$, which points to a fresh memory location, and by inversion on \textsc{E-New}, $\keywadj{new}_s(x \Rightarrow \overline{d_a})$ is a closed term, i.e. it is fully defined and does not contain any dangling pointers, $pointsto(l_a, \mu) \not\in pointsto(\overline{d}, \mu')$. Thus, $auth_{store}(l, \mu') = auth_{store}(l, \mu)$.\\
+By \textsc{auth-store}, $auth_{store}(l, \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu)$ and $auth_{store}(l, \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu')$. By \textsc{pointsto-principal}, \textsc{pointsto-data}, and \textsc{pointsto-empty}, $pointsto(l, \mu') = pointsto(l, \mu)$. By \textsc{pointsto-decls} and the $pointsto(d, \mu)$ rules, $pointsto(\overline{d}, \mu)$ depends only on what is in $\overline{d}$ and whether it is stateful. Then since the only change to the store was the addition of a new object $l_a$, and by inversion on \textsc{E-New}, $l_a \not\in dom(\mu)$ and $\keywadj{new}_s(x \Rightarrow \overline{d_a})$ is a closed term, i.e. it is fully defined and all objects in $\overline{d_a}$ must be in the store at the time of the object creation (\textsc{T-Store}), $pointsto(l_a, \mu) \not\in pointsto(\overline{d}, \mu')$. Thus, $auth_{store}(l, \mu') = auth_{store}(l, \mu)$.\\
 
 \noindent\underline{\underline{\textit{Case $r_2 < r_1$:}}}
 \noindent$auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
@@ -857,7 +817,7 @@ Thus, the authority of $l$ does not increase, and the theorem holds.\\
 Thus, the authority of $l$ does not increase, and the theorem holds.\\
 
 
-\noindent\fbox{\parbox{\widthof{Subcase \textsc{E-Meth}:}}{Subcase \textsc{E-Meth}:}}
+\noindent\fbox{\parbox{\widthof{Subcase \textsc{E-Method}:}}{Subcase \textsc{E-Method}:}}
 $e = l_a.m(l_b)$, \mbox{$e' = l_a.m(l_b) \rhd [l_b / y][l_a / x]e_a$}, \mbox{$\mu' = \mu$}, and $auth_{store}(l, \mu') = auth_{store}(l, \mu)$. Since $e_a$ is a method definition, by Property~\ref{prop:mcsf-def-bind}, $e_a$ has no method call stack frames.\\
 
 \noindent\underline{\underline{\textit{Case $r_2 < r_1$:}}} \noindent$auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
@@ -1003,17 +963,16 @@ Thus, the authority of $l$ does not increase, and the theorem holds.\\
 
 
 \noindent\fbox{\parbox{\widthof{Subcase \textsc{E-Field}:}}{Subcase \textsc{E-Field}:}}
-$e = l_a.f$, $e' = l_b$, $\mu' = \mu$, and $auth_{store}(l, \mu') = auth_{store}(l, \mu)$.\\
+$e = l_a.f$, $e' = l_b$, $\mu' = \mu$, and $auth_{store}(l, \mu') = auth_{store}(l, \mu)$.
 
-\noindent\underline{\underline{\textit{Case $r_2 < r_1$:}}} $auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
+By Property~\ref{prop:fields-private}, the object field that is being accessed must belong to the caller of the last method call stack frame on the stack. Then $l_1 = l_a$, and by definition of a principal, since $l_1$ has fields, it is a principal.
+
+\noindent\underline{\underline{\textit{Case $r_2 < r_1$:}}} Since $l_1$ is a principal, $l = l_1 = l_a$.\\
+\noindent$auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
 \vspace{-7pt}
 \begin{align*}
-&= pointsto(l_b, \mu) \cup auth_{stack}(l, l_b, \mu) \setminus pointsto(l_a.f, \mu) \cup auth_{stack}(l, l_a.f, \mu)\\
-&= pointsto(l_b, \mu) \setminus pointsto(l_a.f, \mu) & (\textsc{auth-stack-nocall} \times 2)
-\end{align*}
-By Property~\ref{prop:fields-private}, object fields are private and only the caller can access its own fields. Then $l_a = l$.
-\begin{align*}
-auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu) &= pointsto(l_b, \mu) \setminus pointsto(l.f, \mu)\\
+&= pointsto(l_b, \mu) \cup auth_{stack}(l, l_b, \mu) \setminus pointsto(l.f, \mu) \cup auth_{stack}(l, l.f, \mu)\\
+&= pointsto(l_b, \mu) \setminus pointsto(l.f, \mu) & (\textsc{auth-stack-nocall} \times 2)\\
 &= auth_{store}(l, \mu) \cup pointsto(l_b, \mu) \setminus auth_{store}(l, \mu) \cup pointsto(l.f, \mu)
 \end{align*}
 By inversion on \textsc{E-Field}, $\keyw{var} f : \tau = l_b \in \overline{d}$. Then by \textsc{auth-store}, \textsc{pointsto-decls}, and \textsc{pointsto-varl}, $auth_{store}(l, \mu) \supseteq pointsto(l_b, \mu)$, and
@@ -1034,37 +993,36 @@ Thus, $l$'s authority does not increase, and the theorem holds.\\
 \noindent\fbox{\parbox{\widthof{Subcase \textsc{E-Assign}:}}{Subcase \textsc{E-Assign}:}}
 $e = (l_a.f = l_b)$, $e' = l_b$, and by inversion on \textsc{E-Assign}, $l_a \mapsto \{ x \Rightarrow \overline{d_a} \}_{s} \in \mu$, \mbox{$\keyw{var} f : \tau = l_c \in \overline{d_a}$}, $\overline{d_a}' = [\keyw{var} f : \tau = l_b/\keyw{var} f : \tau = l_c]\overline{d_a}$, and $\mu' = [l_a \mapsto \{ x \Rightarrow \overline{d_a}' \}_{s}/l_a \mapsto \{ x \Rightarrow \overline{d_a} \}_{s}]\mu$.
 
-By Property~\ref{prop:fields-private}, object fields are private and only the caller can access its own fields. Then $l_a = l$. \hspace{30pt} [1]
+By Property~\ref{prop:fields-private}, the object field that is being accessed must belong to the caller of the last method call stack frame on the stack. Then $l_1 = l_a$, and by definition of a principal, since $l_1$ has fields, it is a principal.
 
-Since in this step of evaluation, the only change to the store is the substitution of $l_c$ with $l_b$ in one of $l_a$'s fields, by \textsc{auth-store}, \textsc{pointsto-decls}, and \textsc{pointsto-varl}, $l_a$ potentially looses authority over $l_c$, and therefore, $auth_{store}(l, \mu') \subseteq auth_{store}(l, \mu)$, and consequently, $auth_{store}(l, \mu') \setminus auth_{store}(l, \mu) \subseteq \{ l_b \}$. \hspace{40pt} [2]\\
+\noindent\underline{\underline{\textit{Case $r_2 < r_1$:}}} Since $l_1$ is a principal, in this case, $l = l_1 = l_a$.
 
-\noindent\underline{\underline{\textit{Case $r_2 < r_1$:}}} $auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
-\vspace{-7pt}
-\begin{align*}
-&= auth_{store}(l, \mu') \cup pointsto(l_b, \mu') \cup auth_{stack}(l, l_b, \mu')\\
-&\setminus~auth_{store}(l, \mu) \cup pointsto(l_a.f = l_b, \mu) \cup auth_{stack}(l, l_a.f = l_b, \mu)\\
-&= auth_{store}(l, \mu') \cup pointsto(l_b, \mu') \setminus auth_{store}(l, \mu) \cup pointsto(l_a.f = l_b, \mu) & (\textsc{auth-stack-nocall} \times 2)\\
-&= auth_{store}(l, \mu') \cup pointsto(l_b, \mu') \setminus auth_{store}(l, \mu) \cup pointsto(l_a, \mu) \cup pointsto(l_b, \mu) & (\textsc{subexps-e-assign2})
-\end{align*}
-By [1] and \textsc{auth-store}, $auth_{store}(l, \mu) \supseteq pointsto(l_a, \mu)$. \hspace{220pt} [3]
+Since in this step of evaluation, the only change to the store is the substitution of $l_c$ with $l_b$ in one of $l$'s fields, by \textsc{auth-store}, \textsc{pointsto-decls}, and \textsc{pointsto-varl}, $auth_{store}(l, \mu') \setminus auth_{store}(l, \mu) \subseteq pointsto(l_b, \mu')$. [1]
 
-\noindent By \textsc{auth-store}, \textsc{pointsto-decls}, and \textsc{pointsto-varl}, $auth_{store}(l, \mu') \supseteq pointsto(l_b, \mu')$. \hspace{70pt} [4]
+By \textsc{pointsto-principal}, \textsc{pointsto-data}, and \textsc{pointsto-empty}, $pointsto(l_b, \mu') = pointsto(l_b, \mu)$. \hspace{12pt} [2]
 
 \noindent$auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
 \vspace{-7pt}
 \begin{align*}
-&= auth_{store}(l, \mu') \cup pointsto(l_b, \mu') \setminus auth_{store}(l, \mu) \cup pointsto(l_b, \mu) & (by~[3])\\
-&= auth_{store}(l, \mu') \setminus auth_{store}(l, \mu) \cup pointsto(l_b, \mu) & (by~[4])\\
+&= auth_{store}(l, \mu') \cup pointsto(l_b, \mu') \cup auth_{stack}(l, l_b, \mu')\\
+&\setminus~auth_{store}(l, \mu) \cup pointsto(l.f = l_b, \mu) \cup auth_{stack}(l, l.f = l_b, \mu)\\
+&= auth_{store}(l, \mu') \cup pointsto(l_b, \mu') \setminus auth_{store}(l, \mu) \cup pointsto(l.f = l_b, \mu) & (\textsc{auth-stack-nocall} \times 2)\\
+&= auth_{store}(l, \mu') \cup pointsto(l_b, \mu') \setminus auth_{store}(l, \mu) \cup pointsto(l, \mu) \cup pointsto(l_b, \mu) & (\textsc{subexps-e-assign2})\\
+&\subseteq pointsto(l_b, \mu') \setminus pointsto(l, \mu) \cup pointsto(l_b, \mu) & (by~[1])\\
 &= \varnothing & (by~[2])
 \end{align*}
 Thus, the authority of $l$ does not increase, and the theorem holds.\\
 
-\noindent\underline{\underline{\textit{Case $r_2 = r_1$:}}} $auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
+\noindent\underline{\underline{\textit{Case $r_2 = r_1$:}}} Since $l_1$ is a principal and $l_1 = l_a$, in this case, $l \neq l_a$ and $r_2 = r_1 \neq 0$.
+
+Since $l \neq l_a$ and, in this step of evaluation, the only change to the store is the substitution of $l_c$ with $l_b$ in one of $l_1$'s fields, by \textsc{auth-store}, \textsc{pointsto-decls}, and \textsc{pointsto-varl}, $auth_{store}(l, \mu') = auth_{store}(l, \mu)$. [3]
+
+\noindent$auth(l, E[e'], \mu') \setminus auth(l, E[e], \mu)$
 \vspace{-7pt}
 \begin{align*}
 &= auth_{store}(l, \mu') \cup auth_{stack}(l, l_b, \mu') \setminus~auth_{store}(l, \mu) \cup auth_{stack}(l, l_a.f = l_b, \mu)\\
 &= auth_{store}(l, \mu') \setminus auth_{store}(l, \mu) & (\textsc{auth-stack-nocall} \times 2)\\
-&= \varnothing & (by~[2])
+&= \varnothing & (by~[3])
 \end{align*}
 Thus, the authority of $l$ does not increase, and the theorem holds.\\
 
@@ -1522,7 +1480,7 @@ The authority of $l$ increases, but this is in accordance with the \textbf{\text
 The authority of $l$ does not increase, and the theorem holds.\\
 
 
-\noindent\fbox{\parbox{\widthof{Subcase \textsc{E-Meth}:}}{Subcase \textsc{E-Meth}:}}
+\noindent\fbox{\parbox{\widthof{Subcase \textsc{E-Method}:}}{Subcase \textsc{E-Method}:}}
 $e = l.m(l_1)$, \mbox{$e' = l.m(l_1) \rhd [l_1 / y][l / x]e''$}, and \mbox{$E[l.m(l_1)]~|~\mu \longrightarrow E[l.m(l_1) \rhd [l_1 / y][l / x]e'']~|~\mu$}.
 
 Let $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{stateful}} \in \mu$, such that $E'[l.m(l') \rhd E''[\keywadj{new}_s(x \Rightarrow \overline{d_1})]]~|~\mu \longrightarrow E'[l.m(l') \rhd E''[l_1]]~|~\mu'$, where $\forall l_0.m_0(l_0') \rhd E''' \in E''$, $l_0 \mapsto \{ x \Rightarrow \overline{d_0}\}_{\keywadj{pure}} \in \mu$.
@@ -1833,7 +1791,7 @@ auth(l, l.m(l_2) \rhd E'[l_1], \mu') &= pointsto(l, \mu') \cup pointsto(\overlin
 Although the memory was extended with the new object, since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l$, $\overline{d}$, $\overline{d}_1$, or $E'$, and $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, $pointsto(\overline{d}_1, \mu) = pointsto(\overline{d}_1, \mu')$, and $pointsto(E', \mu) = pointsto(E', \mu')$. Thus, there is no gain in $l_1$'s authority, and the theorem holds.\\\\
 
 
-\noindent\fbox{\parbox{\widthof{Case \textsc{E-Meth}:}}{Case \textsc{E-Meth}:}}
+\noindent\fbox{\parbox{\widthof{Case \textsc{E-Method}:}}{Case \textsc{E-Method}:}}
 $e = E[l_1.m(l_2)]$, $e' = E[l_1.m(l_2) \rhd [l_2/y] [l_1/x] e'']$, and $\mu' = \mu$. From the premise, we get $l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$ and $\keyw{def} m(y : \tau_1) : \tau_2 = e'' \in \overline{d}$. There are two possibilities: either the evaluation context is empty, i.e. $E = \varnothing$, or not, i.e. $E \not= \varnothing$.\\
 
 \noindent\textit{\mbox{\underline{Case $E = \varnothing$}}:} Since the evaluation context is empty, there is no caller, i.e. $lookupCaller = \varnothing$. The only principal whose authority can change on this step is $l_1$. Let us consider $l_1$'s authority in the two states. In the initial state, we have:
@@ -2058,7 +2016,7 @@ Thus, $l$'s authority does not increase, and the theorem holds.\qed
 
 \begin{proof}
 
-The program begins with a creation of an object and an empty stack. When the first object is created, since there are no other objects in the program, no object can gain authority. After the first object is created, authority of objects in the program can change. There are three actions that can be done to an object: field access (E-Field), field assignment (E-Assign), and method call (E-Meth). Let us consider how each of them changes the authority of the object. (This can be generalized to any object in the program.)\\
+The program begins with a creation of an object and an empty stack. When the first object is created, since there are no other objects in the program, no object can gain authority. After the first object is created, authority of objects in the program can change. There are three actions that can be done to an object: field access (E-Field), field assignment (E-Assign), and method call (E-Method). Let us consider how each of them changes the authority of the object. (This can be generalized to any object in the program.)\\
 
 \noindent\underline{\textit{Case \textsc{E-Field}:}}
 $l.f~|~\mu \rightarrow l_1~|~\mu$. From the premise, we get $l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$ and $\keyw{var} f : \tau = l_1 \in \overline{d}$.
@@ -2094,7 +2052,7 @@ auth(l_1, l_2, \mu') &= auth_{store}(l_1, \mu') \cup auth_{stack}(l_1, l_2, \mu'
 \end{align*}
 By \textsc{pointsto-principal} and \textsc{pointsto-data}, $pointsto(l_1, \mu) = pointsto(l_1, \mu')$. However,\\ $pointsto(\overline{d}, \mu') \setminus pointsto(\overline{d}, \mu) \subseteq pointsto(l_2, \mu')$. Thus if $l_2$ is a pure object, the authority of $l_1$ does not increase; if $l_2$ is a principal, $l_1$ gains authority over $l_2$, which is in accordance with case 1 of the theorem. In both cases, the theorem holds.\\
 
-\noindent\underline{\textit{Case \textsc{E-Meth}:}}
+\noindent\underline{\textit{Case \textsc{E-Method}:}}
 $l_1.m(l_2)~|~\mu \rightarrow l_1.m(l_2) \rhd [l_2/y][l_1/x]e~|~\mu$. From the premise, we get $l_1 \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$ and $\keyw{def} m(y : \tau_1) : \tau_2 = e \in \overline{d}$.
 
 \noindent Let us consider $l_1$'s authority in the two states. In the initial state, we have:
@@ -2146,7 +2104,7 @@ auth(l_1, l_1.m(l_2) \rhd E[l_3], \mu') &= pointsto(l_1, \mu') \cup pointsto(\ov
 \end{align*}
 Although the memory was extended with the new object, since we are considering small-step semantics, within this evaluation step, no assignment could have taken place. Therefore, there were no changes to $l_1$, $\overline{d}$, or $E$, and $pointsto(l_1, \mu) = pointsto(l_1, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$, and $pointsto(E, \mu) = pointsto(E, \mu')$. Thus there was no gain in $l_1$'s authority, and the theorem holds.\\
 
-\noindent\underline{\textit{Subcase \textsc{E-Meth}:}}
+\noindent\underline{\textit{Subcase \textsc{E-Method}:}}
 $l_1.m(l_2) \rhd E[l_3.m'(l_4)]~|~\mu \longrightarrow l_1.m(l_2) \rhd E[l_3.m'(l_4) \rhd [l_4/y] [l_3/x] e']~|~\mu$, where $E$ does not contain any method call stack frames. From the premise, we get $l_3 \mapsto \{ x \Rightarrow \overline{d}_3 \}_{s} \in \mu$ and $\keyw{def} m'(y : \tau_1) : \tau_2 = e' \in \overline{d}_3$.
 
 \noindent Let us consider $l_1$'s authority in the two states. In the initial state, we have:
@@ -2388,7 +2346,7 @@ Although the memory was extended with the new object, since we are considering s
 \noindent Thus, $auth(l, e', \mu') = auth(l, e, \mu)$ in compliance with the theorem.\\\\
 
 
-\noindent\fbox{\parbox{\widthof{Case \textsc{E-Meth}:}}{Case \textsc{E-Meth}:}}
+\noindent\fbox{\parbox{\widthof{Case \textsc{E-Method}:}}{Case \textsc{E-Method}:}}
 $e = E[l_1.m(l_2)]$, $e' = E[l_1.m(l_2) \rhd [l_2/y] [l_1/x] e'']$, and $\mu' = \mu$. From the premise, we get $l_1 \mapsto \{ x \Rightarrow \overline{d}_1 \}_{s} \in \mu$ and $\keyw{def} m(y : \tau_1) : \tau_2 = e'' \in \overline{d}_1$. Without loss of generality, let $lookupCaller(E) = l$, such that $l \mapsto \{ x \Rightarrow \overline{d} \}_{s} \in \mu$. By \textsc{lookupCaller}, in a broader context, the following evaluation step is being made: \mbox{$l.m'(l_0) \rhd E'[l_1.m(l_2)]~|~\mu \longrightarrow l.m'(l_0) \rhd E'[l_1.m(l_2) \rhd [l_2/y] [l_1/x] e'']~|~\mu$}, where there are no method call stack frames in $E'$.\\
 
 \noindent Let us consider $l$'s authority for the two states. By Lemma 4, in the initial state, we have:
