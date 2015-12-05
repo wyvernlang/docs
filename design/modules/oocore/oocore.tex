@@ -10,6 +10,8 @@
 \usepackage{enumitem}
 \usepackage{filecontents}
 \usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\allowdisplaybreaks
  
 \usepackage{fancyhdr}
 \renewcommand{\headrulewidth}{0pt}
@@ -28,6 +30,8 @@
 \newcommand{\Inttt}{\mathtt{Int}~}
 \newcommand{\stepsto}{\leadsto}
 \newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+%\newcommand{\intuition}[1]{}
 
 \newlist{pcases}{enumerate}{1}
 \setlist[pcases]{
@@ -1133,44 +1137,608 @@ $\fbox{$~lookupCaller(E)~$}$
 
 \subsection{Theory}
 
+\begin{mdframed}
 \begin{lemma}
-For an expressions of the form $l.m(l') \rhd E[e]$, where $l \mapsto \{ x \Rightarrow \overline{d} \}_s \in \mu$ and $E$ contains no method call stack frames,
-\[
-auth(l, l.m(l') \rhd E[e], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu).
-\]
+\label{l:ses-e}
+If $l.m(l') \rhd E' \not\in E$, then $pointsto(E[e], \mu) = pointsto(e, \mu) \cup pointsto(subexps(E), \mu)$.
 \end{lemma}
+\end{mdframed}
 
-\begin{proof} $auth(l, l.m(l') \rhd E[e], \mu)$
+\begin{proof} The proof is by induction on the $pointsto(e, \mu)$ rules.
 
-\vspace{-17pt}
+\noindent\underline{\textit{Case \textsc{pointsto-empty}:}} By \textsc{subexps-e-empty}, $subexps([~]) = \varnothing$, and the result is immediate.
 
+\noindent\underline{\textit{Case \textsc{pointsto-var}:}} $pointsto(x, \mu) = \varnothing~~~~~~~~~~~~~~~~~~~~~~~~~~(\textsc{pointsto-var}, \textsc{pointsto-empty})~[1]$
+\vspace{-7pt}
 \begin{align*}
-&= auth_{store}(l, \mu) \cup auth_{stack}(l, l.m(l') \rhd E[e], \mu) & (\textsc{auth-config})\\
-&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup auth_{stack}(l, l.m(l') \rhd E[e], \mu) & (\textsc{auth-store})\\
-&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E[e], \mu) \cup auth_{stack}(l, E[e], \mu) & (\textsc{auth-stack})\\
-&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E[e], \mu) & (\textsc{auth-stack-nocall})\\
-&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu) & (\textsc{pointsto-context-exp})
-\end{align*}\qed
+pointsto(E[x], \mu) &= pointsto(subexps(E), \mu) & (\textsc{pointsto-var})\\
+&= pointsto(x, \mu) \cup pointsto(subexps(E), \mu) & (by~[1])
+\end{align*}
 
+\noindent\underline{\textit{Case \textsc{pointsto-new}:}} $pointsto(\keywadj{new}_s(x \Rightarrow \overline{d}), \mu) = pointsto(\overline{d}, \mu)~~~~(\textsc{pointsto-new}, \textsc{pointsto-empty})~[2]$
+\vspace{-7pt}
+\begin{align*}
+pointsto(E[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu) &= pointsto(\overline{d}, \mu) \cup pointsto(subexps(E), \mu) & (\textsc{pointsto-new})\\
+&= pointsto(\keywadj{new}_s(x \Rightarrow \overline{d}), \mu) \cup pointsto(subexps(E), \mu) & (by~[2])
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-principal}:}} From the premise, we get $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{stateful}}$.
+\vspace{-7pt}
+\begin{align*}
+pointsto(l, \mu) &= \{ l \} & (\textsc{pointsto-principal}, \textsc{pointsto-empty})~[3]\\
+pointsto(E[l], \mu) &= \{ l \} \cup pointsto(subexps(E), \mu) & (\textsc{pointsto-principal})\\
+&= pointsto(l, \mu) \cup pointsto(subexps(E), \mu) & (by~[3])
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-data}:}} From the premise, we get $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{pure}}$.
+\vspace{-7pt}
+\begin{align*}
+pointsto(l, \mu) &= \varnothing & (\textsc{pointsto-data}, \textsc{pointsto-empty})~[4]\\
+pointsto(E[l], \mu) &= pointsto(subexps(E), \mu) & (\textsc{pointsto-data})\\
+&= pointsto(l, \mu) \cup pointsto(subexps(E), \mu) & (by~[4])
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-call-principal}:}} From the premise, we get $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{stateful}}$.
+
+\noindent$~~~~~pointsto(l.m(l') \rhd e', \mu) = \{ l \}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~(\textsc{pointsto-call-principal}, \textsc{pointsto-empty})~[5]$
+\vspace{-7pt}
+\begin{align*}
+pointsto(E[l.m(l') \rhd e'], \mu) &= \{ l \} \cup pointsto(subexps(E), \mu) & (\textsc{pointsto-call-principal})\\
+&= pointsto(l.m(l') \rhd e', \mu) \cup pointsto(subexps(E), \mu) & (by~[5])
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-call-data}:}} From the premise, we get $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{pure}}$.
+
+$~~~pointsto(l.m(l') \rhd e', \mu) = pointsto(e', \mu)~~~~~~~~~~~~~~~~~~~~~(\textsc{pointsto-call-data}, \textsc{pointsto-empty})~[6]$
+\vspace{-7pt}
+\begin{align*}
+pointsto(E[l.m(l') \rhd e'], \mu) &= pointsto(e', \mu) \cup pointsto(subexps(E), \mu) & (\textsc{pointsto-call-data})\\
+&= pointsto(l.m(l') \rhd e', \mu) \cup pointsto(subexps(E), \mu) & (by~[6])
+\end{align*}
+\qed
 \end{proof}
 
 
+\begin{mdframed}
 \begin{lemma}
-For any two expressions $e$ and $e'$, such that $e~|~\mu \longrightarrow e'~|~\mu'$ and, in a broader context,\\ \mbox{$l.m(l') \rhd E[e]~|~\mu \longrightarrow l.m(l') \rhd E[e']~|~\mu'$}, where $lookupCaller(E) = l$, $l \mapsto \{ x \Rightarrow \overline{d} \}_s \in \mu$, and there are no method call stack frames in $E$, $auth(l, l.m(l') \rhd E[e], \mu)$ and $auth(l, l.m(l') \rhd E[e'], \mu')$ differ only by the values of $pointsto(e, \mu)$ and $pointsto(e', \mu')$.
+\label{l:simplify-a-stack}
+If $l.m(l') \rhd E' \not\in E$, then $auth_{stack}(E[l.m(l') \rhd e'], \mu) = auth_{stack}(l.m(l') \rhd e', \mu)$.
 \end{lemma}
+\end{mdframed}
 
-\begin{proof} By Lemma 4, in the initial state, we have
-\[
-auth(l, l.m(l') \rhd E[e], \mu) = pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(E, \mu) \cup pointsto(e, \mu)
-\]
-and in the final state, we have
-\[
-auth(l, l.m(l') \rhd E[e'], \mu') = pointsto(l, \mu') \cup pointsto(\overline{d}, \mu') \cup pointsto(E, \mu') \cup pointsto(e', \mu')
-\]
-
-Since we are considering small-step semantics, within this evaluation step, there were no changes to $l$, $\overline{d}$ and $E$, and thus $pointsto(l, \mu) = pointsto(l, \mu')$, $pointsto(\overline{d}, \mu) = pointsto(\overline{d}, \mu')$ and $pointsto(E, \mu) = pointsto(E, \mu')$. Therefore, $auth(l, l.m(l') \rhd E[e'], \mu')$ differ only by the values of $pointsto(e, \mu)$ and $pointsto(e', \mu')$. \qed
-
+\begin{proof} $~~auth_{stack}(E[l.m(l') \rhd e'], \mu) = pointsto(e', \mu) \cup auth_{stack}(l, e', \mu)~~~~~~~~~~~~~~~(\textsc{auth-stack})$
+\vspace{-7pt}
+\begin{align*}
+auth_{stack}(l.m(l') \rhd e', \mu) &= pointsto(e', \mu) \cup auth_{stack}(l, e', \mu)& (\textsc{auth-stack})
+\end{align*}
+Thus, $auth_{stack}(E[l.m(l') \rhd e'], \mu) = auth_{stack}(l.m(l') \rhd e', \mu)$.
+\qed
 \end{proof}
+
+
+\newpage
+\begin{mdframed}
+\begin{lemma}
+\label{l:pt-all-pure}
+If
+\begin{enumerate}
+\item for $0 \leq i \leq k$, $l.m(l') \rhd E \not\in E_i$ \intuition{\hspace{150pt} [no method call stack frames in $E_i$]}
+\item for $1 \leq i \leq k$, $l_i \mapsto \{ x \Rightarrow \overline{d_i} \}_{\keywadj{pure}} \in \mu$ \intuition{\hspace{70pt} [callers in all method call stack frames are pure]}
+\end{enumerate}
+then
+\noindent$pointsto(E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= \bigcup^k_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu)
+\end{align*}
+\end{lemma}
+\end{mdframed}
+
+\begin{proof} The proof is by induction on the number of method call stack frames preceding $E_0[e]$ on the stack.
+
+\noindent\underline{\textit{Base case:}} $k = 1$\\
+\noindent$pointsto(E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(subexps(E_1), \mu) \cup pointsto(E_0[e], \mu) & (\textsc{pointsto-call-data}) \\
+&= pointsto(subexps(E_1), \mu) \cup pointsto(subexps(E_0), \mu) \cup pointsto(e, \mu) & (Lemma~\textit{\ref{l:ses-e}}) \\
+&= \bigcup^1_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu)
+\end{align*}
+
+\noindent\underline{\textit{Inductive case:}} $k > 1$\\
+\noindent$pointsto(E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(subexps(E_k), \mu) & (\textsc{pointsto-call-data}) \\
+& \cup pointsto(E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&= pointsto(subexps(E_k), \mu) \cup pointsto(subexps(E_{k-1}), \mu)& (\textsc{pointsto-call-data}) \\
+& \cup pointsto(E_{k-2}[l_{k-2}.m_{k-2}(l_{k-2}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+%&= \bigcup^k_{i = 2} pointsto(subexps(E_i), \mu) \cup pointsto(E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu) & (\textsc{pointsto-call-data} \times (k - 3)) \\
+&= \bigcup^k_{i = 1} pointsto(subexps(E_i), \mu) \cup pointsto(E_0[e], \mu) & (\textsc{pointsto-call-data} \times (k - 2)) \\
+&= \bigcup^k_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu) & (Lemma~\textit{\ref{l:ses-e}})
+\end{align*}
+\qed
+\end{proof}
+
+
+\begin{mdframed}
+\begin{lemma}
+\label{l:pt-has-stateful}
+If
+\begin{enumerate}
+\item for $0 \leq i \leq k$, $l.m(l') \rhd E \not\in E_i$ \intuition{\hspace{150pt} [no method call stack frames in $E_i$]}
+\item $\exists j$, such that $1 \leq j \leq k$, $l_j \mapsto \{ x \Rightarrow \overline{d_j} \}_{\keywadj{stateful}} \in \mu$
+\intuition{\newline [there is at least one method call stack frame that has a principal caller]}
+\end{enumerate}
+then
+\noindent$pointsto(E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= \bigcup^k_{i = p} pointsto(subexps(E_i), \mu) \cup \{ l_p\},
+\end{align*}
+where $1 \leq p \leq k$ and $p$ is the greatest index, such that $l_p \mapsto \{ x \Rightarrow \overline{d_p} \}_{\keywadj{stateful}} \in \mu$.
+
+\intuition{\noindent[$l_p$ is the first (furthest from $e$) principal method caller on the stack]}
+\end{lemma}
+\end{mdframed}
+
+\begin{proof} The proof is by induction on the number of method call stack frames preceding $E_0[e]$ on the stack.
+
+\noindent\underline{\textit{Base case:}} $k = 1$, and since $l_1$ is the only method call stack frame, $l_1 \mapsto \{ x \Rightarrow \overline{d_1} \}_{\keywadj{stateful}} \in \mu$ and $p = 1$.
+\begin{align*}
+pointsto(E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu) &= pointsto(subexps(E_1), \mu) \cup \{ l_1 \} & (\textsc{pointsto-call-principal})
+\end{align*}
+
+\noindent\underline{\textit{Inductive case:}} $k > 1$\\
+\noindent$pointsto(E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(subexps(E_k), \mu) & (\textsc{pointsto-call-data}) \\
+& \cup pointsto(E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&= pointsto(subexps(E_k), \mu) \cup pointsto(subexps(E_{k-1}), \mu)& (\textsc{pointsto-call-data}) \\
+& \cup pointsto(E_{k-2}[l_{k-2}.m_{k-2}(l_{k-2}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&= \bigcup^k_{i = p+1} pointsto(subexps(E_i), \mu) & (\textsc{pointsto-call-data} \times (k - p - 2)) \\
+& \cup pointsto(E_p[l_p.m_p(l_p') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+%& \cup pointsto(E_p[l_p.m_p(l_p') \rhd E_{p-1}[l_{p-1}.m_{p-1}(l_{p-1}') \rhd \dots \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&= \bigcup^k_{i = p} pointsto(subexps(E_i), \mu) \cup \{ l_p \} & (\textsc{pointsto-call-principal})
+\end{align*}
+\qed
+\end{proof}
+
+
+\begin{mdframed}
+\begin{lemma}
+\label{l:main-a-stack}
+If
+\begin{enumerate}
+\item for $0 \leq i \leq k$, $l'.m(l'') \rhd E \not\in E_i$ \intuition{\hspace{150pt} [no method call stack frames in $E_i$]}
+\item $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{stateful}} \in \mu$ \intuition{\hspace{270pt} [$l$ is a principal]}
+\item $\forall i$, such that $l_i = l$, $i \in \{ q_1, q_2, \dots, q_{r_1} \}$, where $0 \leq r_1 \leq k$ \intuition{\newline [the set of indices of all method call stack frames where $l$ is the caller; this set can be empty]}
+\item $\forall i \in \{ q_1, q_2, \dots, q_{r_1} \}$, if $\exists j$, such that
+\begin{enumerate}
+\item $l_j \mapsto \{ x \Rightarrow \overline{d_j} \}_{\keywadj{stateful}} \in \mu$ and \intuition{\hspace{220pt} [$l_j$ is a principal]}
+\item $\forall t$, such that $i > t > j$ and $l_t \mapsto \{ x \Rightarrow \overline{d_t} \}_{\keywadj{pure}} \in \mu$ \intuition{\hspace{40pt} [all callers between $l_i$ and $l_j$ are pure]}
+\end{enumerate}
+$j \in \{ p_1, p_2, \dots, p_{r_2}\}$ where $0 \leq r_2 \leq r_1$
+\intuition{\newline [the maximal set of indices of principal callers immediately after method call stack frames where $l$ is the caller; this set can be smaller than the one above only by one element; this set can also be empty; such principals can be $l$ itself]}
+\end{enumerate}
+then
+\noindent$auth_{stack}(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_2[l_2.m_2(l_2') \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&=
+\begin{cases}
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 < r_1\\
+    \bigcup^{q_{r_2+1}-1}_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu)\\\\
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 = r_1\\
+    \cup auth_{stack}(l, e, \mu)\\
+\end{cases}
+\end{align*}
+\intuition{[If $r_2 < r_1$, then there are only pure principals after the last method call stack frame where $l$ is the caller. In other words, $l$ was the last principal caller on the stack.\\
+If $r_2 = r_1$, then the last method call stack frame where $l$ is the caller is followed by a method call stack frame with a principal caller that is not $l$. If $r_2 = r_1 = 0$, then there are no method call stack frames with principal callers on the stack.\\
+Since the set in 4(b) can include indices of method call stack frames where the caller is $l$, the difference between $r_1$ and $r_2$ is at most $1$, i.e. $r_2 \le r_1 \le r_2 + 1$.]}
+\end{lemma}
+\end{mdframed}
+
+\begin{proof} The proof is by induction on the number of method call stack frames preceding $e$ on the stack.\\
+
+\noindent\underline{\underline{\textit{Base case:}}} $k = 1$. Depending on the values of $r_1$ and $r_2$, there are two possibilities.
+
+\noindent\underline{\textit{Case $r_2 < r_1$:}} $r_1 = 1$, $r_2 = 0$, and $l_1 = l$\\
+\noindent$auth_{stack}(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(E_0[e], \mu) \cup auth_{stack}(l, E_0[e], \mu) & (\textsc{auth-stack}) \\
+&= pointsto(E_0[e], \mu) \cup auth_{stack}(l, e, \mu) & (Lemma~\textit{\ref{l:simplify-a-stack}}) \\
+&= pointsto(subexps(E_0), \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu) & (Lemma~\textit{\ref{l:ses-e}})
+\end{align*}
+
+\noindent\underline{\textit{Case $r_2 = r_1$:}} $r_1 = r_2 = 0$, and $l_1 \neq l$
+\vspace{-7pt}
+\begin{align*}
+auth_{stack}(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu) &= auth_{stack}(l, e, \mu) & (Lemma~\textit{\ref{l:simplify-a-stack}})
+\end{align*}
+
+\noindent\underline{\underline{\textit{Inductive case:}}} $k > 1$\\
+\noindent$auth_{stack}(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{stack}(l, l_{q_1}.m_{q_1}(l_{q_1}') \rhd E_{q_1-1}[l_{q_1-1}.m_{q_1-1}(l_{q_1-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu) & (Lemma~\textit{\ref{l:simplify-a-stack}})\\
+&= pointsto(E_{q_1-1}[l_{q_1-1}.m_{q_1-1}(l_{q_1-1}') \rhd E_{q_1-2}[l_{q_1-2}.m_{q_1-2}(l_{q_1-2}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu) & (\textsc{auth-stack})\\
+&\cup auth_{stack}(l, E_{q_1-1}[l_{q_1-1}.m_{q_1-1}(l_{q_1-1}') \rhd E_{q_1-2}[l_{q_1-2}.m_{q_1-2}(l_{q_1-2}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&= \bigcup^{q_1-1}_{i = p_1} pointsto(subexps(E_i), \mu) \cup \{ l_{p_1} \} & (Lemma~\textit{\ref{l:pt-has-stateful}})\\
+&\cup auth_{stack}(l, E_{q_1-1}[l_{q_1-1}.m_{q_1-1}(l_{q_1-1}') \rhd E_{q_1-2}[l_{q_1-2}.m_{q_1-2}(l_{q_1-2}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+& =\bigcup^{q_1-1}_{i = p_1} pointsto(subexps(E_i), \mu) \cup \{ l_{p_1} \} & (Lemma~\textit{\ref{l:simplify-a-stack}})\\
+&\cup auth_{stack}(l, l_{q_2}.m_{q_2}(l_{q_2}') \rhd E_{q_2-1}[l_{q_2-1}.m_{q_2-1}(l_{q_2-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&= \bigcup^{q_1-1}_{i = p_1} pointsto(subexps(E_i), \mu) \cup \{ l_{p_1} \} & (\textsc{auth-stack})\\
+&\cup pointsto(E_{q_2-1}[l_{q_2-1}.m_{q_2-1}(l_{q_2-1}') \rhd E_{q_2-2}[l_{q_2-2}.m_{q_2-2}(l_{q_2-2}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&\cup auth_{stack}(l, E_{q_2-1}[l_{q_2-1}.m_{q_2-1}(l_{q_2-1}') \rhd E_{q_2-2}[l_{q_2-2}.m_{q_2-2}(l_{q_2-2}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&= \bigcup^{q_1-1}_{i = p_1} pointsto(subexps(E_i), \mu) \cup \{ l_{p_1} \} \bigcup^{q_2-1}_{i = p_2} pointsto(subexps(E_i), \mu) \cup \{ l_{p_2} \}& (Lemma~\textit{\ref{l:pt-has-stateful}})\\
+&\cup auth_{stack}(l, E_{q_2-1}[l_{q_2-1}.m_{q_2-1}(l_{q_2-1}') \rhd E_{q_2-2}[l_{q_2-2}.m_{q_2-2}(l_{q_2-2}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&\vdots\\
+&=  \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} \\
+&\cup auth_{stack}(l, E_{q_{r_2}-1}[l_{q_{r_2}-1}.m_{q_{r_2}-1}(l_{q_{r_2}-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)
+%&\cup auth_{stack}(l, E_{q_{r_2}-1}[l_{q_{r_2}-1}.m_{q_{r_2}-1}(l_{q_{r_2}-1}') \rhd E_{q_{r_2}-2}[l_{q_{r_2}-2}.m_{q_{r_2}-2}(l_{q_{r_2}-2}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)
+\end{align*}
+Depending on the values of $r_1$ and $r_2$, there are two possibilities.
+
+\noindent\underline{\textit{Case $r_2 < r_1$:}} There is no other stateful callers after $l_{q_{r_2+1}}$, i.e.\\
+$\forall l_0.m_0(l_0') \rhd E''' \in E_{q_{r_2+1}-1}[l_{q_{r_2+1}-1}.m_{q_{r_2+1}-1}(l_{q_{r_2+1}-1}')  \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ]$, \mbox{$l_0 \mapsto \{ x \Rightarrow \overline{d_0} \}_{\keywadj{pure}} \in \mu$}, which implies that there are also no method call stack frames with $l$ as the caller after $l_{q_{r_2+1}}$, i.e.\\
+$l.m'(l'') \rhd E'' \not\in E_{q_{r_2+1}-1}[l_{q_{r_2+1}-1}.m_{q_{r_2+1}-1}(l_{q_{r_2+1}-1}')  \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ]$\\
+
+\noindent$auth_{stack}(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&=  \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & (Lemma~\textit{\ref{l:simplify-a-stack}})\\
+&\cup auth_{stack}(l, l_{q_{r_2+1}}.m_{q_{r_2+1}}(l_{q_{r_2+1}}') \rhd E_{q_{r_2+1}-1}[l_{q_{r_2+1}-1}.m_{q_{r_2+1}-1}(l_{q_{r_2+1}-1}')  \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&=  \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & (\textsc{auth-stack})\\
+&\cup pointsto(E_{q_{r_2+1}-1}[l_{q_{r_2+1}-1}.m_{q_{r_2+1}-1}(l_{q_{r_2+1}-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&\cup auth_{stack}(l, E_{q_{r_2+1}-1}[l_{q_{r_2+1}-1}.m_{q_{r_2+1}-1}(l_{q_{r_2+1}-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&=  \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & (Lemma~\textit{\ref{l:pt-all-pure}})\\
+&\cup \bigcup^{q_{r_2+1}-1}_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu)\\
+&\cup auth_{stack}(l, E_{q_{r_2+1}-1}[l_{q_{r_2+1}-1}.m_{q_{r_2+1}-1}(l_{q_{r_2+1}-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&=  \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & (Lemma~\textit{\ref{l:simplify-a-stack}})\\
+&\cup \bigcup^{q_{r_2+1}-1}_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu)
+\end{align*}
+
+\noindent\underline{\textit{Case $r_2 = r_1$:}} There are no method call stack frames with $l$ as the caller after $l_{q_{r_2+1}}$, i.e.\\
+$l.m'(l'') \rhd E'' \not\in E_{q_{r_2}-1}[l_{q_{r_2}-1}.m_{q_{r_2}-1}(l_{q_{r_2}-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ]$\\
+
+\noindent$auth_{stack}(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&=  \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & (Lemma~\textit{\ref{l:simplify-a-stack}})\\
+&\cup auth_{stack}(l, e, \mu)
+\end{align*}
+\qed
+\end{proof}
+
+
+\begin{mdframed}
+\begin{lemma}
+\label{l:pt-ses}
+If $E[e]~|~\mu \longrightarrow E[e']~|~\mu'$, then $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$.
+\end{lemma}
+\end{mdframed}
+
+\begin{proof} The proof is by induction on the $subexps(E)$ rules.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-empty}:}} By \textsc{pointsto-empty}, $pointsto(\varnothing, \mu') = pointsto(\varnothing, \mu) = \varnothing$.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-method1}:}} $pointsto(subexps(E.m(e'')), \mu) = pointsto(e'', \mu) \cup pointsto(subexps(E), \mu)$, and similarly, $pointsto(subexps(E.m(e'')), \mu') = pointsto(e'', \mu') \cup pointsto(subexps(E), \mu')$.
+
+Since we are considering small-step semantics and $e''$ is evaluated only after $E$ is fully evaluated, there were no changes to $e''$ at this evaluation steps, and $pointsto(e'', \mu') = pointsto(e'', \mu)$. By induction hypothesis, $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$.
+
+Thus $pointsto(subexps(E.m(e'')), \mu') =pointsto(subexps(E.m(e'')), \mu)$.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-method2}:}} $pointsto(subexps(l.m(E)), \mu) = pointsto(l, \mu) \cup pointsto(subexps(E), \mu)$, and similarly, $pointsto(subexps(l.m(E)), \mu') = pointsto(l, \mu') \cup pointsto(subexps(E), \mu')$.
+
+By \textsc{pointsto-principal}, \textsc{pointsto-data}, and \textsc{pointsto-empty}, $pointsto(l, \mu') = pointsto(l, \mu)$. By induction hypothesis, $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$.
+
+Thus $pointsto(subexps(l.m(E)), \mu') =pointsto(subexps(l.m(E)), \mu)$.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-field}:}} $pointsto(subexps(E.f), \mu) = pointsto(subexps(E), \mu)$, and similarly,\\
+$pointsto(subexps(E.f), \mu') = pointsto(subexps(E), \mu')$. By induction hypothesis, $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$, and thus $pointsto(subexps(E.f), \mu') =pointsto(subexps(E.f), \mu)$.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-assign1}:}} $pointsto(subexps(E.f = e''), \mu) = pointsto(e'', \mu) \cup pointsto(subexps(E), \mu)$, and similarly, $pointsto(subexps(E.f = e''), \mu') = pointsto(e'', \mu') \cup pointsto(subexps(E), \mu')$.
+
+Since we are considering small-step semantics and $e''$ is evaluated only after $E$ is fully evaluated, there were no changes to $e''$ at this evaluation steps, and $pointsto(e'', \mu') = pointsto(e'', \mu)$. By induction hypothesis, $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$.
+
+Thus $pointsto(subexps(E.f = e''), \mu') =pointsto(subexps(E.f = e''), \mu)$.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-bind}:}} $pointsto(subexps(\keyw{bind} x = E~\keyw{in} e''), \mu) = pointsto(e'', \mu) \cup pointsto(subexps(E), \mu)$, and similarly, $pointsto(subexps(\keyw{bind} x = E~\keyw{in} e''), \mu') = pointsto(e'', \mu') \cup pointsto(subexps(E), \mu')$.
+
+Since we are considering small-step semantics and $e''$ is evaluated only after $E$ is fully evaluated, there were no changes to $e''$ at this evaluation steps, and $pointsto(e'', \mu') = pointsto(e'', \mu)$. By induction hypothesis, $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$.
+
+Thus $pointsto(subexps(\keyw{bind} x = E~\keyw{in} e''), \mu') =pointsto(subexps(\keyw{bind} x = E~\keyw{in} e''), \mu)$.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-assign2}:}} $pointsto(subexps(l.f = E), \mu) = pointsto(l, \mu) \cup pointsto(subexps(E), \mu)$, and similarly, $pointsto(subexps(l.f = E), \mu') = pointsto(l, \mu') \cup pointsto(subexps(E), \mu')$.
+
+By \textsc{pointsto-principal}, \textsc{pointsto-data}, and \textsc{pointsto-empty}, $pointsto(l, \mu') = pointsto(l, \mu)$. By induction hypothesis, $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$.
+
+Thus $pointsto(subexps(l.f = E), \mu') =pointsto(subexps(l.f = E), \mu)$.\\
+
+\noindent\underline{\textit{Case \textsc{subexps-e-stackframe}:}} $pointsto(subexps(l.m(l') \rhd E), \mu) = pointsto(l, \mu) \cup pointsto(l', \mu)$\\
+$\cup pointsto(subexps(E), \mu)$, and similarly, $pointsto(subexps(l.m(l') \rhd E), \mu') = pointsto(l, \mu') \cup pointsto(l', \mu) \cup pointsto(subexps(E), \mu')$.
+
+By \textsc{pointsto-principal}, \textsc{pointsto-data}, and \textsc{pointsto-empty}, $pointsto(l, \mu') = pointsto(l, \mu)$ and\\
+$pointsto(l', \mu') = pointsto(l', \mu)$. By induction hypothesis, $pointsto(subexps(E), \mu') = pointsto(subexps(E), \mu)$.
+
+Thus $pointsto(subexps(l.m(l') \rhd E), \mu') =pointsto(subexps(l.m(l') \rhd E), \mu)$.
+\qed
+\end{proof}
+
+
+\begin{mdframed}
+\begin{lemma}
+\label{l:a-diff}
+If
+\begin{enumerate}
+\item $e~|~\mu \longrightarrow e'~|~\mu'$ \intuition{\hspace{230pt} [$e$ can make a step of evaluation]}
+\item for $0 \leq i \leq k$, $l'.m(l'') \rhd E \not\in E_i$ \intuition{\hspace{150pt} [no method call stack frames in $E_i$]}
+\item $l \mapsto \{ x \Rightarrow \overline{d} \}_{\keywadj{stateful}} \in \mu$ \intuition{\hspace{270pt} [$l$ is a principal]}
+\item $\forall i$, such that $l_i = l$, $i \in \{ q_1, q_2, \dots, q_{r_1} \}$, where $0 \leq r_1 \leq k$ \intuition{\newline [the set of indices of all method call stack frames where $l$ is the caller; this set can be empty]}
+\item $\forall i \in \{ q_1, q_2, \dots, q_{r_1} \}$, if $\exists j$, such that
+\begin{enumerate}
+\item $l_j \mapsto \{ x \Rightarrow \overline{d_j} \}_{\keywadj{stateful}} \in \mu$ and \intuition{\hspace{220pt} [$l_j$ is a principal]}
+\item $\forall t$, such that $i > t > j$ and $l_t \mapsto \{ x \Rightarrow \overline{d_t} \}_{\keywadj{pure}} \in \mu$ \intuition{\hspace{40pt} [all callers between $l_i$ and $l_j$ are pure]}
+\end{enumerate}
+$j \in \{ p_1, p_2, \dots, p_{r_2}\}$ where $0 \leq r_2 \leq r_1$
+\intuition{\newline [the maximal set of indices of principal callers immediately after method call stack frames where $l$ is the caller; this set can be smaller than the one above only by one element; this set can also be empty; such principals can be $l$ itself]}
+\end{enumerate}
+then
+\noindent$auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_2[l_2.m_2(l_2') \rhd E_1[l_1.m_1(l_1') \rhd E_0[e']] \dots ], \mu')$\\
+$\setminus~auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_2[l_2.m_2(l_2') \rhd E_1[l_1.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&=
+\begin{cases}
+    auth_{store}(l, \mu') \cup pointsto(e', \mu') \cup auth_{stack}(l, e', \mu') & \text{if } r_2 < r_1\\
+    \setminus~auth_{store}(l, \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu)\\\\
+    auth_{store}(l, \mu') \cup auth_{stack}(l, e', \mu')& \text{if } r_2 = r_1\\
+    \setminus~auth_{store}(l, \mu) \cup auth_{stack}(l, e, \mu)
+\end{cases}
+\end{align*}
+\intuition{[If $r_2 < r_1$, then there are only pure principals after the last method call stack frame where $l$ is the caller. In other words, $l$ was the last principal caller on the stack.\\
+If $r_2 = r_1$, then the last method call stack frame where $l$ is the caller is followed by a method call stack frame with a principal caller that is not $l$. If $r_2 = r_1 = 0$, then there are no method call stack frames with principal callers on the stack.\\
+Since the set in 5(b) can include indices of method call stack frames where the caller is $l$, the difference between $r_1$ and $r_2$ is at most $1$, i.e. $r_2 \le r_1 \le r_2 + 1$.]}
+\end{lemma}
+\end{mdframed}
+
+\begin{proof} The proof is by induction on the number of method call stack frames preceding $e$ and $e'$ on the stack.\\
+
+\noindent\underline{\underline{\textit{Base case:}}} $k = 1$. Depending on the values of $r_1$ and $r_2$, there are two possibilities.
+
+\noindent\underline{\textit{Case $r_2 < r_1$:}} $r_1 = 1$, $r_2 = 0$, and $l_1 = l$\\
+\noindent$auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu) \cup auth_{stack}(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu) & (\textsc{auth-config})\\
+&= auth_{store}(l, \mu) \cup pointsto(subexps(E_0), \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu) & (Lemma~\textit{\ref{l:main-a-stack}})
+\end{align*}
+Similarly,
+\noindent$auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e']], \mu')$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu') \cup pointsto(subexps(E_0), \mu') \cup pointsto(e', \mu') \cup auth_{stack}(l, e', \mu')\\
+&= auth_{store}(l, \mu') \cup pointsto(subexps(E_0), \mu) \cup pointsto(e', \mu') \cup auth_{stack}(l, e', \mu') & (Lemma~\textit{\ref{l:pt-ses}})
+\end{align*}
+Then 
+\noindent$auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e']], \mu')~\setminus~auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu') \cup pointsto(e', \mu') \cup auth_{stack}(l, e', \mu') \setminus auth_{store}(l, \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu)
+\end{align*}
+
+
+\noindent\underline{\textit{Case $r_2 = r_1$:}} $r_1 = r_2 = 0$, and $l_1 \neq l$\\
+\noindent$auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu) \cup auth_{stack}(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu) & (\textsc{auth-config})\\
+&= auth_{store}(l, \mu) \cup auth_{stack}(l, e, \mu) & (Lemma~\textit{\ref{l:simplify-a-stack}})
+\end{align*}
+Similarly,
+\noindent$auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e']], \mu') = auth_{store}(l, \mu') \cup auth_{stack}(l, e', \mu')$. Then\\
+\noindent$auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e']], \mu')~\setminus~auth(l, E_1[l_1.m_1(l_1') \rhd E_0[e]], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu') \cup auth_{stack}(l, e', \mu') \setminus auth_{store}(l, \mu) \cup auth_{stack}(l, e, \mu)
+\end{align*}
+
+\noindent\underline{\underline{\textit{Inductive case:}}} $k > 1$\\
+\noindent$auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu) & (\textsc{auth-config})\\
+&\cup auth_{stack}(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)\\
+&=
+\begin{cases}
+    auth_{store}(l, \mu)\\
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 < r_1\\
+    \bigcup^{q_{r_2+1}-1}_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu)\\\\
+    auth_{store}(l, \mu)\\
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 = r_1\\
+    \cup auth_{stack}(l, e, \mu)\\
+\end{cases} & (Lemma~\textit{\ref{l:main-a-stack}})
+\end{align*}
+Similarly,
+\noindent$auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e']] \dots ], \mu')$
+\vspace{-7pt}
+\begin{align*}
+&= auth_{store}(l, \mu') & (\textsc{auth-config})\\
+&\cup auth_{stack}(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e']] \dots ], \mu')\\
+&=
+\begin{cases}
+    auth_{store}(l, \mu')\\
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu') \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 < r_1\\
+    \bigcup^{q_{r_2+1}-1}_{i = 0} pointsto(subexps(E_i), \mu') \cup pointsto(e', \mu') \cup auth_{stack}(l, e', \mu')\\\\
+    auth_{store}(l, \mu')\\
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu') \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 = r_1\\
+    \cup auth_{stack}(l, e', \mu')\\
+\end{cases} & (Lemma~\textit{\ref{l:main-a-stack}})\\
+&=
+\begin{cases}
+    auth_{store}(l, \mu')\\
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 < r_1\\
+    \bigcup^{q_{r_2+1}-1}_{i = 0} pointsto(subexps(E_i), \mu) \cup pointsto(e', \mu') \cup auth_{stack}(l, e', \mu')\\\\
+    auth_{store}(l, \mu')\\
+    \bigcup_{(q, p) \in \{ (q_1, p_1), (q_2, p_2), \dots (q_{r_2}, p_{r_2}) \}} \bigcup^{q-1}_{i = p} pointsto(subexps(E_i), \mu) \bigcup_{j \in \{ p_1, p_2, \dots, p_{r_2} \}} \{ l_j \} & \text{if } r_2 = r_1\\
+    \cup auth_{stack}(l, e', \mu')\\
+\end{cases} & (Lemma~\textit{\ref{l:pt-ses}})
+\end{align*}
+Then 
+\noindent$auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e']] \dots ], \mu') \setminus auth(l, E_k[l_k.m_k(l_k') \rhd E_{k-1}[l_{k-1}.m_{k-1}(l_{k-1}') \rhd \dots \rhd E_1[l.m_1(l_1') \rhd E_0[e]] \dots ], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&=
+\begin{cases}
+    auth_{store}(l, \mu') \cup pointsto(e', \mu') \cup auth_{stack}(l, e', \mu') & \text{if } r_2 < r_1\\
+    \setminus~auth_{store}(l, \mu) \cup pointsto(e, \mu) \cup auth_{stack}(l, e, \mu)\\\\
+    auth_{store}(l, \mu') \cup auth_{stack}(l, e', \mu')& \text{if } r_2 = r_1\\
+    \setminus~auth_{store}(l, \mu) \cup auth_{stack}(l, e, \mu)
+\end{cases}
+\end{align*}
+\qed
+\end{proof}
+
+
+\begin{mdframed}
+\begin{lemma}
+\label{l:sub-in-ses}
+If $l \mapsto \{ x \Rightarrow \overline{d} \}_s \in \mu$ and $z \in E$, then $subexps([l / z]E) = \{ l \} \cup subexps(E)$.
+\end{lemma}
+\end{mdframed}
+
+\begin{proof}
+The proof is by a straightforward induction on the $subexps(E)$ rules.\qed
+\end{proof}
+
+
+\begin{mdframed}
+\begin{lemma}
+\label{l:sub-in-pt}
+If $l \mapsto \{ x \Rightarrow \overline{d} \}_s \in \mu$ and $l'.m'(l'') \rhd E \not\in e$, then
+\[
+pointsto([l / z]e, \mu) =
+\begin{cases}
+    pointsto(l, \mu) \cup pointsto(e, \mu) & \text{if } z \in e\\
+    pointsto(e, \mu) & \text{if } z \not\in e\\
+\end{cases}
+\]
+\end{lemma}
+\end{mdframed}
+
+\begin{proof} There are two cases depending on whether $z$ is in $e$ or not.\\
+
+\noindent\underline{\underline{\textit{Case $z \in e$:}}} We prove this case by simultaneous induction on the $pointsto(d, \mu)$, $pointsto(\overline{d}, \mu)$, and $pointsto(e, \mu)$ rules.
+
+\noindent\underline{\textit{Case \textsc{pointsto-def}:}}
+\vspace{-7pt}
+\begin{align*}
+pointsto([l / z](\keyw{def} m(x : \tau_1) : \tau_2 = e')) &= pointsto(\keyw{def} m(x : \tau_1) : \tau_2 = [l / z]e', \mu)\\
+&= pointsto([l / z]e', \mu) & (\textsc{pointsto-def})\\
+&= pointsto(l, \mu) \cup pointsto(e', \mu) & (by~IH)\\
+&= pointsto(l, \mu) \cup pointsto(\keyw{def} m(x : \tau_1) : \tau_2 = e', \mu) & (\textsc{pointsto-def})
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-varx}:}} Since there is only one variable, $x = z$.
+\vspace{-7pt}
+\begin{align*}
+pointsto([l / z](\keyw{var} f : \tau = x), \mu) &= pointsto(\keyw{var} f : \tau = l, \mu)\\
+&= pointsto(l, \mu) & (\textsc{pointsto-varl})\\
+&= pointsto(l, \mu) \cup pointsto(\keyw{var} f : \tau = x, \mu) & (\textsc{pointsto-varx})
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-varl}:}} Since there are no variables, the substitution cannot take place, and the case is true by contradiction.
+
+\noindent\underline{\textit{Case \textsc{pointsto-decls}:}} $pointsto([l / z]\overline{d}, \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= \bigcup_{d \in \overline{d}} pointsto([l / z]d, \mu) & (\textsc{pointsto-decls})\\
+&= pointsto(l, \mu) \bigcup_{d \in \overline{d}} pointsto(d, \mu) & (by~cases~\textsc{pointsto-def}, \textsc{pointsto-varx},~and~\textsc{pointsto-varl})\\
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) & (\textsc{pointsto-decls})
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-empty}:}} $z \not\in \varnothing$ and the case is true by contradiction.
+
+\noindent\underline{\textit{Case \textsc{pointsto-var}:}} $e = E[x]$. There are three subcases depending on whether $x = z$ and $z \in E$.
+
+\noindent\underline{\textit{Subcase $x \neq z$ and $z \in E$:}} $[l / z]E[x] = E'[x]$, where $E' = [l / z]E$.
+\begin{align*}
+pointsto([l / z]E[x], \mu) &= pointsto(E'[x], \mu)\\
+&= pointsto(subexps(E'), \mu) & (\textsc{pointsto-var})\\
+&= pointsto(l, \mu) \cup pointsto(subexps(E), \mu) & (Lemma~\textit{\ref{l:sub-in-ses}})\\
+&= pointsto(l, \mu) \cup pointsto(E[x], \mu) & (\textsc{pointsto-var})
+\end{align*}
+
+\noindent\underline{\textit{Subcase $x = z$ and $z \not\in E$:}} $[l / z]E[x] = E[l]$.\\
+$pointsto([l / z]E[x], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(E[l], \mu)\\
+&= pointsto(l, \mu) \cup pointsto(subexps(E), \mu) & (\textsc{pointsto-principal, pointsto-data, pointsto-empty})\\
+&= pointsto(l, \mu) \cup pointsto(E[x], \mu) & (\textsc{pointsto-var})
+\end{align*}
+
+\noindent\underline{\textit{Subcase $x = z$ and $z \in E$:}} $[l / z]E[x] = E'[l]$, where $E' = [l / z]E$.\\
+$pointsto([l / z]E[x], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(E'[l], \mu)\\
+&= pointsto(l, \mu) \cup pointsto(subexps(E'), \mu) & (\textsc{pointsto-principal, pointsto-data, pointsto-empty})\\
+&= pointsto(l, \mu) \cup pointsto(subexps(E), \mu) & (Lemma~\textit{\ref{l:sub-in-ses}})\\
+&= pointsto(l, \mu) \cup pointsto(E[x], \mu) & (\textsc{pointsto-var})
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-principal} or \textsc{pointsto-data}:}} $e = E[l']$ and $z \in E$. Then $[l / z]E[l'] = E'[l']$, where \mbox{$E' = [l / z]E$}.\\
+$pointsto([l / z]E[l'], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(E'[l'], \mu)\\
+&= pointsto(l', \mu) \cup pointsto(subexps(E'), \mu) & (\textsc{pointsto-principal, pointsto-data, pointsto-empty})\\
+&= pointsto(l', \mu) \cup pointsto(l, \mu) \cup pointsto(subexps(E), \mu) & (Lemma~\textit{\ref{l:sub-in-ses}})\\
+&= pointsto(l, \mu) \cup pointsto(E[l'], \mu) & (\textsc{pointsto-principal, pointsto-data, pointsto-empty})
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-new}:}} There are three subcases depending on whether $z \in \overline{d}$ and $z \in E$.
+
+\noindent\underline{\textit{Subcase $z \not\in \overline{d}$ and $z \in E$:}} $[l / z]E[\keywadj{new}_s(x \Rightarrow \overline{d})] = E'[\keywadj{new}_s(x \Rightarrow \overline{d})]$, where $E' = [l / z]E$.
+\begin{align*}
+pointsto([l / z]E[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu) &= pointsto(E'[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu)\\
+&= pointsto(\overline{d}, \mu) \cup pointsto(subexps(E'), \mu) & (\textsc{pointsto-new})\\
+&= pointsto(\overline{d}, \mu) \cup pointsto(l, \mu) \cup pointsto(subexps(E), \mu) & (Lemma~\textit{\ref{l:sub-in-ses}})\\
+&= pointsto(l, \mu) \cup pointsto(E[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu) & (\textsc{pointsto-new})
+\end{align*}
+
+\noindent\underline{\textit{Subcase $z \in \overline{d}$ and $z \not\in E$:}} $[l / z]E[\keywadj{new}_s(x \Rightarrow \overline{d})] = E[\keywadj{new}_s(x \Rightarrow [l / z]\overline{d})]$.\\
+$pointsto([l / z]E[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(E[\keywadj{new}_s(x \Rightarrow [l / z]\overline{d})], \mu)\\
+&= pointsto([l / z]\overline{d}, \mu) \cup pointsto(subexps(E), \mu) & (\textsc{pointsto-new})\\
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(subexps(E), \mu) & (by~case~\textsc{pointsto-decls})\\
+&= pointsto(l, \mu) \cup pointsto(E[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu) & (\textsc{pointsto-new})
+\end{align*}
+
+\noindent\underline{\textit{Subcase $z \in \overline{d}$ and $z \in E$:}} $[l / z]E[\keywadj{new}_s(x \Rightarrow \overline{d})] = E'[\keywadj{new}_s(x \Rightarrow [l / z]\overline{d})]$, where $E' = [l / z]E$.\\
+$pointsto([l / z]E[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu)$
+\vspace{-7pt}
+\begin{align*}
+&= pointsto(E'[\keywadj{new}_s(x \Rightarrow [l / z]\overline{d})], \mu)\\
+&= pointsto([l / z]\overline{d}, \mu) \cup pointsto(subexps(E'), \mu) & (\textsc{pointsto-new})\\
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(subexps(E'), \mu) & (by~case~\textsc{pointsto-decls})\\
+&= pointsto(l, \mu) \cup pointsto(\overline{d}, \mu) \cup pointsto(subexps(E), \mu) & (Lemma~\textit{\ref{l:sub-in-ses}})\\
+&= pointsto(l, \mu) \cup pointsto(E[\keywadj{new}_s(x \Rightarrow \overline{d})], \mu) & (\textsc{pointsto-new})
+\end{align*}
+
+\noindent\underline{\textit{Case \textsc{pointsto-call-principal} or \textsc{pointsto-call-data}:}} Since both the cases have method call stack frames and the premise prohibits that, the cases are true by contradiction.\\
+
+\noindent\underline{\underline{\textit{Case $z \not\in e$:}}} $[l / z]e = e$ and $pointsto([l / z]e, \mu) = pointsto(e, \mu)$.\\
+\qed
+\end{proof}
+
+
 
 \newpage
 
