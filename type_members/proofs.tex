@@ -831,62 +831,91 @@ Now, by \textsc{M-Exp} we have
 
 \newpage
 
-\begin{lemma}[Transitive Expansion] \label{lem:equiv_subst}
+\begin{lemma}[Expansion Subtyping] \label{lem:equiv_subst}
 \begin{mathpar}
 \inferrule
 	{\varnothing; \Sigma; \Gamma \vdash S <: U \\
 	 \varnothing; \Sigma; \Gamma \vdash S \prec_z \overline{\sigma}_S\\
 	 \varnothing; \Sigma; \Gamma \vdash U \prec_z \overline{\sigma}_U}
-	{\varnothing; \Sigma; \Gamma,(z : S) \vdash \overline{\sigma}_S <:^* [z \unlhd U/z]\overline{\sigma}_U}
+	{\exists p, \varnothing; \Sigma; \Gamma,(z : S) \vdash p : U \\
+	 p \equiv z \\
+	 \varnothing; \Sigma; \Gamma,(z : S) \vdash \overline{\sigma}_S <: [p/z]\overline{\sigma}_U}
 \end{mathpar}
 \end{lemma}
 \begin{proof}
 By induction on the derivation of $\varnothing; \Sigma; \Gamma_1 \vdash S <: U$.
-\begin{casethm}[\textsc {S-Assume}]
-\begin{mathpar}
-\inferrule
-  {(S <: T) \in A}
-  {A; \Sigma; \Gamma \vdash S\; \texttt{<:}\; T}
-\end{mathpar}
-\end{casethm}
 
 \begin{casethm}[\textsc {S-Rec}]
 \begin{mathpar}
 \inferrule
-	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
-	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+	{\varnothing; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+	{\varnothing; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
 \end{mathpar}
+This obviously holds by definition.
 \end{casethm}
 
 \begin{casethm}[\textsc {S-Path}]
 \begin{mathpar}
 \inferrule
 	{p_1 \equiv p_2 \\
-	 A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
-	 A; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
-	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
-	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2}
-	{A; \Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
+	 \varnothing; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+	 \varnothing; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
+	 \varnothing, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
+	 \varnothing, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2}
+	{\varnothing; \Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
 \end{mathpar}
+By assumption, we know $p_1.L$ and $p_2.L$ expand to $\overline{\sigma}_S$ and $\overline{\sigma}_U$ respectively. Now by inversion on the derivation of $\varnothing; \Sigma; \Gamma \vdash p_1.L \prec_z \overline{\sigma}_S$ and $\varnothing; \Sigma; \Gamma \vdash p_2.L \prec_z \overline{\sigma}_U$ we have 
+\begin{mathpar}
+\inferrule
+	{\varnothing; \Sigma; \Gamma \vdash U_1 \prec_z \overline{\sigma}_1 \\
+	 \overline{\sigma}_S = [z \unlhd U_1]\overline{\sigma}_1}
+	{}
+	\and
+\inferrule
+	{\varnothing; \Sigma; \Gamma \vdash U_2 \prec_z \overline{\sigma}_2 \\
+	 \overline{\sigma}_U = [z \unlhd U_2]\overline{\sigma}_2}
+	{}
+\end{mathpar}
+By our induction hypothesis, we assume that 
+\begin{mathpar}
+\inferrule
+	{}
+	{\exists p, \varnothing; \Sigma; \Gamma,(z : U_1) \vdash p : U_2 \\
+	 p \equiv z \\
+	 \varnothing; \Sigma; \Gamma,(z : U_1) \vdash \overline{\sigma}_1 <: [p/z]\overline{\sigma}_2}
+\end{mathpar}
+By Lemma \ref{lem:narrowing} we can narrow the environment to get
+\begin{mathpar}
+\inferrule
+	{}
+	{\varnothing; \Sigma; \Gamma,(z : p.L) \vdash [z \unlhd U_1]\overline{\sigma}_1 <: [z \unlhd U_1]([p/z]\overline{\sigma}_2)}
+\end{mathpar}
+Since $p \equiv z$, we know that $p$ contains $z$. This means that $p$ consists of an upcast path $p'$, i.e. $p = p' \unlhd U_2$. Therefore $[p/z] = [p' \unlhd U_2/z] = [p'/z][z \unlhd U_2/z]$
+\begin{mathpar}
+\inferrule
+	{}
+	{\varnothing; \Sigma; \Gamma,(z : p.L) \vdash [z \unlhd U_1]\overline{\sigma}_1 <: [[z \unlhd U_1]p/z]\overline{\sigma}_2}
+\end{mathpar}
+Now, since $[z \unlhd U_1]\overline{\sigma}_1 = \overline{\sigma}_S$ and $[z \unlhd U_1]p \equiv z$, this gives us the required result.
 \end{casethm}
 
 \begin{casethm}[\textsc {S-Select-Upper}]
 \begin{mathpar}
 \inferrule
-	{A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U\\
-	 A; \Sigma; \Gamma \vdash S <: U \\
-	 A; \Sigma; \Gamma \vdash U <: T}
-	{A; \Sigma; \Gamma \vdash p.L\; <:\; T}
+	{\varnothing; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U\\
+	 \varnothing; \Sigma; \Gamma \vdash S <: U \\
+	 \varnothing; \Sigma; \Gamma \vdash U <: T}
+	{\varnothing; \Sigma; \Gamma \vdash p.L\; <:\; T}
 \end{mathpar}
 \end{casethm}
 
 \begin{casethm}[\textsc {S-Select-Lower}]
 \begin{mathpar}
 \inferrule
-	{A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
-	 A; \Sigma; \Gamma \vdash S <: U \\
-	 A; \Sigma; \Gamma \vdash T <: S}
-	{A; \Sigma; \Gamma \vdash T \; <:\; p.L}
+	{\varnothing; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+	 \varnothing; \Sigma; \Gamma \vdash S <: U \\
+	 \varnothing; \Sigma; \Gamma \vdash T <: S}
+	{\varnothing; \Sigma; \Gamma \vdash T \; <:\; p.L}
 \end{mathpar}
 \end{casethm}
 
@@ -894,16 +923,18 @@ By induction on the derivation of $\varnothing; \Sigma; \Gamma_1 \vdash S <: U$.
 \begin{mathpar}
 \inferrule
 	{}
-	{A; \Sigma; \Gamma \vdash T\; \texttt{<:}\; \top}
+	{\varnothing; \Sigma; \Gamma \vdash T\; \texttt{<:}\; \top}
 \end{mathpar}
+Trivial.
 \end{casethm}
 
 \begin{casethm}[\textsc {S-Bottom}]
 \begin{mathpar}
 \inferrule
 	{}
-	{A; \Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
+	{\varnothing; \Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
 \end{mathpar}
+Trivial.
 \end{casethm}
 \end{proof}
 
@@ -912,23 +943,29 @@ By induction on the derivation of $\varnothing; \Sigma; \Gamma_1 \vdash S <: U$.
 \begin{lemma}[Equivalent Substitution] \label{lem:equiv_subst}
 \begin{mathpar}
 \inferrule
-	{p \equiv p' \\
-	 \varnothing; \Sigma; \Gamma_1 \vdash p : S, p' : S \\
-	 \varnothing; \Sigma; \Gamma_1, (x : S), \Gamma_2 \vdash T <: T'}
-	{\varnothing; \Sigma; \Gamma_1, [p/x]\Gamma_2 \vdash [p/x]T <: [p'/x]T'}
-	\and
-\inferrule
-	{p \equiv p' \\
-	 \varnothing; \Sigma; \Gamma_1 \vdash p : S, p' : S \\
-	 \varnothing; \Sigma; \Gamma_1, (x : S), \Gamma_2 \vdash T \prec_z \overline{\sigma}}
-	{\varnothing; \Sigma; \Gamma_1, [p/x]\Gamma_2 \vdash [p/x]\overline{\sigma} <: [p'/x]\overline{\sigma}}
+	{p_1 \equiv p_2 \\
+	 \varnothing; \Sigma; \Gamma_1 \vdash p_1 : S, p_2 : S\\
+	 \varnothing; \Sigma; \Gamma_1 \vdash T <: T'
+	 }
+	{\varnothing; \Sigma; \Gamma_1, [p_1/x]\Gamma_2 \vdash [p_1/x]T <: [p_2/x]T'}
 	\and
 \inferrule
 	{p_1 \equiv p_2 \\
-	 \varnothing; \Sigma; \Gamma \vdash p_1 : T, p_2 : T \\
-	 \varnothing; \Sigma; \Gamma \vdash p_1 \ni \sigma_1 \\
-	 \varnothing; \Sigma; \Gamma \vdash p_2 \ni \sigma_2}
-	{\varnothing; \Sigma; \Gamma \vdash \sigma_1 <: \sigma_2}
+	 \varnothing; \Sigma; \Gamma_1 \vdash p_1 : S, p' : S \\
+	 \varnothing; \Sigma; \Gamma_1, (x : S), \Gamma_2 \vdash T \prec_z \overline{\sigma}}
+	{\varnothing; \Sigma; \Gamma_1, [p_1/x]\Gamma_2 \vdash [p_1/x]\overline{\sigma} <: [p_2/x]\overline{\sigma}}
+	\and
+\inferrule
+	{p_1 \equiv p_2 \\
+	 \varnothing; \Sigma; \Gamma_1 \vdash p_1 : S, p_2 : S \\
+	 \varnothing; \Sigma; \Gamma_1, (x : S), \Gamma_2  \vdash p \ni \sigma}
+	{\varnothing; \Sigma; \Gamma_1, [p_1/x]\Gamma_2  \vdash [p_1/x]\sigma <: [p_2/x]\sigma}
+%	\and
+%\inferrule
+%	{p_1 \equiv p_2 \\
+%	 \varnothing; \Sigma; \Gamma_1 \vdash p_1 : S, p_2 : S \\
+%	 \varnothing; \Sigma; \Gamma_1, (x : S), \Gamma_2  \vdash p : T}
+%	{\varnothing; \Sigma; \Gamma_1, [p_1/x]\Gamma_2  \vdash [p_1/x]p : [p_2/x]T}
 \end{mathpar}
 \end{lemma}
 
@@ -1029,20 +1066,235 @@ Trivial.
 \begin{lemma}[Equivalent Paths Typing] \label{lem:equiv_paths_typing}
 \begin{mathpar}
 \inferrule
-	{\varnothing; \Sigma; \Gamma_1, (x:S), \Gamma_2 \vdash T \texttt{wf} \\
-	 \varnothing; \Sigma; \Gamma_1, (x:U), \Gamma_2 \vdash T' \texttt{wf} \\
-	 \varnothing; \Sigma; \Gamma_1 \vdash S <: U}
-	{\varnothing; \Sigma; \Gamma \vdash \sigma_1 <: \sigma_2}
+	{A; \Sigma; \Gamma \vdash T \equiv T'}
+	{A; \Sigma; \Gamma, (x:U), \Gamma_2 \vdash S <: [x \unlhd U/x]T}
+	\and
+\inferrule
+	{A; \Sigma; \Gamma_1, (x:U), \Gamma_2 \vdash S <: T}
+	{A; \Sigma; \Gamma, (x:U), \Gamma_2 \vdash [x \unlhd U/x]S <: T}
+	\and
+\inferrule
+	{A; \Sigma; \Gamma_1, (x:U), \Gamma_2 \vdash p \ni \sigma}
+	{A; \Sigma; \Gamma, (x:U), \Gamma_2 \vdash [x \unlhd U/x]p \ni [x \unlhd U/x]\sigma}
 \end{mathpar}
 \end{lemma}
+\begin{proof}
+By structural induction on the derivation of $\varnothing; \Sigma; \Gamma_1, (x:U), \Gamma_2 \vdash S <: T$.
+\begin{casethm}[\textsc {S-Struct}]
+\begin{mathpar}
+\inferrule
+	{\varnothing; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+	{\varnothing; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc {S-Path}]
+\begin{mathpar}
+\inferrule
+	{p_1 \equiv p_2 \\
+	 \varnothing; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+	 \varnothing; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
+	 \varnothing, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
+	 \varnothing, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2}
+	{\varnothing; \Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc {S-Select-Upper}]
+\begin{mathpar}
+\inferrule
+	{\varnothing; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U\\
+	 \varnothing; \Sigma; \Gamma \vdash S <: U \\
+	 \varnothing; \Sigma; \Gamma \vdash U <: T}
+	{\varnothing; \Sigma; \Gamma \vdash p.L\; <:\; T}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc {S-Select-Lower}]
+\begin{mathpar}
+\inferrule
+	{\varnothing; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+	 \varnothing; \Sigma; \Gamma \vdash S <: U \\
+	 \varnothing; \Sigma; \Gamma \vdash T <: S}
+	{\varnothing; \Sigma; \Gamma \vdash T \; <:\; p.L}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc {S-Top}]
+\begin{mathpar}
+\inferrule
+	{}
+	{\varnothing; \Sigma; \Gamma \vdash T\; \texttt{<:}\; \top}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc {S-Bottom}]
+\begin{mathpar}
+\inferrule
+	{}
+	{\varnothing; \Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
+\end{mathpar}
+\end{casethm}
+\end{proof}
+
+\newpage
+
+\begin{lemma}[Equivalent Paths Subtyping] \label{lem:equiv_paths_sub}
+\begin{mathpar}
+\inferrule
+	{A; \Sigma; \Gamma \vdash T_1 \equiv T_2}
+	{A; \Sigma; \Gamma \vdash T_1 <: T_2}
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash T_1 \equiv T_2 \\
+	 A; \Sigma; \Gamma \vdash T_1 \prec \overline{\sigma}_1, T_2 \prec \overline{\sigma}_2}
+	{\exists p, p \equiv z \\ 
+	 A; \Sigma; \Gamma, (z : T_1) \vdash p : T_2 \\ 
+	 A; \Sigma; \Gamma, (z : T_1) \vdash \overline{\sigma}_1 <: [p \unlhd T_2/z]\overline{\sigma}_2}
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash p_1 \equiv p_2 \\
+	 A; \Sigma; \Gamma \vdash p_1 : T_1, p_2 : T_2 \\
+	 A; \Sigma; \Gamma \vdash T_1 \equiv T_2 \\
+	 A; \Sigma; \Gamma \vdash p_1 \ni \sigma_1, p_2 \ni \sigma_2 \\
+	 label(\sigma_1) = label(\sigma_2)}
+	{A; \Sigma; \Gamma \vdash \sigma_1 <: \sigma_2}
+\end{mathpar}
+\end{lemma}
+\begin{proof}
+We proceed by mutual induction on all three lemmas.
+\subsubsection{Equivalent Types $\Rightarrow$ Subtyping}
+By structural induction on the derivation of $A; \Sigma; \Gamma \vdash T_1 \equiv T_2$.
+\begin{casethm}[\textsc{EQ-Struct}: $\{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}$]
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma, (z : \{z \Rightarrow \overline{\sigma}_1\}) \vdash \overline{\sigma}_1 \equiv [z \unlhd \{z \Rightarrow \overline{\sigma}_2\}] \overline{\sigma}_2}
+  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+By our induction hypothesis, we assume 
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma, (z : \{z \Rightarrow \overline{\sigma}_1\}) \vdash \overline{\sigma}_1 <: [z \unlhd \{z \Rightarrow \overline{\sigma}_2\}] \overline{\sigma}_2}
+  {}
+\end{mathpar}
+By \textsc{S-Struct} it then follows 
+\begin{mathpar}
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\} <: \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Select}: $p_1.L \equiv p_2.L$]
+\begin{mathpar}
+\inferrule
+  {p_1 \equiv p_2 \\
+   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_2 .. U_2 \\
+   A; \Sigma; \Gamma \vdash \texttt{type} \; L : S_1 .. U_1 \equiv \texttt{type} \; L : S_2 .. U_2}
+  {A; \Sigma; \Gamma \vdash p_1.L \equiv p_2.L}
+\end{mathpar}
+By our mutual induction hypothesis we assume 
+\begin{mathpar}
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S_1 .. U_1 <: \texttt{type} \; L : S_2 .. U_2}
+\end{mathpar}
+From which it follows that 
+\begin{mathpar}
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash S_2 <: S_1, U_1 <: U_2}
+\end{mathpar}
+Now, by \textsc{S-Path} we have $A; \Sigma; \Gamma \vdash p_1.L <: p_2.L$.
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Top}: $\top \equiv \top$]
+Trivial.
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Bottom}: $\bot \equiv \bot$]
+Trivial.
+\end{casethm}
+
+\subsubsection{Equivalent Types $\Rightarrow$ Expansion Subtyping}
+By structural induction on the derivation of $A; \Sigma; \Gamma \vdash T_1 \equiv T_2$.
+\begin{casethm}[\textsc{EQ-Struct}: $\{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}$]
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma, (z : \{z \Rightarrow \overline{\sigma}_1\}) \vdash \overline{\sigma}_1 \equiv [z \unlhd \{z \Rightarrow \overline{\sigma}_2\}] \overline{\sigma}_2}
+  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+By assumption we have
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\} \prec \overline{\sigma}_1, \{z \Rightarrow \overline{\sigma}_2\} \prec \overline{\sigma}_2}
+  {}
+\end{mathpar}
+By the mutual induction hypothesis for \emph{Equivalent Types $\Rightarrow$ Subtyping} we have 
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma, (z : \{z \Rightarrow \overline{\sigma}_1\}) \vdash \overline{\sigma}_1 <: [z \unlhd \{z \Rightarrow \overline{\sigma}_2\}] \overline{\sigma}_2}
+  {}
+\end{mathpar}
+Since $z \unlhd \{z \Rightarrow \overline{\sigma}_2\} \equiv z$, and by \textsc{T-Type}, $A; \Sigma; \Gamma \vdash z \unlhd \{z \Rightarrow \overline{\sigma}_2\} : \{z \Rightarrow \overline{\sigma}_2\}$, we have the desired result.
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Select}: $p_1.L \equiv p_2.L$]
+\begin{mathpar}
+\inferrule
+  {p_1 \equiv p_2 \\
+   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_2 .. U_2 \\
+   A; \Sigma; \Gamma \vdash \texttt{type} \; L : S_1 .. U_1 \equiv \texttt{type} \; L : S_2 .. U_2}
+  {A; \Sigma; \Gamma \vdash p_1.L \equiv p_2.L}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Top}: $\top \equiv \top$]
+Trivial.
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Bottom}: $\bot \equiv \bot$]
+Trivial.
+\end{casethm}
+
+\subsubsection{Equivalent Types $\Rightarrow$ Membership Subtyping}
+By structural induction on the derivation of $A; \Sigma; \Gamma \vdash T_1 \equiv T_2$.
+\begin{casethm}[\textsc{EQ-Struct}: $\{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}$]
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma, (z : \{z \Rightarrow \overline{\sigma}_1\}) \vdash \overline{\sigma}_1 \equiv [z \unlhd \{z \Rightarrow \overline{\sigma}_2\}] \overline{\sigma}_2}
+  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Select}: $p_1.L \equiv p_2.L$]
+\begin{mathpar}
+\inferrule
+  {p_1 \equiv p_2 \\
+   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_2 .. U_2 \\
+   A; \Sigma; \Gamma \vdash \texttt{type} \; L : S_1 .. U_1 \equiv \texttt{type} \; L : S_2 .. U_2}
+  {A; \Sigma; \Gamma \vdash p_1.L \equiv p_2.L}
+\end{mathpar}
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Top}: $\top \equiv \top$]
+Trivial.
+\end{casethm}
+
+\begin{casethm}[\textsc{EQ-Bottom}: $\bot \equiv \bot$]
+Trivial.
+\end{casethm}
+\end{proof}
 
 \newpage
 
 \begin{lemma}[Equivalent Paths Typing] \label{lem:equiv_paths_typing}
 \begin{mathpar}
 \inferrule
-	{p_1 \equiv p_2 \\
-	 \varnothing; \Sigma; \Gamma \vdash p_1 : T, p_2 : T \\
+	{\varnothing; \Sigma; \Gamma \vdash p_1 : T, p_2 : T \\
 	 \varnothing; \Sigma; \Gamma \vdash p_1 \ni \sigma_1 \\
 	 \varnothing; \Sigma; \Gamma \vdash p_2 \ni \sigma_2}
 	{\varnothing; \Sigma; \Gamma \vdash \sigma_1 <: \sigma_2}
@@ -1618,3 +1870,61 @@ Trivial.
 \bibliography{bib}
 
 \end{document}
+
+
+%\begin{casethm}[\textsc {S-Struct}]
+%\begin{mathpar}
+%\inferrule
+%	{\varnothing; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+%	{\varnothing; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+%\end{mathpar}
+%\end{casethm}
+%
+%\begin{casethm}[\textsc {S-Path}]
+%\begin{mathpar}
+%\inferrule
+%	{p_1 \equiv p_2 \\
+%	 \varnothing; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+%	 \varnothing; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
+%	 \varnothing, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
+%	 \varnothing, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2}
+%	{\varnothing; \Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
+%\end{mathpar}
+%\end{casethm}
+%
+%\begin{casethm}[\textsc {S-Select-Upper}]
+%\begin{mathpar}
+%\inferrule
+%	{\varnothing; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U\\
+%	 \varnothing; \Sigma; \Gamma \vdash S <: U \\
+%	 \varnothing; \Sigma; \Gamma \vdash U <: T}
+%	{\varnothing; \Sigma; \Gamma \vdash p.L\; <:\; T}
+%\end{mathpar}
+%\end{casethm}
+%
+%\begin{casethm}[\textsc {S-Select-Lower}]
+%\begin{mathpar}
+%\inferrule
+%	{\varnothing; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+%	 \varnothing; \Sigma; \Gamma \vdash S <: U \\
+%	 \varnothing; \Sigma; \Gamma \vdash T <: S}
+%	{\varnothing; \Sigma; \Gamma \vdash T \; <:\; p.L}
+%\end{mathpar}
+%\end{casethm}
+%
+%\begin{casethm}[\textsc {S-Top}]
+%\begin{mathpar}
+%\inferrule
+%	{}
+%	{\varnothing; \Sigma; \Gamma \vdash T\; \texttt{<:}\; \top}
+%\end{mathpar}
+%\end{casethm}
+%
+%\begin{casethm}[\textsc {S-Bottom}]
+%\begin{mathpar}
+%\inferrule
+%	{}
+%	{\varnothing; \Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
+%\end{mathpar}
+%\end{casethm}
+%\end{proof}
