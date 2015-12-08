@@ -84,19 +84,67 @@
 \begin{abstract}
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent convallis orci arcu, eu mollis dolor. Aliquam eleifend suscipit lacinia. Maecenas quam mi, porta ut lacinia sed, convallis ac dui. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse potenti. 
  \end{abstract}
+ 
+\section{Introduction}
+
+\section{Related Work}
 
 
 \section{Generic Wyvern}
 Wyvern is a new statically typed programming language being developed for secure web applications. There are two popular and well-documented methods \cite{Virtual Types stuff, generic java etc} for implementing generic types.
 \begin{itemize}
-\item \emph{Type Parameters}: Types are parametrised by generic type names that are defined at runtime. This allows programmers to reuse generic code. Many popular languages use generic type parameters such as \emph{Java}, \emph{C\#} and \emph{Scala}.
-\item \emph{Type Members}: Types and objects may contain type members in the same manner as normal field or method members. These can be subtyped by more precise types to provide generic behaviour.
+\item \emph{Type Parameters}: Types are parameterized by generic type names that allow programmers to reuse generic code using bounded types. Many popular languages use generic type parameters such as \emph{Java}, \emph{C\#} and \emph{Scala}.
+\item \emph{Type Members}: Types and objects may contain type members in the same manner as normal field or method members. These can be subtyped by more precise types to provide generic behavior.
 \end{itemize}
-There have long been attempts to formalise a sound small-step semantics for type members in a structural setting for Scala, which have as yet all been unsuccessful due to issues where well-typed expressions are lost during subject reduction. In 2014 Amin et.al. were able to formalise a big step semantics for Scala style type members. While this demonstrates the soundness of the kinds of programs we wish to type check, a small-step semantics offers powerful advantages when reasoning about the behaviour of programs. For this reason we formalise type members with a small step semantics.
-We build upon the work of Amin et. al. \cite{Scala stuff} to formalise type members in structurally typed languages using a small step semantics. 
+There have long been attempts to formalize a sound small-step semantics for type members in a structural setting for Scala, which have as yet all been unsuccessful due to issues where well-typed expressions are lost during subject reduction. In 2014 Amin et.al. were able to formalize a big step semantics for Scala style type members. While this demonstrates the soundness of the kinds of programs we wish to type check, a small-step semantics offers powerful advantages when reasoning about the behavior of programs. For this reason we formalize type members with a small step semantics.
+We build upon the work of Amin et. al. \cite{Scala stuff} to formalize type members in structurally typed languages using a small step semantics. 
+ 
+\subsection{Formalizing Type Members}
+In Figure \ref{f:min_syntax} we begin by developing a small syntax for a type system containing type members. Expressions ($e$) are variables, new expressions, method calls, field accesses and locations in memory. Types ($T$) are structural types, type member selections on paths, the top and bottom types. Declarations ($d$) are fields, methods and type members. Declaration types ($\sigma$) are field types, method types and type members. Paths ($p$) are variables, memory locations and field accesses.
+\begin{figure}[h]
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & x & expression \\
+& | & \texttt{new} \; \{z \Rightarrow \overline{d}\}&\\
+& | & e.m(e) &\\
+& | & e.f &\\
+& | & l &\\
+&&\\
+d & ::= & \texttt{val} \; f : T = p & declaration \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
+  & |   & \texttt{type} \; L : T .. T&\\
+&&\\
+v & ::= & l & value \\
+&&\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & environment \\
+ \end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
+& | & p.L &\\
+& | & \top & \\
+& | & \bot & \\
+&&\\
+\sigma & ::= & \texttt{val} \; f:T & decl \; type\\
+       & |   & \texttt{def} \; m:T \rightarrow T \\
+		 & |   & \texttt{type} \; L : T .. T &\\
+&&\\
+p & ::= & x & paths \\
+& | & l &\\
+& | & p.f &\\
+&&\\
+\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : T & store type \\
+\end{array}
+\end{array}
+\]
+\caption{Minimal Type Members in Wyvern}
+\label{f:min_syntax}
+\end{figure}
 
 \subsection{Transitivity, Narrowing and Type Members}
-\label{sec:trans_narow}
+\label{sec:trans_narrow}
 Two properties that one might reasonably expect 
 to occur naturally in a structurally typed language are 
 \emph{Subtype Transitivity} and \emph{Environment Narrowing}
@@ -128,7 +176,7 @@ Since transitivity is often used in proving subject
 reduction, it is a problem if a type system lacks this 
 property. The issue with transitivity arises from the 
 introduction of type member lower bounds, and their 
-contra-variance. The following example demonstrates this.
+contra-variance. The following example demonstrates this (\hl{Julian: Better Example?}).
 \begin{lstlisting}[mathescape, style=custom_lang]
 A = {z $\Rightarrow$ type N : $\bot$ .. $\top$}
 
@@ -158,10 +206,21 @@ by using the subtype rule in Figure \ref{f:sub_amin}.
   {\Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
   \quad (\textsc {Structural Subtyping})
 \end{mathpar}
-\caption{Subtype Transitivity and Environment Narrowing}
+\caption{Structural Subtyping with Narrowing}
 \label{f:sub_amin}
 \end{figure}
-Here we type check the declaration types of the larger type with a smaller receiver. While this allows for subtype transitivity, it introduces environment narrowing that proves unsound in a small step semantics. Amin et. al. were however able to reconcile both transitivity and narrowing within a big step semantics.
+Here we type check the declaration types of the larger type with a smaller receiver. While this allows for subtype transitivity, it introduces environment narrowing that proves unsound in a small step semantics \cite{Scala Stuff}(\hl{Julian: Example for Narrowing stuff?}). Amin et. al. were however able to reconcile both transitivity and narrowing within a big step semantics. Instead of confronting this problem we avoid it by removing narrowing, and as a result subtype transitivity. To achieve this we introduce an upcast to the expression syntax, $e \unlhd T$. Here we use $T$ to ignore the more precise type of $e$. Narrowing occurs in two places, during subtyping of structural types as we have already seen, and at field and method return. Two avoid narrowing during subtyping, we modify the structural subtyping rule and upcast the receiver of the second type. Our modified rule is given in Figure \ref{f:sub_wwyvern}.
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {\Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\}/z]\overline{\sigma}_2}
+  {\Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+  \quad (\textsc {Structural Subtyping})
+\end{mathpar}
+\caption{Structural Subtyping without Narrowing}
+\label{f:sub_wwyvern}
+\end{figure}
+
 
 \subsection{Path Equality}
 To further complicate matters, well-formedness can be lost when reducing field accesses. 
@@ -172,8 +231,7 @@ To further complicate matters, well-formedness can be lost when reducing field a
 \section{Type System}
 
 \subsection{Syntax} \label{s:syntax}
-In this section we present the Wyvern Type Members Syntax 
-in Figure \ref{f:syntax}. 
+In this section we present the Generic Wyvern Syntax in Figure \ref{f:syntax}. 
 
 \begin{figure}[h]
 \[
@@ -232,15 +290,7 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
 \label{f:syntax}
 \end{figure}
 
-\textbf{Expressions} ($e$): Expressions are variables ($x$), new 
-expressions ($\texttt{new} \; \{z \Rightarrow \overline{d}\}$), 
-method calls ($e.m(e)$), field accesses ($e.f$), expression 
-upcasts ($e \unlhd T$) and locations ($l$) in the store. The 
-only expression that differs from tradition is the explicit upcasts on expressions. 
-We use upcasts to avoid the narrowing issues described in Section
-We employ a similar strategy with regard to the explicitly 
-upcast expression $e \unlhd T$. Here $e$ may have a more precise 
-type than $T$, but to avoid narrowing we maintain the type $T$.
+\textbf{Expressions} ($e$): Expressions are variables ($x$), new expressions ($\texttt{new} \; \{z \Rightarrow \overline{d}\}$), method calls ($e.m(e)$), field accesses ($e.f$), expression upcasts ($e \unlhd T$) and locations ($l$) in the store. The only expression that differs from tradition is the explicit upcasts on expressions. We use upcasts to avoid the narrowing issues described in Section We employ a similar strategy with regard to the explicitly upcast expression $e \unlhd T$. Here $e$ may have a more precise type than $T$, but to avoid narrowing we maintain the type $T$.
 
 \textbf{Types} ($T$): Types are restricted to structural types 
 ($\{z \Rightarrow \overline{\sigma}\}$), type member selections on 
@@ -305,7 +355,7 @@ In this section we describe the Wyvern Type Members semantics.
 \caption{Path Equivalence}
 \label{f:path_equiv}
 \end{figure}
-In Figure \ref{f:path_equiv} we describe our path equivalence judgement. Two paths are equivalent if they wrap up the same variable or location. This is useful when trying to compare two types that are not technically the same types, but are derived from the same object.
+In Figure \ref{f:path_equiv} we describe our path equivalence judgment. Two paths are equivalent if they wrap up the same variable or location. This is useful when trying to compare two types that are not technically the same types, but are derived from the same object.
 
 %\begin{figure}[h]
 %\hfill \fbox{$\mu; \Sigma \vdash v \leadsto l$}
