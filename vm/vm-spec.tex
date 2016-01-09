@@ -1,6 +1,7 @@
 \documentclass{article}
 
 \usepackage{listings}
+\usepackage{proof}
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
 %\usepackage{amsmath}
@@ -19,7 +20,9 @@
     },emphstyle={\bfseries \tt}%
 }
 
-\newcommand{\keyw}[1]{\texttt{\textbf{#1}}}
+%\newcommand{\keyw}[1]{\texttt{\textbf{#1}}}
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
 
 \begin{document}
 
@@ -33,15 +36,15 @@
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expressions \\
-& | & \keyw{new}~\tau~\{\keyw{x} \Rightarrow \overline{d}\}&\\
+& | & \keywadj{new}_{s}~\tau~\{x \Rightarrow \overline{d}\}&\\
 & | & e.m(e) &\\
 & | & e.f &\\
 & | & e.f = e&\\
-& | & \keyw{let}~x=e~\keyw{in}~e &\\
-& | & \keyw{letrec}~\overline{d}~\keyw{in}~e &\\
+& | & \keyw{let} x=e~\keyw{in}~e &\\
+%& | & \keyw{letrec}~\overline{d}~\keyw{in}~e &\\
 & | & e : \tau&\\
 & | & \mathscr{L} &\\
-& | & e.\keyw{match}~\overline{x:p.L \Rightarrow e}~\keyw{else}~e &\\
+& | & e.\keyw{match} \overline{x:p.L \Rightarrow e} \keyw{else} e &\\
 &&\\
 \mathscr{L} & ::= & string & literals \\
 & | & integer &\\
@@ -49,12 +52,12 @@ e & ::= & x & expressions \\
 &&\\
 v & ::= & x & values \\
 &&\\
-d & ::= & \keyw{val} \; f : \tau = v & declarations \\
-  & |   & \keyw{var} \; f : \tau = v &\\
-  & |   & \keyw{def} \; m(\overline{x:\tau}) : \tau = e &\\
-  & |   & \keyw{type} \; L = \tau &\\
-  & |   & \keyw{tagtype} \; L~\keyw{is}~T &\\
-  & |   & \keyw{delegate} \; \tau~\keyw{to}~f &\\
+d & ::= & \keyw{val} f : \tau = v & declarations \\
+  & |   & \keyw{var} f : \tau = v &\\
+  & |   & \keyw{def} m(\overline{x:\tau}) : \tau = e &\\
+  & |   & \keyw{type} L = T &\\
+%  & |   & \keyw{tagtype} L~\keyw{is}~T &\\
+  & |   & \keyw{delegate} \tau~\keyw{to} f &\\
 &&\\
 %p & ::= & x & path \\
 %  & | & l & \\
@@ -62,25 +65,27 @@ d & ::= & \keyw{val} \; f : \tau = v & declarations \\
 & ~~~~~~
 &
 \begin{array}{lllr}
-T & ::= & c & type \\
-& | & \keyw{extag}~c &\\
-& | & \keyw{datatag}~\overline{p.L}~c &\\
+T & ::= & c & \textit{type desc.}\\
+& | & \keyw{extag} c &\\
+& | & \keyw{datatag} \overline{p.L}~c &\\
 &&\\
-c & ::= & \tau & case ~ type \\
-& | & \keyw{case}~\keyw{of}~p.L~\tau &\\
+c & ::= & \tau & \textit{case desc.} \\
+& | & \keyw{case} \keyw{of} p.L~\tau &\\
 &&\\
-\tau & ::= & \{\texttt{x} \Rightarrow \overline{\sigma}\} & structural~type \\
+\tau & ::= & \tau~\{\texttt{x} \Rightarrow \overline{\sigma}\}_{s} & type \\
 & | & p.L &\\
-& | & \tau[L=T] &\\
+& | & \top &\\
 &&\\
 p & ::= & x & paths \\
 & | & p.f &\\
+&&\\
+s & ::= & \keyw{stateful} | ~\keyw{pure} \\
 &&\\
 \sigma & ::= & \texttt{val} \; f:\tau & decl \; type\\
        & |   & \texttt{var} \; f:\tau \\
        & |   & \texttt{def} \; m:\Pi \overline{x{:}\tau} . \tau \\
        & |   & \texttt{type} \; L = T &\\
-       & |   & \texttt{type} \; L &\\
+       & |   & \texttt{type}_{s} \; L &\\
 &&\\
 \end{array}
 \end{array}
@@ -90,11 +95,11 @@ Notes on semantics:
 
 \begin{itemize}
 
-\item \keyw{letrec} can only contain \keyw{def}, \keyw{type}, and \keyw{tagtype} declarations.
+%\item \keyw{letrec} can only contain \keyw{def}, \keyw{type}, and \keyw{tagtype} declarations.
 
 \item Errors (e.g. nothing to do in the default case of a match) can be handled by calling a library function taking a string argument that reports an error (with the given string) and halts (optionally, in the debugger)
 
-\item We have a separate $\keyw{tagtype} \; L~\keyw{is}~T$ declaration for creating new tagged types.  This makes creation of tags more explicit, making the semantics more obvious and the translation to lower levels simpler.
+%\item We have a separate $\keyw{tagtype} \; L~\keyw{is}~T$ declaration for creating new tagged types.  This makes creation of tags more explicit, making the semantics more obvious and the translation to lower levels simpler.
 
 \item As the type syntax for methods suggests, method types are dependent, so that the result type can depend on the argument type, and the types of later arguments can depend on earlier arguments.  We need this to encode type parameters.  Interestingly, first-class traits could encode this (treat a trait as a method, merge it with something that specifies the type) as could the ability to somehow create an object leaving the type abstract and then set the type (only once!)
 
@@ -112,6 +117,195 @@ Notes on encodings:
 
 \end{itemize}
 
+\section{Virtual Machine Typing Rules}
+
+$\fbox{$\Gamma \vdash e : \tau$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Var)}]
+  {\Gamma \vdash x : \tau}
+  {x : \tau \in \Gamma}\\[5ex]
+
+\infer[\textsc{(T-New)}]
+	{\Gamma \vdash \keyw{new}_s~\tau~\{x \Rightarrow \overline{d}\} : \tau}
+	{\Gamma,~ x : \tau \vdash_s \overline{d} : \overline{\sigma} & \{ x \Rightarrow \overline{\sigma}\}_s <: \mathit{typepart}(\tau)} \\[5ex]
+
+% need to define below here
+% add rules for intersection
+% or replace intersection with a special thing for tags
+	
+\infer[\textsc{(T-Meth)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_1} 
+	{\Gamma \vdash e_1 : \{ \overline{\sigma_e} \}_s  & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_e} & \Gamma \vdash e_2 : \tau_2}\\[5ex]
+
+\infer[\textsc{(T-Field)}]
+	{\Gamma \vdash  e.f : \tau} 
+	{\Gamma \vdash e : \{ \overline{\sigma} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma}}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-Assign)}]
+	{\Gamma \vdash  e_1.f=e_2 : \tau} 
+	{\Gamma \vdash e_1 : \{ \overline{\sigma} \}_s & \keyw{var}~ f : \tau \in \overline{\sigma} & \Gamma \vdash e_2 : \tau}\\[5ex]
+
+\infer[\textsc{(T-Bind)}]
+  {\Gamma \vdash \keyw{bind} x = e_1~\keyw{in} e_2 : \tau_2}
+  {\Gamma \vdash e_1 : \tau_1 & x : \tau_1 \vdash e_2 : \tau_2}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-Loc)}]
+  {\Gamma \vdash l : \tau}
+  {l : \tau \in \Sigma}\\[5ex]
+
+\infer[\textsc{(T-StackFrames)}]
+	{\Gamma \vdash l_1.m(l_2) \rhd e : \tau_1}
+	{\Gamma \vdash l_1 : \{ \overline{\sigma_e} \}_s & \keyw{def}~ m : \tau_2 \rightarrow \tau_1 \in \overline{\sigma_e} & \Gamma \vdash l_2 : \tau_2 & \Gamma \vdash e : \tau_1} \\[5ex]
+
+\infer[\textsc{(T-Sub)}]
+  {\Gamma \vdash e : \tau_2}
+  {\Gamma \vdash e : \tau_1 & \tau_1 <: \tau_2}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\Gamma \vdash_s \overline{d} : \overline{\sigma}$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Decls)}]
+  {\Gamma \vdash_{s} \overline{d}~:~\overline{\sigma}}
+  {\forall j,~d_j \in \overline{d},~\sigma_{ij} \in \overline{\sigma},~\Gamma \vdash_{s} d_j : \sigma_{ij}}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\Gamma \vdash_s d : \sigma$}$
+\[
+\begin{array}{c}
+
+%\infer[\textsc{(DT-Empty)}]
+%  {\Gamma \vdash_s \epsilon~; d~:~\epsilon~; \sigma}
+%  {\Gamma \vdash_s d : \sigma}\\[3.5ex]
+
+%\infer[\textsc{(DT-DefPure)}]
+%  {\Gamma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e; d~:~\keyw{def} m : \tau_1 \rightarrow \tau_2; \sigma}
+%  {\def\arraystretch{1.5}
+%  \begin{array}{c}
+%\Gamma_{stateful} = \{x : \{ \sigma \}_{\keywadj{stateful}} ~|~ x : \{ \sigma \}_{\keywadj{stateful}} \in \Gamma\} \\
+%\Gamma_{pure} = \Gamma \setminus \Gamma_{stateful}~~~~~~~\Gamma_{pure},~y : \tau_1 \vdash e : \tau_2~~~~~~~\Gamma \vdash_{\keywadj{pure}} d : \sigma
+%  \end{array}}\\[5ex]
+  
+\infer[\textsc{(DT-DefPure)}]
+  {\Gamma \vdash_{\keywadj{pure}} \keyw{def} m(y : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma_{stateful} = \{x : \{ \overline{\sigma} \}_{\keywadj{stateful}} ~|~ x : \{ \overline{\sigma} \}_{\keywadj{stateful}} \in \Gamma\} & \Gamma_{pure} = \Gamma \setminus \Gamma_{stateful} & \Gamma_{pure},~y : \tau_1 \vdash e : \tau_2}\\[5ex]
+
+\infer[\textsc{(DT-DefStateful)}]
+  {\Gamma \vdash_{\keywadj{stateful}} \keyw{def} m(x : \tau_1) : \tau_2 = e~:~\keyw{def} m : \tau_1 \rightarrow \tau_2}
+  {\Gamma,~x : \tau_1 \vdash e : \tau_2}\\[5ex]
+
+\infer[\textsc{(DT-Varx)}]
+  {\Gamma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = x~:~\keyw{var} f : \tau}
+  {\Gamma \vdash x : \tau}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(DT-Varl)}]
+  {\Gamma \vdash_{\keywadj{stateful}} \keyw{var} f : \tau = l~:~\keyw{var} f : \tau}
+  {\Gamma \vdash l : \tau}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\{ \tau <: \tau$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(S-Refl)}]
+  {\tau <: \tau}
+  {\tau ~ \keyw{wf}}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(S-Top)}]
+  {\tau <: \top}
+  {\tau ~ \keyw{wf}}\\[5ex]
+
+\infer[\textsc{(S-State)}]
+  {\tau ~ \{ x \Rightarrow \overline{\sigma} \}_{\keyw{pure}} <: \tau ~ \{ x \Rightarrow \overline{\sigma} \}_{\keyw{stateful}}}
+  {\tau ~ \{ x \Rightarrow \overline{\sigma} \}_{\keyw{pure}} ~ \keyw{wf}}\\[5ex]
+
+\infer[\textsc{(S-Perm)}]
+  {\tau ~ \{ x \Rightarrow \sigma_{j}^{j \in 1..n} \}_{s} <: \tau ~ \{ x \Rightarrow \sigma_{j}'^{j \in 1..n} \}_{s}}
+  {\sigma_{j}^{j \in 1..n} ~is~a~permutation~of~\sigma_{j}'^{j \in 1..n} & \tau ~ \{ x \Rightarrow \sigma_{j}^{j \in 1..n}\} ~ \keyw{wf}}\\[5ex]
+
+\infer[\textsc{(S-Width)}]
+  {\tau ~ \{ x \Rightarrow \sigma_{j}^{j \in 1..n + k} \}_{s} <: \tau ~ \{ x \Rightarrow \sigma_{j}^{j \in 1..n} \}_{s}}
+  {\tau ~ \{ x \Rightarrow \sigma_{j}^{j \in 1..n + k} \}_{s} ~ \keyw{wf} & \tau ~ \{ x \Rightarrow \sigma_{j}^{j \in 1..n} \}_{s} ~ \keyw{wf}}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(S-Depth)}]
+  {\{ \sigma_{j}^{j \in 1..n} \}_{s} <: \{ \sigma_{j}^{j \in 1..n} \}_{s}}
+  {\forall j,~\sigma_{j} <: \sigma_{j}'}\\[5ex]
+
+\end{array}
+\]
+
+\vspace{-3pt}
+$\fbox{$\sigma <: \sigma'$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(S-Refl2)}]
+  {\sigma <: \sigma}
+  {}%\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(S-Trans2)}]
+  {\sigma_{1} <: \sigma_{3}}
+  {\sigma_{1} <: \sigma_{2} & \sigma_{2} <: \sigma_{3}}\\[5ex]
+
+\infer[\textsc{(S-Def)}]
+  {\keyw{def} m:\tau_1 \rightarrow \tau_2 <: \keyw{def} m:\tau_1' \rightarrow \tau_2'}
+  {\tau_1' <: \tau_1 & \tau_2 <: \tau_2'}%\\[5ex]  
+~~~~~~~~~~
+\infer[\textsc{(S-Val)}]
+  {\keyw{val} f:\tau <: \keyw{val} f:\tau'}
+  {\tau <: \tau'}\\[5ex]  
+
+% NOTE: for var fields, we use the reflexive rule
+  
+\infer[\textsc{(S-AbsType)}]
+  {\keyw{type} L = T <: \keywadj{type}_{s} \; L}
+  {T ~ \mathit{stateful} \Rightarrow (s = \texttt{stateful})}%\\[5ex]  
+~~~~~~~~~~
+\infer[\textsc{(S-Pure)}]
+  {\keywadj{type}_{pure} \; L <: \keywadj{type}_{stateful} \; L }
+  {\tau <: \tau'}\\[5ex]  
+
+  
+\end{array}
+\]
+
+
+$\fbox{$\mathit{typepart}(\Gamma, T)$}$
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(Typepart-Refinement)}]
+  {\mathit{typepart}(\Gamma, \tau ~ \{\texttt{x} \Rightarrow \overline{\sigma}\}_{s}) = \{\texttt{x} \Rightarrow \overline{\sigma'} \leftarrow \overline{\sigma}\}_{s}}
+  {\mathit{typepart}(\Gamma, \tau) = \{\texttt{x} \Rightarrow \overline{\sigma'}\}}\\[5ex]
+
+\infer[\textsc{(Typepart-Member)}]
+  {\mathit{typepart}(\Gamma, p.L) = \mathit{typepart}(\Gamma, [p/x]T)}
+  {\Gamma \vdash p : \tau & \Gamma \vdash \tau <: \{x \Rightarrow \texttt{type} \; L = T, \overline{\sigma}\}_{s}}\\[5ex]
+
+\mathit{typepart}(\Gamma, \top) = \top\\[5ex]
+
+\mathit{typepart}(\Gamma, \keyw{extag}~c) = \mathit{typepart}(\Gamma, c)\\[5ex]
+
+\mathit{typepart}(\Gamma, \keyw{datatag}~\overline{p.L}~c) = \mathit{typepart}(\Gamma, c)\\[5ex]
+
+\mathit{typepart}(\Gamma, \keyw{case}~\keyw{of}~p.L~\tau) = \mathit{typepart}(\Gamma, \tau)\\[5ex]
+
+\end{array}
+\]
+
+Note: \textit{typepart} is not defined if the members of $T$ are not visible.
+
+Note: need to define $T$ \textit{stateful} judgment.  Intuitively this just looks up the definition of $T$ (probably using $\Gamma$, not shown) to see if it is stateful.
+
+Note: need to define $\overline{\sigma'} \leftarrow \overline{\sigma}$ judgment.  This just takes the union of the declaration types, using the declarations on the right to override declarations with the same name on the left.
+
+Note: need to define well-formedness, and specify when it must be checked.  The refinement of a type must define members that are subtypes of corresponding members in the type being refined.
 
 \bibliographystyle{plain}
 \bibliography{bib}
