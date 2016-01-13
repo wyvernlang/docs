@@ -1,0 +1,999 @@
+%% $RCSfile: proj_report_outline.tex,v $
+%% $Revision: 1.2 $
+%% $Date: 2010/04/23 02:40:16 $
+%% $Author: kevin $
+
+\documentclass[11pt
+              , a4paper
+              , twoside
+              , openright
+              ]{report}
+
+
+\usepackage{float} % lets you have non-floating floats
+
+\usepackage{url} % for typesetting urls
+
+\usepackage{listings}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+%\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{color,soul}
+
+
+%\newtheorem{subcase}{SubCase}
+%\numberwithin{subcase}{case}
+%\numberwithin{case}{theorem}
+%\numberwithin{case}{lemma}
+
+
+
+
+\lstdefinestyle{custom_lang}{
+  xleftmargin=\parindent,
+  showstringspaces=false,
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries
+}
+
+\lstset{emph={%  
+    val, def, type, new, z%
+    },emphstyle={\bfseries \tt}%
+}
+
+%
+%  We don't want figures to float so we define
+%
+\newfloat{fig}{thp}{lof}[chapter]
+\floatname{fig}{Figure}
+
+%% These are standard LaTeX definitions for the document
+%%                            
+\title{Generic Wyvern}
+\author{Julian Mackay}
+
+%% This file can be used for creating a wide range of reports
+%%  across various Schools
+%%
+%% Set up some things, mostly for the front page, for your specific document
+%
+% Current options are:
+% [ecs|msor]              Which school you are in.
+%
+% [bschonscomp|mcompsci]  Which degree you are doing
+%                          You can also specify any other degree by name
+%                          (see below)
+% [font|image]            Use a font or an image for the VUW logo
+%                          The font option will only work on ECS systems
+%
+\usepackage[image,ecs]{vuwproject}
+
+\supervisors{Alex Potanin, Lindsay Groves}
+
+
+\otherdegree{PhD in Software Engineering}
+
+\date{}
+
+\begin{document}
+
+% Make the page numbering roman, until after the contents, etc.
+\frontmatter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{abstract}
+Virtual types are a language property for providing generic types. While work has been done comparing the relative advantages of Virtual Types and the more common Type Parameters, there does not exist a standard syntax or semantics for formalising generics as Virtual Types. Virtual Types are also not used by popular languages despite some advantages over Generic Type Parameters. The most mainstream use of Virtual Types is that of Scala. Scala however does not provide soundness for their type members. This makes research and investigation of Virtual Types difficult as there is no sound core formalism for Scala's Virtual Types in the spirit of Featherweight Generic Java. In this PhD I propose to develop a simple and sound formalism for a core type system Virtual Types. Simple so that it is extensible since it can then serve as a core calculus for further properties. This type system will be developed in the structurally typed setting of Wyvern, a new object oriented web programming language with an emphasis on security.
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\maketitle
+
+\include{acknowledge}
+
+\tableofcontents
+
+% we want a list of the figures we defined
+\listof{fig}{Figures}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\mainmatter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% individual chapters included here
+\chapter{Introduction}\label{ch:intro}
+Generics in  programming languages is a feature that allows programmers to write code abstracted from type specifics. That is we may want to specify an argument has a collection type, while not caring about the specific type of of the elements of that collection. A list iterator for example does not care what the elements of a list look like, so we ideally want to be able to iterate through any list regardless of content. This allows for powerful code reuse and polymorphism, and as such has become a feature of many mainstream object oriented languages. 
+Generics is most commonly handled by the inclusion of generic type parameters. Types are parametrized by type variables that are defined at object initialization. An example involving classes is given below in a Java-like syntax.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class LinkedList <E extends Object>{
+	E element;
+	LinkedList <E> next;
+	
+	public LinkedList (E element, LinkedList<E> next){
+		this.element = element;
+		this.next = next;
+	}
+	}
+	
+	public void add (E element){
+		if (this.next == null){
+			this.next = new LinkedList<E>(element, null);
+		} else{
+			this.next.add(element);
+		}
+	}
+	
+	...
+}
+
+...
+
+LinkedList<Integer> integerList = 
+  new LinkedList<Integer>(1, new LinkedList<Integer>(2,null));
+LinkedList<String> stringList = 
+  new LinkedList<String>(``Hello'', 
+    new LinkedList<String>(``World'',null));
+\end{lstlisting}
+This form of generics is familiar to most object oriented programmers, and there is much research around the soundness of Type Parameters and their interaction with other language features. Arguably the most notable contribution in Generic Type Parameters is the work of Igarashi and Pierce \cite{FGJ stuff} with their development of a formalised and sound Featherweight Generic Java (FGJ). FGJ is a core calculus for generic type parameters in a Java-like setting. It is widely used as a basis for investigating the addition of other language features and their interaction with generic type parameters. While type parameters are the most popular form generic types, we can model generic types in another way. Virtual Types are types that are included as members of objects in the same way that fields or methods are. Using a nominal syntax we can construct an example similar to our example with type parameters.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class LinkedList {
+	type E : Object;
+	this.E element;
+	LinkedList next;
+	
+	public LinkedList (this.E element, LinkedList next){
+		this.element = element;
+		this.next = next;
+	}
+	
+	...
+}
+
+...
+
+public class IntegerLinkedList extends LinkedList {
+	type E : Integer;
+	
+	public IntegerLinkedList (this.E element, IntegerLinkedList next){
+		super(element, next);
+	}
+	
+	...
+}
+
+...
+
+public class StringLinkedList extends LinkedList {
+	type E : String;
+	
+	public StringLinkedList (this.E element, StringLinkedList next){
+		super(element, next);
+	}
+	
+	...
+}
+
+...
+
+LinkedList integerList = 
+  new IntegerLinkedList(1, new IntegerLinkedList(2,null));
+LinkedList  stringList= 
+  new StringLinkedList(``Hello'', 
+    new StringLinkedList(``World'',null));
+\end{lstlisting}
+With generic type parameters we explicitly defined the generic parameter \texttt{E} during object initialisation. In the case of virtual types, the generic type \texttt{E} is implicitly defined by the object. We can extend the \texttt{LinkedList} class with any \texttt{E}, so long as it subtypes the \texttt{E} in \texttt{LinkedList} (\texttt{Object}). While this example does represent a sound type system, it does show how we might like to use virtual types.
+
+Unlike type parameters, there does not exist a standard extensible type system like FGJ. This makes research more difficult. There has been work done in virtual types, albeit less than that done for type parameters, and there are relatively few mainstream languages that use virtual types. Scala is one language that does, however Scala virtual types are not sound. There has been much work on developing a sound calculus for virtual types in Scala, however thus far there has only been one sound type system proposed \cite{amin 2014} using a big step semantics. While this is a significant step forward there still does not exist a sound type system featuring a small step semantics in the style of FGJ \cite{fgj}. In the next section I will discuss our efforts to develop such a type system.
+
+\chapter{Background}\label{ch:background}
+
+\section{Generic Types}
+Generic types are a programming language feature that allows programmers to develop code without explicitly specifying the types involved. Most modern programmers are familiar with generics in object oriented languages such as Java or C\#. These are called generic type parameters. Classes and functions can be parametrised with bounded types. A simple example is given below in a Java-like syntax.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class LinkedList <E extends Object>{
+	E element;
+	LinkedList <E> next;
+	
+	public LinkedList (E element, LinkedList<E> next){
+		this.element = element;
+		this.next = next;
+	}
+	
+	...
+}
+
+...
+
+public LinkedList<E> createList<E extends Object>(E element){
+  return new LinkedList<E>(element, null);
+}
+
+...
+
+LinkedList<Integer> integerList = createList<Integer>(1);  
+LinkedList<String> stringList = createList<String>(``Hello World'');
+\end{lstlisting}
+Here classes and functions can be defined once for any list. This encourages code reuse and reduces the need for type specific and highly coupled classes. The problems solved by generic type parameters are very similar to those tackled by \emph{Virtual Types}, another programming feature.  Virtual Types are types that feature as members of objects in the same way that fields and methods do. We can rewrite the previous example using type members to demonstrate their similarities.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class LinkedList {
+	type E : Object;
+	this.E element;
+	LinkedList next;
+	
+	public LinkedList (this.E element, LinkedList next){
+		this.element = element;
+		this.next = next;
+	}
+	
+	...
+}
+
+...
+
+public class IntegerLinkedList extends LinkedList {
+	type E : Integer;
+	
+	public IntegerLinkedList (this.E element, IntegerLinkedList next){
+		super(element, next);
+	}
+	
+	...
+}
+
+...
+
+public class StringLinkedList extends LinkedList {
+	type E : String;
+	
+	public StringLinkedList (this.E element, StringLinkedList next){
+		super(element, next);
+	}
+	
+	...
+}
+
+...
+
+LinkedList integerList = 
+  new IntegerLinkedList(1, new IntegerLinkedList(2,null));
+LinkedList  stringList= 
+  new StringLinkedList(``Hello'', 
+    new StringLinkedList(``World'',null));
+\end{lstlisting}
+While this syntax does not necessarily represent a sound language, it does demonstrate the kinds of things we would like to do with Virtual Types and how they relate to type parameters. Here instead of parametrising classes and functions, a bounded type is defined within the class, and thus any instance of that class.
+In this Section I will discuss these two approaches to generic code, their similarities and differences and the setting for this PhD. 
+
+
+\subsection{Type Parameters}
+Type parameters in object oriented languages derives from bounded quantification in functional programming \cite{Cardelli 86, Odersky 89, System F}. Many modern object oriented languages provide functionality for generic type parameters, and much work has been done formalising type systems containing type parameters. Java is a widely used language, and many programmers are familiar with Java Generics. Generics in Java is the result of much research into type parameters in object oriented languages. As mentioned before, type parameters derive from type polymorphic functions in functional programming languages.
+
+Bounded polymorphism in object oriented languages uses subtyping to write generic code for a family of types. Looking at our \verb|LinkedList| example, we defined the general structure of a list of objects. The only restriction is that any instance of the generic type parameter subtype \verb|Object|, however what kind of relationship can we expect from different instances of \verb|LinkedList|? We might expect \verb|LinkedList<Integer>| to subtype \verb|LinkedList<Object>|, however this this could result in runtime errors. The following example demonstrates this.
+\begin{lstlisting}[mathescape, style=custom_lang]
+LinkedList<Object> objectList = createList<Integer>(1);
+objectList.add(new Object()); \\ fails at runtime
+\end{lstlisting}
+If we allow for covariant subtyping on type parameters, our example fails at runtime on the second line since \verb|objectList| is actually a list of Integers, and we cannot add an object of \verb|Object| type to a list of Integers. For this reason we have to enforce invariance at type parameter subtyping.
+
+\emph{Pizza} is an early proposal for adding generic type parameters to Java.
+
+\emph{FGJ} is a small step semantics formalism for a core Java calculus developed by Igarashi and Pierce \cite{FGJ}. FGJ, as a minimal core calculus, provides an easy way to reason about extensions to generic Java. The FGJ syntax is given in Figure \ref{f:fgj_syntax} .
+\begin{figure}[h]
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & x & expression \\
+& | & e.f &\\
+& | & e.m<\overline{T}>(e) &\\
+& | & \texttt{new} \; T(\overline{e})&\\
+& | & (T) e &\\
+&&\\
+v & ::= & \texttt{new} \; T(\overline{e})&\\
+&&\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & env \\
+&&\\
+\Delta & :: = & \varnothing \; | \; \Delta,\; X \lhd T & type \; env \\
+ \end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+C, D &  &  & classes \\
+&&\\
+N & ::= & C <\overline{T}> & class \; type\\
+&&\\
+T & ::= & X & type \\
+       & | & N\\
+&&\\
+E & :: = & \bigcirc & eval \; context\\
+       & | & E.f\\
+       & | & E.m(e)\\
+       & | & v.m(E)\\
+	   & | & \texttt{new} \; C(\overline{E})\\
+       & | & (T)E\\
+\end{array}
+\end{array}
+\]
+\[
+\begin{array}{lllr}
+CL & ::= & \verb|class| \; C <\overline{X} \lhd \overline{N}> \lhd N \{\overline{T} \; \overline{f}; \; K \; \overline{M}\}  & class \; declaration\\
+$$\\
+K & ::= & C(\overline{T}\; \overline{f})\{\verb|super|(\overline{f}); \; \verb|this|.\overline{f} = \overline{f}\}  & constructor\\
+$$\\
+M & ::= & <\overline{X} \lhd \overline{N}> \; T \; m \; (\overline{T}\; \overline{x})\{e\}  & method \; declaration\\
+\end{array}
+\]
+\caption{FGJ Syntax}
+\label{f:fgj_syntax}
+\end{figure}
+The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{OGJ FOIGJ} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
+
+\subsection{Virtual Types}
+As described earlier, virtual types or type members are object members that are types. This allows us to write similar code to what we might with generic type parameters. It does however present different problems, and there are several potential flavours of Virtual Types. I will present different versions of Virtual Types in the setting of a structurally typed language. I use a structural type system as opposed to the Java-like nominal type system I used in earlier examples because our proposed type system is structurally typed.
+
+\subsubsection{Single Bound, Invariant Virtual Types}
+The most basic form of Virtual Types would be a single type identified by member name. Below is the translation of our earlier \verb|LinkedList| example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+ObjectLinkedList = {
+  type E : Object;
+  this.E element;
+  ObjectLinkedList next;
+	
+  public void add (this.E element){
+    if (this.next == null){
+      this.next = new ObjectLinkedList(element, null);
+    } else{
+      this.next.add(element);
+    }
+  }
+}
+
+...
+
+NumberLinkedList = {
+  type E : Number;
+  this.E element;
+  NumberLinkedList next;
+	    
+  public void add (this.E element){
+    if (this.next == null){
+      this.next = new NumberLinkedList(element, null);
+    } else{
+      this.next.add(element);
+    }
+  }
+}
+\end{lstlisting}
+This is perhaps the simplest form of Virtual Types, however it has some restrictions.  For the same reasons that we enforce subtype invariance on type parameters, we have to enforce subtype invariance on type members. For this reason, \verb|NumberLinkedList| cannot subtype \verb|ObjectLinkedList| despite how intuitive this might feel. If we allowed covariant type members, we would have write errors and contra-variance would create read errors.
+
+\subsubsection{Double Bound, Covariant Virtual Types}
+To allow for covariance we could introduce a lower bound. Subtyping can now allow covariance in type member upper bounds. To demonstrate this, we can rewrite the \verb|LinkedList| example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+ObjectLinkedList = {
+  type E : Integer .. Object;
+  this.E element;
+  ObjectLinkedList next;
+	
+  public void add (this.E element){
+    if (this.next == null){
+      this.next = new ObjectLinkedList(element, null);
+    } else{
+      this.next.add(element);
+    }
+  }
+}
+
+...
+
+NumberLinkedList = {
+  type E : Integer .. Number;
+  this.E element;
+  IntegerLinkedList next;
+	    
+  public void add (this.E element){
+    if (this.next == null){
+      this.next = new NumberLinkedList(element, null);
+    } else{
+      this.next.add(element);
+    }
+  }
+}
+\end{lstlisting}
+Subtyping of type members must subtype their lower bound, which means as long as the lower bound subtypes the upper bound, we can vary the upper bound as much as we like. So now, \verb|NumberLinkedList| subtypes \verb|ObjectLinkedList|. We are still restricted by the invariance of the lower bound, so while we can treat the objects read from the list as numbers, we can still only write integers. To extend this, we can allow for covariance of lower bounds.
+
+\subsubsection{Double Bound, Covariant and Contra-Variant Virtual Types}
+Allowing 
+
+\section{Type Parameters vs Virtual Types}
+
+\section{Virtual Types in Scala}
+
+\section{Wyvern}
+
+\begin{itemize}
+\item
+\hl{Structural Type Systems?}
+\item
+\hl{Big/Small Step Semantics?}
+\end{itemize}•
+
+
+
+\chapter{Generic Wyvern}\label{ch:wyvern}
+
+We have already developed a type system that while not sound solves several of the recurring issues that other work has encountered. In this section I will present our current type system (Generic Wyvern).
+
+Wyvern is a new statically typed programming language being developed for secure web applications. There are two popular and well-documented methods \cite{Virtual Types stuff, generic java etc} for implementing generic types.
+\begin{itemize}
+\item \emph{Type Parameters}: Types are parametrised by generic type names that are defined at runtime. This allows programmers to reuse generic code. Many popular languages use generic type parameters such as \emph{Java}, \emph{C\#} and \emph{Scala}.
+\item \emph{Type Members}: Types and objects may contain type members in the same manner as normal field or method members. These can be subtyped by more precise types to provide generic behaviour.
+\end{itemize}
+There have long been attempts to formalise a sound small-step semantics for type members in a structural setting for Scala, which have as yet all been unsuccessful due to issues where well-typed expressions are lost during subject reduction. In 2014 Amin et.al. were able to formalise a big step semantics for Scala style type members. While this demonstrates the soundness of the kinds of programs we wish to type check, a small-step semantics offers powerful advantages when reasoning about the behaviour of programs. For this reason we formalise type members with a small step semantics.
+We build upon the work of Amin et. al. \cite{Scala stuff} to formalise type members in structurally typed languages using a small step semantics. 
+
+\subsection{Transitivity, Narrowing and Type Members}
+\label{sec:trans_narow}
+Two properties that one might reasonably expect 
+to occur naturally in a structurally typed language are 
+\emph{Subtype Transitivity} and \emph{Environment Narrowing}
+(Figure \ref{f:trans_narrowing}).
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+	{\Gamma \vdash S <: T \\
+	 \Gamma \vdash T <: U}
+	{\Gamma \vdash S <: U}
+  \quad (\textsc {Subtype Transitivity})
+	\and
+\inferrule
+  {\Gamma, (x : U) \vdash T <: T'\\
+   \Gamma \vdash S <: U}
+  {\Gamma, (x : S) \vdash T <: T'}
+  \quad (\textsc {Environment Narrowing})
+\end{mathpar}
+\caption{Subtype Transitivity and Environment Narrowing}
+\label{f:trans_narrowing}
+\end{figure}
+Subtype transitivity is a familiar property, 
+and environment narrowing simply expresses the 
+expectation that we can treat a variable in an 
+environment as having a more precise type without 
+changing the type relationships within that environment.
+
+Since transitivity is often used in proving subject 
+reduction, it is a problem if a type system lacks this 
+property. The issue with transitivity arises from the 
+introduction of type member lower bounds, and their 
+contra-variance. The following example demonstrates this.
+\begin{lstlisting}[mathescape, style=custom_lang]
+A = {z $\Rightarrow$ type N : $\bot$ .. $\top$}
+
+B = {z $\Rightarrow$ type N : $\bot$ .. $\top$
+          def meth1(x : $\top$){return new{z $\Rightarrow$}}:$\top$}
+         
+S = {z $\Rightarrow$ type L : A .. $\top$
+          val f : A}
+         
+T = {z $\Rightarrow$ type L : A .. $\top$
+          val f : z.L}
+         
+U = {z $\Rightarrow$ type L : B .. $\top$
+          val f : z.L}
+\end{lstlisting}
+Here \texttt{S} subtypes \texttt{T} and \texttt{T} subtypes 
+\texttt{U}, but \texttt{S} does not subtype \texttt{U}. Because 
+of the contra-variance of the lower bound of type member \texttt{L}, 
+\texttt{A} subtypes \texttt{z.L} in \texttt{T} but not \texttt{U}. 
+Amin et al. \cite{Amin 2014} attempt to reconcile this by narrowing 
+the type of \texttt{z} in the larger types \texttt{T} and \texttt{U} 
+by using the subtype rule in Figure \ref{f:sub_amin}.
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {\Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
+  {\Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+  \quad (\textsc {Structural Subtyping})
+\end{mathpar}
+\caption{Subtype Transitivity and Environment Narrowing}
+\label{f:sub_amin}
+\end{figure}
+Here we type check the declaration types of the larger type with a smaller receiver. While this allows for subtype transitivity, it introduces environment narrowing that proves unsound in a small step semantics. Amin et. al. were however able to reconcile both transitivity and narrowing within a big step semantics.
+
+\subsection{Path Equality}
+To further complicate matters, well-formedness can be lost when reducing field accesses. 
+
+\hl{Julian: Example?}
+
+
+\section{Type System}
+
+\subsection{Syntax} \label{s:syntax}
+In this section we present the Wyvern Type Members Syntax 
+in Figure \ref{f:syntax}. 
+
+\begin{figure}[h]
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & x & expression \\
+& | & \texttt{new} \; \{z \Rightarrow \overline{d}\}&\\
+& | & e.m(e) &\\
+& | & e.f &\\
+& | & e \unlhd T&\\
+& | & l &\\
+&&\\
+p & ::= & x & paths \\
+& | & l &\\
+& | & p \unlhd T &\\
+&&\\
+v & ::= & l & value \\
+& | & v \unlhd T &\\
+&&\\
+d & ::= & \texttt{val} \; f : T = p & declaration \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
+  & |   & \texttt{type} \; L : T .. T&\\
+&&\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & Environment \\
+&&\\
+A & :: = & \varnothing \; | \; A,\;  <: T & Assumption \; Context \\
+ \end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
+& | & p.L &\\
+%& | & T \wedge T & \\
+%& | & T \vee T & \\
+& | & \top & \\
+& | & \bot & \\
+&&\\
+\sigma & ::= & \texttt{val} \; f:T & decl \; type\\
+       & |   & \texttt{def} \; m:T \rightarrow T \\
+		 & |   & \texttt{type} \; L : T .. T &\\
+&&\\
+E & :: = & \bigcirc & eval \; context\\
+       & | & E.m(e)\\
+       & | & p.m(E)\\
+       & | & E.f\\
+       & | & E \unlhd T\\
+&&\\
+d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
+  & |   & \texttt{def} \; m(x:T) = e : T &\\
+  & |   & \texttt{type} \; L : T .. T = T &\\
+&&\\
+\mu & :: = & \varnothing \; | \; \mu,\; l \mapsto \{z \Rightarrow \overline{d}\} & store \\
+\Sigma & :: = & \varnothing \; | \; \Sigma,\; l : \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
+\end{array}
+\end{array}
+\]
+\caption{Syntax}
+\label{f:syntax}
+\end{figure}
+
+\textbf{Expressions} ($e$): Expressions are variables ($x$), new 
+expressions ($\texttt{new} \; \{z \Rightarrow \overline{d}\}$), 
+method calls ($e.m(e)$), field accesses ($e.f$), expression 
+upcasts ($e \unlhd T$) and locations ($l$) in the store. The 
+only expression that differs from tradition is the explicit upcasts on expressions. 
+We use upcasts to avoid the narrowing issues described in Section
+We employ a similar strategy with regard to the explicitly 
+upcast expression $e \unlhd T$. Here $e$ may have a more precise 
+type than $T$, but to avoid narrowing we maintain the type $T$.
+
+\textbf{Types} ($T$): Types are restricted to structural types 
+($\{z \Rightarrow \overline{\sigma}\}$), type member selections on 
+paths ($p.L$), ($\top$) the top type at the top of the type lattice 
+that represents the empty type and $\bot$ the bottom type at the 
+bottom of the type lattice that represents the type containing 
+al possible declaration labels with $\top$ in the contra-variant 
+type position, and $\bot$ in the covariant type position.
+
+\textbf{Paths} ($p$): Paths are expressions that type selections may be 
+made on. We restrict these to variables ($x$), locations ($l$) and upcast paths ($p \unlhd T$).
+
+\textbf{Values} ($v$): Values in our type system are locations ($l$) and upcast values ($v \unlhd T$). 
+
+\textbf{Declarations} ($d$): Declarations may be fields (\texttt{val}), 
+methods (\texttt{def}) or type members (\texttt{type}). These are all
+standard.
+
+\textbf{Declaration Types} ($\sigma$): Declaration types may be field 
+(\texttt{val}), method (\texttt{def}) or type members (\texttt{type}). 
+
+\textbf{Declaration Values} ($d_v$): Declaration values are similar to 
+declarations, except we require field initializers to be values.
+
+On top of these, we also include an evaluation context $E$, an environment 
+$\Gamma$ that maps variables to types, a store $\mu$ that maps locations 
+to objects, a store type $\Sigma$ used to type check the store and an 
+assumption context $A$ that is used to type check recursive types (\cite{Amber Rules etc})
+that consists of a list of type pairs.
+
+
+
+\subsection{Semantics}
+In this section we describe the Wyvern Type Members semantics.
+\subsubsection{Path Functions}
+
+\hl{Julian: I'll finish describing these functions later once they are finalized.}
+
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {}
+  {p \equiv p}
+  \quad (\textsc{Eq-Refl})
+  \and
+\inferrule
+  {p_1 \equiv p_2}
+  {p_2 \equiv p_1}
+  \quad (\textsc{Eq-Sym})
+  \and
+\inferrule
+  {p_1 \equiv p_2 \\
+   p_2 \equiv p_3}
+  {p_1 \equiv p_3}
+  \quad (\textsc{Eq-Trans})
+  \and
+\inferrule
+  {p_1 \equiv p_2}
+  {p_1 \equiv p_2 \unlhd T}
+  \quad (\textsc{Eq-Path})
+\end{mathpar}
+\caption{Path Equivalence}
+\label{f:path_equiv}
+\end{figure}
+In Figure \ref{f:path_equiv} we describe our path equivalence judgement. Two paths are equivalent if they wrap up the same variable or location. This is useful when trying to compare two types that are not technically the same types, but are derived from the same object.
+
+\subsubsection{Subtyping}
+Subtyping is given in Figure \ref{f:subtype}. We use a 
+modified version of the subtyping relation 
+described by Amin et. al. \cite{Scala stuff}. We remove the reflexivity rule, however this can be inferred from the other subtyping rules. We modify the \textsc{S-Struct} rule for structural subtyping by upcasting the self variable of the larger type to avoid narrowing. This can be seen in \textsc{S-Struct} in Figure \ref{f:subtype}.
+If we didn't do this, we would have to type check the declaration types of the larger type with a smaller receiver, resulting in narrowing. We also need to be able subtype two path equivalent selection types(\textsc{S-Path} in Figure \ref{f:subtype}). Since we can have two paths that are equivalent in that they lead to the same location or variable while having different types, we need a way to subtype path equivalent type selections. We require that they have the appropriate contra-variant and covariant relationships between their lower and upper bounds respectively. To deal with recursive types, we use an assumption context $A$ which we use to type check the bounds of the selection type. For this we introduce the \textsc{S-Assume} rule. \textsc{S-Select-Upper} and \textsc{S-Select-Lower} are our rules for subtyping selection types. To supertype or subtype a selection type, a type needs to supertype or subtype its upper or lower bounds respectively. We then use \textsc{S-Top} and \textsc{S-Bottom} to type check the subtyping and supertyping of the top ($\top$) and bottom ($\bot$) types.
+
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash S <: T$}
+\begin{mathpar}
+\inferrule
+  {(S <: T) \in A}
+  {A; \Sigma; \Gamma \vdash S\; \texttt{<:}\; T}
+  \quad (\textsc {S-Assume})
+	\and
+\inferrule
+	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+	\quad (\textsc {S-Struct})
+	\and
+\inferrule
+	{p_1 \equiv p_2 \\
+	 A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+	 A; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
+	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
+	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2}
+	{A; \Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
+	\quad (\textsc {S-Path})
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U\\
+	 A; \Sigma; \Gamma \vdash S <: U \\
+	 A; \Sigma; \Gamma \vdash U <: T}
+	{A; \Sigma; \Gamma \vdash p.L\; <:\; T}
+	\quad (\textsc {S-Select-Upper})
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+	 A; \Sigma; \Gamma \vdash S <: U \\
+	 A; \Sigma; \Gamma \vdash T <: S}
+	{A; \Sigma; \Gamma \vdash T \; <:\; p.L}
+	\quad (\textsc {S-Select-Lower})
+	\and
+\inferrule
+	{}
+	{A; \Sigma; \Gamma \vdash T\; \texttt{<:}\; \top}
+	\quad (\textsc {S-Top})
+	\and
+\inferrule
+	{}
+	{A; \Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
+	\quad (\textsc {S-Bottom})
+\end{mathpar}
+\hfill \fbox{$A; \Sigma; \Gamma \vdash \sigma <: \sigma'$}
+\begin{mathpar}
+\inferrule
+	{}
+	{A; \Sigma; \Gamma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T}
+	\quad (\textsc {S-Decl-Val})
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash S' <: S \\
+	 A; \Sigma; \Gamma \vdash T <: T'}
+	{A; \Sigma; \Gamma \vdash \texttt{def} \; m:S \rightarrow T <: \texttt{def} \; m:S' \rightarrow T'}
+	\quad (\textsc {S-Decl-Def})
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash S' <: S \\
+	 A; \Sigma; \Gamma \vdash U <: U'}
+	{A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; <:\; \texttt{type} \; L : S' .. U'}
+	\quad (\textsc {S-Decl-Type})
+\end{mathpar}
+\caption{Subtyping}
+\label{f:subtype}
+\end{figure}
+
+\subsubsection{Well-Formedness}
+
+\hl{Julian: Do we need to worry about this?}
+
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+  	A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf} }
+  {A; \Sigma; \Gamma \vdash p.L \; \textbf{wf}}
+  \quad (\textsc {WF-Sel})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma,z:\{z \Rightarrow \overline{\sigma}\} \vdash \overline{\sigma} \; \textbf{wf} \\
+  	\forall j \neq i, \; dom(\sigma_j) \neq dom(\sigma_i)}
+  {A; \Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \; \textbf{wf}}
+  \quad (\textsc {WF-Struct})
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \top \;  \textbf{wf}}
+  \quad (\textsc {WF-Top})
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \bot \;  \textbf{wf}}
+  \quad (\textsc {WF-Bot})
+\end{mathpar}
+\hfill \fbox{$A; \Sigma; \Gamma \vdash \sigma \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash T : \textbf{wf}}
+  {A; \Sigma; \Gamma \vdash \texttt{val} \; f:T \;  \textbf{wf}}
+  \quad (\textsc {WF-Val})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash T : \textbf{wf} \\
+  	A; \Sigma; \Gamma \vdash S : \textbf{wf}}
+  {A; \Sigma; \Gamma \vdash \texttt{def} \; m:S \rightarrow T \;  \textbf{wf}}
+  \quad (\textsc {WF-Def})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash S : \textbf{wfe} \; \vee \; S = \bot\\
+  	A; \Sigma; \Gamma \vdash U : \textbf{wfe} \\
+  	A; \Sigma; \Gamma \vdash S <: U}
+  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf}}
+  \quad (\textsc {WF-Type})
+\end{mathpar}
+\hfill \fbox{$A; \Sigma \vdash \Gamma \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {\forall x \in dom(\Gamma), A; \Sigma; \Gamma \vdash \Gamma(x) \; \textbf{wf}}
+  {\Sigma \vdash \Gamma \;  \textbf{wf}}
+  \quad (\textsc {WF-Environment})
+\end{mathpar}
+\hfill \fbox{$\Sigma \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {\forall l \in dom(\Sigma), \varnothing; \Sigma; \varnothing \vdash \Sigma(l) \; \textbf{wf}}
+  {\Sigma \;  \textbf{wf}}
+  \quad (\textsc {WF-Store-Context})
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+  {\forall l \in dom(\mu), \varnothing; \Sigma; \varnothing \vdash \mu(l) : \Sigma(l)}
+  {\Sigma \vdash \mu \; \textbf{wf}}
+  \quad (\textsc {WF-Store})
+\end{mathpar}
+\caption{Well-Formedness}
+\label{f:wf}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wfe}$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash T \; \textbf{wf} \\
+  	A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash T \; \textbf{wfe}}
+  \quad (\textsc {WFE})
+\end{mathpar}
+\caption{Well-Formed and Expanding Types}
+\label{f:wfe}
+\end{figure}
+
+\subsubsection{Type Expansion and Membership}
+
+We use a modified version of the type expansion (Figure \ref{f:exp}) definition and the same membership (Figure \ref{f:mem}) definition from Amin et al \cite{Scala stuff}. Expansion of types is used to extract the set of declaration types for a type. \textsc{E-Struct} is the expansion rule for structural types. Structural types simply expand to their defined types. The expansion of selection types (\textsc{E-Sel}) are slightly more complicated. Selection types expand to the expansion of the upper bound. The expansion of the upper bound is type checked with a less precise type (the upper bound) that the selection type. As with our subtyping rule for structural types, we need to prevent narrowing of types at type expansion. For this reason we upcast the self variable $z$ to the original type $U$. The top type expands to the empty set (\textsc{E-Top}). The membership judgement is used to determine the membership of a declaration type for an expression. We type check the expression, expand the expression's type and in the case of path expansion, substitute out the self variable.
+
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}$}
+\begin{mathpar}
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}}
+  \quad (\textsc {E-Struct})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S..U \\
+  	A; \Sigma; \Gamma \vdash U \prec_z \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash p.L \prec_z [z \unlhd U/z]\overline{\sigma}}
+  \quad (\textsc {E-Sel})
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \top \prec_z \varnothing}
+  \quad (\textsc {E-Top})
+\end{mathpar}
+\caption{Expansion}
+\label{f:exp}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash e \ni \sigma$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash p : T \\
+  	A; \Sigma; \Gamma \vdash T \prec_z \overline{\sigma}\\
+  	A; \sigma_i \in \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash p \ni [p/z]\sigma_i}
+  \quad (\textsc {M-Path})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash e : T \\
+  	A; \Sigma; \Gamma \vdash T \prec_z \overline{\sigma}\\
+  	\sigma_i \in \overline{\sigma} \\
+  	z \notin \sigma_i}
+  {A; \Sigma; \Gamma \vdash e \ni \sigma_i}
+  \quad (\textsc {M-Exp})
+\end{mathpar}
+\caption{Membership}
+\label{f:mem}
+\end{figure}
+
+\subsubsection{Expression Typing}
+Expression typing is fairly straight forward and is 
+given in Figure \ref{f:e_typ}. Variables (\textsc{T-Var})
+are typed with their types in the environment and 
+locations (\textsc{T-Loc})in the store type. New 
+expressions (\textsc{T-New}) are typed as a collection 
+of declaration types that correspond to their declarations. 
+Method calls (\textsc{T-Meth}) are typed as their 
+return type provided the arguments 
+subtype the method parameter types. Field accesses 
+(\textsc{T-Field}) are typed as the field type for the receiver. 
+Upcasts (\textsc{T-Type}) are typed as the upcast type if the 
+upcast expression appropriately subtypes the upcast type.
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash e:T$}
+\begin{mathpar}
+\inferrule
+  {x \in dom(\Gamma)}
+  {	A; \Sigma; \Gamma \vdash x : \Gamma(x)}
+  \quad (\textsc {T-Var})
+	\and
+\inferrule
+  {	l \in dom(\Sigma)}
+  {	A; \Sigma; \Gamma \vdash l : \Sigma(l)}
+  \quad (\textsc {T-Loc})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
+  \vdash \overline{d} : \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash \texttt{new} \; \{z \Rightarrow \overline{d}\} : 
+  \{z \Rightarrow \overline{\sigma}\}}
+  \quad (\textsc {T-New})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash e_0 \ni \texttt{def} \; m:S \rightarrow T \\
+  	A; \Sigma; \Gamma \vdash e_0 : T_0 \\
+  	A; \Sigma; \Gamma \vdash e_1 : S' \\
+  	A; \Sigma; \Gamma \vdash S' <: S}
+  {A; 	\Sigma; \Gamma \vdash e_0.m(e_1) : T}
+  \quad (\textsc {T-Meth})
+	\and
+\inferrule
+  {	A; \Sigma; \Gamma \vdash e : S \\
+  	A; \Sigma; \Gamma \vdash e \ni \texttt{val} \; f:T}
+  {	A; \Sigma; \Gamma \vdash e.f : T}
+  \quad (\textsc {T-Field})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash e : S \\
+   A; \Sigma; \Gamma \vdash S <: T}
+  {A; \Sigma; \Gamma \vdash e \unlhd T : T}
+  \quad (\textsc {T-Type})
+\end{mathpar}
+\caption{Expression Typing}
+\label{f:e_typ}
+\end{figure}
+
+\subsubsection{Reduction}
+
+Reduction is given in Figure \ref{f:red}. Reduction is new (\textsc{R-New}), method (\textsc{R-meth}), field (\textsc{R-Field}) and context (\textsc{R-Context}) reduction. New expressions are reduced (\textsc{R-New}) once field initializers are reduced to values. Method calls on values with a value type parameter are reduced (\textsc{R-Meth}) using the \emph{Leadsto\textsubscript{m}} judgement. We use the \emph{Leadsto\textsubscript{m}} judgement to extract the method body from the store, and wrap it up in well-formed type layers. Field reduction (\textsc{R-Field}) is performed the same way, using the \emph{Leadsto\textsubscript{f}} judgement. Context reduction (\textsc{R-Context}) is standard.
+\begin{figure}[h]
+\hfill \fbox{$\mu \; | \; e \; \rightarrow \mu' \; | \; e'$}
+\begin{mathpar}
+\inferrule
+  {l \notin dom(\mu) \\
+  	\mu' = \mu, l \mapsto \{\texttt{z} \Rightarrow \overline{d_v}\}}
+  {\mu \; | \; \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\} \; \rightarrow \mu' \; | \; l}
+  \quad (\textsc {R-New})
+  \and
+\inferrule
+  {\mu : \Sigma \\
+   \mu; \Sigma \vdash v_1 \leadsto_{m(v_2)} e}
+  {\mu \; | \; v_1.m(v_2) \;\rightarrow \mu \; | \; e}
+  \quad (\textsc {R-Meth})
+  \and
+\inferrule
+  {\mu : \Sigma \\
+   \mu; \Sigma \vdash v_1 \leadsto_{f} v_2}
+  {\mu \; | \; v_1.f \;\rightarrow \mu \; | \; v_2}
+  \quad (\textsc {R-Field})
+  \and
+\inferrule
+  {	\mu \; | \; e \; \rightarrow \; \mu' \; | \; e'}
+  {\mu \; | \; E[e] \; \rightarrow \mu' \; | \; E[e']}
+  \quad (\textsc {R-Context})
+\end{mathpar}
+\caption{Reduction}
+\label{f:red}
+\end{figure}
+
+\chapter{Proving Virtual Types Sound}
+Proving type systems containing Virtual Types sound presents some problems. Depending on the type system, these are due to the either the  interplay between \emph{Subtype Transitivity} and \emph{Environment Narrowing} and path dependant types.
+
+\section{Proving Subtype Transitivity and Environment Narrowing}
+The 
+
+
+\chapter{Future Work}\label{ch:future}
+
+As part of the development of Generic Wyvern, we simplified the concept of paths in the same way that Amin et. al. \cite{Amin 2014} did. This was due to the complexity of both the path equality and narrowing problems. In the future we hope to expand the notion of paths to include field accesses. We also intend to introduce \emph{Intersection} and \emph{Union} types. 
+
+While the Generic Wyvern type system outlined in the previous section is a good start to a sound type system, there is still some work that needs to be done to achieve my stated goals. In this section I shall cover the topic, and time line and contributions of the final thesis.
+
+\section{Simplification of path resolution at evaluation}
+While our current type system appears to be a step toward sound virtual types, it does introduce complexity when attempting to resolve field and method accesses on paths and subsequently construct well-formed expressions at evaluation. this is related to the absence of \emph{Subtype Transitivity}. This added complexity does not help in our goal of creating the easily extensible core type system we want for Wyvern. It also may prove too complex when we attempt to extend paths to include field accesses. For these reasons we hope to simplify the way we deal with the transitivity problem.
+
+\section{Explicit Subtype Transitivity Rule}
+One potential solution is to introduce an explicit rule for Subtype Transitivity. This has other
+
+\section{Timeline of PhD}
+\begin{itemize}
+\item
+Develop Type Members Type System with simplified paths
+\item
+Introduce Path Dependence
+\item
+
+\end{itemize}•
+
+
+
+\chapter{Conclusion}\label{ch:conclusion}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\backmatter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%\bibliographystyle{ieeetr}
+\bibliographystyle{acm}
+\bibliography{sample}
+
+
+\end{document}
