@@ -18,14 +18,20 @@
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
 \usepackage{amsmath}
-%\usepackage{amsthm}
+\usepackage{amsthm}
 \usepackage{mathpartir}
 \usepackage{color,soul}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{case}{Case}
+\newtheorem{lemma}{Lemma}
+\newtheorem{subcase}{Subcase}
 
 
-%\newtheorem{subcase}{SubCase}
-%\numberwithin{subcase}{case}
-%\numberwithin{case}{theorem}
+\numberwithin{case}{theorem}
+\numberwithin{subcase}{case}
 %\numberwithin{case}{lemma}
 
 
@@ -109,7 +115,24 @@ Virtual types are a language property for providing generic types. While work ha
 
 % individual chapters included here
 \chapter{Introduction}\label{ch:intro}
-Generics in  programming languages is a feature that allows programmers to write code abstracted from type specifics. That is we may want to specify an argument has a collection type, while not caring about the specific type of of the elements of that collection. A list iterator for example does not care what the elements of a list look like, so we ideally want to be able to iterate through any list regardless of content. This allows for powerful code reuse and polymorphism, and as such has become a feature of many mainstream object oriented languages. 
+\section{Virtual Types}
+In object oriented programming we organise data and functions into logical groupings called objects. The intention is that programmers are more easily able to create abstract representations of data and data structures. We call an object's data fields and functions methods, and these collectively can be referred to as the object's members. We classify data such as objects using types, abstract descriptions of data. When it comes to objects, this means a description of the types of data and functions within. \emph{Virtual Types} (or \emph{type members}) are a programming language feature allowing types to be included as members to objects in the same fields and methods normally are. Below is an example of type members using a simple syntax that I will be using throughout this document.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new {z $\Rightarrow$
+    val f : $\top$ = new {z $\Rightarrow$}
+    
+    def $\top$ m (x : $\top$){
+      new {z $\Rightarrow$} 
+    }
+    
+    type t : $\top$
+  }
+\end{lstlisting}
+We create a new object with three members. A field \verb|f|, a method \verb|m| and a type member \verb|t|. Our type member is initialised to top type $\top$, the set of all objects. Virtual types give us a similar kind of polymorphism to generic type parameters. They allow us to write generic code for classes of objects, rather than objects with specific types. 
+
+\section{Generics with Virtual Types}
+
+Generics in programming languages is a feature that allows programmers to write code abstracted from type specifics. That is we may want to specify an argument has a collection type, while not caring about the specific type of of the elements of that collection. A list iterator for example does not care what the elements of a list look like, so we ideally want to be able to iterate through any list regardless of content. This allows for powerful code reuse and polymorphism, and as such has become a feature of many mainstream object oriented languages. 
 Generics is most commonly handled by the inclusion of generic type parameters. Types are parametrized by type variables that are defined at object initialization. An example involving classes is given below in a Java-like syntax.
 \begin{lstlisting}[mathescape, style=custom_lang]
 public class LinkedList <E extends Object>{
@@ -141,7 +164,7 @@ LinkedList<String> stringList =
   new LinkedList<String>(``Hello'', 
     new LinkedList<String>(``World'',null));
 \end{lstlisting}
-This form of generics is familiar to most object oriented programmers, and there is much research around the soundness of Type Parameters and their interaction with other language features. Arguably the most notable contribution in Generic Type Parameters is the work of Igarashi and Pierce \cite{FGJ stuff} with their development of a formalised and sound Featherweight Generic Java (FGJ). FGJ is a core calculus for generic type parameters in a Java-like setting. It is widely used as a basis for investigating the addition of other language features and their interaction with generic type parameters. While type parameters are the most popular form generic types, we can model generic types in another way. Virtual Types are types that are included as members of objects in the same way that fields or methods are. Using a nominal syntax we can construct an example similar to our example with type parameters.
+This form of generics is familiar to most object oriented programmers, and there is much research around the soundness of Type Parameters and their interaction with other language features. Arguably the most notable contribution in Generic Type Parameters is the work of Igarashi and Pierce \cite{FGJ stuff} with their development of a formalised and sound Featherweight Generic Java (FGJ). FGJ is a core calculus for generic type parameters in a Java-like setting. It is widely used as a basis for investigating the addition of other language features and their interaction with generic type parameters. While type parameters are the most popular form generic types, we can also model generic types using Virtual Types. Using a nominal syntax we can construct an example similar to our example with type parameters.
 \begin{lstlisting}[mathescape, style=custom_lang]
 public class LinkedList {
 	type E : Object;
@@ -190,7 +213,99 @@ LinkedList  stringList=
 \end{lstlisting}
 With generic type parameters we explicitly defined the generic parameter \texttt{E} during object initialisation. In the case of virtual types, the generic type \texttt{E} is implicitly defined by the object. We can extend the \texttt{LinkedList} class with any \texttt{E}, so long as it subtypes the \texttt{E} in \texttt{LinkedList} (\texttt{Object}). While this example does represent a sound type system, it does show how we might like to use virtual types.
 
-Unlike type parameters, there does not exist a standard extensible type system like FGJ. This makes research more difficult. There has been work done in virtual types, albeit less than that done for type parameters, and there are relatively few mainstream languages that use virtual types. Scala is one language that does, however Scala virtual types are not sound. There has been much work on developing a sound calculus for virtual types in Scala, however thus far there has only been one sound type system proposed \cite{amin 2014} using a big step semantics. While this is a significant step forward there still does not exist a sound type system featuring a small step semantics in the style of FGJ \cite{fgj}. In the next section I will discuss our efforts to develop such a type system.
+\section{Formalising Virtual Types in Wyvern}
+
+Unlike type parameters, there does not exist a standard extensible type system like FGJ. This makes research more difficult. There has been work done in virtual types, albeit less than that done for type parameters, and there are relatively few mainstream languages that use virtual types. Scala is one language that does, however Scala virtual types are not sound. There has been much work on developing a sound calculus for virtual types in Scala, however thus far there has only been one sound type system proposed \cite{amin 2014} using a big step semantics. While this is a significant step forward there still does not exist a sound type system featuring a small step semantics in the style of FGJ \cite{fgj}. While soundness is certainly significant, we feel that a small-step semantics is more desirable than a big-step semantics, especially in the context of designing a wider language.
+
+\subsection{Wyvern}
+Wyvern is a new statically typed structural language being developed with an emphasis on secure web applications \cite{Wyvern Stuff}. Like many modern object oriented languages, we would like to include support for generic types. We chose to formalise virtual types in Wyvern over generic type parameters since virtual types pairs much better with Wyvern's structural type system.
+
+
+\subsection{The Problem}
+
+We intend to develop a sound and extensible type system for Virtual Types in the spirit of FGJ in the context of Wyvern. We could potentially design several different forms of VIrtual Types depending on the flexibility we desire. The simplest form of virtual types is similar to the one in our first example, a single type that is invariant with subtyping. As an example we can try to model animals and food. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+Animal = {z $\Rightarrow$	type F = Food
+		
+		def void eat (x : z.F){
+			...
+		}}
+\end{lstlisting}
+This is a common example used in Virtual Types literature, and so we will make use of it here. We define an \verb|Animal| type that contains a type member \verb|F| that is initialized to \verb|Food|, some previously defined type, and a method definition \verb|eat| that a \verb|z.F| as a parameter. This seems like a reasonable description of an animal that eats anything that qualifies as \verb|Food|, however, we might expect to want to refine this in a subtype. For instance
+\begin{lstlisting}[mathescape, style=custom_lang]
+Cow = {z $\Rightarrow$	type F = Grass
+		val isMeat = True
+		
+		def void eat (x : z.F){
+			...
+		}}
+
+Lion = {z $\Rightarrow$	type F = Meat
+		
+		def void eat (x : z.F){
+			...
+		}}
+\end{lstlisting}
+we would hope that both \verb|Cow| and \verb|Lion| would be \verb|Animal|s, however if this were the case, we could end up with type errors if we had what we thought we \verb|Animal|s and we attempted to feed them \verb|Meat|, but one happed to be a \verb|Cow|. The example below illustrates this.
+\begin{lstlisting}[mathescape, style=custom_lang]
+def void feed (a : Animal, f : Food){
+	a.eat(f)
+}
+
+g = new Grass(..)
+c = new Cow(...)
+l = new Lion(...)
+
+feed(l,c) \\succeeds
+feed(c,g) \\succeeds
+feed(c,c) \\fails at runtime
+\end{lstlisting}
+Without changing our type members are represented, we must make them invariant with subtyping. This still gives us some expressivity, most forms of generic types enforce invariance on the type parameters. However, we might want more flexibility.
+If we want to vary type members covariantly with subtyping we can add upper and lower bounds. Now we can rewrite the \verb|Animal|, \verb|Cow| and \verb|Lion| types with bounds on the type members.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Animal = {z $\Rightarrow$	type F = $\bot$ .. Food
+		
+		def void eat (x : z.F){
+			...
+		}}
+		
+Cow = {z $\Rightarrow$	type F = $\bot$ .. Grass
+		val isMeat = True
+		
+		def void eat (x : z.F){
+			...
+		}}
+
+Lion = {z $\Rightarrow$	type F = $\bot$ .. Meat
+		
+		def void eat (x : z.F){
+			...
+		}}
+\end{lstlisting}
+When we add a lower bound, types that subtype the lower bound subtype the type member. This means that we can vary the upper bound covariantly while keeping the lower bound invariant. Now \verb|Cow| and \verb|Lion| subtype \verb|Animal|. We can still however get more flexibility out of the language. If we allow the lower bound to vary contra-variantly we can get yet more expressiveness. Rewriting the  \verb|Animal|, \verb|Cow| and \verb|Lion| types we can see how.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Animal = {z $\Rightarrow$	type F = $\bot$ .. Food
+		
+		def void eat (x : z.F){
+			...
+		}}
+		
+Cow = {z $\Rightarrow$	type F = Grass .. Grass
+		val isMeat = True
+		
+		def void eat (x : z.F){
+			...
+		}}
+
+Lion = {z $\Rightarrow$	type F = Meat .. Meat
+		
+		def void eat (x : z.F){
+			...
+		}}
+\end{lstlisting}
+Now a \verb|Cow| is able to eat any \verb|Grass| and a \verb|Lion|is able to eat any \verb|Meat|. While this is the most complex form of type members, and brings with it the most complexity, it is also the most expressive. For this reason we chose to formalise this form of type members.
+
+In the rest of this document I will outline the background literature, describe the problems we face, present our work thus far and our plans for future work.
 
 \chapter{Background}\label{ch:background}
 
@@ -958,17 +1073,99 @@ Reduction is given in Figure \ref{f:red}. Reduction is new (\textsc{R-New}), met
 Proving type systems containing Virtual Types sound presents some problems. Depending on the type system, these are due to the either the  interplay between \emph{Subtype Transitivity} and \emph{Environment Narrowing} and path dependant types.
 
 \section{Proving Subtype Transitivity and Environment Narrowing}
-The main difficulty with constructing a soundness proof for Generic Wyvern proving the subtype transitivity and environment narrowing proofs. These lemmas are given in Figure \ref{f:trans_narrowing}. The property that we would like is subtype transitivity (Figure \ref{f:trans}), however this relies mutually on the existence of environment narrrowing. To demonstrate this, lets take a naive approach to the Subtype Transitivity proof, by induction on the derivation of $\Sigma; \Gamma \vdash S <: T$.
-\begin{figure}[h]
+The main difficulty with constructing a soundness proof for Generic Wyvern proving the subtype transitivity and environment narrowing proofs. These lemmas are given in Figure \ref{f:trans_narrowing}. The property that we would like is subtype transitivity (Theorem \ref{th:trans}), however this relies mutually on the existence of environment narrrowing. To demonstrate this, lets take a naive approach to the Subtype Transitivity proof, by induction on the derivation of $\Sigma; \Gamma \vdash S <: T$. Theorem \ref{th:trans} uses an unpatched subtype relation. this is identical to the subtype relation described in Section \ref{ch:wyvern}, except we replace the \textsc{S-Struct} rule with that in Figure \ref{f:struct_naive}.
+\begin{figure}
+\begin{mathpar}
+\inferrule
+	{\Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
+	{\Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+\caption{Unpatched \textsc{S-Struct}}
+\label{f:struct_naive}
+\end{figure}
+\begin{theorem}[Subtype Transitivity]\label{th:trans}
 \begin{mathpar}
 \inferrule
 	{\Sigma; \Gamma \vdash S <: T \\
 	 \Sigma; \Gamma \vdash T <: U}
 	{\Sigma; \Gamma \vdash S <: U}
 \end{mathpar}
-\caption{Subtype Transitivity}
-\label{f:trans}
-\end{figure}
+\end{theorem}
+\begin{proof}
+By induction on the derivation of $\Sigma; \Gamma \vdash S <: T$.
+\begin{case}[S-Struct]
+\begin{mathpar}
+\inferrule
+	{}
+	{S = \{z \Rightarrow \overline{\sigma}_1\} \\
+	 T = \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+	{\Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
+	{\Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+\end{mathpar}
+Now, by inversion on the derivation of $\Sigma; \Gamma \vdash T <: U$ we have
+\begin{subcase}[S-Struct]
+\begin{mathpar}
+\inferrule
+	{}
+	{U = \{z \Rightarrow \overline{\sigma}_3\}}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+	{\Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_2\} \vdash \overline{\sigma}_2 <:\; \overline{\sigma}_3}
+	{\Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_2\}\; <:\; \{z \Rightarrow \overline{\sigma}_3\}}
+\end{mathpar}
+Now we would like to use the induction hypothesis to show that
+\begin{mathpar}
+\inferrule
+	{\Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_3}
+	{\Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_3\}}
+\end{mathpar}
+However, clearly this dosn't follow since we have different environments.
+\end{subcase}
+\end{case}
+\end{proof}
+So, in order to continue, we need to be able to narrow the environment. This means, without patching the type system, we have to introduce a narrowing theorem. 
+\begin{theorem}[Narrowing]\label{th:narrow}
+\begin{mathpar}
+\inferrule
+	{\Sigma; \Gamma, (x : U) \vdash T <: T' \\
+	 \Sigma; \Gamma \vdash S <: U}
+	{\Sigma; \Gamma, (x : S) \vdash T <: T'}
+\end{mathpar}
+\end{theorem}
+It turns out that Narrowing (Theorem \ref{th:narrow}) is dependent on Subtype Transitivity (Theorem \ref{th:trans}). It is yet more complex, since subtyping is defined mutually with expansion (Figure \ref{f:exp}), membership (Figure \ref{f:mem}) and expression typing (Figure \ref{f:e_typ}). So the full statement of environment narrowing is 
+\begin{theorem}[Narrowing]\label{th:narrow}
+\begin{mathpar}
+\inferrule
+	{\Sigma; \Gamma, (x : U) \vdash T <: T' \\
+	 \Sigma; \Gamma \vdash S <: U}
+	{\Sigma; \Gamma, (x : S) \vdash T <: T'}
+	\and
+\inferrule
+	{\Sigma; \Gamma, (x : U) \vdash T \prec_z \overline{\sigma}_1 \\
+	 \Sigma; \Gamma \vdash S <: U}
+	{\exists \overline{\sigma}_2,  \Sigma; \Gamma, (x : S) \vdash T \prec_z \overline{\sigma}_2 \\
+	  \Sigma; \Gamma, (x : S) \vdash \overline{\sigma}_2 <: \overline{\sigma}_1}
+	\and
+\inferrule
+	{\Sigma; \Gamma, (x : U) \vdash e \ni \sigma_1 \\
+	 \Sigma; \Gamma \vdash S <: U}
+	{\exists \sigma_2,  \Sigma; \Gamma, (x : S) \vdash e \ni \sigma_2 \\
+	  \Sigma; \Gamma, (x : S) \vdash \sigma_2 <: \sigma_1}
+	\and
+\inferrule
+	{\Sigma; \Gamma, (x : U) \vdash e: T \\
+	 \Sigma; \Gamma \vdash S <: U}
+	{\exists T',  \Sigma; \Gamma, (x : S) \vdash e : T' \\
+	  \Sigma; \Gamma, (x : S) \vdash T' <: T}
+\end{mathpar}
+\end{theorem}
+All of these mutually defined properties create a complex set of proofs. This was our reason for attempting to remove subtype transitivity altogether.
+
+
 
 
 
