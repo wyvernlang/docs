@@ -93,7 +93,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{abstract}
-Virtual types are a language property for providing generic types. While work has been done comparing the relative advantages of Virtual Types and the more common Type Parameters, there does not exist a standard syntax or semantics for formalising generics as Virtual Types. Virtual Types are also not used by popular languages despite some advantages over Generic Type Parameters. The most mainstream use of Virtual Types is that of Scala. Scala however does not provide soundness for their type members. This makes research and investigation of Virtual Types difficult as there is no sound core formalism for Scala's Virtual Types in the spirit of Featherweight Generic Java. In this PhD I propose to develop a simple and sound formalism for a core type system Virtual Types. Simple so that it is extensible since it can then serve as a core calculus for further properties. This type system will be developed in the structurally typed setting of Wyvern, a new object oriented web programming language with an emphasis on security.
+Developing reusable libraries in modern programming languages depends heavily on generic programming. The most popular form of genericity is \emph{Generic Type Parameters}. Type parameters are available in most statically typed mainstream Object Oriented languages such as Java \cite{Gosling:2014:JLS:2636997}, C\# \cite{Hejlsberg:2010:CPL:1951915} and C++ \cite{Stroustrup:2000:CPL:518791}. \emph{Type Members} are another programming construct that was suggested as an alternative to type parameters in Java \cite{Thorup97genericityin} as part of BETA\cite{Madsen:1989:VCP:74877.74919}. While type parameters derive from bounded quantification in functional languages such as ML and Haskell\cite{Canning:1989:FPO:99370.99392, Igarashi1999}, type members are more in line with object oriented principles and provide an interesting alternative to type parameters. The most prominent use of type members is in \emph{Scala}\cite{scaladocs2016}, however while it is included in the language, for a long time there was no formal proof of soundness for it despite much effort\cite{amin:fool:2012,Odersky2003}. Only recently has a soundness proof been developed using a big step semantics \cite{Amin:2014:FPT:2660193.2660216} which makes extension and further research difficult . We aim to develop a small step semantics formalism for type members in the structural setting of \emph{Wyvern}\cite{Nistor:2013:WST:2489828.2489830,Omar2014} that is both elegant and sound. We hope this will bring type members closer to the research state of type parameters. 
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -113,115 +113,192 @@ Virtual types are a language property for providing generic types. While work ha
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
 % individual chapters included here
 \chapter{Introduction}\label{ch:intro}
-\section{Virtual Types}
-In object oriented programming we organise data and functions into logical groupings called objects. The intention is that programmers are more easily able to create abstract representations of data and data structures. We call an object's data fields and functions methods, and these collectively can be referred to as the object's members. We classify data such as objects using types, abstract descriptions of data. When it comes to objects, this means a description of the types of data and functions within. \emph{Virtual Types} (or \emph{type members}) are a programming language feature allowing types to be included as members to objects in the same fields and methods normally are. Below is an example of type members using a simple syntax that I will be using throughout this document.
-\begin{lstlisting}[mathescape, style=custom_lang]
-new {z $\Rightarrow$
-    val f : $\top$ = new {z $\Rightarrow$}
-    
-    def $\top$ m (x : $\top$){
-      new {z $\Rightarrow$} 
-    }
-    
-    type t : $\top$
-  }
-\end{lstlisting}
-We create a new object with three members. A field \verb|f|, a method \verb|m| and a type member \verb|t|. Our type member is initialised to top type $\top$, the set of all objects. Virtual types give us a similar kind of polymorphism to generic type parameters. They allow us to write generic code for classes of objects, rather than objects with specific types. 
+\section{Generic Programming}
+Developing generic libraries such as collections generally requires support from the language. Designers of statically type checked object oriented languages have sought to solve this problem by extending their languages. Most modern mainstream languages provide support for generic programming in some capacity. The most common form of generic programming is generic type parameters. Functions and classes are parametrized with bounded generic types that are initialised at runtime, but can be type checked statically. An alternative feature to type parameters are type members. Objects can contain types as members in the same way they do fields and functions. Type parameters and type members can be used to solve similar problems \cite{Igarashi1999}. In this chapter I will describe both type parameters and type members along their relative strengths and weaknesses. I will then outline how we intend to introduce generic programming to Wyvern, a new statically type checked structural language for secure web programming \cite{Nistor:2013:WST:2489828.2489830}.
 
-\section{Generics with Virtual Types}
-
-Generics in programming languages is a feature that allows programmers to write code abstracted from type specifics. That is we may want to specify an argument has a collection type, while not caring about the specific type of of the elements of that collection. A list iterator for example does not care what the elements of a list look like, so we ideally want to be able to iterate through any list regardless of content. This allows for powerful code reuse and polymorphism, and as such has become a feature of many mainstream object oriented languages. 
-Generics is most commonly handled by the inclusion of generic type parameters. Types are parametrized by type variables that are defined at object initialization. An example involving classes is given below in a Java-like syntax.
+\subsection{Type Parameters}
+Type parameters are a common language construct that is not limited to object oriented languages, and in fact derives from functional languages \cite{Canning:1989:FPO:99370.99392}. Type parameters in object oriented languages generally allow classes and functions to be parametrised by bounded types. Code can be checked statically while allow specific instances to define types at run time. A common example are collections.
 \begin{lstlisting}[mathescape, style=custom_lang]
-public class LinkedList <E extends Object>{
-	E element;
-	LinkedList <E> next;
+public interface Collection<E extends Object>{
+	public abstract void add(E e);
 	
-	public LinkedList (E element, LinkedList<E> next){
-		this.element = element;
-		this.next = next;
-	}
-	}
+	public abstract E get();
 	
-	public void add (E element){
-		if (this.next == null){
-			this.next = new LinkedList<E>(element, null);
-		} else{
-			this.next.add(element);
-		}
-	}
-	
-	...
+	public abstract iterator<E> iterator();
 }
-
-...
-
-LinkedList<Integer> integerList = 
-  new LinkedList<Integer>(1, new LinkedList<Integer>(2,null));
-LinkedList<String> stringList = 
-  new LinkedList<String>(``Hello'', 
-    new LinkedList<String>(``World'',null));
 \end{lstlisting}
-This form of generics is familiar to most object oriented programmers, and there is much research around the soundness of Type Parameters and their interaction with other language features. Arguably the most notable contribution in Generic Type Parameters is the work of Igarashi and Pierce \cite{FGJ stuff} with their development of a formalised and sound Featherweight Generic Java (FGJ). FGJ is a core calculus for generic type parameters in a Java-like setting. It is widely used as a basis for investigating the addition of other language features and their interaction with generic type parameters. While type parameters are the most popular form generic types, we can also model generic types using Virtual Types. Using a nominal syntax we can construct an example similar to our example with type parameters.
+Using a Java-like syntax, we define a \verb|Collection| interface that is parametrised by a type parameter \verb|E| bounded by \verb|Object|. We can implement \verb|Collection| and be able to talk about generic collections of objects. We do not need to create a \verb|StringCollection| or an \verb|IntegerCollection|. Bellow we can show such an implementation.
 \begin{lstlisting}[mathescape, style=custom_lang]
-public class LinkedList {
-	type E : Object;
-	this.E element;
-	LinkedList next;
+public class LinkedList<E extends Object> implements Collection<E>{
+
+	private E elem;
+	private LinkedList<E> next;
 	
-	public LinkedList (this.E element, LinkedList next){
-		this.element = element;
+	public LinkedList (E elem, LinkedList<E> next){
+		this.elem = elem;
 		this.next = next;
 	}
 	
-	...
-}
-
-...
-
-public class IntegerLinkedList extends LinkedList {
-	type E : Integer;
-	
-	public IntegerLinkedList (this.E element, IntegerLinkedList next){
-		super(element, next);
+	public void add(E elem){
+		if(next == null)
+		  this.next = new LinkedList<E>(elem, null);
+		else
+			next.add(elem);
 	}
 	
-	...
-}
-
-...
-
-public class StringLinkedList extends LinkedList {
-	type E : String;
-	
-	public StringLinkedList (this.E element, StringLinkedList next){
-		super(element, next);
+	public E get(){
+		return this.elem;
 	}
 	
-	...
+	public abstract iterator<E> iterator(){
+		return new Iterator<E>(...);
+	}
 }
-
-...
-
-LinkedList integerList = 
-  new IntegerLinkedList(1, new IntegerLinkedList(2,null));
-LinkedList  stringList= 
-  new StringLinkedList(``Hello'', 
-    new StringLinkedList(``World'',null));
 \end{lstlisting}
-With generic type parameters we explicitly defined the generic parameter \texttt{E} during object initialisation. In the case of virtual types, the generic type \texttt{E} is implicitly defined by the object. We can extend the \texttt{LinkedList} class with any \texttt{E}, so long as it subtypes the \texttt{E} in \texttt{LinkedList} (\texttt{Object}). While this example does represent a sound type system, it does show how we might like to use virtual types.
+This allows for bounded polymorphism and code that is abstracted from the implementation of specific concrete types. Without the use of generic type parameters library developers would either have to write specific classes and functions for each list type they wished to use, or write unsuitably broad lists of \verb|Object| type. A single generic class or function can be used to initialize any list while maintaining precise types at both write and read. Note that type parameters are especially powerful in a nominal language such as Java. The ability to write generic classes provides the kind of code reuse that would be unavailable in a structural setting. Below we demonstrate how we could use our \verb|LinkedList| class.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+LinkedList<String> l = new LinkedList<String>();
+l.add(``Hello'');
+l.add(``World'');
+Collection<String> c1 = l; \\safe
+Collection<Object> c2 = l; \\compile time error
+...
+\end{lstlisting}
+Due to contra-variant type restrictions on write, we restrict subtyping to invariance on type parameters.
 
-\section{Formalising Virtual Types in Wyvern}
+\subsection{Type Members}
+Type members are an alternative to type parameters, and were suggested as part of BETA \cite{Madsen:1989:VCP:74877.74919}. Type members attempt to solve similar problems to type parameters but are not a wide spread as type parameters. Instead of parametrizing functions and classes with bounded types, types are included as object members in the same way as fields or functions. The previous \verb|Collection| example can be rewritten using type members.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public interface Collection{
+	public type E : Object;
 
-Unlike type parameters, there does not exist a standard extensible type system like FGJ. This makes research more difficult. There has been work done in virtual types, albeit less than that done for type parameters, and there are relatively few mainstream languages that use virtual types. Scala is one language that does, however Scala virtual types are not sound. There has been much work on developing a sound calculus for virtual types in Scala, however thus far there has only been one sound type system proposed \cite{amin 2014} using a big step semantics. While this is a significant step forward there still does not exist a sound type system featuring a small step semantics in the style of FGJ \cite{fgj}. While soundness is certainly significant, we feel that a small-step semantics is more desirable than a big-step semantics, especially in the context of designing a wider language.
+	public abstract void add(this.E e);
+	
+	public abstract this.E get();
+	
+	public abstract iterator iterator();
+}
+\end{lstlisting}
+Now if we want to create a concrete instance of Collection, we can simply extend the collection interface. Below we have implemented the \verb|Collection| interface to create an \verb|IntegerLinkedList| class. We are free to subtype \verb|E| on extension.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class StringLinkedList implements Collection{
+	public type E : String;
 
-\subsection{Wyvern}
+	private this.E elem;
+	private StringLinkedList next;
+	
+	public StringLinkedList (this.E elem, StringLinkedList next){
+		this.elem = elem;
+		this.next = next;
+	}
+	
+	public void add(this.E elem){
+		if(next == null)
+		  this.next = new StringLinkedList(elem, null);
+		else
+			next.add(elem);
+	}
+	
+	public this.E get(){
+		return this.elem;
+	}
+	
+	public abstract StringIterator iterator(){
+		return new StringIterator(...);
+	}
+}
+\end{lstlisting}
+Assuming \verb|StringIterator| is otherwise appropriately defined, our new \verb|StringLinkedList| class subtypes the original \verb|Collection| type. Below we initialise a \verb|StringLinkedList| object.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+StringLinkedList l = new StringLinkedList();
+l.add(``Hello'');
+l.add(``World'');
+l.add(new Object()); \\compile time error
+Collection c = l; \\safe
+c.add(new Object()); \\runtime error
+...
+\end{lstlisting}
+With type members we can allow for subtype variance in type members, however this means we are potentially unable to catch certain errors statically. As can be seen in these examples, type parameters and type members provide solutions to similar problems, however each has certain strengths and weaknesses.
+
+\subsection{Type Members vs Type Parameters}
+The examples thus far have demonstrated one strength of type parameters over type members. In the \verb|Collection| examples, we need only write one \verb|LinkedList| class that can be used as common implementation for constructing \verb|LinkedList|s of any type. When using type members, we need to write a new class for each kind of \verb|LinkedList| we hope to create. This has powerful consequences for developers hoping to write generic libraries. Programmers who wish to use a library need only use the types provided, they do not need to re-implement generic types. This is further a problem when extending a type hierarchy. The following example is a modified version of one by Bruce et. al. \cite{Bruce:1998:SSA:646155.679691}. Using type parameters, we are able to treat \verb|LinkedList<String>| as \verb|Collection<String>|.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+Collection<String> l = new LinkedList<String>(); \\safe
+...
+\end{lstlisting}
+This is reasonable to expect, and is quite a common requirement when writing generic code. This is not necessarily possible in a nominal type system with type members. While in our earlier example, we saw that \verb|StringLinkedList| subtypes \verb|Collection|, it does not subtype a string specific \verb|Collection|. To demonstrate this we can rewrite the earlier type members example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class StringCollection extends Collection{
+	public type E : String;
+}
+
+public class LinkedList implements Collection{
+	public type E : Object;
+
+	private this.E elem;
+	private LinkedList next;
+	
+	public LinkedList (this.E elem, LinkedList next){
+		this.elem = elem;
+		this.next = next;
+	}
+	
+	public void add(this.E elem){
+		if(next == null)
+		  this.next = new LinkedList(elem, null);
+		else
+			next.add(elem);
+	}
+	
+	public this.E get(){
+		return this.elem;
+	}
+	
+	public abstract Iterator iterator(){
+		return new Iterator(...);
+	}
+}
+
+public class StringLinkedList extends LinkedList{
+	public type E : String;
+}
+\end{lstlisting}
+Here \verb|StringCollection| extends our original \verb|Collection| interface by subtyping the \verb|E| type member, \verb|LinkedList| implements \verb|Collection|, and \verb|StringLinkedList| extends \verb|LinkedList|. Now to provide similar functionality to type parameters, we would want \verb|StringLinkedList| to subtype \verb|StringCollection|. This is not the case since subtyping is done via inheritance and \verb|StringLinked| does not extend \verb|StringCollection|. Now this happens to be as much an artefact of nominal type systems as type members, and in Section \ref{s:intro:wyvern} I will discuss this further.
+
+The major difference between the two approaches is the fact that generic type parameters are explicit and type members are implicit. What this means is that when dealing with generic type via parameters, each type must be explicitly defined at the top level of any class or function using it, while type members are implicitly handled by the objects containing them. Both approaches can be advantageous depending on the situation. Another example taken from Bruce et. al. \cite{Bruce:1998:SSA:646155.679691} involves introducing more types to a function. First lets modify our \verb|LinkedList| example using type parameters.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class Pair<Fst extends Object, Snd extends Object>{
+	public Fst fst;
+	public Snd snd;
+}
+
+public class LinkedList<E extends Objects> implements Collection{
+
+	...
+	
+	public List<Pair<E,F>> zip <F extends Object>(List<F> listF){
+		...
+	}	
+}
+\end{lstlisting}
+If we imagine that the \verb|zip| function zips a list of some type \verb|F| to the receiver we can see it is quite easy to introduce and use new generic types. The same example using type members however becomes much more difficult. Our problem now is that in order to generically define a second \verb|LinkedList| we need to know the extended subtype of that list. Again this is as much a consequence of a nominal type system where subtyping is based upon inheritance as it is type members. 
+
+
+\subsection{Wyvern and Structural Typing} \label{s:intro:wyvern}
 Wyvern is a new statically typed structural language being developed with an emphasis on secure web applications \cite{Wyvern Stuff}. Like many modern object oriented languages, we would like to include support for generic types. We chose to formalise virtual types in Wyvern over generic type parameters since virtual types pairs much better with Wyvern's structural type system.
 
 
-\subsection{The Problem}
+\section{Formalising Type Members in Wyvern}
+
+Unlike type parameters, there does not exist a standard extensible type system like FGJ. This makes research more difficult. There has been work done in type members, albeit less than that done for type parameters, and there are relatively few mainstream languages that use type members. Scala is one language that does, however Scala type members are not sound. There has been much work on developing a sound calculus for type members in Scala, however thus far there has only been one sound type system proposed \cite{amin 2014} using a big step semantics. While this is a significant step forward there still does not exist a sound type system featuring a small step semantics in the style of FGJ \cite{fgj}. While soundness is certainly significant, we feel that a small-step semantics is more desirable than a big-step semantics, especially in the context of designing a wider language.
+
+\subsection{Developing Generic Wyvern}
 
 We intend to develop a sound and extensible type system for Virtual Types in the spirit of FGJ in the context of Wyvern. We could potentially design several different forms of VIrtual Types depending on the flexibility we desire. The simplest form of virtual types is similar to the one in our first example, a single type that is invariant with subtyping. As an example we can try to model animals and food. 
 \begin{lstlisting}[mathescape, style=custom_lang]
@@ -1205,7 +1282,7 @@ Introduce Path Dependence
 
 %\bibliographystyle{ieeetr}
 \bibliographystyle{acm}
-\bibliography{sample}
+\bibliography{bibl}
 
 
 \end{document}
