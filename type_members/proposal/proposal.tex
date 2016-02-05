@@ -226,6 +226,8 @@ c.add(new Object()); \\runtime error
 With type members we can allow for subtype variance in type members, however this means we are potentially unable to catch certain errors statically. As can be seen in these examples, type parameters and type members provide solutions to similar problems, however each has certain strengths and weaknesses.
 
 \subsection{Type Members vs Type Parameters}
+\subsubsection{Strengths of Type Parameters}
+
 The examples thus far have demonstrated one strength of type parameters over type members. In the \verb|Collection| examples, we need only write one \verb|LinkedList| class that can be used as common implementation for constructing \verb|LinkedList|s of any type. When using type members, we need to write a new class for each kind of \verb|LinkedList| we hope to create. This has powerful consequences for developers hoping to write generic libraries. Programmers who wish to use a library need only use the types provided, they do not need to re-implement generic types. This is further a problem when extending a type hierarchy. The following example is a modified version of one by Bruce et. al. \cite{Bruce:1998:SSA:646155.679691}. Using type parameters, we are able to treat \verb|LinkedList<String>| as \verb|Collection<String>|.
 \begin{lstlisting}[mathescape, style=custom_lang]
 ...
@@ -288,6 +290,8 @@ public class LinkedList<E extends Objects> implements Collection{
 }
 \end{lstlisting}
 If we imagine that the \verb|zip| function zips a list of some type \verb|F| to the receiver we can see it is quite easy to introduce and use new generic types. The same example using type members however becomes much more difficult. Our problem now is that in order to generically define a second \verb|LinkedList| we need to know the extended subtype of that list. Again this is as much a consequence of a nominal type system where subtyping is based upon inheritance as it is type members. 
+
+\subsubsection{Strengths of Type Members}
 
 
 \subsection{Wyvern and Structural Typing} \label{s:intro:wyvern}
@@ -388,96 +392,36 @@ In the rest of this document I will outline the background literature, describe 
 
 \chapter{Background}\label{ch:background}
 
-\section{Generic Types}
-Generic types are a programming language feature that allows programmers to develop code without explicitly specifying the types involved. Most modern programmers are familiar with generics in object oriented languages such as Java or C\#. These are called generic type parameters. Classes and functions can be parametrised with bounded types. A simple example is given below in a Java-like syntax.
-\begin{lstlisting}[mathescape, style=custom_lang]
-public class LinkedList <E extends Object>{
-	E element;
-	LinkedList <E> next;
-	
-	public LinkedList (E element, LinkedList<E> next){
-		this.element = element;
-		this.next = next;
-	}
-	
-	...
-}
-
-...
-
-public LinkedList<E> createList<E extends Object>(E element){
-  return new LinkedList<E>(element, null);
-}
-
-...
-
-LinkedList<Integer> integerList = createList<Integer>(1);  
-LinkedList<String> stringList = createList<String>(``Hello World'');
-\end{lstlisting}
-Here classes and functions can be defined once for any list. This encourages code reuse and reduces the need for type specific and highly coupled classes. The problems solved by generic type parameters are very similar to those tackled by \emph{Virtual Types}, another programming feature.  Virtual Types are types that feature as members of objects in the same way that fields and methods do. We can rewrite the previous example using type members to demonstrate their similarities.
-\begin{lstlisting}[mathescape, style=custom_lang]
-public class LinkedList {
-	type E : Object;
-	this.E element;
-	LinkedList next;
-	
-	public LinkedList (this.E element, LinkedList next){
-		this.element = element;
-		this.next = next;
-	}
-	
-	...
-}
-
-...
-
-public class IntegerLinkedList extends LinkedList {
-	type E : Integer;
-	
-	public IntegerLinkedList (this.E element, IntegerLinkedList next){
-		super(element, next);
-	}
-	
-	...
-}
-
-...
-
-public class StringLinkedList extends LinkedList {
-	type E : String;
-	
-	public StringLinkedList (this.E element, StringLinkedList next){
-		super(element, next);
-	}
-	
-	...
-}
-
-...
-
-LinkedList integerList = 
-  new IntegerLinkedList(1, new IntegerLinkedList(2,null));
-LinkedList  stringList= 
-  new StringLinkedList(``Hello'', 
-    new StringLinkedList(``World'',null));
-\end{lstlisting}
-While this syntax does not necessarily represent a sound language, it does demonstrate the kinds of things we would like to do with Virtual Types and how they relate to type parameters. Here instead of parametrising classes and functions, a bounded type is defined within the class, and thus any instance of that class.
-In this Section I will discuss these two approaches to generic code, their similarities and differences and the setting for this PhD. 
-
-
-\subsection{Type Parameters}
+\section{Type Parameters}
 Type parameters in object oriented languages derives from bounded quantification in functional programming \cite{Cardelli:1985:UTD:6041.6042, Canning:1989:FPO:99370.99392}. Many modern object oriented languages provide functionality for generic type parameters, and much work has been done formalising type systems containing type parameters. Java is a widely used language, and many programmers are familiar with Java Generics. Generics in Java is the result of much research into type parameters in object oriented languages. As mentioned before, type parameters derive from type polymorphic functions in functional programming languages.
 
-Bounded polymorphism in object oriented languages uses subtyping to write generic code for a family of types. Looking at our \verb|LinkedList| example, we defined the general structure of a list of objects. The only restriction is that any instance of the generic type parameter subtype \verb|Object|, however what kind of relationship can we expect from different instances of \verb|LinkedList|? We might expect \verb|LinkedList<Integer>| to subtype \verb|LinkedList<Object>|, however this this could result in runtime errors. The following example demonstrates this.
+Bounded polymorphism in object oriented languages uses subtyping to write generic code for a family of types. Looking at our \verb|LinkedList| example from Chapter \ref{ch:intro}, we defined the general structure of a list of objects. The only restriction is that any instance of the generic type parameter subtype \verb|Object|.
+
+\subsection{Bounded Quantification}
+Cardelli and Wegner \cite{Cardelli:1985:UTD:6041.6042} introduced bounded quantification. Using bounded quantification we can type functions across all subtypes of a specific type. We do this by parametrizing the function with a type variable. We use the example of Cardelli and Wegner below. Subtyping here is done structurally, that is $S$ is a subtype of $T$ if all the values contained in $T$ are contained within $S$. Consider the following function
 \begin{lstlisting}[mathescape, style=custom_lang]
-LinkedList<Object> objectList = createList<Integer>(1);
-objectList.add(new Object()); \\ fails at runtime
+f1 = func (x:{one:int}) x.one
 \end{lstlisting}
-If we allow for covariant subtyping on type parameters, our example fails at runtime on the second line since \verb|objectList| is actually a list of Integers, and we cannot add an object of \verb|Object| type to a list of Integers. For this reason we have to enforce invariance at type parameter subtyping.
+Here \verb|f1| has type \verb|{one:int}| $\rightarrow$ \verb|int|, however operationally \verb|f1| can be applied to records of type \verb|{one:bool}|. Since from an operational perspective the type of \verb|one| does not matter we should be able to use the same function on different types so long as those types contain a \verb|one| value. We still need a way to type the function. The solution is to universally quantify the type of \verb|one|.
+\begin{lstlisting}[mathescape, style=custom_lang]
+f2 = func[A] (x:{one:A}) x.one
+\end{lstlisting}
+Now the type of \verb|f2| is \verb|{one:A}| $\rightarrow$ \verb|A|. This is universal quantification because it can be read as ``$\forall$ \verb|x|:\verb|{one:A}|, \verb|f2(x)|:\verb|{one:A}| $\rightarrow$ \verb|A|''. We can extend this further by adding bounds to the type parameter.
+\begin{lstlisting}[mathescape, style=custom_lang]
+f3 = func[A <: Number] (x:{one:A}) x.one
+\end{lstlisting}
+Now we can use \verb|f3| on any subtype of \verb|{one:Number}|, and be able to treat the returned value as a \verb|Number|.
 
-\emph{Pizza} is an early proposal for adding generic type parameters, higher order functions and algebraic data types to Java \cite{Pizza to Java}. The form of type parameters proposed by Pizza was indeed largely adopted by Java. The goal of Pizza was to construct a sound proposal for type parameters as a super set to an existing mainstream language (Java). In \emph{Pizza} the authors dealt with similar problems outlined here, the contra-variance problem. That is \verb|LinkedList<String>| does not subtype \verb|LinkedList<Object>|. Odersky and Wadler \cite{Pizza Stuff} proposed translating Pizza to Java in order to ensure Pizza was a superset of Java. They provided 2 kinds of transformations, heterogeneous and homogeneous. Heterogeneous transformations act as macros, rewriting generic classes as multiple classes, each with a different type parameter instance. Homogeneous transformations rewrite Pizza classes replacing generic type parameters with \verb|Object|, and then applying appropriate upcasts throughout the code. It was found that each transformation provided different advantages, heterogeneous transformations had fast execution while homogeneous transformations provided cleaner code.
+Canning et. al. \cite{Canning:1989:FPO:99370.99392} introduced bounded quantification for object oriented programming, which eventually became the basis for generic type parameters.
 
-\emph{FGJ} is a small step semantics formalism for a core calculus for  Java with generic type parameters developed by Igarashi and Pierce \cite{FGJ}. FGJ, as a minimal core calculus, provides an easy way to reason about extensions to generic Java. The FGJ syntax is given in Figure \ref{f:fgj_syntax}. 
+\subsection{Formalizing Generics in Java}
+Type parameters have become the most popular form of generic programming in modern languages, and there has been much work done in developing and formalizing them \cite{agesen1997adding,Igarashi:2001:FJM:503502.503505,Odersky:1997:PJT:263699.263715, Bank:1997:PTJ:263699.263714, Bracha:1998:MFS:286936.286957,Cartwright:1998:CGR:286936.286958} in Java. In this section I will cover two of those formalisms, \emph{Pizza} and \emph{Featherweight Generic Java}.
+\subsubsection{Pizza}
+
+\emph{Pizza} is an early proposal for adding generic type parameters, higher order functions and algebraic data types to Java \cite{Odersky:1997:PJT:263699.263715}. The form of type parameters proposed by Pizza was indeed largely adopted by Java. The goal of Pizza was to construct a sound proposal for type parameters as a super set to an existing mainstream language (Java). In \emph{Pizza} the authors dealt with similar problems outlined here, the contra-variance problem. That is \verb|LinkedList<String>| does not subtype \verb|LinkedList<Object>|. Odersky and Wadler \cite{Odersky:1997:PJT:263699.263715} proposed translating Pizza to Java in order to ensure Pizza was a superset of Java. They provided 2 kinds of transformations, heterogeneous and homogeneous. Heterogeneous transformations act as macros, rewriting generic classes as multiple classes, each with a different type parameter instance. Homogeneous transformations rewrite Pizza classes replacing generic type parameters with \verb|Object|, and then applying appropriate upcasts throughout the code. It was found that each transformation provided different advantages, heterogeneous transformations had fast execution while homogeneous transformations provided cleaner code.
+
+\subsubsection{Featherweight Generic Java}
+Featherweight Generic Java (FGJ) was developed as a minimal core calculus for Java with generic type parameters by Igarashi and Pierce \cite{Igarashi:2001:FJM:503502.503505}. As a minimal core calculus, FGJ provides an easy way to reason about extensions to generic Java. The FGJ syntax is given in Figure \ref{f:fgj_syntax}. 
 \begin{figure}[h]
 \[
 \begin{array}{lll}
@@ -525,101 +469,52 @@ M & ::= & <\overline{X} \lhd \overline{N}> \; T \; m \; (\overline{T}\; \overlin
 \caption{FGJ Syntax}
 \label{f:fgj_syntax}
 \end{figure}
-The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{OGJ FOIGJ} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
+The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{Potanin:2006:GOG:1167473.1167500, Zibin:2010:OIG:1932682.1869509} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
 
 The key contribution of \emph{FGJ} was that calculi for future extensions and innovations to generic Java could be easily constructed and investigated. As a result, \emph{FGJ} has become a standard core calculus used in research on Java.
 
+\section{Type Members}
+As described earlier, type members are object members that are types. This allows us to write similar code to what we might with generic type parameters. It does however present different problems, and there are several potential flavours of type members.
+While not as popular as type parameters, there has been some work to formalize type members for modern languages. The most notable language that has adopted type members is \emph{Scala}, however there have been other earlier attempts to develop sound type members. In this section I will cover those attempts along with the work associated with type members in Scala.
+
 \subsection{Virtual Types}
-As described earlier, virtual types or type members are object members that are types. This allows us to write similar code to what we might with generic type parameters. It does however present different problems, and there are several potential flavours of Virtual Types. I will present different versions of Virtual Types in the setting of a structurally typed language. I use a structural type system as opposed to the Java-like nominal type system I used in earlier examples because our proposed type system is structurally typed.
 
-\subsubsection{Single Bound, Invariant Virtual Types}
-The most basic form of Virtual Types would be a single type identified by member name. Below is the translation of our earlier \verb|LinkedList| example.
-\begin{lstlisting}[mathescape, style=custom_lang]
-ObjectLinkedList = {
-  type E : Object;
-  this.E element;
-  ObjectLinkedList next;
-	
-  public void add (this.E element){
-    if (this.next == null){
-      this.next = new ObjectLinkedList(element, null);
-    } else{
-      this.next.add(element);
-    }
-  }
-}
+\subsection{Scala}
+Scala \cite{scaladocs2016} is a superset of Java that adds several additional language features including type members. While type members are implemented in Scala, they are not strictly sound. That is there does not exist a formalism for type members in Scala as there is for type members in Java. There has however been work to formalise such a type system \cite{Amin:2014:FPT:2660193.2660216,amin:fool:2012}. Given that Scala provides not only nominal typing as in Java, but structural typing too, it is natural to use Scala as the basis for developing type members in Wyvern.
 
-...
+In 2012, Amin et. al. \cite{amin:fool:2012} presented 
 
-NumberLinkedList = {
-  type E : Number;
-  this.E element;
-  NumberLinkedList next;
-	    
-  public void add (this.E element){
-    if (this.next == null){
-      this.next = new NumberLinkedList(element, null);
-    } else{
-      this.next.add(element);
-    }
-  }
-}
-\end{lstlisting}
-This is perhaps the simplest form of Virtual Types, however it has some restrictions.  For the same reasons that we enforce subtype invariance on type parameters, we have to enforce subtype invariance on type members. For this reason, \verb|NumberLinkedList| cannot subtype \verb|ObjectLinkedList| despite how intuitive this might feel. If we allowed covariant type members, we would have write errors and contra-variance would create read errors.
 
-\subsubsection{Double Bound, Covariant Virtual Types}
-To allow for covariance we could introduce a lower bound. Subtyping can now allow covariance in type member upper bounds. To demonstrate this, we can rewrite the \verb|LinkedList| example.
-\begin{lstlisting}[mathescape, style=custom_lang]
-ObjectLinkedList = {
-  type E : Integer .. Object;
-  this.E element;
-  ObjectLinkedList next;
-	
-  public void add (this.E element){
-    if (this.next == null){
-      this.next = new ObjectLinkedList(element, null);
-    } else{
-      this.next.add(element);
-    }
-  }
-}
 
-...
+\section{Type Systems}
+Static type systems are designed to prevent type errors in typed code \cite{Felleisen 1994}. Type errors vary according to the type system, but can be classified as errors that violate the interface of a data type. An example may be calling a method on an object that does not contain an implementation for that method \cite{Felleisen 1994}. We can make two further distinctions for type systems. A \emph{sound} type system is one that ensures that accepted programs contain no type errors. A \emph{complete} type system 
 
-NumberLinkedList = {
-  type E : Integer .. Number;
-  this.E element;
-  IntegerLinkedList next;
-	    
-  public void add (this.E element){
-    if (this.next == null){
-      this.next = new NumberLinkedList(element, null);
-    } else{
-      this.next.add(element);
-    }
-  }
-}
-\end{lstlisting}
-Subtyping of type members must subtype their lower bound, which means as long as the lower bound subtypes the upper bound, we can vary the upper bound as much as we like. So now, \verb|NumberLinkedList| subtypes \verb|ObjectLinkedList|. We are still restricted by the invariance of the lower bound, so while we can treat the objects read from the list as numbers, we can still only write integers. To extend this, we can allow for covariance of lower bounds.
+\subsection{Small Step Semantics}
 
-\subsubsection{Double Bound, Covariant and Contra-Variant Virtual Types}
-Allowing 
+\subsection{Big Step Semantics}
 
-\section{Type Parameters vs Type Members}
-
-\section{Type Members in Scala}
+\subsection{Soundness}
 
 
 \section{Wyvern}
 
-\section{Type Systems and Operational Semantics}
-Static type systems are designed to prevent type errors in typed code \cite{Felleisen 1994}. Type errors vary according to the type system, but can be classified as errors that violate the interface of a data type. An example may be calling a method on an object that does not contain an implementation for that method \cite{Felleisen 1994}. We can make two further distinctions for type systems. A \emph{sound} type system is one that ensures that accepted programs contain no type errors. A \emph{complete} type system 
+\section{Coq Proof Assistant}
 
-In this document I present the syntax and semantics for 
 
-\subsection{Big Step Semantics}
 
-\subsection{Smal Step Semantics}
+
+
+
+\section{Generic Types}
+
+
+\subsection{Type Parameters}
+
+\subsection{Virtual Types}
+
+
+\section{Wyvern}
+Wyvern is a new structural object oriented programming language that is statically typed. 
 
 
 
