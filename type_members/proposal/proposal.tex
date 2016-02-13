@@ -116,11 +116,167 @@ Developing reusable libraries in modern programming languages depends heavily on
 
 % individual chapters included here
 \chapter{Introduction}\label{ch:intro}
+
+Developing generic libraries such as collections generally requires support from the language. Designers of statically type checked object oriented languages have sought to solve this problem by extending their languages. Most modern mainstream languages provide support for generic programming in some capacity. The most common form of generic programming is generic type parameters. Functions and classes are parametrized with bounded generic types that are initialised at runtime, but can be type checked statically. An alternative feature to type parameters are type members. Objects can contain types as members in the same way they do fields and functions. Type parameters and type members can be used to solve similar problems \cite{Igarashi1999}. In this chapter I will describe what type members are and how we intend to add them to the new structurally typed object oriented language Wyvern  \cite{Nistor:2013:WST:2489828.2489830}.
+
+\section{Type Members}
+Type members are a language feature that allows for the writing of generic libraries, and solves many of the same problems as the more familiar type parameters. While type parameters abstract functions and classes over a range of types by the addition of type parameters, type members allow types to be included as members to objects in the same way fields and methods are. A common example for type members is the \verb|Animal| example \cite{Igarashi1999, Amin:2014:FPT:2660193.2660216} given below.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Animal = {z $\Rightarrow$	type F = Food
+		
+		def void eat (x : z.F){
+			...
+		}}
+\end{lstlisting}
+The \verb|Animal| type has two members, a function \verb|eat| that specifies the eat operation and a type member \verb|F| that specifies what type of food it can eat, in this case \verb|Food|.  Note that we refer to \verb|F| by access on the self (\verb|this| in Java) variable \verb|z.F|. Now if we wanted to subtype \verb|Animal| we can create more specific instances of \verb|Animal|s with narrower food types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Cow = {z $\Rightarrow$	type F = Grass
+		val isMeat = True
+		
+		def void eat (x : z.F){
+			...
+		}}
+
+Lion = {z $\Rightarrow$	type F = Meat
+		
+		def void eat (x : z.F){
+			...
+		}}
+\end{lstlisting}
+In this way we are able to abstract objects over types in a similar way to type parameters. A more in depth comparison between the two is given Chapter \ref{ch:background}.
+
+\section{Developing Generic Wyvern}
+
+We intend to develop a sound and extensible type system for type members in the spirit of Featherweight Generic Java \cite{Igarashi:2001:FJM:503502.503505} in the context of Wyvern, a new structurally typed object oriented language being developed with an emphasis on security \cite{Omar2014}. Wyvern has been designed with a core calculus that is purely structural an
+
+In the rest of this document I will outline the background literature, describe the problems we face, present our work thus far and our plans for future work.
+
+\chapter{Background}\label{ch:background}
+
+In this Chapter I provide a background to the work we have already done, and will do in the future. Since we are attempting to develop a sound type system for type members in a structural language called Wyvern, I will provide a background to type systems in Section \ref{s:typesys}, generic programming and specifically type members in Section \ref{s:generics} and an overview of Wyvern in Section \ref{s:wyvern}
+
+\section{Type systems}\label{s:typesys}
+We would ideally like to only ever execute valid programs, however this is not always possible since some errors are not always catchable. We classify errors to do with the type of an object as type errors. It is the job of the type system to specify what does and does not qualify as a type error. We can then use that specification during type checking to exclude invalid programs. Static type systems are designed to prevent type errors in typed code \cite{Wright:1994:SAT:191905.191909}. Type errors vary according to the type system, but can be classified as errors that violate the interface of a data type. An example may be calling a method on an object that does not contain an implementation for that method \cite{Wright:1994:SAT:191905.191909}.
+
+The design of modern type systems usually involves the mathematical representation of the type system which in turn allows us to prove certain properties of the type system. Before we are able to model the semantics of the type system we need to specify the syntax of the language we are dealing with. To demonstrate a basic type system we consider a simple typed $\lambda$-calculus \cite{church1940formulation, curry1959combinatory, Pierce:2002:TPL:509043}. The pure $\lambda$-calculus consists of only lambda expressions. A lambda expression is simply a function that has been abstracted over a single variable. If for example we wish to add 2 to 3, we could first define a general function for addition of 2 and then apply that function to 3.
+\begin{lstlisting}[mathescape, style=custom_lang]
+($\lambda$x. x + 2) 3
+\end{lstlisting}
+Here our lambda expression takes a variable \verb|x| and adds 2 to it. We then apply this function to 3. This is a common feature of programming languages. The typed $\lambda$-calculus is a simple calculus for a $\lambda$-calculus with types. Adding types allows us to prevent certain errors. For example we would not be able to evaluate the following expression.
+\begin{lstlisting}[mathescape, style=custom_lang]
+($\lambda$x. x + 2) true
+\end{lstlisting}
+We can now restrict the type of \verb|x| to \verb|int|.
+\begin{lstlisting}[mathescape, style=custom_lang]
+($\lambda$x : int. x + 2) 3
+\end{lstlisting}
+$\lambda$ expressions also have types. $\lambda$\verb|x : int. x + 2| has type \verb|int| $\rightarrow$ \verb|int|. 
+\subsubsection{$\lambda$-Calculus Syntax}
+
+We capture all this in our syntax for the $\lambda$-calculus in Figure \ref{f:lambda_syntax}
+\begin{figure}[h]
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & x & expression \\
+& | & \lambda x : T. e &\\
+& | & e \; e &\\
+&&\\
+v & ::= & \lambda x : T. e & value\\
+ \end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+T & ::= & T \rightarrow T & type \\
+&&\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & env \\
+\end{array}
+\end{array}
+\]
+\caption{Typed Lambda Calculus Syntax}
+\label{f:lambda_syntax}
+\end{figure}
+Here we specify all the potential expressions ($e$), types ($T$), values ($v$) and environments ($\Gamma$). While we have mentioned expressions and types we should say what we mean by values and environments. A values is an irreducible expression, in this case $\lambda$-expressions. Environments are mappings from variables ($x$) to types. 
+
+\subsubsection{$\lambda$-Calculus Semantics}
+We use our syntax to define a semantics for both type checking and execution. Our static semantics used for type checking is given in Figure \ref{f:lambda_type}.
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {x : T \in \Gamma}
+  {\Gamma \vdash x : T}
+  \quad (\textsc{T-Var})
+  \and
+\inferrule
+  {\Gamma, x : T_1 \vdash e : T_2}
+  {\Gamma \vdash \lambda x : T_1. e : T_1 \rightarrow T_2}
+  \quad (\textsc{T-Lambda})
+  \and
+\inferrule
+  {\Gamma \vdash e_1 : T_1 \rightarrow T_2 \\
+   \Gamma \vdash e_2 : T_1}
+  {\Gamma \vdash e_1 \; e_2 : T_2}
+  \quad (\textsc{T-App})
+\end{mathpar}
+\caption{Lambda Calculus Type Rules}
+\label{f:lambda_type}
+\end{figure}
+We read $\Gamma \vdash e : T$ as expression $e$ has type $T$ in environment $\Gamma$. We use \textsc{T-Var}, \textsc{T-Lambda} and \textsc{T-App} as the rules for type checking variables, lambda expressions and function applications respectively. Figure \ref{f:lambda_eval} gives the dynamic semantics, i.e. the rules governing the evaluation of $\lambda$-calculus expressions.
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {}
+  {(\lambda x : T. e) v \longrightarrow [v/x]e}
+  \quad (\textsc{E-Lambda})
+  \and
+\inferrule
+  {e_1 \longrightarrow e_1'}
+  {e_1 \; e_2 \longrightarrow e_1' \; e_2}
+  \quad (\textsc{E-App1})
+\inferrule
+  {e_2 \longrightarrow e_2'}
+  {e_1 \; e_2 \longrightarrow e_1 \; e_2'}
+  \quad (\textsc{E-App2})
+  \and
+\end{mathpar}
+\caption{Lambda Calculus Type Rules}
+\label{f:lambda_eval}
+\end{figure}
+By \textsc{E-Lambda}, the application of a lambda expression to an argument evaluates to the body of the lambda expression where we substitute $x$ for $v$. Before we can apply \textsc{E-Lambda}, we need to evaluate both the argument and the lambda expression to values. We use \textsc{E-App1} and \textsc{E-App2} respectively.
+
+While this is a fairly simple type system, it does demonstrate how we are able to model type systems mathematically. There are generally two methods that are commonly used to model the semantics of a type system, big-step \cite{Kahn:1987:NS:28220.28222} and small-step \cite{Plotkin81astructural} semantics. The semantics of this type system are an instance of small-step semantics. The evaluation of terms is modelled incrementally in \emph{small steps}, we only evaluate an expression as a whole once all sub-expressions have been evaluated. Big step semantics on the other hand models evaluation as a single \emph{big step}. Each approach has strengths although small-step semantics is the approach used by most programming language designers, and is the approach used in our work.
+
+\subsubsection{Soundness}
+The advantage of developing a mathematical model of a type system is that we are then able to easily prove properties of that type system. The most common property that language designers seek to prove is \emph{soundness} or \emph{safety}. This means that for a type system, well typed expressions do not get stuck or go wrong. This is captured by two theorems, \emph{Progress} and \emph{Preservation} \cite{Wright:1994:SAT:191905.191909, Pierce:2002:TPL:509043}.
+\begin{theorem}[Progress]\label{th:progress}
+Any well-typed expression can either be evaluated to some other expression (make progress), or is a final value.
+\end{theorem}
+\begin{theorem}[Preservation]\label{th:preservation}
+The evaluation of any well-typed expression results in a well-typed expression.
+\end{theorem}
+Using these two theorems, we can show that any well-formed program will evaluate to a well-formed result.
+
+
+\subsubsection{Nominal vs Structural Typing}
+In this document I mention the distinction between \emph{nominal} and \emph{structural} type systems. In a nominal type system types have names, and subtyping is based on the explicit inheritance of those types. A structural type system on the other hand is one where subtyping is based on the structure of the types and not the names. Most programmers will be familiar with nominal typing as it is the form of typing found in most modern object oriented languages like Java, C++ and C\#. Structural however is not as common. As an example, consider the Java \verb|print| method below.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public void print (Printable p){
+	p.print();
+}
+\end{lstlisting}
+\verb|Printable| is some Java interface that has a print method. Any object that we want to print using \verb|print| must implement \verb|Printable|. This is a common pattern in languages that make heavy use of inheritance. However in reality all we probably want is that whatever type \verb|p| has it must contain a \verb|print| method, we don't actually care what it's called. Using a structurally typed language we could rewrite the example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public void print (p : {void print();}){
+	p.print();
+}
+\end{lstlisting}
+Now all we require is that \verb|p| contain some method \verb|print| that does not return anything. In fact we don't need to mention type names at all.   Structural typing means that one $S$ subtypes $T$ if $S$ contains at least the methods and fields of $T$, no matter the name.
+
 \section{Generic Programming}
-Developing generic libraries such as collections generally requires support from the language. Designers of statically type checked object oriented languages have sought to solve this problem by extending their languages. Most modern mainstream languages provide support for generic programming in some capacity. The most common form of generic programming is generic type parameters. Functions and classes are parametrized with bounded generic types that are initialised at runtime, but can be type checked statically. An alternative feature to type parameters are type members. Objects can contain types as members in the same way they do fields and functions. Type parameters and type members can be used to solve similar problems \cite{Igarashi1999}. In this chapter I will describe both type parameters and type members along their relative strengths and weaknesses. I will then outline how we intend to introduce generic programming to Wyvern, a new statically type checked structural language for secure web programming \cite{Nistor:2013:WST:2489828.2489830}.
+Developing generic libraries such as collections generally requires support from the language. Designers of statically type checked object oriented languages have sought to solve this problem by extending their languages. Most modern mainstream languages provide support for generic programming in some capacity. The most common form of generic programming is generic type parameters. Functions and classes are parametrized with bounded generic types that are initialised at runtime, but can be type checked statically. An alternative feature to type parameters are type members. Objects can contain types as members in the same way they do fields and functions. Type parameters and type members can be used to solve similar problems \cite{Igarashi1999}. In this section I will describe both type parameters and type members along their relative strengths and weaknesses. 
 
 \subsection{Type Parameters}
-Type parameters are a common language construct that is not limited to object oriented languages, and in fact derives from functional languages \cite{Canning:1989:FPO:99370.99392}. Type parameters in object oriented languages generally allow classes and functions to be parametrised by bounded types. Code can be checked statically while allow specific instances to define types at run time. A common example are collections.
+Type parameters are a common language construct that is not limited to object oriented languages, and in fact derives from bounded quantification in functional languages \cite{Canning:1989:FPO:99370.99392, Cardelli:1985:UTD:6041.6042}. Type parameters in object oriented languages generally allow classes and functions to be parametrised by bounded types. That is types that are subtype bound to some upper bound. Code can be checked statically while allow specific instances to define types at run time. A common example are collections.
 \begin{lstlisting}[mathescape, style=custom_lang]
 public interface Collection<E extends Object>{
 	public abstract void add(E e);
@@ -130,7 +286,7 @@ public interface Collection<E extends Object>{
 	public abstract iterator<E> iterator();
 }
 \end{lstlisting}
-Using a Java-like syntax, we define a \verb|Collection| interface that is parametrised by a type parameter \verb|E| bounded by \verb|Object|. We can implement \verb|Collection| and be able to talk about generic collections of objects. We do not need to create a \verb|StringCollection| or an \verb|IntegerCollection|. Bellow we can show such an implementation.
+Using a Java-like syntax, we define a \verb|Collection| interface that is parametrised by a type parameter \verb|E| bounded by \verb|Object|. We can implement \verb|Collection| and be able to talk about generic collections of objects. We do not need to create a \verb|StringCollection| or an \verb|IntegerCollection|. Below we can show such an implementation.
 \begin{lstlisting}[mathescape, style=custom_lang]
 public class LinkedList<E extends Object> implements Collection<E>{
 
@@ -293,20 +449,77 @@ If we imagine that the \verb|zip| function zips a list of some type \verb|F| to 
 
 \subsubsection{Strengths of Type Members}
 
+\subsubsection{Featherweight Generic Java}
+Featherweight Generic Java (FGJ) was developed as a minimal core calculus for Java with generic type parameters by Igarashi and Pierce \cite{Igarashi:2001:FJM:503502.503505}. As a minimal core calculus, FGJ provides an easy way to reason about extensions to generic Java. The FGJ syntax is given in Figure \ref{f:fgj_syntax}. 
+\begin{figure}[h]
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+e & ::= & x & expression \\
+& | & e.f &\\
+& | & e.m<\overline{T}>(e) &\\
+& | & \texttt{new} \; T(\overline{e})&\\
+& | & (T) e &\\
+&&\\
+v & ::= & \texttt{new} \; T(\overline{e})&\\
+&&\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & env \\
+&&\\
+\Delta & :: = & \varnothing \; | \; \Delta,\; X \lhd T & type \; env \\
+ \end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+C, D &  &  & classes \\
+&&\\
+N & ::= & C <\overline{T}> & class \; type\\
+&&\\
+T & ::= & X & type \\
+       & | & N\\
+&&\\
+E & :: = & \bigcirc & eval \; context\\
+       & | & E.f\\
+       & | & E.m(e)\\
+       & | & v.m(E)\\
+	   & | & \texttt{new} \; C(\overline{E})\\
+       & | & (T)E\\
+\end{array}
+\end{array}
+\]
+\[
+\begin{array}{lllr}
+CL & ::= & \verb|class| \; C <\overline{X} \lhd \overline{N}> \lhd N \{\overline{T} \; \overline{f}; \; K \; \overline{M}\}  & class \; declaration\\
+$$\\
+K & ::= & C(\overline{T}\; \overline{f})\{\verb|super|(\overline{f}); \; \verb|this|.\overline{f} = \overline{f}\}  & constructor\\
+$$\\
+M & ::= & <\overline{X} \lhd \overline{N}> \; T \; m \; (\overline{T}\; \overline{x})\{e\}  & method \; declaration\\
+\end{array}
+\]
+\caption{FGJ Syntax}
+\label{f:fgj_syntax}
+\end{figure}
+The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{Potanin:2006:GOG:1167473.1167500, Zibin:2010:OIG:1932682.1869509} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
 
-\subsection{Wyvern and Structural Typing} \label{s:intro:wyvern}
-Wyvern is a new statically typed structural language being developed with an emphasis on secure web applications \cite{Nistor:2013:WST:2489828.2489830, Omar2014}. Like many modern object oriented languages, we would like to include support for generic types. We chose to formalise virtual types in Wyvern over generic type parameters since virtual types pairs much better with Wyvern's structural type system. Structural type systems base subtyping around the structure of types, as opposed to the inheritance based subtyping of nominal type systems \cite{Cook:1989:IS:96709.96721}. 
+The key contribution of \emph{FGJ} was that calculi for future extensions and innovations to generic Java could be easily constructed and investigated. As a result, \emph{FGJ} has become a standard core calculus used in research on Java.
 
-Types can be thought of as defining of a set of values \cite{Cardelli:1988:SSN:73560.73566}. Any set of values that can be described by a type are said to have that type. So if we consider types as sets of values, it would be reasonable to treat the subtype relationship as a subset relationship. That is, if all the values in $T$ are in $S$, we can consider $S$ a subtype of $T$. Subtyping in nominal type systems is generally based on inheritance. A nominal type system like Java says that one type only subtypes another if it has been explicitly defined as inheriting from it (using the \verb|extends| and \verb|implements| keywords in Java). Structural subtyping provides a more intuitive form of subtyping. There is much literature about structural type systems and how they compare to nominal type systems \cite{Malayeri07integratingnominal, Jones:2015:brands, Gil:2008:WIS:1449764.1449771, Malayeri:2007:CSS:1297846.1297889,Ostermann_nominaland}, and there are several reasons why Wyvern is designed with a structural type system that are not relevant to this thesis. What is relevant has already been mentioned. Nominal typing and type members creates several issues. Type parameters as it turns out are also harder with structural type systems. Parametrising functions is still easy, however in the absence of classes (or some analogue) we lose the kind of code reuse gained from type parameters in a nominal type system. What this tells us is that type members might be a more natural way of capturing generics in a structural setting.
+\subsection{Scala}
+Scala \cite{scaladocs2016} is a superset of Java that adds several additional language features including type members. While type members are implemented in Scala, they are not strictly sound. That is there does not exist a formalism for type members in Scala as there is for type members in Java. There has however been work to formalise such a type system \cite{Amin:2014:FPT:2660193.2660216,amin:fool:2012}. Given that Scala provides not only nominal typing as in Java, but structural typing too, it is natural to use Scala as the basis for developing type members in Wyvern.
+
+In 2012, Amin et. al. \cite{amin:fool:2012} presented 
 
 
-\section{Formalising Type Members in Wyvern}
+\section{Wyvern}\label{s:wyvern}
+Core wyvern is the setting. What is wyvern?
 
-Unlike type parameters, there does not exist a standard extensible type system like FGJ. This makes research more difficult. There has been work done in type members, albeit less than that done for type parameters, and there are relatively few mainstream languages that use type members. Scala is one language that does, however Scala type members are not sound. There has been much work on developing a sound calculus for type members in Scala, however thus far there has only been one sound type system proposed \cite{Amin:2014:FPT:2660193.2660216} using a big step semantics \cite{Kahn:1987:NS:28220.28222}. While this is a significant step forward there still does not exist a sound type system featuring a small step semantics \cite{Plotkin81astructural} in the style of FGJ \cite{Igarashi:2001:FJM:503502.503505}. While soundness is certainly significant, we feel that a small-step semantics is more desirable than a big-step semantics, especially in the context of designing a wider language.
+\section{Coq Proof Assistant}
 
-\subsection{Developing Generic Wyvern}
 
-We intend to develop a sound and extensible type system for Virtual Types in the spirit of FGJ in the context of Wyvern. We could potentially design several different forms of VIrtual Types depending on the flexibility we desire. The simplest form of virtual types is similar to the one in our first example, a single type that is invariant with subtyping. As an example we can try to model animals and food. 
+
+
+
+
+\chapter{Generic Wyvern}\label{ch:wyvern}
+We could potentially design several different forms of Type Members depending on the flexibility we desire. The simplest form of virtual types is similar to the one in our first example, a single type that is invariant with subtyping. As an example we can try to model animals and food. 
 \begin{lstlisting}[mathescape, style=custom_lang]
 Animal = {z $\Rightarrow$	type F = Food
 		
@@ -387,179 +600,6 @@ Lion = {z $\Rightarrow$	type F = Meat .. Meat
 		}}
 \end{lstlisting}
 Now a \verb|Cow| is able to eat any \verb|Grass| and a \verb|Lion|is able to eat any \verb|Meat|. While this is the most complex form of type members, and brings with it the most complexity, it is also the most expressive. For this reason we chose to formalise this form of type members.
-
-In the rest of this document I will outline the background literature, describe the problems we face, present our work thus far and our plans for future work.
-
-\chapter{Background}\label{ch:background}
-
-In this Chapter I provide a background to the work we have already done, and will do in the future. Since we are attempting to develop a sound type system for type members in a structural language called Wyvern, I will provide a background to type systems in Section \ref{s:typesys}, generic programming and specifically type members in Section \ref{s:generics} and an overview of Wyvern in Section \ref{s:wyvern}
-
-\section{Type systems}\label{s:typesys}
-We would ideally like to only ever execute valid programs, however this is not always possible since some errors are not always catchable. We classify errors to do with the type of an object as type errors. It is the job of the type system to specify what does and does not qualify as a type error. We can then use that specification during type checking to exclude invalid programs. Static type systems are designed to prevent type errors in typed code \cite{Wright:1994:SAT:191905.191909}. Type errors vary according to the type system, but can be classified as errors that violate the interface of a data type. An example may be calling a method on an object that does not contain an implementation for that method \cite{Wright:1994:SAT:191905.191909}.
-
-The design of modern type systems usually involves the mathematical representation of the type system which in turn allows us to prove certain properties of the type system. Before we are able to model the semantics of the type system we need to specify the syntax of the language we are dealing with. Below is the syntax of a simple typed lambda calculus. 
-\begin{figure}[h]
-\[
-\begin{array}{lll}
-\begin{array}{lllr}
-e & ::= & x & expression \\
-& | & e.f &\\
-& | & e.m<\overline{T}>(e) &\\
-& | & \texttt{new} \; T(\overline{e})&\\
-& | & (T) e &\\
-&&\\
-v & ::= & \texttt{new} \; T(\overline{e})&\\
-&&\\
-\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & env \\
-&&\\
-\Delta & :: = & \varnothing \; | \; \Delta,\; X \lhd T & type \; env \\
- \end{array}
-& ~~~~~~
-&
-\begin{array}{lllr}
-C, D &  &  & classes \\
-&&\\
-N & ::= & C <\overline{T}> & class \; type\\
-&&\\
-T & ::= & X & type \\
-       & | & N\\
-&&\\
-E & :: = & \bigcirc & eval \; context\\
-       & | & E.f\\
-       & | & E.m(e)\\
-       & | & v.m(E)\\
-	   & | & \texttt{new} \; C(\overline{E})\\
-       & | & (T)E\\
-\end{array}
-\end{array}
-\]
-\[
-\begin{array}{lllr}
-CL & ::= & \verb|class| \; C <\overline{X} \lhd \overline{N}> \lhd N \{\overline{T} \; \overline{f}; \; K \; \overline{M}\}  & class \; declaration\\
-$$\\
-K & ::= & C(\overline{T}\; \overline{f})\{\verb|super|(\overline{f}); \; \verb|this|.\overline{f} = \overline{f}\}  & constructor\\
-$$\\
-M & ::= & <\overline{X} \lhd \overline{N}> \; T \; m \; (\overline{T}\; \overline{x})\{e\}  & method \; declaration\\
-\end{array}
-\]
-\caption{FGJ Syntax}
-\label{f:fgj_syntax}
-\end{figure}
-
-\subsection{Operational Semantics}
-
-\subsubsection{Small Step Semantics}
-
-\subsubsection{Big Step Semantics}
-
-\subsection{Soundness}
-
-\subsection{Nominal vs Structural Typing}
-
-\section{Generic Programming} \label{s:generics}
-
-\subsection{Type Parameters}
-Type parameters in object oriented languages derives from bounded quantification in functional programming \cite{Cardelli:1985:UTD:6041.6042, Canning:1989:FPO:99370.99392}. Many modern object oriented languages provide functionality for generic type parameters, and much work has been done formalising type systems containing type parameters. Java is a widely used language, and many programmers are familiar with Java Generics. Generics in Java is the result of much research into type parameters in object oriented languages. As mentioned before, type parameters derive from type polymorphic functions in functional programming languages.
-
-Bounded polymorphism in object oriented languages uses subtyping to write generic code for a family of types. Looking at our \verb|LinkedList| example from Chapter \ref{ch:intro}, we defined the general structure of a list of objects. The only restriction is that any instance of the generic type parameter subtype \verb|Object|.
-
-\subsubsection{Bounded Quantification}
-Cardelli and Wegner \cite{Cardelli:1985:UTD:6041.6042} introduced bounded quantification. Using bounded quantification we can type functions across all subtypes of a specific type. We do this by parametrizing the function with a type variable. We use the example of Cardelli and Wegner below. Subtyping here is done structurally, that is $S$ is a subtype of $T$ if all the values contained in $T$ are contained within $S$. Consider the following function
-\begin{lstlisting}[mathescape, style=custom_lang]
-f1 = func (x:{one:int}) x.one
-\end{lstlisting}
-Here \verb|f1| has type \verb|{one:int}| $\rightarrow$ \verb|int|, however operationally \verb|f1| can be applied to records of type \verb|{one:bool}|. Since from an operational perspective the type of \verb|one| does not matter we should be able to use the same function on different types so long as those types contain a \verb|one| value. We still need a way to type the function. The solution is to universally quantify the type of \verb|one|.
-\begin{lstlisting}[mathescape, style=custom_lang]
-f2 = func[A] (x:{one:A}) x.one
-\end{lstlisting}
-Now the type of \verb|f2| is \verb|{one:A}| $\rightarrow$ \verb|A|. This is universal quantification because it can be read as ``$\forall$ \verb|x|:\verb|{one:A}|, \verb|f2(x)|:\verb|{one:A}| $\rightarrow$ \verb|A|''. We can extend this further by adding bounds to the type parameter.
-\begin{lstlisting}[mathescape, style=custom_lang]
-f3 = func[A <: Number] (x:{one:A}) x.one
-\end{lstlisting}
-Now we can use \verb|f3| on any subtype of \verb|{one:Number}|, and be able to treat the returned value as a \verb|Number|.
-
-Canning et. al. \cite{Canning:1989:FPO:99370.99392} introduced bounded quantification for object oriented programming, which eventually became the basis for generic type parameters.
-
-\subsubsection{Formalizing Generics in Java}
-Type parameters have become the most popular form of generic programming in modern languages, and there has been much work done in developing and formalizing them \cite{agesen1997adding,Igarashi:2001:FJM:503502.503505,Odersky:1997:PJT:263699.263715, Bank:1997:PTJ:263699.263714, Bracha:1998:MFS:286936.286957,Cartwright:1998:CGR:286936.286958} in Java. In this section I will cover two of those formalisms, \emph{Pizza} and \emph{Featherweight Generic Java}.
-\subsubsection{Pizza}
-
-\emph{Pizza} is an early proposal for adding generic type parameters, higher order functions and algebraic data types to Java \cite{Odersky:1997:PJT:263699.263715}. The form of type parameters proposed by Pizza was indeed largely adopted by Java. The goal of Pizza was to construct a sound proposal for type parameters as a super set to an existing mainstream language (Java). In \emph{Pizza} the authors dealt with similar problems outlined here, the contra-variance problem. That is \verb|LinkedList<String>| does not subtype \verb|LinkedList<Object>|. Odersky and Wadler \cite{Odersky:1997:PJT:263699.263715} proposed translating Pizza to Java in order to ensure Pizza was a superset of Java. They provided 2 kinds of transformations, heterogeneous and homogeneous. Heterogeneous transformations act as macros, rewriting generic classes as multiple classes, each with a different type parameter instance. Homogeneous transformations rewrite Pizza classes replacing generic type parameters with \verb|Object|, and then applying appropriate upcasts throughout the code. It was found that each transformation provided different advantages, heterogeneous transformations had fast execution while homogeneous transformations provided cleaner code.
-
-\subsubsection{Featherweight Generic Java}
-Featherweight Generic Java (FGJ) was developed as a minimal core calculus for Java with generic type parameters by Igarashi and Pierce \cite{Igarashi:2001:FJM:503502.503505}. As a minimal core calculus, FGJ provides an easy way to reason about extensions to generic Java. The FGJ syntax is given in Figure \ref{f:fgj_syntax}. 
-\begin{figure}[h]
-\[
-\begin{array}{lll}
-\begin{array}{lllr}
-e & ::= & x & expression \\
-& | & e.f &\\
-& | & e.m<\overline{T}>(e) &\\
-& | & \texttt{new} \; T(\overline{e})&\\
-& | & (T) e &\\
-&&\\
-v & ::= & \texttt{new} \; T(\overline{e})&\\
-&&\\
-\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & env \\
-&&\\
-\Delta & :: = & \varnothing \; | \; \Delta,\; X \lhd T & type \; env \\
- \end{array}
-& ~~~~~~
-&
-\begin{array}{lllr}
-C, D &  &  & classes \\
-&&\\
-N & ::= & C <\overline{T}> & class \; type\\
-&&\\
-T & ::= & X & type \\
-       & | & N\\
-&&\\
-E & :: = & \bigcirc & eval \; context\\
-       & | & E.f\\
-       & | & E.m(e)\\
-       & | & v.m(E)\\
-	   & | & \texttt{new} \; C(\overline{E})\\
-       & | & (T)E\\
-\end{array}
-\end{array}
-\]
-\[
-\begin{array}{lllr}
-CL & ::= & \verb|class| \; C <\overline{X} \lhd \overline{N}> \lhd N \{\overline{T} \; \overline{f}; \; K \; \overline{M}\}  & class \; declaration\\
-$$\\
-K & ::= & C(\overline{T}\; \overline{f})\{\verb|super|(\overline{f}); \; \verb|this|.\overline{f} = \overline{f}\}  & constructor\\
-$$\\
-M & ::= & <\overline{X} \lhd \overline{N}> \; T \; m \; (\overline{T}\; \overline{x})\{e\}  & method \; declaration\\
-\end{array}
-\]
-\caption{FGJ Syntax}
-\label{f:fgj_syntax}
-\end{figure}
-The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{Potanin:2006:GOG:1167473.1167500, Zibin:2010:OIG:1932682.1869509} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
-
-The key contribution of \emph{FGJ} was that calculi for future extensions and innovations to generic Java could be easily constructed and investigated. As a result, \emph{FGJ} has become a standard core calculus used in research on Java.
-
-\subsection{Type Members}
-As described earlier, type members are object members that are types. This allows us to write similar code to what we might with generic type parameters. It does however present different problems, and there are several potential flavours of type members.
-While not as popular as type parameters, there has been some work to formalize type members for modern languages. The most notable language that has adopted type members is \emph{Scala}, however there have been other earlier attempts to develop sound type members. In this section I will cover those attempts along with the work associated with type members in Scala.
-
-\subsection{Scala}
-Scala \cite{scaladocs2016} is a superset of Java that adds several additional language features including type members. While type members are implemented in Scala, they are not strictly sound. That is there does not exist a formalism for type members in Scala as there is for type members in Java. There has however been work to formalise such a type system \cite{Amin:2014:FPT:2660193.2660216,amin:fool:2012}. Given that Scala provides not only nominal typing as in Java, but structural typing too, it is natural to use Scala as the basis for developing type members in Wyvern.
-
-In 2012, Amin et. al. \cite{amin:fool:2012} presented 
-
-
-\section{Wyvern}\label{s:wyvern}
-Core wyvern is the setting. What is wyvern?
-
-\section{Coq Proof Assistant}
-
-
-
-
-
-
-\chapter{Generic Wyvern}\label{ch:wyvern}
 
 We have already developed a type system that while not sound solves several of the recurring issues that other work has encountered. In this section I will present our current type system (Generic Wyvern).
 
