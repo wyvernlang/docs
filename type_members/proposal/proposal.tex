@@ -147,7 +147,23 @@ In this way we are able to abstract objects over types in a similar way to type 
 
 \section{Developing Generic Wyvern}
 
-We intend to develop a sound and extensible type system for type members in the spirit of Featherweight Generic Java \cite{Igarashi:2001:FJM:503502.503505} in the context of Wyvern, a new structurally typed object oriented language being developed with an emphasis on security \cite{Omar2014}. Wyvern has been designed with a core calculus that is purely structural an
+We intend to develop a sound and extensible type system for type members in the spirit of Featherweight Generic Java \cite{Igarashi:2001:FJM:503502.503505} in the context of Wyvern, a new structurally typed object oriented language being developed with an emphasis on security \cite{Omar2014}. Wyvern has been designed with a core calculus that is purely structural and type members are intended to form part of this core calculus. For this reason it needs to be easily extensible to facilitate the development of other language features such as the Wyvern module system. Featherweight Java is a core calculus for Generic Java and this is the reason we choose it as an analogy to generic Wyvern.
+
+\subsection{The Problem}
+
+Type members are not a new area of investigation, on the contrary, there has been much work done on type members \cite{Madsen:1989:VCP:74877.74919, Igarashi1999, Thorup97genericityin, Bruce:1998:SSA:646155.679691}, often in the context of a comparison to type parameters. While type parameters became the more common form of generics, there is still ongoing work on type members \cite{Odersky2003, Amin:2014:FPT:2660193.2660216, amin:fool:2012}.  This work does have limitations, specifically when trying to allow for the subtype variance of type members while maintaining soundness. Amin et. al. \cite{Amin:2014:FPT:2660193.2660216, amin:fool:2012} is focused on the particular flavour of type members in Scala, one of the few mainstream languages to have type members. They were able to develop a soundness proof, however they were only able to do so using a big-step semantics. We feel that using a more standard small-step semantics would allow for a more extensible type system in line with the spirit of our core Wyvern calculus.
+
+We aim to develop a sound type system for type member using a small-step semantics. Our type system will allow for subtype variance of type members, that is we intend to define type members using two bounds, and upper and a lower bound providing both covariance and contra-variance simultaneously. Rewriting the \verb|Animal| example using multiple bounds we get this
+\begin{lstlisting}[mathescape, style=custom_lang]
+Animal = {z $\Rightarrow$	type F = $\bot$ .. Food
+		
+		def void eat (x : z.F){
+			...
+		}}
+\end{lstlisting}
+Here $\bot$ is the bottom most type in the subtype lattice. When considering type members in the positive position, such as at method return, we use the upper bound, while we use the lower bound in the negative position, for example in method parameters. Proving type safety with a type system such as this happens to be fairly difficult as type wellformedness can be lost during evaluation regardless of the wellformedness of the final result of evaluation.
+
+Another feature we intend to include is path dependent type members. That is, a distinction is made between type members of the same name, but accessed from different types. This is needed since at runtime there is no way to determine path equivalence without maintaining some type information.
 
 In the rest of this document I will outline the background literature, describe the problems we face, present our work thus far and our plans for future work.
 
@@ -451,67 +467,92 @@ If we imagine that the \verb|zip| function zips a list of some type \verb|F| to 
 
 \subsubsection{Featherweight Generic Java}
 Featherweight Generic Java (FGJ) was developed as a minimal core calculus for Java with generic type parameters by Igarashi and Pierce \cite{Igarashi:2001:FJM:503502.503505}. As a minimal core calculus, FGJ provides an easy way to reason about extensions to generic Java. The FGJ syntax is given in Figure \ref{f:fgj_syntax}. 
+The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{Potanin:2006:GOG:1167473.1167500, Zibin:2010:OIG:1932682.1869509} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
+
+The key contribution of \emph{FGJ} was that calculi for future extensions and innovations to generic Java could be easily constructed and investigated. As a result, \emph{FGJ} has become a standard core calculus used in research on Java.
+
+\section{Scala}
+Scala \cite{scaladocs2016} is a superset of Java that adds several additional language features including type members. While type members are implemented in Scala, they are not strictly sound. That is there does not exist a formalism for type members in Scala as there is for type members in Java. There has however been work to formalise such a type system \cite{Amin:2014:FPT:2660193.2660216,amin:fool:2012}. Given that Scala provides not only nominal typing as in Java, but structural typing too, it is natural to use Scala as the basis for developing type members in Wyvern.
+
+\subsection{Type Members in Scala}
+In 2012, Amin et. al. \cite{amin:fool:2012} presented a type system featuring type members in a structurally typed setting. 
+
+They identified several impediments to a soundness proof of such a type system. Most of these had to do with environments narrowing at evaluation (evaluation resulting in more precise types for expressions), and one to with incorporating path dependent types. 
+
+\subsubsection{Term Membership Narrowing}
+One restriction that is made syntactically by the Amin et al \cite{amin:fool:2012} type system is that type members selections may only be made upon paths, where paths are values (memory locations), variables and field accesses on paths. This restriction is made because path comparison between arbitrary expressions would be much harder if this included method calls. This restriction can result in well-formed expressions losing well-formedness as a result of evaluation. Consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$ var f : $\top$}
+Y = {z $\Rightarrow$ type L : $\top$ .. $\top$}
+	  var f : z.L}
+A = {z $\Rightarrow$ def meth : X}
+\end{lstlisting}
+Using these types we can construct the following expression.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var a = new A(def meth : X = {new Y(...)});
+a.meth.f;
+\end{lstlisting}
+We type check this example as $\top$, the type of \verb|a.meth.f|. The method \verb|meth| has type \verb|X| in \verb|a|, however the body has type \verb|Y|, and \verb|f| has type $\top$ in \verb|X| and type \verb|z.L| in \verb|Y|, where \verb|z| is the receiver of \verb|f|. Evaluation eventually results in \verb|new Y(...).f| which has type \verb|new Y(...).L| which is not a valid type. 
+
+\subsubsection{Loss of Expansion}
+One requirement of recursively defined type members with bounds that Amin et al imposes is that the type members have some expansion. That is, there exists a set of declaration types for any well-formed type member. A record type (\verb|{z $\Rightarrow$ d1, d2, ...}|) expands to its set of declarations (\verb|d1, d2, ...|), while a type selection expands to the expansion of its upper bound. Consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+{z $\Rightarrow$ type A : $\bot$ .. z.B
+      type B : $\bot$ .. z.A}
+\end{lstlisting}
+In this case there does not exist an expansion for either \verb|z.A| or \verb|z.B|. While this example is not possible to write, it is possible to construct an example that evaluates to this scenario.
+\subsubsection{Loss of Well-Formedness}
+
+\subsubsection{The Path Dependency Problem}
+
+
+
+
+
+
+
+\section{Wyvern}\label{s:wyvern}
+We develop our type members type systems as an addition to the core Wyvern calculus. Wyvern is a new statically typed object oriented language with structural types and an emphasis on secure web programming \cite{wyvern2016}. Wyvern is designed with a core calculus that largely resembles the simple typed lambda calculus with objects \cite{Nistor:2013:WST:2489828.2489830}. It is then demonstrated that this core calculus can be translated to the simple type lambda calculus. Additions such as classes and modules are developed as extensions to this core calculus. Using the typed lambda calculus as the basis for the language ensures that the core is easy to demonstrate as sound. It then follows that if such extensions such as classes are no more than syntactic additions they too are sound. This is a useful way to think about languages from a practical design perspective.
+
+Type members and type parameters are not features that would be easily included as simple syntactic extensions, they require significant extension to the semantics. For this reason type members are intended to form part of the core Wyvern calculus. As a core feature to the language, it is important that they be proven sound. Further, it is the addition to this core calculus that requires a small-semantics. If we concede the use of a big-step semantics for the core calculus, then we must develop the entire language using a big-step semantics. The standard approach of small-step semantics compliments the Wyvern idea of extensibility. Figure \ref{f:wyvern_syntax} gives the Featherweight Wyvern syntax
 \begin{figure}[h]
 \[
 \begin{array}{lll}
 \begin{array}{lllr}
 e & ::= & x & expression \\
+& | & \lambda x : T. e &\\
+& | & e \; (e) &\\
+& | & \texttt{new} \{z \Rightarrow \overline{d}\} &\\
 & | & e.f &\\
-& | & e.m<\overline{T}>(e) &\\
-& | & \texttt{new} \; T(\overline{e})&\\
-& | & (T) e &\\
+& | & e.f = e &\\
+& | & e.m &\\
 &&\\
-v & ::= & \texttt{new} \; T(\overline{e})&\\
-&&\\
-\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & env \\
-&&\\
-\Delta & :: = & \varnothing \; | \; \Delta,\; X \lhd T & type \; env \\
+T & ::= & L & type \\
+& | & T \rightarrow T &\\
  \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
-C, D &  &  & classes \\
+d & ::= & \texttt{var} \; f : T = e &declaration\\
+& | & \texttt{def} \; m : T = e &\\
+& | & \texttt{type} \; m : L = \{\overline{\sigma}\} &\\
 &&\\
-N & ::= & C <\overline{T}> & class \; type\\
+\sigma & ::= & \texttt{var} \; f : T &declaration \; type\\
+& | & \texttt{def} \; m : T &\\
+& | & \texttt{type} \; m : L = \{\overline{\sigma}\} &\\
 &&\\
-T & ::= & X & type \\
-       & | & N\\
-&&\\
-E & :: = & \bigcirc & eval \; context\\
-       & | & E.f\\
-       & | & E.m(e)\\
-       & | & v.m(E)\\
-	   & | & \texttt{new} \; C(\overline{E})\\
-       & | & (T)E\\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & env \\
 \end{array}
 \end{array}
 \]
-\[
-\begin{array}{lllr}
-CL & ::= & \verb|class| \; C <\overline{X} \lhd \overline{N}> \lhd N \{\overline{T} \; \overline{f}; \; K \; \overline{M}\}  & class \; declaration\\
-$$\\
-K & ::= & C(\overline{T}\; \overline{f})\{\verb|super|(\overline{f}); \; \verb|this|.\overline{f} = \overline{f}\}  & constructor\\
-$$\\
-M & ::= & <\overline{X} \lhd \overline{N}> \; T \; m \; (\overline{T}\; \overline{x})\{e\}  & method \; declaration\\
-\end{array}
-\]
-\caption{FGJ Syntax}
-\label{f:fgj_syntax}
+\caption{Featherweight Wyvern Syntax}
+\label{f:wyvern_syntax}
 \end{figure}
-The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{Potanin:2006:GOG:1167473.1167500, Zibin:2010:OIG:1932682.1869509} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
+This syntax is very similar to that in Figure \ref{f:lambda_syntax}. The only additions are those required as support for objects. Featherweight Wyvern adds object initialisation ($\texttt{new} \{z \Rightarrow \overline{d}\}$), field access ($e.f$), field assignment ($e.f = e$) and method access ($e.m$) to the simply typed lambda calculus. While it does contain rudimentary type members ($\texttt{type} \; m : L = \{\overline{\sigma}\}$) they are not the full fledged type members we intend to have. 
 
-The key contribution of \emph{FGJ} was that calculi for future extensions and innovations to generic Java could be easily constructed and investigated. As a result, \emph{FGJ} has become a standard core calculus used in research on Java.
-
-\subsection{Scala}
-Scala \cite{scaladocs2016} is a superset of Java that adds several additional language features including type members. While type members are implemented in Scala, they are not strictly sound. That is there does not exist a formalism for type members in Scala as there is for type members in Java. There has however been work to formalise such a type system \cite{Amin:2014:FPT:2660193.2660216,amin:fool:2012}. Given that Scala provides not only nominal typing as in Java, but structural typing too, it is natural to use Scala as the basis for developing type members in Wyvern.
-
-In 2012, Amin et. al. \cite{amin:fool:2012} presented 
-
-
-\section{Wyvern}\label{s:wyvern}
-Core wyvern is the setting. What is wyvern?
-
-\section{Coq Proof Assistant}
+%\section{Coq Proof Assistant}
+%
+%The Coq Proof Assistant is a mechanically checked theorem prover 
 
 
 
