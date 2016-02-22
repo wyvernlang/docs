@@ -22,7 +22,8 @@
 \usepackage{mathpartir}
 \usepackage{color,soul}
 \usepackage[utf8]{inputenc}
-\usepackage[english]{babel}
+\usepackage[english]{babel}\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfgantt}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{case}{Case}
@@ -168,11 +169,14 @@ Here $\bot$ is the bottom most type in the subtype lattice. When considering typ
 
 Another feature we intend to include is path dependent type members. That is, a distinction is made between type members of the same name, but accessed from different types. This is needed since at runtime there is no way to determine path equivalence without maintaining some type information.
 
-We also intend to add intersection and union types to the Wyvern calculus. An intersection type 
+We also intend to add intersection and union types to the Wyvern calculus. If we think of types as sets of all objects having those types, we can think of intersection types as the set intersection of two sets of objects. So if $S$ and $T$ are types, then $S \wedge T$ refers to all objects that have both type $S$ and $T$. In a structural setting (one where subtyping is defined by what members an object has not inheritance), this means objects that contain the declarations of both $S$ and $T$.
 
 \subsubsection{Decidable Type Members}
 
-As a second contribution, we hope to build off of the work of Greenman et al \cite{Greenman:2014:GFP:2594291.2594308} to Wyvern type members as decidable. 
+As a second contribution I hope to develop a decidable type system for Wyvern type members. One of the requirements of the type members work of Amin et al \cite{amin:fool:2012} is that all types are \emph{expanding}. This means that all types can be expanded to a finite set of declaration types. This poses a decidability problem since  Greenman et al \cite{Greenman:2014:GFP:2594291.2594308}
+
+\subsubsection{Modules and }
+
 
 In Chapter \ref{ch:background} I outline the background literature. In Chapter \ref{ch:wyvern} I describe our type system in more detail, presenting the syntax and semantics. In Chapter \ref{ch:proof} I discuss the development of a soundness proof and the difficulties associated with soundness. In Chapter \ref{ch:conclusion} I discuss my plans for the remainder of the thesis.
 
@@ -351,6 +355,13 @@ Collection<Object> c2 = l; \\compile time error
 \end{lstlisting}
 Due to contra-variant type restrictions on write, we restrict subtyping to invariance on type parameters.
 
+
+\subsection{Featherweight Generic Java}
+There has been much work done to develop generic types for Java \cite{agesen1997adding, Bracha:1998:MFS:286936.286957, Cartwright:1998:CGR:286936.286958, Odersky:1997:PJT:263699.263715, Bank:1997:PTJ:263699.263714}. Featherweight Generic Java (FGJ) was developed as a minimal core calculus for Java with generic type parameters by Igarashi and Pierce \cite{Igarashi:2001:FJM:503502.503505}. As a minimal core calculus, FGJ provides an easy way to reason about extensions to generic Java. We choose FGJ as an analogy to our proposed type system for Generic Wyvern due to its simple core calculus and small step semantics.
+The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{Potanin:2006:GOG:1167473.1167500, Zibin:2010:OIG:1932682.1869509} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
+
+The key contribution of \emph{FGJ} was that calculi for future extensions and innovations to generic Java could be easily constructed and investigated. As a result, \emph{FGJ} has become a standard core calculus used in research on Java.
+
 \subsection{Type Members}
 Type members are an alternative to type parameters, and were suggested as part of BETA \cite{Madsen:1989:VCP:74877.74919}. Type members attempt to solve similar problems to type parameters but are not a wide spread as type parameters. Instead of parametrizing functions and classes with bounded types, types are included as object members in the same way as fields or functions. The previous \verb|Collection| example can be rewritten using type members.
 \begin{lstlisting}[mathescape, style=custom_lang]
@@ -474,18 +485,121 @@ If we imagine that the \verb|zip| function zips a list of some type \verb|F| to 
 
 \subsubsection{Strengths of Type Members}
 
-While type members are not as suited to modelling Collections as type parameters, they do have strengths when modelling families of objects. An example from Bruce et al \cite{Bruce:1998:SSA:646155.679691} demonstrates this using abstract syntax tree. 
+While type members are not as suited to modelling Collections as type parameters, they do have strengths when modelling mutually recursive families of objects. An example from Bruce et al \cite{Bruce:1998:SSA:646155.679691} demonstrates this using the example of a grammar. We start by defining a  grammar of alternating characters and integers.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X ::= char Y | empty
+Y ::= int X | empty
+\end{lstlisting}
+While this is perhaps too simple a grammar to be much use, it is easy to imagine a more complex and useful version that might use a similar design. To implement this grammar using type members we define two classes \verb|X| and \verb|Y|. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class X{
+	type YThis = Y;
+	char h;
+	YThis t;
 
-\subsection{Featherweight Generic Java}
-There has been much work done to develop generic types for Java \cite{agesen1997adding, Bracha:1998:MFS:286936.286957, Cartwright:1998:CGR:286936.286958, Odersky:1997:PJT:263699.263715, Bank:1997:PTJ:263699.263714}. Featherweight Generic Java (FGJ) was developed as a minimal core calculus for Java with generic type parameters by Igarashi and Pierce \cite{Igarashi:2001:FJM:503502.503505}. As a minimal core calculus, FGJ provides an easy way to reason about extensions to generic Java. We choose FGJ as an analogy to our proposed type system for Generic Wyvern due to its simple core calculus and small step semantics.
-The simplicity of the FGJ syntax allows for the easy extension of Java with generics \cite{Potanin:2006:GOG:1167473.1167500, Zibin:2010:OIG:1932682.1869509} by limiting the language to only the core properties that interact with generics. FGJ is limited to variables, field accesses, method calls, new expressions and casts. The semantics are similarly simple although not given. 
+	public X(char h, YThis t){
+		this.h = h; this.t = t;
+	}
+	
+	public char head(){return h;}
+	public YThis tail(){return h;}
+	public void setTail(YThis t){this.t=t}
+}
 
-The key contribution of \emph{FGJ} was that calculi for future extensions and innovations to generic Java could be easily constructed and investigated. As a result, \emph{FGJ} has become a standard core calculus used in research on Java.
+public class Y{
+	type XThis = X;
+	int h;
+	XThis t;
 
-\subsection{Type Members in Scala}
+	public X(int h, XThis t){
+		this.h = h; this.t = t;
+	}
+	
+	public int head(){return h;}
+	public XThis tail(){return h;}
+	public void setTail(XThis t){this.t=t}
+}
+\end{lstlisting}
+This doesn't look too complex, nor would it be complex to implement using type parameters. If however we wished to specialize the \verb|X| and \verb|Y| types it is much easier to do so using type members.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class XLeng{
+	type YThis = YLeng;
+	char h;
+	YThis t;
+
+	public X(char h, YThis t){
+		this.h = h; this.t = t;
+	}
+	
+	public char head(){return h;}
+	public YThis tail(){return h;}
+	public void setTail(YThis t){this.t=t}
+	public int length{
+		if (t == null) return 1; 
+		else return 1 + t.length}
+}
+
+public class YLeng{
+	type XThis = XLeng;
+	int h;
+	XThis t;
+
+	public X(int h, XThis t){
+		this.h = h; this.t = t;
+	}
+	
+	public int head(){return h;}
+	public XThis tail(){return h;}
+	public void setTail(XThis t){this.t=t}
+	public int length{
+		if (t == null) return 1; 
+		else return 1 + t.length}
+}
+\end{lstlisting}
+The key advantage here is that we are able to pass \verb|XLeng| and \verb|YLeng| objects as \verb|X| and \verb|Y| objects while the internally defined type members \verb|XThis| and \verb|YThis| still remain coherent. This covariance in type members is not however without its drawbacks. We could potentially break this example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+X x = new XLeng(`a', null);
+Y y = new Y(`a', null);
+x.setTail(y); //fails at runtime
+...
+\end{lstlisting}
+This example would type check but fail at runtime. This is one of the challenges of developing sound type members. We hope to develop a sound type members formalism that allows for covariant type members.
+
+\subsection{Type Members in Scala}\label{scala:dot}
 Scala \cite{scaladocs2016} is a superset of Java that adds several additional language features including type members. While type members are implemented in Scala, they are not strictly sound. That is there does not exist a formalism for type members in Scala as there is for type members in Java. There has however been work to formalise such a type system \cite{Amin:2014:FPT:2660193.2660216,amin:fool:2012}. Given that Scala provides not only nominal typing as in Java, but structural typing too, it is natural to use Scala as the basis for developing type members in Wyvern.
 
-In 2012, Amin et. al. \cite{amin:fool:2012} presented a type system featuring type members in a structurally typed setting. They identified several impediments to a soundness proof of such a type system. Most of these had to do with environments narrowing at evaluation (evaluation resulting in more precise types for expressions), and one to with incorporating path dependent types. 
+In 2012, Amin et. al. \cite{amin:fool:2012} presented a type system featuring type members in a structurally typed setting named DOT. They later presented an updated type system named $\mu$DOT \cite{Amin:2014:FPT:2660193.2660216}. Their type system contained many features that we hope our eventual type system will have. 
+\begin{itemize}
+\item
+\emph{Structural Subtyping}: Subtyping in the DOT calculus is based upon the structure of types rather than inheritance.
+\item
+\emph{Intersection and Union Types}: Intersection and union types make use of the subtype lattice of the DOT calculus. The type intersection of two types $S$ and $T$ is the type who's subtypes are also subtypes of both $S$ and $T$. In a structural type system this roughly translates to the union of the declaration of both $S$ and $T$. We write this as $S \wedge T$. The type union of two types $S$ and $T$ is the type who's subtypes are either subtypes of $S$ or $T$. In a structural type system, this roughly translates to the intersection of the declarations of both $S$ and $T$. We write this as $S \vee T$. In the subtype lattice, the intersection and union are the \emph{meet} and \emph{join} respectively. The subtype lattice has an upper bound ($\top$, the empty type), and a lower bound ($\bot$, the type containing all possible member declarations).
+\item
+\emph{Path Dependent Types}: Scala contains path dependent types, and they are also modelled in the DOT calculus. As the name might suggest, subtyping is dependent on the path used to access the type. This allows us to distinguish types based on how they are accessed and where they are defined. An example would be a co-ordinate map.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Map = {z $\Rightarrow$ type Coordinate = {z $\Rightarrow$ val x : float
+                                    val y : float}
+            val points : List
+            def addPoint(p : z.Coordinate){
+              return points.add(p)
+            } : z.Coordinate
+      }
+
+val m1 = new Map(points = new List())
+val m2 = new Map(points = new List())
+val m3 = m1
+val c1 = new m1.Coordinate(x = 1, y = 2)
+val c2 = new m2.Coordinate(x = 3, y = 4)
+m1.addPoint(c1)
+m2.addPoint(c2)
+m1.addPoint(c2) // fails at compile time
+m3.addPoint(c1) // fails at compile time
+\end{lstlisting}
+Both of the last two lines fail at compile time. The first fails because the types are dependent on the path, and obviously \verb|m1.Coordinate| and \verb|m2.Coordinate| are different types. The second line however fails even though \verb|m1.Coordinate| and \verb|m3.Coordinate| are the same type. This is because we are generally unable to determine this path equivalency statically without some kind of static analysis outside of the scope of this type system.
+
+\end{itemize}
+They identified several impediments to a soundness proof of such a type system that I will summarise here. Most of these had to do with environments narrowing at evaluation (evaluation resulting in more precise types for expressions), and one to with incorporating path dependent types. 
 
 \subsubsection{Term Membership Narrowing}
 One restriction that is made syntactically by the Amin et al \cite{amin:fool:2012} type system is that type members selections may only be made upon paths, where paths are values (memory locations), variables and field accesses on paths. This restriction is made because path comparison between arbitrary expressions would be much harder if this included method calls. This restriction can result in well-formed expressions losing well-formedness as a result of evaluation. Consider the following example.
@@ -500,7 +614,7 @@ Using these types we can construct the following expression.
 var a = new A(def meth : X = {new Y(...)});
 a.meth.f;
 \end{lstlisting}
-We type check this example as $\top$, the type of \verb|a.meth.f|. The method \verb|meth| has type \verb|X| in \verb|a|, however the body has type \verb|Y|, and \verb|f| has type $\top$ in \verb|X| and type \verb|z.L| in \verb|Y|, where \verb|z| is the receiver of \verb|f|. Evaluation eventually results in \verb|new Y(...).f| which has type \verb|new Y(...).L| which is not a valid type. 
+We type check this example as $\top$, the type of \verb|a.meth.f|. The method \verb|meth| has type \verb|X| in \verb|a|, however the body has type \verb|Y|, and \verb|f| has type $\top$ in \verb|X| and type \verb|z.L| in \verb|Y|, where \verb|z| is the receiver of \verb|f|. Evaluation eventually results in \verb|new Y(...).f| which has type \verb|new Y(...).L| which is not a valid type. This loss of well-formedness is due to the fact that we end up with a less precise or ``narrower'' expression after method evaluation.
 
 \subsubsection{Loss of Expansion}
 One requirement of recursively defined type members with bounds that Amin et al imposes is that the type members have some expansion. That is, there exists a set of declaration types for any well-formed type member. A record type (\verb|{z $\Rightarrow$ d1, d2, ...}|) expands to its set of declarations (\verb|d1, d2, ...|), while a type selection expands to the expansion of its upper bound. Consider the following example.
@@ -508,12 +622,96 @@ One requirement of recursively defined type members with bounds that Amin et al 
 {z $\Rightarrow$ type A : $\bot$ .. z.B
       type B : $\bot$ .. z.A}
 \end{lstlisting}
-In this case there does not exist an expansion for either \verb|z.A| or \verb|z.B|. While this example is not possible to write, it is possible to construct an example that evaluates to this scenario.
+In this case there does not exist an expansion for either \verb|z.A| or \verb|z.B|. While this example is not possible to write, it is possible to construct an example that evaluates to this scenario. Consider the following types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$ type A : $\bot$ .. z.B
+          type B : $\bot$ .. $\top$}
+Y = {z $\Rightarrow$ type A : $\bot$ .. $\top$
+          type B : $\bot$ .. z.A}
+\end{lstlisting}
+While expansions exist for both these types and their members, this is not so for their intersection.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X $\wedge$ Y = {z $\Rightarrow$ type A : $\bot$ .. z.B
+              type B : $\bot$ .. z.A}
+\end{lstlisting}
+The type intersection of two record types such as \verb|X| and \verb|Y| is the set union of their declarations and the type intersection of all positive position or covariant types and the type union of all negative position or contra-variant types. Thus the union of two expandable types can be non-expandable. You still wouldn't be able to write such a type in a program, however following example shows how such a scenario might occur anyway.
+\begin{lstlisting}[mathescape, style=custom_lang]
+W = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. $\top$
+    }
+
+val x = new {z $\Rightarrow$ type K : $\bot$ .. X};
+val y = new {z $\Rightarrow$ type L : $\bot$ .. Y};
+
+val c = new {z $\Rightarrow$
+         def meth1 (i : {z $\Rightarrow$ type L : $\bot$ .. W}){
+           new {z $\Rightarrow$
+                  def meth2 (j : i.L $\wedge$ x.K){j} : $\top$
+               }
+         } : $\top$
+        };
+c.meth1(y)
+\end{lstlisting}
+This may be a hard example to follow given the small details involved, but the key point to note is that \verb|meth1| has parameter type \verb|{z |$\Rightarrow$\verb| type L : |$\bot$\verb| .. W}| which is a super type of \verb|{z |$\Rightarrow$\verb| type L : |$\bot$\verb| .. Y}|, the type of the argument \verb|y|. So while \verb|i.L| $\wedge$ \verb|x.K| might be an expanding type in \verb|meth1|, \verb|y.L| $\wedge$ \verb|x.K| is not. Again we can see how narrowing during evaluation can result in ill-typed expressions at runtime.
 \subsubsection{Loss of Well-Formedness}
+Not only type expansion, but type well-formedness can be lost during evaluation. To illustrate this, consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+S = {z $\Rightarrow$
+     type A : $\bot$ .. List
+    }
+T = {z $\Rightarrow$
+     type A : Integer .. $\top$
+    }
+\end{lstlisting}
+If we try and use the intersection of \texttt{S} and \texttt{T} we get. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+S $\wedge$ T = {z $\Rightarrow$
+         type A : Integer .. List
+        }
+\end{lstlisting}
+Clearly \verb|A| is ill-formed, however as with expansion we can construct an example in which such a scenario can result from evaluation. First we define a few more types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+U = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+    }
+X = {z $\Rightarrow$
+     type B : $\bot$ .. U
+    }
+Y = {z $\Rightarrow$
+     type B : $\bot$ .. S
+    }
+\end{lstlisting}
+Since \texttt{S} subtypes \texttt{U}, it follows that \texttt{Y} subtypes \texttt{X}. Now consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val a = new {z $\Rightarrow$
+              def badNarrow(x : X){
+                new {z $\Rightarrow$ type L : $\bot$ .. x.B $\wedge$ T}
+              }
+            };
+val y = new Y;
+a.badNarrow(y);
+\end{lstlisting}
+Initially \texttt{x.B $\wedge$ T} is well-formed when \texttt{x} has type \texttt{X}. After a few steps of evaluation we end up with 
+\begin{lstlisting}[mathescape, style=custom_lang]
+new {z $\Rightarrow$ type L : $\bot$ .. y.B $\wedge$ T}
+\end{lstlisting}
+\verb|y.B| $\wedge$ \verb|T| now gives us the ill-formed type of our earlier example. The upper bound of \verb|y.B| $\wedge$ \verb|T| is \verb|S| $\wedge$ \verb|T|. As with the previous two examples this is due to a narrowing occurring during evaluation.
 
 \subsubsection{The Path Dependency Problem}
-
-
+The next example is not due to the narrowing problem, but rather is a result of determining path equality at runtime. In the DOT calculus paths are syntactically defined as either variables or field accesses on paths. Given that field accesses can be evaluated, paths are not static. This means that the types of expressions can change at runtime. The following example illustrates this.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val b = new {z $\Rightarrow$
+             type L : $\top$ .. $\top$
+             val l : z.L = b};
+val a = new {z $\Rightarrow$
+             val i : {z $\Rightarrow$
+                      type L : $\bot$ .. $\top$
+                      val l : z.L} = b
+             def meth : $\top$ (x : z.i.L){x}};
+a.meth(a.i.l)
+\end{lstlisting}
+Initially \verb|a.i.l| has type \verb|a.i.L|, however evaluation will eventually reduce \verb|a.i.l| to \verb|b.l| which has type \verb|b.L|. While we can see by simple analysis of the code that \verb|a.i| and \verb|b| in fact refer to the same object, we are unable to determine this statically.
 
 
 
@@ -558,17 +756,9 @@ d & ::= & \texttt{var} \; f : T = e &declaration\\
 \end{figure}
 This syntax is very similar to that in Figure \ref{f:lambda_syntax}. The only additions are those required as support for objects. Featherweight Wyvern adds object initialisation ($\texttt{new} \{z \Rightarrow \overline{d}\}$), field access ($e.f$), field assignment ($e.f = e$) and method access ($e.m$) to the simply typed lambda calculus. While it does contain rudimentary type members ($\texttt{type} \; m : L = \{\overline{\sigma}\}$) they are not the full fledged type members we intend to have. 
 
-%\section{Coq Proof Assistant}
-%
-%The Coq Proof Assistant is a mechanically checked theorem prover 
-
-
-
-
-
 
 \chapter{Generic Wyvern}\label{ch:wyvern}
-We could potentially design several different forms of Type Members depending on the flexibility we desire. The simplest form of virtual types is similar to the one in our first example, a single type that is invariant with subtyping. As an example we can try to model animals and food. 
+We could potentially design several different forms of Type Members depending on the flexibility we desire. The simplest form of type members is similar to the one in our first example, a single type that is invariant with subtyping. We can return to our earlier \verb|Animal| example.
 \begin{lstlisting}[mathescape, style=custom_lang]
 Animal = {z $\Rightarrow$	type F = Food
 		
@@ -713,7 +903,7 @@ Here \texttt{S} subtypes \texttt{T} and \texttt{T} subtypes
 \texttt{U}, but \texttt{S} does not subtype \texttt{U}. Because 
 of the contra-variance of the lower bound of type member \texttt{L}, 
 \texttt{A} subtypes \texttt{z.L} in \texttt{T} but not \texttt{U}. 
-Amin et al. \cite{Amin 2014} attempt to reconcile this by narrowing 
+Amin et al. \cite{Amin:2014:FPT:2660193.2660216} attempt to reconcile this by narrowing 
 the type of \texttt{z} in the larger types \texttt{T} and \texttt{U} 
 by using the subtype rule in Figure \ref{f:sub_amin}.
 \begin{figure}[h]
@@ -728,13 +918,11 @@ by using the subtype rule in Figure \ref{f:sub_amin}.
 \end{figure}
 Here we type check the declaration types of the larger type with a smaller receiver. While this allows for subtype transitivity, it introduces environment narrowing that proves unsound in a small step semantics. Amin et. al. were however able to reconcile both transitivity and narrowing within a big step semantics.
 
-\subsection{Path Equality}
-To further complicate matters, well-formedness can be lost when reducing field accesses. 
-
-\hl{Julian: Example?}
-
 
 \section{Type System}
+In this section I will discuss the type system we have developed thus far. Our approach has been to attempt to remove environment narrowing from the type system in an effort to avoid the complications faced by Amin et al \cite{amin:fool:2012}. In order to do this we introduce a new expression to the syntax, $e \unlhd T$. This can be thought of as a persistent upcast of expression $e$ to type $T$. We use this to maintain the original types of method calls thereby avoiding the narrowing issues from Section \ref{scala:dot}. This does not however solve the issue of environment narrowing during subtyping seen in Figure \ref{f:sub_amin}.
+
+We attempted to patch the type system to allow for path dependent types, although this proved much more difficult than we had initially expected. We have simplified paths to the point where the problem does not exist in our current type system. This is a similar simplification to other work in the area \cite{amin:fool:2012, Amin:2014:FPT:2660193.2660216}
 
 \subsection{Syntax} \label{s:syntax}
 In this section we present the Wyvern Type Members Syntax 
@@ -762,11 +950,10 @@ d & ::= & \texttt{val} \; f : T = p & declaration \\
   & |   & \texttt{def} \; m(x:T) = e : T &\\
   & |   & \texttt{type} \; L : T .. T&\\
 &&\\
-\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & Environment \\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & environment \\
 &&\\
-A & :: = & \varnothing \; | \; A,\;  <: T & Assumption \; Context \\
+A & :: = & \varnothing \; | \; A,\; T <: T & assumption \; ctx \\
  \end{array}
-& ~~~~~~
 &
 \begin{array}{lllr}
 T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
@@ -780,17 +967,18 @@ T & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
        & |   & \texttt{def} \; m:T \rightarrow T \\
 		 & |   & \texttt{type} \; L : T .. T &\\
 &&\\
-E & :: = & \bigcirc & eval \; context\\
+E & :: = & \bigcirc & eval \; ctx\\
        & | & E.m(e)\\
        & | & p.m(E)\\
        & | & E.f\\
        & | & E \unlhd T\\
 &&\\
-d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
+d_v & ::= & \texttt{val} \; f : T = v & decl. \; value \\
   & |   & \texttt{def} \; m(x:T) = e : T &\\
   & |   & \texttt{type} \; L : T .. T = T &\\
 &&\\
 \mu & :: = & \varnothing \; | \; \mu,\; l \mapsto \{z \Rightarrow \overline{d}\} & store \\
+&&\\
 \Sigma & :: = & \varnothing \; | \; \Sigma,\; l : \{\texttt{z} \Rightarrow \overline{\sigma}\} & store \; type \\
 \end{array}
 \end{array}
@@ -844,8 +1032,6 @@ that consists of a list of type pairs.
 In this section we describe the Wyvern Type Members semantics.
 \subsubsection{Path Functions}
 
-\hl{Julian: I'll finish describing these functions later once they are finalized.}
-
 \begin{figure}[h]
 \begin{mathpar}
 \inferrule
@@ -877,7 +1063,7 @@ In Figure \ref{f:path_equiv} we describe our path equivalence judgement. Two pat
 \subsubsection{Subtyping}
 Subtyping is given in Figure \ref{f:subtype}. We use a 
 modified version of the subtyping relation 
-described by Amin et. al. \cite{Scala stuff}. We remove the reflexivity rule, however this can be inferred from the other subtyping rules. We modify the \textsc{S-Struct} rule for structural subtyping by upcasting the self variable of the larger type to avoid narrowing. This can be seen in \textsc{S-Struct} in Figure \ref{f:subtype}.
+described by Amin et. al. \cite{amin:fool:2012, Amin:2014:FPT:2660193.2660216}. We remove the reflexivity rule, however this can be inferred from the other subtyping rules. We modify the \textsc{S-Struct} rule for structural subtyping by upcasting the self variable of the larger type to avoid narrowing. This can be seen in \textsc{S-Struct} in Figure \ref{f:subtype}.
 If we didn't do this, we would have to type check the declaration types of the larger type with a smaller receiver, resulting in narrowing. We also need to be able subtype two path equivalent selection types(\textsc{S-Path} in Figure \ref{f:subtype}). Since we can have two paths that are equivalent in that they lead to the same location or variable while having different types, we need a way to subtype path equivalent type selections. We require that they have the appropriate contra-variant and covariant relationships between their lower and upper bounds respectively. To deal with recursive types, we use an assumption context $A$ which we use to type check the bounds of the selection type. For this we introduce the \textsc{S-Assume} rule. \textsc{S-Select-Upper} and \textsc{S-Select-Lower} are our rules for subtyping selection types. To supertype or subtype a selection type, a type needs to supertype or subtype its upper or lower bounds respectively. We then use \textsc{S-Top} and \textsc{S-Bottom} to type check the subtyping and supertyping of the top ($\top$) and bottom ($\bot$) types.
 
 \begin{figure}[h]
@@ -949,79 +1135,6 @@ If we didn't do this, we would have to type check the declaration types of the l
 \label{f:subtype}
 \end{figure}
 
-\subsubsection{Well-Formedness}
-
-\hl{Julian: Do we need to worry about this?}
-
-\begin{figure}[h]
-\hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wf}$}
-\begin{mathpar}
-\inferrule
-  {A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
-  	A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf} }
-  {A; \Sigma; \Gamma \vdash p.L \; \textbf{wf}}
-  \quad (\textsc {WF-Sel})
-	\and
-\inferrule
-  {A; \Sigma; \Gamma,z:\{z \Rightarrow \overline{\sigma}\} \vdash \overline{\sigma} \; \textbf{wf} \\
-  	\forall j \neq i, \; dom(\sigma_j) \neq dom(\sigma_i)}
-  {A; \Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \; \textbf{wf}}
-  \quad (\textsc {WF-Struct})
-	\and
-\inferrule
-  {}
-  {A; \Sigma; \Gamma \vdash \top \;  \textbf{wf}}
-  \quad (\textsc {WF-Top})
-	\and
-\inferrule
-  {}
-  {A; \Sigma; \Gamma \vdash \bot \;  \textbf{wf}}
-  \quad (\textsc {WF-Bot})
-\end{mathpar}
-\hfill \fbox{$A; \Sigma; \Gamma \vdash \sigma \;  \textbf{wf}$}
-\begin{mathpar}
-\inferrule
-  {A; \Sigma; \Gamma \vdash T : \textbf{wf}}
-  {A; \Sigma; \Gamma \vdash \texttt{val} \; f:T \;  \textbf{wf}}
-  \quad (\textsc {WF-Val})
-	\and
-\inferrule
-  {A; \Sigma; \Gamma \vdash T : \textbf{wf} \\
-  	A; \Sigma; \Gamma \vdash S : \textbf{wf}}
-  {A; \Sigma; \Gamma \vdash \texttt{def} \; m:S \rightarrow T \;  \textbf{wf}}
-  \quad (\textsc {WF-Def})
-	\and
-\inferrule
-  {A; \Sigma; \Gamma \vdash S : \textbf{wfe} \; \vee \; S = \bot\\
-  	A; \Sigma; \Gamma \vdash U : \textbf{wfe} \\
-  	A; \Sigma; \Gamma \vdash S <: U}
-  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf}}
-  \quad (\textsc {WF-Type})
-\end{mathpar}
-\hfill \fbox{$A; \Sigma \vdash \Gamma \;  \textbf{wf}$}
-\begin{mathpar}
-\inferrule
-  {\forall x \in dom(\Gamma), A; \Sigma; \Gamma \vdash \Gamma(x) \; \textbf{wf}}
-  {\Sigma \vdash \Gamma \;  \textbf{wf}}
-  \quad (\textsc {WF-Environment})
-\end{mathpar}
-\hfill \fbox{$\Sigma \;  \textbf{wf}$}
-\begin{mathpar}
-\inferrule
-  {\forall l \in dom(\Sigma), \varnothing; \Sigma; \varnothing \vdash \Sigma(l) \; \textbf{wf}}
-  {\Sigma \;  \textbf{wf}}
-  \quad (\textsc {WF-Store-Context})
-\end{mathpar}
-\begin{mathpar}
-\inferrule
-  {\forall l \in dom(\mu), \varnothing; \Sigma; \varnothing \vdash \mu(l) : \Sigma(l)}
-  {\Sigma \vdash \mu \; \textbf{wf}}
-  \quad (\textsc {WF-Store})
-\end{mathpar}
-\caption{Well-Formedness}
-\label{f:wf}
-\end{figure}
-
 \begin{figure}[h]
 \hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wfe}$}
 \begin{mathpar}
@@ -1037,7 +1150,7 @@ If we didn't do this, we would have to type check the declaration types of the l
 
 \subsubsection{Type Expansion and Membership}
 
-We use a modified version of the type expansion (Figure \ref{f:exp}) definition and the same membership (Figure \ref{f:mem}) definition from Amin et al \cite{Scala stuff}. Expansion of types is used to extract the set of declaration types for a type. \textsc{E-Struct} is the expansion rule for structural types. Structural types simply expand to their defined types. The expansion of selection types (\textsc{E-Sel}) are slightly more complicated. Selection types expand to the expansion of the upper bound. The expansion of the upper bound is type checked with a less precise type (the upper bound) that the selection type. As with our subtyping rule for structural types, we need to prevent narrowing of types at type expansion. For this reason we upcast the self variable $z$ to the original type $U$. The top type expands to the empty set (\textsc{E-Top}). The membership judgement is used to determine the membership of a declaration type for an expression. We type check the expression, expand the expression's type and in the case of path expansion, substitute out the self variable.
+We use a modified version of the type expansion (Figure \ref{f:exp}) definition and the same membership (Figure \ref{f:mem}) definition from Amin et al \cite{amin:fool:2012, Amin:2014:FPT:2660193.2660216}. Expansion of types is used to extract the set of declaration types for a type. \textsc{E-Struct} is the expansion rule for structural types. Structural types simply expand to their defined types. The expansion of selection types (\textsc{E-Sel}) are slightly more complicated. Selection types expand to the expansion of the upper bound. The expansion of the upper bound is type checked with a less precise type (the upper bound) that the selection type. As with our subtyping rule for structural types, we need to prevent narrowing of types at type expansion. For this reason we upcast the self variable $z$ to the original type $U$. The top type expands to the empty set (\textsc{E-Top}). The membership judgement is used to determine the membership of a declaration type for an expression. We type check the expression, expand the expression's type and in the case of path expansion, substitute out the self variable.
 
 \begin{figure}[h]
 \hfill \fbox{$A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}$}
@@ -1174,6 +1287,8 @@ Reduction is given in Figure \ref{f:red}. Reduction is new (\textsc{R-New}), met
 \label{f:red}
 \end{figure}
 
+
+
 \chapter{Proving Virtual Types Sound}\label{ch:proof}
 Proving type systems containing Virtual Types sound presents some problems. Depending on the type system, these are due to the either the  interplay between \emph{Subtype Transitivity} and \emph{Environment Narrowing} and path dependant types.
 
@@ -1276,26 +1391,78 @@ All of these mutually defined properties create a complex set of proofs. This wa
 
 \chapter{Conclusion}\label{ch:conclusion}
 
-As part of the development of Generic Wyvern, we simplified the concept of paths in the same way that Amin et. al. \cite{Amin 2014} did. This was due to the complexity of both the path equality and narrowing problems. In the future we hope to expand the notion of paths to include field accesses. We also intend to introduce \emph{Intersection} and \emph{Union} types. 
+As part of the development of Generic Wyvern, we simplified the concept of paths in the same way that Amin et. al. \cite{Amin:2014:FPT:2660193.2660216} did. This was due to the complexity of both the path equality and narrowing problems. As a result we have been able to focus on solving the issue of environment narrowing. We believe we have developed a type system that is sound, although we have yet to complete the soundness proof for our Generic Wyvern. We intend to produce a submission for SPLASH 2016 \cite{splash2016} presenting our work on type members. 
 
-While the Generic Wyvern type system outlined in the previous section is a good start to a sound type system, there is still some work that needs to be done to achieve my stated goals. In this section I shall cover the topic, and time line and contributions of the final thesis.
+While the Generic Wyvern type system outlined in the previous section is a good start to a sound type system, there is still some work that needs to be done to achieve my stated goals. In this section I shall cover the topic, time line and contributions of the final thesis.
 
-\section{Simplification of path resolution at evaluation}
-While our current type system appears to be a step toward sound virtual types, it does introduce complexity when attempting to resolve field and method accesses on paths and subsequently construct well-formed expressions at evaluation. this is related to the absence of \emph{Subtype Transitivity}. This added complexity does not help in our goal of creating the easily extensible core type system we want for Wyvern. It also may prove too complex when we attempt to extend paths to include field accesses. For these reasons we hope to simplify the way we deal with the transitivity problem.
+\section{Intersection and Union Types}
+In order to simplify the development of our type system we removed intersection and union types from the syntax. The problems involving type members and intersection types outlined in Section \ref{scala:dot} are due to the existence of term narrowing. Our proposed type system removes narrowing and thus we feel that the reintroduction of intersection and union types should be relatively easy. The main complications involved with such work are those inherent to intersection and union types, and are not issues that are peculiar to type members. I anticipate some complications surrounding the expansion of intersection and union types.
 
-\section{Explicit Subtype Transitivity Rule}
-One potential solution is to introduce an explicit rule for Subtype Transitivity. This has other
+\section{Path Equality}
+Path dependent types are a powerful feature, and in a purely structural language such as Wyvern can be used to introduce a level of nominality.
 
+\section{Decidable Type Members}
+As a second major contribution of this PhD, I hope to develop a decidable type system for type members. We intend to base our approach toward decidable subtyping of type members on the work of Greenman et al \cite{Greenman:2014:GFP:2594291.2594308} on developing a subtype decidable approach for F-Bounded polymorphism. 
+Greenman et al made a distinction between type parameters
 \section{Timeline of PhD}
-\begin{itemize}
-\item
-Develop Type Members Type System with simplified paths
-\item
-Introduce Path Dependence
-\item
+Over the last year I have developed a type system that tackles the problem of environment narrowing in type members. Over the next month I intend to complete the soundness proof of our type system and submit it to SPLASH 2016 \cite{splash2016}. From there I intend to reintroduce Intersection and Union types. I expect this will take 2 months. I will then spend several months developing path dependent types for Wyvern type members. Simultaneously I intend to start work on developing a subtype decidable type system for Wyvern type members. I expect to spend roughly 11 months on this, as this will be my next major contribution. This will leave time for one more optional contribution. I intend to look into adding gradual types to Wyvern. I intend to leave the final 9 months for writing the thesis. Figure \ref{f:gantt} illustrates this proposed time line.
 
-\end{itemize}•
-
+\begin{figure}
+\noindent\resizebox{\textwidth}{!}{
+\begin{ganttchart}[
+y unit title=0.6cm,
+y unit chart=0.8cm,
+vgrid,
+time slot format=isodate-yearmonth,
+compress calendar,
+title/.append style={draw=none, fill=RoyalBlue!50!black},
+title label font=\sffamily\bfseries\color{white},
+title label node/.append style={below=-1.6ex},
+title left shift=.05,
+title right shift=-.05,
+title height=1,
+bar/.append style={draw=none, fill=OliveGreen!75},
+bar height=.6,
+bar label font=\normalsize\color{black},
+group right shift=0,
+group top shift=.6,
+group height=.3,
+group peaks height=.2,
+bar incomplete/.append style={fill=Maroon}
+]{2015-03}{2018-02}
+\gantttitlecalendar{year} \\
+%\ganttbar[
+%progress=100,
+%bar progress label font=\small\color{OliveGreen!75},
+%bar progress label node/.append style={right=4pt},
+%bar label font=\normalsize\color{OliveGreen},
+%name=pp
+%]{}{2015-03}{2018-02} \\
+\ganttset{progress label text={}, link/.style={black, -to}}
+\ganttgroup{Type Members}{2015-03}{2016-08} \\
+\ganttbar[progress=100, name=T1A, 
+bar progress label font=\small\color{OliveGreen!75},
+bar progress label node/.append style={right=4pt},
+bar label font=\normalsize\color{OliveGreen}]{Develop Type System}{2015-03}{2015-11} \\
+\ganttbar[progress=100,
+bar label font=\normalsize\color{OliveGreen}]{Proposal}{2015-12}{2016-02} \\
+\ganttbar[progress=25]{SPLASH 2016}{2016-03}{2016-03} \\
+\ganttbar[progress=0]{Intersection \& Union Types}{2016-04}{2016-05} \\
+\ganttbar[progress=0]{Path Dependent Types}{2016-06}{2016-08} \\
+\ganttgroup{Decidability}{2016-04}{2017-02} \\
+\ganttbar[progress=2, name=T2A]{Decidability}{2016-04}{2017-02} \\
+\ganttgroup{Gradual Types}{2017-03}{2017-06} \\
+\ganttbar[progress=0, name=T2A]{Gradual Types}{2017-03}{2017-06} \\
+%\ganttbar[progress=0]{}{2015-03}{2018-02} \\
+\ganttgroup{Thesis}{2017-07}{2018-02} \\
+\ganttbar[progress=0]{Thesis}{2017-07}{2018-02}
+\ganttset{link/.style={OliveGreen}}
+%\ganttlink[link mid=.4]{pp}{T1A}
+%\ganttlink[link mid=.159]{pp}{T2A}
+\end{ganttchart}}
+\caption{Proposed Time line for PhD}
+\label{f:gantt}
+\end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
