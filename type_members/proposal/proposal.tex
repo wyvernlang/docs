@@ -38,17 +38,28 @@
 
 
 
-\lstdefinestyle{custom_lang}{
+\lstdefinestyle{customlang}{
+  language = java,
   xleftmargin=\parindent,
   showstringspaces=false,
   basicstyle=\ttfamily,
-  keywordstyle=\bfseries
+%  otherkeywords={val, def, type, new},
+%  keywordstyle=\bfseries
+%  keywordstyle=\color{blue},
 }
 
+\lstset{%
+%    backgroundcolor=\color{yellow!20},%
+    basicstyle=\small\ttfamily,%
+%    numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt,%
+    }%
+
+% Add your keywords here, and have this in a separate file
+% and include it in your preamble
 \lstset{emph={%  
-    val, def, type, new, z%
-    },emphstyle={\bfseries \tt}%
-}
+    val, def, type, new%
+    },emphstyle={\ttfamily\bf}
+}%
 
 %
 %  We don't want figures to float so we define
@@ -101,7 +112,7 @@ Developing reusable libraries in modern programming languages depends heavily on
 
 \maketitle
 
-\include{acknowledge}
+%\include{acknowledge}
 
 \tableofcontents
 
@@ -122,15 +133,15 @@ Developing generic libraries such as collections generally requires support from
 
 \section{Type Members}
 Type members are a language feature that allows for the writing of generic libraries, and solves many of the same problems as the more familiar type parameters. While type parameters abstract functions and classes over a range of types, type members allow types to be included as members to objects in the same way fields and methods are. A common example for type members is the \verb|Animal| example \cite{Igarashi1999, Amin:2014:FPT:2660193.2660216} given below.
-\begin{lstlisting}[mathescape, style=custom_lang]
-Animal = {z $\Rightarrow$	type F = Food
+\begin{lstlisting}[mathescape, style=customlang]
+Animal = {z $\Rightarrow$	type F = Food for
 		
 		def void eat (x : z.F){
 			...
 		}}
 \end{lstlisting}
 The \verb|Animal| type has two members, a function \verb|eat| that specifies the eat operation and a type member \verb|F| that specifies what type of food it can eat, in this case \verb|Food|.  Note that we refer to \verb|F| by access on the self (\verb|this| in Java) variable \verb|z.F|. Now if we wanted to subtype \verb|Animal| we can create more specific instances of \verb|Animal|s with narrower food types.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 Cow = {z $\Rightarrow$	type F = Grass
 		val isMeat = True
 		
@@ -158,7 +169,7 @@ Wyvern is a new structurally typed object oriented language being developed with
 Type members are not a new area of investigation, on the contrary, there has been much work done on type members \cite{Madsen:1989:VCP:74877.74919, Igarashi1999, Thorup97genericityin, Bruce:1998:SSA:646155.679691}, often in the context of a comparison to type parameters. While type parameters became the more common form of generics, there is still ongoing work on type members \cite{Odersky2003, Amin:2014:FPT:2660193.2660216, amin:fool:2012}.  This work does have limitations, specifically when trying to allow for the subtype variance of type members while maintaining soundness. Amin et. al. \cite{Amin:2014:FPT:2660193.2660216, amin:fool:2012} is focused on the particular flavour of type members in Scala, one of the few mainstream languages to have type members. They were able to develop a soundness proof, however they were only able to do so using a big-step semantics. We feel that using a more standard small-step semantics would allow for a more extensible type system in line with the spirit of our core Wyvern calculus.
 
 We aim to develop a sound type system for type member using a small-step semantics. Our type system will allow for subtype variance of type members, that is we intend to define type members using two bounds, and upper and a lower bound providing both covariance and contra-variance simultaneously. Rewriting the \verb|Animal| example using multiple bounds we get this
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 Animal = {z $\Rightarrow$	type F = $\bot$ .. Food
 		
 		def void eat (x : z.F){
@@ -167,18 +178,20 @@ Animal = {z $\Rightarrow$	type F = $\bot$ .. Food
 \end{lstlisting}
 Here $\bot$ is the bottom most type in the subtype lattice. When considering type members in the positive position, such as at method return, we use the upper bound, while we use the lower bound in the negative position, for example in method parameters. Proving type safety with a type system such as this happens to be fairly difficult as type well-formedness can be lost during evaluation regardless of the well-formedness of the final result of evaluation.
 
-Another feature we intend to include is path dependent type members. That is, a distinction is made between type members of the same name, but accessed from different types. This is needed since at runtime there is no way to determine path equivalence without maintaining some type information.
-
 We also intend to add intersection and union types to the Wyvern calculus. If we think of types as sets of all objects having those types, we can think of intersection types as the set intersection of two sets of objects. So if $S$ and $T$ are types, then $S \wedge T$ refers to all objects that have both type $S$ and $T$. In a structural setting (one where subtyping is defined by what members an object has not inheritance), this means objects that contain the declarations of both $S$ and $T$.
+
+
+\subsubsection{Path Dependent Types}
+
+Another feature we intend to include is path dependent type members. That is, a distinction is made between type members of the same name, but accessed from different types. This is needed since at runtime there is no way to determine path equivalence without maintaining some type information.
 
 \subsubsection{Decidable Type Members}
 
-As a second contribution I hope to develop a decidable type system for Wyvern type members. One of the requirements of the type members work of Amin et al \cite{amin:fool:2012} is that all types are \emph{expanding}. This means that all types can be expanded to a finite set of declaration types. This poses a decidability problem since  Greenman et al \cite{Greenman:2014:GFP:2594291.2594308}
+As a third contribution I hope to develop a decidable type system for Wyvern type members. One of the requirements of the type members work of Amin et al \cite{amin:fool:2012} is that all types are \emph{expanding}. This means that all types can be expanded to a finite set of declaration types. This poses a decidability problem since  Greenman et al \cite{Greenman:2014:GFP:2594291.2594308}
 
-\subsubsection{Modules and }
+\section{Overview}
 
-
-In Chapter \ref{ch:background} I outline the background literature. In Chapter \ref{ch:wyvern} I describe our type system in more detail, presenting the syntax and semantics. In Chapter \ref{ch:proof} I discuss the development of a soundness proof and the difficulties associated with soundness. In Chapter \ref{ch:conclusion} I discuss my plans for the remainder of the thesis.
+In Chapter \ref{ch:background}, I outline the background literature. In Chapter \ref{ch:wyvern}, I describe our type system in more detail, presenting the syntax and semantics. In Chapter \ref{ch:proof}, I discuss the development of a soundness proof and the difficulties associated with soundness. In Chapter \ref{ch:conclusion}, I discuss my plans for the remainder of the thesis.
 
 \chapter{Background}\label{ch:background}
 
@@ -188,15 +201,15 @@ In this Chapter I provide a background to the work we have already done, and wil
 We would ideally like to only ever execute valid programs, however this is not always possible since some errors are not always catchable. We classify errors to do with the type of an object as type errors. It is the job of the type system to specify what does and does not qualify as a type error. We can then use that specification during type checking to exclude invalid programs. Static type systems are designed to prevent type errors in typed code \cite{Wright:1994:SAT:191905.191909}. Type errors vary according to the type system, but can be classified as errors that violate the interface of a data type. An example may be calling a method on an object that does not contain an implementation for that method \cite{Wright:1994:SAT:191905.191909}.
 
 The design of modern type systems usually involves the mathematical representation of the type system which in turn allows us to prove certain properties of the type system. Before we are able to model the semantics of the type system we need to specify the syntax of the language we are dealing with. To demonstrate a basic type system we consider a simple typed $\lambda$-calculus \cite{church1940formulation, curry1959combinatory, Pierce:2002:TPL:509043, Barendregt:1993:LCT:162552.162561}. The pure $\lambda$-calculus consists of only lambda expressions. A lambda expression is simply a function that has been abstracted over a single variable. If for example we wish to add 2 to 3, we could first define a general function for addition of 2 and then apply that function to 3.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 ($\lambda$x. x + 2) 3
 \end{lstlisting}
 Here our lambda expression takes a variable \verb|x| and adds 2 to it. We then apply this function to 3. This is a common feature of programming languages. The typed $\lambda$-calculus is a simple calculus for a $\lambda$-calculus with types. Adding types allows us to prevent certain errors. For example we would not be able to evaluate the following expression.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 ($\lambda$x. x + 2) true
 \end{lstlisting}
 We can now restrict the type of \verb|x| to \verb|int|.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 ($\lambda$x : int. x + 2) 3
 \end{lstlisting}
 $\lambda$ expressions also have types. $\lambda$\verb|x : int. x + 2| has type \verb|int| $\rightarrow$ \verb|int|. 
@@ -288,13 +301,13 @@ Using these two theorems, we can show that any well-formed program will evaluate
 
 \subsubsection{Nominal vs Structural Typing}
 In this document I mention the distinction between \emph{nominal} and \emph{structural} type systems. In a nominal type system types have names, and subtyping is based on the explicit inheritance of those types. A structural type system on the other hand is one where subtyping is based on the structure of the types and not the names. Most programmers will be familiar with nominal typing as it is the form of typing found in most modern object oriented languages like Java, C++ and C\#. Structural however is not as common. As an example, consider the Java \verb|print| method below.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public void print (Printable p){
 	p.print();
 }
 \end{lstlisting}
 \verb|Printable| is some Java interface that has a print method. Any object that we want to print using \verb|print| must implement \verb|Printable|. This is a common pattern in languages that make heavy use of inheritance. However in reality all we probably want is that whatever type \verb|p| has it must contain a \verb|print| method, we don't actually care what it's called. Using a structurally typed language we could rewrite the example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public void print (p : {void print();}){
 	p.print();
 }
@@ -306,7 +319,7 @@ Developing generic libraries such as collections generally requires support from
 
 \subsection{Type Parameters}
 Type parameters are a common language construct that is not limited to object oriented languages, and in fact derives from bounded quantification in functional languages \cite{Canning:1989:FPO:99370.99392, Cardelli:1985:UTD:6041.6042}. Type parameters in object oriented languages generally allow classes and functions to be parametrised by bounded types. That is types that are subtype bound to some upper bound. Code can be checked statically while allow specific instances to define types at run time. A common example are collections.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public interface Collection<E extends Object>{
 	public abstract void add(E e);
 	
@@ -316,7 +329,7 @@ public interface Collection<E extends Object>{
 }
 \end{lstlisting}
 Using a Java-like syntax, we define a \verb|Collection| interface that is parametrised by a type parameter \verb|E| bounded by \verb|Object|. We can implement \verb|Collection| and be able to talk about generic collections of objects. We do not need to create a \verb|StringCollection| or an \verb|IntegerCollection|. Below we can show such an implementation.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public class LinkedList<E extends Object> implements Collection<E>{
 
 	private E elem;
@@ -344,7 +357,7 @@ public class LinkedList<E extends Object> implements Collection<E>{
 }
 \end{lstlisting}
 This allows for bounded polymorphism and code that is abstracted from the implementation of specific concrete types. Without the use of generic type parameters library developers would either have to write specific classes and functions for each list type they wished to use, or write unsuitably broad lists of \verb|Object| type. A single generic class or function can be used to initialize any list while maintaining precise types at both write and read. Note that type parameters are especially powerful in a nominal language such as Java. The ability to write generic classes provides the kind of code reuse that would be unavailable in a structural setting. Below we demonstrate how we could use our \verb|LinkedList| class.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 ...
 LinkedList<String> l = new LinkedList<String>();
 l.add(``Hello'');
@@ -364,7 +377,7 @@ The key contribution of \emph{FGJ} was that calculi for future extensions and in
 
 \subsection{Type Members}
 Type members are an alternative to type parameters, and were suggested as part of BETA \cite{Madsen:1989:VCP:74877.74919}. Type members attempt to solve similar problems to type parameters but are not a wide spread as type parameters. Instead of parametrizing functions and classes with bounded types, types are included as object members in the same way as fields or functions. The previous \verb|Collection| example can be rewritten using type members.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public interface Collection{
 	public type E : Object;
 
@@ -376,7 +389,7 @@ public interface Collection{
 }
 \end{lstlisting}
 Now if we want to create a concrete instance of Collection, we can simply extend the collection interface. Below we have implemented the \verb|Collection| interface to create an \verb|IntegerLinkedList| class. We are free to subtype \verb|E| on extension.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public class StringLinkedList implements Collection{
 	public type E : String;
 
@@ -405,7 +418,7 @@ public class StringLinkedList implements Collection{
 }
 \end{lstlisting}
 Assuming \verb|StringIterator| is otherwise appropriately defined, our new \verb|StringLinkedList| class subtypes the original \verb|Collection| type. Below we initialise a \verb|StringLinkedList| object.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 ...
 StringLinkedList l = new StringLinkedList();
 l.add(``Hello'');
@@ -421,13 +434,13 @@ With type members we can allow for subtype variance in type members, however thi
 \subsubsection{Strengths of Type Parameters}
 
 The examples thus far have demonstrated one strength of type parameters over type members. In the \verb|Collection| examples, we need only write one \verb|LinkedList| class that can be used as common implementation for constructing \verb|LinkedList|s of any type. When using type members, we need to write a new class for each kind of \verb|LinkedList| we hope to create. This has powerful consequences for developers hoping to write generic libraries. Programmers who wish to use a library need only use the types provided, they do not need to re-implement generic types. This is further a problem when extending a type hierarchy. The following example is a modified version of one by Bruce et. al. \cite{Bruce:1998:SSA:646155.679691}. Using type parameters, we are able to treat \verb|LinkedList<String>| as \verb|Collection<String>|.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 ...
 Collection<String> l = new LinkedList<String>(); \\safe
 ...
 \end{lstlisting}
 This is reasonable to expect, and is quite a common requirement when writing generic code. This is not necessarily possible in a nominal type system with type members. While in our earlier example, we saw that \verb|StringLinkedList| subtypes \verb|Collection|, it does not subtype a string specific \verb|Collection|. To demonstrate this we can rewrite the earlier type members example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public class StringCollection extends Collection{
 	public type E : String;
 }
@@ -466,7 +479,7 @@ public class StringLinkedList extends LinkedList{
 Here \verb|StringCollection| extends our original \verb|Collection| interface by subtyping the \verb|E| type member, \verb|LinkedList| implements \verb|Collection|, and \verb|StringLinkedList| extends \verb|LinkedList|. Now to provide similar functionality to type parameters, we would want \verb|StringLinkedList| to subtype \verb|StringCollection|. This is not the case since subtyping is done via inheritance and \verb|StringLinked| does not extend \verb|StringCollection|. Now this happens to be as much an artefact of nominal type systems as type members, and in Section \ref{s:wyvern} I will discuss this further.
 
 The major difference between the two approaches is the fact that generic type parameters are explicit and type members are implicit. What this means is that when dealing with generic type via parameters, each type must be explicitly defined at the top level of any class or function using it, while type members are implicitly handled by the objects containing them. Both approaches can be advantageous depending on the situation. Another example taken from Bruce et. al. \cite{Bruce:1998:SSA:646155.679691} involves introducing more types to a function. First lets modify our \verb|LinkedList| example using type parameters.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public class Pair<Fst extends Object, Snd extends Object>{
 	public Fst fst;
 	public Snd snd;
@@ -486,12 +499,12 @@ If we imagine that the \verb|zip| function zips a list of some type \verb|F| to 
 \subsubsection{Strengths of Type Members}
 
 While type members are not as suited to modelling Collections as type parameters, they do have strengths when modelling mutually recursive families of objects. An example from Bruce et al \cite{Bruce:1998:SSA:646155.679691} demonstrates this using the example of a grammar. We start by defining a  grammar of alternating characters and integers.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 X ::= char Y | empty
 Y ::= int X | empty
 \end{lstlisting}
 While this is perhaps too simple a grammar to be much use, it is easy to imagine a more complex and useful version that might use a similar design. To implement this grammar using type members we define two classes \verb|X| and \verb|Y|. 
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public class X{
 	type YThis = Y;
 	char h;
@@ -521,7 +534,7 @@ public class Y{
 }
 \end{lstlisting}
 This doesn't look too complex, nor would it be complex to implement using type parameters. If however we wished to specialize the \verb|X| and \verb|Y| types it is much easier to do so using type members.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 public class XLeng{
 	type YThis = YLeng;
 	char h;
@@ -557,7 +570,7 @@ public class YLeng{
 }
 \end{lstlisting}
 The key advantage here is that we are able to pass \verb|XLeng| and \verb|YLeng| objects as \verb|X| and \verb|Y| objects while the internally defined type members \verb|XThis| and \verb|YThis| still remain coherent. This covariance in type members is not however without its drawbacks. We could potentially break this example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 ...
 X x = new XLeng(`a', null);
 Y y = new Y(`a', null);
@@ -577,7 +590,7 @@ In 2012, Amin et. al. \cite{amin:fool:2012} presented a type system featuring ty
 \emph{Intersection and Union Types}: Intersection and union types make use of the subtype lattice of the DOT calculus. The type intersection of two types $S$ and $T$ is the type who's subtypes are also subtypes of both $S$ and $T$. In a structural type system this roughly translates to the union of the declaration of both $S$ and $T$. We write this as $S \wedge T$. The type union of two types $S$ and $T$ is the type who's subtypes are either subtypes of $S$ or $T$. In a structural type system, this roughly translates to the intersection of the declarations of both $S$ and $T$. We write this as $S \vee T$. In the subtype lattice, the intersection and union are the \emph{meet} and \emph{join} respectively. The subtype lattice has an upper bound ($\top$, the empty type), and a lower bound ($\bot$, the type containing all possible member declarations).
 \item
 \emph{Path Dependent Types}: Scala contains path dependent types, and they are also modelled in the DOT calculus. As the name might suggest, subtyping is dependent on the path used to access the type. This allows us to distinguish types based on how they are accessed and where they are defined. An example would be a co-ordinate map.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 Map = {z $\Rightarrow$ type Coordinate = {z $\Rightarrow$ val x : float
                                     val y : float}
             val points : List
@@ -603,14 +616,14 @@ They identified several impediments to a soundness proof of such a type system t
 
 \subsubsection{Term Membership Narrowing}
 One restriction that is made syntactically by the Amin et al \cite{amin:fool:2012} type system is that type members selections may only be made upon paths, where paths are values (memory locations), variables and field accesses on paths. This restriction is made because path comparison between arbitrary expressions would be much harder if this included method calls. This restriction can result in well-formed expressions losing well-formedness as a result of evaluation. Consider the following example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 X = {z $\Rightarrow$ var f : $\top$}
 Y = {z $\Rightarrow$ type L : $\top$ .. $\top$}
 	  var f : z.L}
 A = {z $\Rightarrow$ def meth : X}
 \end{lstlisting}
 Using these types we can construct the following expression.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 var a = new A(def meth : X = {new Y(...)});
 a.meth.f;
 \end{lstlisting}
@@ -618,24 +631,24 @@ We type check this example as $\top$, the type of \verb|a.meth.f|. The method \v
 
 \subsubsection{Loss of Expansion}
 One requirement of recursively defined type members with bounds that Amin et al imposes is that the type members have some expansion. That is, there exists a set of declaration types for any well-formed type member. A record type (\verb|{z $\Rightarrow$ d1, d2, ...}|) expands to its set of declarations (\verb|d1, d2, ...|), while a type selection expands to the expansion of its upper bound. Consider the following example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 {z $\Rightarrow$ type A : $\bot$ .. z.B
       type B : $\bot$ .. z.A}
 \end{lstlisting}
 In this case there does not exist an expansion for either \verb|z.A| or \verb|z.B|. While this example is not possible to write, it is possible to construct an example that evaluates to this scenario. Consider the following types.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 X = {z $\Rightarrow$ type A : $\bot$ .. z.B
           type B : $\bot$ .. $\top$}
 Y = {z $\Rightarrow$ type A : $\bot$ .. $\top$
           type B : $\bot$ .. z.A}
 \end{lstlisting}
 While expansions exist for both these types and their members, this is not so for their intersection.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 X $\wedge$ Y = {z $\Rightarrow$ type A : $\bot$ .. z.B
               type B : $\bot$ .. z.A}
 \end{lstlisting}
 The type intersection of two record types such as \verb|X| and \verb|Y| is the set union of their declarations and the type intersection of all positive position or covariant types and the type union of all negative position or contra-variant types. Thus the union of two expandable types can be non-expandable. You still wouldn't be able to write such a type in a program, however following example shows how such a scenario might occur anyway.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 W = {z $\Rightarrow$
      type A : $\bot$ .. $\top$
      type B : $\bot$ .. $\top$
@@ -656,7 +669,7 @@ c.meth1(y)
 This may be a hard example to follow given the small details involved, but the key point to note is that \verb|meth1| has parameter type \verb|{z |$\Rightarrow$\verb| type L : |$\bot$\verb| .. W}| which is a super type of \verb|{z |$\Rightarrow$\verb| type L : |$\bot$\verb| .. Y}|, the type of the argument \verb|y|. So while \verb|i.L| $\wedge$ \verb|x.K| might be an expanding type in \verb|meth1|, \verb|y.L| $\wedge$ \verb|x.K| is not. Again we can see how narrowing during evaluation can result in ill-typed expressions at runtime.
 \subsubsection{Loss of Well-Formedness}
 Not only type expansion, but type well-formedness can be lost during evaluation. To illustrate this, consider the following example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 S = {z $\Rightarrow$
      type A : $\bot$ .. List
     }
@@ -665,13 +678,13 @@ T = {z $\Rightarrow$
     }
 \end{lstlisting}
 If we try and use the intersection of \texttt{S} and \texttt{T} we get. 
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 S $\wedge$ T = {z $\Rightarrow$
          type A : Integer .. List
         }
 \end{lstlisting}
 Clearly \verb|A| is ill-formed, however as with expansion we can construct an example in which such a scenario can result from evaluation. First we define a few more types.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 U = {z $\Rightarrow$
      type A : $\bot$ .. $\top$
     }
@@ -683,7 +696,7 @@ Y = {z $\Rightarrow$
     }
 \end{lstlisting}
 Since \texttt{S} subtypes \texttt{U}, it follows that \texttt{Y} subtypes \texttt{X}. Now consider the following example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 val a = new {z $\Rightarrow$
               def badNarrow(x : X){
                 new {z $\Rightarrow$ type L : $\bot$ .. x.B $\wedge$ T}
@@ -693,14 +706,14 @@ val y = new Y;
 a.badNarrow(y);
 \end{lstlisting}
 Initially \texttt{x.B $\wedge$ T} is well-formed when \texttt{x} has type \texttt{X}. After a few steps of evaluation we end up with 
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 new {z $\Rightarrow$ type L : $\bot$ .. y.B $\wedge$ T}
 \end{lstlisting}
 \verb|y.B| $\wedge$ \verb|T| now gives us the ill-formed type of our earlier example. The upper bound of \verb|y.B| $\wedge$ \verb|T| is \verb|S| $\wedge$ \verb|T|. As with the previous two examples this is due to a narrowing occurring during evaluation.
 
 \subsubsection{The Path Dependency Problem}
 The next example is not due to the narrowing problem, but rather is a result of determining path equality at runtime. In the DOT calculus paths are syntactically defined as either variables or field accesses on paths. Given that field accesses can be evaluated, paths are not static. This means that the types of expressions can change at runtime. The following example illustrates this.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 val b = new {z $\Rightarrow$
              type L : $\top$ .. $\top$
              val l : z.L = b};
@@ -758,8 +771,12 @@ This syntax is very similar to that in Figure \ref{f:lambda_syntax}. The only ad
 
 
 \chapter{Generic Wyvern}\label{ch:wyvern}
+In this Chapter I will discuss our work till now. I will describe the flavour of type members we have chosen to formalise and how we have attempted to solve the problems involved.
+
+\section{Developing Generic Wyvern}
+
 We could potentially design several different forms of Type Members depending on the flexibility we desire. The simplest form of type members is similar to the one in our first example, a single type that is invariant with subtyping. We can return to our earlier \verb|Animal| example.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 Animal = {z $\Rightarrow$	type F = Food
 		
 		def void eat (x : z.F){
@@ -767,7 +784,7 @@ Animal = {z $\Rightarrow$	type F = Food
 		}}
 \end{lstlisting}
 This is a common example used in Type Members literature, and so we will make use of it here. We define an \verb|Animal| type that contains a type member \verb|F| that is initialized to \verb|Food|, some previously defined type, and a method definition \verb|eat| that a \verb|z.F| as a parameter. This seems like a reasonable description of an animal that eats anything that qualifies as \verb|Food|, however, we might expect to want to refine this in a subtype. For instance
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 Cow = {z $\Rightarrow$	type F = Grass
 		val isMeat = True
 		
@@ -781,8 +798,8 @@ Lion = {z $\Rightarrow$	type F = Meat
 			...
 		}}
 \end{lstlisting}
-we would hope that both \verb|Cow| and \verb|Lion| would be \verb|Animal|s, however if this were the case, we could end up with type errors if we had what we thought we \verb|Animal|s and we attempted to feed them \verb|Meat|, but one happed to be a \verb|Cow|. The example below illustrates this.
-\begin{lstlisting}[mathescape, style=custom_lang]
+we would hope that both \verb|Cow| and \verb|Lion| would be \verb|Animal|s, however if this were the case, we could end up with type errors if we had what we thought we had an \verb|Animal| and we attempted to feed it \verb|Meat|, but it happed to be a \verb|Cow|. The example below illustrates this.
+\begin{lstlisting}[mathescape, style=customlang]
 def void feed (a : Animal, f : Food){
 	a.eat(f)
 }
@@ -795,9 +812,8 @@ feed(l,c) \\succeeds
 feed(c,g) \\succeeds
 feed(c,c) \\fails at runtime
 \end{lstlisting}
-Without changing our type members are represented, we must make them invariant with subtyping. This still gives us some expressivity, most forms of generic types enforce invariance on the type parameters. However, we might want more flexibility.
-If we want to vary type members covariantly with subtyping we can add upper and lower bounds. Now we can rewrite the \verb|Animal|, \verb|Cow| and \verb|Lion| types with bounds on the type members.
-\begin{lstlisting}[mathescape, style=custom_lang]
+Without changing how our type members are represented, we must make them invariant with subtyping. This still gives us some expressivity, most forms of generic types enforce invariance on type parameters. However, we might want more flexibility. If we want to vary type members covariantly with subtyping we can add upper and lower bounds. Now we can rewrite the \verb|Animal|, \verb|Cow| and \verb|Lion| types with bounds on the type members.
+\begin{lstlisting}[mathescape, style=customlang]
 Animal = {z $\Rightarrow$	type F = $\bot$ .. Food
 		
 		def void eat (x : z.F){
@@ -818,7 +834,7 @@ Lion = {z $\Rightarrow$	type F = $\bot$ .. Meat
 		}}
 \end{lstlisting}
 When we add a lower bound, types that subtype the lower bound subtype the type member. This means that we can vary the upper bound covariantly while keeping the lower bound invariant. Now \verb|Cow| and \verb|Lion| subtype \verb|Animal|. We can still however get more flexibility out of the language. If we allow the lower bound to vary contra-variantly we can get yet more expressiveness. Rewriting the  \verb|Animal|, \verb|Cow| and \verb|Lion| types we can see how.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 Animal = {z $\Rightarrow$	type F = $\bot$ .. Food
 		
 		def void eat (x : z.F){
@@ -840,15 +856,15 @@ Lion = {z $\Rightarrow$	type F = Meat .. Meat
 \end{lstlisting}
 Now a \verb|Cow| is able to eat any \verb|Grass| and a \verb|Lion|is able to eat any \verb|Meat|. While this is the most complex form of type members, and brings with it the most complexity, it is also the most expressive. For this reason we chose to formalise this form of type members.
 
-We have already developed a type system that while not sound solves several of the recurring issues that other work has encountered. In this section I will present our current type system (Generic Wyvern).
-
-Wyvern is a new statically typed programming language being developed for secure web applications. There are two popular and well-documented methods \cite{Virtual Types stuff, generic java etc} for implementing generic types.
-\begin{itemize}
-\item \emph{Type Parameters}: Types are parametrised by generic type names that are defined at runtime. This allows programmers to reuse generic code. Many popular languages use generic type parameters such as \emph{Java}, \emph{C\#} and \emph{Scala}.
-\item \emph{Type Members}: Types and objects may contain type members in the same manner as normal field or method members. These can be subtyped by more precise types to provide generic behaviour.
-\end{itemize}
-There have long been attempts to formalise a sound small-step semantics for type members in a structural setting for Scala, which have as yet all been unsuccessful due to issues where well-typed expressions are lost during subject reduction. In 2014 Amin et.al. were able to formalise a big step semantics for Scala style type members. While this demonstrates the soundness of the kinds of programs we wish to type check, a small-step semantics offers powerful advantages when reasoning about the behaviour of programs. For this reason we formalise type members with a small step semantics.
-We build upon the work of Amin et. al. \cite{Scala stuff} to formalise type members in structurally typed languages using a small step semantics. 
+%We have already developed a type system that while not sound solves several of the recurring issues that other work has encountered. In this section I will present our current type system (Generic Wyvern).
+%
+%Wyvern is a new statically typed programming language being developed for secure web applications. There are two popular and well-documented methods \cite{Virtual Types stuff, generic java etc} for implementing generic types.
+%\begin{itemize}
+%\item \emph{Type Parameters}: Types are parametrised by generic type names that are defined at runtime. This allows programmers to reuse generic code. Many popular languages use generic type parameters such as \emph{Java}, \emph{C\#} and \emph{Scala}.
+%\item \emph{Type Members}: Types and objects may contain type members in the same manner as normal field or method members. These can be subtyped by more precise types to provide generic behaviour.
+%\end{itemize}
+%There have long been attempts to formalise a sound small-step semantics for type members in a structural setting for Scala, which have as yet all been unsuccessful due to issues where well-typed expressions are lost during subject reduction. In 2014 Amin et.al. were able to formalise a big step semantics for Scala style type members. While this demonstrates the soundness of the kinds of programs we wish to type check, a small-step semantics offers powerful advantages when reasoning about the behaviour of programs. For this reason we formalise type members with a small step semantics.
+%We build upon the work of Amin et. al. \cite{Scala stuff} to formalise type members in structurally typed languages using a small step semantics. 
 
 \subsection{Transitivity, Narrowing and Type Members}
 \label{sec:trans_narow}
@@ -884,7 +900,7 @@ reduction, it is a problem if a type system lacks this
 property. The issue with transitivity arises from the 
 introduction of type member lower bounds, and their 
 contra-variance. The following example demonstrates this.
-\begin{lstlisting}[mathescape, style=custom_lang]
+\begin{lstlisting}[mathescape, style=customlang]
 A = {z $\Rightarrow$ type N : $\bot$ .. $\top$}
 
 B = {z $\Rightarrow$ type N : $\bot$ .. $\top$
@@ -1112,6 +1128,11 @@ If we didn't do this, we would have to type check the declaration types of the l
 	{A; \Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
 	\quad (\textsc {S-Bottom})
 \end{mathpar}
+\caption{Subtyping}
+\label{f:wfe}
+\end{figure}
+
+\begin{figure}[h]
 \hfill \fbox{$A; \Sigma; \Gamma \vdash \sigma <: \sigma'$}
 \begin{mathpar}
 \inferrule
@@ -1131,22 +1152,22 @@ If we didn't do this, we would have to type check the declaration types of the l
 	{A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; <:\; \texttt{type} \; L : S' .. U'}
 	\quad (\textsc {S-Decl-Type})
 \end{mathpar}
-\caption{Subtyping}
-\label{f:subtype}
+\caption{Declaration Subtyping}
+\label{f:subtype:decl}
 \end{figure}
 
-\begin{figure}[h]
-\hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wfe}$}
-\begin{mathpar}
-\inferrule
-  {A; \Sigma; \Gamma \vdash T \; \textbf{wf} \\
-  	A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}}
-  {A; \Sigma; \Gamma \vdash T \; \textbf{wfe}}
-  \quad (\textsc {WFE})
-\end{mathpar}
-\caption{Well-Formed and Expanding Types}
-\label{f:wfe}
-\end{figure}
+%\begin{figure}[H]
+%\hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wfe}$}
+%\begin{mathpar}
+%\inferrule
+%  {A; \Sigma; \Gamma \vdash T \; \textbf{wf} \\
+%  	A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}}
+%  {A; \Sigma; \Gamma \vdash T \; \textbf{wfe}}
+%  \quad (\textsc {WFE})
+%\end{mathpar}
+%\caption{Well-Formed and Expanding Declaration Types}
+%\label{f:wfe:decl}
+%\end{figure}
 
 \subsubsection{Type Expansion and Membership}
 
@@ -1289,8 +1310,8 @@ Reduction is given in Figure \ref{f:red}. Reduction is new (\textsc{R-New}), met
 
 
 
-\chapter{Proving Virtual Types Sound}\label{ch:proof}
-Proving type systems containing Virtual Types sound presents some problems. Depending on the type system, these are due to the either the  interplay between \emph{Subtype Transitivity} and \emph{Environment Narrowing} and path dependant types.
+\chapter{Proving Type Members Sound}\label{ch:proof}
+Proving type systems containing type members sound presents some problems. Depending on the type system, these are due to the either the  interplay between \emph{Subtype Transitivity} and \emph{Environment Narrowing} and path dependant types.
 
 \section{Proving Subtype Transitivity and Environment Narrowing}
 The main difficulty with constructing a soundness proof for Generic Wyvern proving the subtype transitivity and environment narrowing proofs. These lemmas are given in Figure \ref{f:trans_narrowing}. The property that we would like is subtype transitivity (Theorem \ref{th:trans}), however this relies mutually on the existence of environment narrrowing. To demonstrate this, lets take a naive approach to the Subtype Transitivity proof, by induction on the derivation of $\Sigma; \Gamma \vdash S <: T$. Theorem \ref{th:trans} uses an unpatched subtype relation. this is identical to the subtype relation described in Section \ref{ch:wyvern}, except we replace the \textsc{S-Struct} rule with that in Figure \ref{f:struct_naive}.
@@ -1396,14 +1417,19 @@ As part of the development of Generic Wyvern, we simplified the concept of paths
 While the Generic Wyvern type system outlined in the previous section is a good start to a sound type system, there is still some work that needs to be done to achieve my stated goals. In this section I shall cover the topic, time line and contributions of the final thesis.
 
 \section{Intersection and Union Types}
-In order to simplify the development of our type system we removed intersection and union types from the syntax. The problems involving type members and intersection types outlined in Section \ref{scala:dot} are due to the existence of term narrowing. Our proposed type system removes narrowing and thus we feel that the reintroduction of intersection and union types should be relatively easy. The main complications involved with such work are those inherent to intersection and union types, and are not issues that are peculiar to type members. I anticipate some complications surrounding the expansion of intersection and union types.
+In order to simplify the development of our type system we removed intersection and union types from the syntax. The problems involving type members and intersection types outlined in Section \ref{scala:dot} are due to the existence of term narrowing. Our proposed type system removes narrowing and thus we feel that the reintroduction of intersection and union types should be relatively easy. The main complications involved with such work are those inherent to intersection and union types, and are not issues that are peculiar to type members. I anticipate some complications surrounding the expansion of intersection and union types. 
 
 \section{Path Equality}
-Path dependent types are a powerful feature, and in a purely structural language such as Wyvern can be used to introduce a level of nominality.
+Path dependent types are a powerful feature, and in a purely structural language such as Wyvern can be used to introduce a level of nominality. Our current type system does already provide path dependent types, however with significantly simplified paths. Initially paths were considered either variables or field accesses, however we made the same simplification that Amin et al \cite{Amin:2014:FPT:2660193.2660216} made and restricted paths to only variables and locations in memory.
+
+We initially attempted to include a solution to path dependent types by preventing the evaluation of field accesses and including field accesses as values, however this presented other problems. Our approach to removing the need for subtype transitivity required the construction of layers of upcasts. When evaluating a method call on a value we need to construct these layered upcasts from the path. If the path includes field accesses, this adds an extra level of complexity. I feel that the approach could still be used with fields once we have the core type system sound, otherwise this is a good reason to seek a less complex core type system.
+
+The alternative solution is to maintain some level of type information at runtime that can be used to type check expressions. The issue with path dependent types is the inability to determine the equivalence of paths without access to memory. This information is not available statically, so annotating paths with their equivalent memory location  would solve this problem even if it would not be standard.
 
 \section{Decidable Type Members}
-As a second major contribution of this PhD, I hope to develop a decidable type system for type members. We intend to base our approach toward decidable subtyping of type members on the work of Greenman et al \cite{Greenman:2014:GFP:2594291.2594308} on developing a subtype decidable approach for F-Bounded polymorphism. 
+As a third major contribution of this PhD, I hope to develop a decidable type system for type members. We intend to base our approach toward decidable subtyping of type members on the work of Greenman et al \cite{Greenman:2014:GFP:2594291.2594308} on developing a subtype decidable approach for F-Bounded polymorphism. Decidability of 
 Greenman et al made a distinction between type parameters
+
 \section{Timeline of PhD}
 Over the last year I have developed a type system that tackles the problem of environment narrowing in type members. Over the next month I intend to complete the soundness proof of our type system and submit it to SPLASH 2016 \cite{splash2016}. From there I intend to reintroduce Intersection and Union types. I expect this will take 2 months. I will then spend several months developing path dependent types for Wyvern type members. Simultaneously I intend to start work on developing a subtype decidable type system for Wyvern type members. I expect to spend roughly 11 months on this, as this will be my next major contribution. This will leave time for one more optional contribution. I intend to look into adding gradual types to Wyvern. I intend to leave the final 9 months for writing the thesis. Figure \ref{f:gantt} illustrates this proposed time line.
 
@@ -1431,15 +1457,8 @@ group peaks height=.2,
 bar incomplete/.append style={fill=Maroon}
 ]{2015-03}{2018-02}
 \gantttitlecalendar{year} \\
-%\ganttbar[
-%progress=100,
-%bar progress label font=\small\color{OliveGreen!75},
-%bar progress label node/.append style={right=4pt},
-%bar label font=\normalsize\color{OliveGreen},
-%name=pp
-%]{}{2015-03}{2018-02} \\
 \ganttset{progress label text={}, link/.style={black, -to}}
-\ganttgroup{Type Members}{2015-03}{2016-08} \\
+\ganttgroup{Type Members}{2015-03}{2016-05} \\
 \ganttbar[progress=100, name=T1A, 
 bar progress label font=\small\color{OliveGreen!75},
 bar progress label node/.append style={right=4pt},
@@ -1448,17 +1467,15 @@ bar label font=\normalsize\color{OliveGreen}]{Develop Type System}{2015-03}{2015
 bar label font=\normalsize\color{OliveGreen}]{Proposal}{2015-12}{2016-02} \\
 \ganttbar[progress=25]{SPLASH 2016}{2016-03}{2016-03} \\
 \ganttbar[progress=0]{Intersection \& Union Types}{2016-04}{2016-05} \\
-\ganttbar[progress=0]{Path Dependent Types}{2016-06}{2016-08} \\
-\ganttgroup{Decidability}{2016-04}{2017-02} \\
-\ganttbar[progress=2, name=T2A]{Decidability}{2016-04}{2017-02} \\
-\ganttgroup{Gradual Types}{2017-03}{2017-06} \\
-\ganttbar[progress=0, name=T2A]{Gradual Types}{2017-03}{2017-06} \\
-%\ganttbar[progress=0]{}{2015-03}{2018-02} \\
+\ganttgroup{Path Dependent Types}{2016-06}{2016-012} \\
+\ganttbar[progress=10]{Path Dependent Types}{2016-06}{2016-012} \\
+\ganttgroup{Decidability}{2016-04}{2017-06} \\
+\ganttbar[progress=2, name=T2A]{Decidability}{2016-04}{2017-06} \\
+%\ganttgroup{Gradual Types}{2017-03}{2017-06} \\
+%\ganttbar[progress=0, name=T2A]{Gradual Types}{2017-03}{2017-06} \\
 \ganttgroup{Thesis}{2017-07}{2018-02} \\
 \ganttbar[progress=0]{Thesis}{2017-07}{2018-02}
 \ganttset{link/.style={OliveGreen}}
-%\ganttlink[link mid=.4]{pp}{T1A}
-%\ganttlink[link mid=.159]{pp}{T2A}
 \end{ganttchart}}
 \caption{Proposed Time line for PhD}
 \label{f:gantt}
