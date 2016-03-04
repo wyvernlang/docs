@@ -169,26 +169,29 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
 \begin{figure}[h]
 \begin{mathpar}
 \inferrule
-  {A; \Sigma; \Gamma, (z : \{z \Rightarrow \overline{\sigma}_1\}) \vdash \overline{\sigma}_1 \equiv [z\unlhd \{z \Rightarrow \overline{\sigma}_2\}]\overline{\sigma}_2}
-  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}}
+  {
+  \overline{\sigma}_1 \equiv \overline{\sigma}_2
+  }
+  {\{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}}
   \quad (\textsc{Eq-Struct})
   \and
 \inferrule
-  {p_1 \equiv p_2 \\
-   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
-   A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_2 .. U_2 \\
-   A; \Sigma; \Gamma \vdash \texttt{type} \; L : S_2 \equiv S_1, U_1 \equiv U_2}
-  {A; \Sigma; \Gamma \vdash p_1.L \equiv p_2.L}
+  {
+  	p_1 \equiv p_2 \\
+  	T_1 \equiv T_2 
+%   A; \Sigma; \Gamma \vdash p_1 : T, p_2 : T
+   }
+  {(p_1 \unlhd T_1).L \equiv (p_2 \unlhd T_2).L}
   \quad (\textsc{Eq-Select})
   \and
 \inferrule
   {}
-  {A; \Sigma; \Gamma \vdash \top \equiv \top}
+  {\top \equiv \top}
   \quad (\textsc{Eq-Top})
   \and
 \inferrule
   {}
-  {A; \Sigma; \Gamma \vdash \bot \equiv \bot}
+  {\bot \equiv \bot}
   \quad (\textsc{Eq-Bottom})
 \end{mathpar}
 \caption{Type Path Equivalence}
@@ -289,23 +292,22 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
   \quad (\textsc {L-Loc})
 	\and
 \inferrule
-  {\mu; \Sigma \vdash v_1 \leadsto v_2 \\
-  	\forall p \; L, T \neq p.L}
-  {\mu; \Sigma \vdash v_1 \unlhd T \leadsto v_2 \unlhd T}
+  {\mu; \Sigma \vdash {v_1}^{p'_z} \leadsto v_2}
+  {\mu; \Sigma \vdash v_1^{p'_z} \unlhd \{z \Rightarrow \overline{\sigma}\}_{p_z} \leadsto v_2 \unlhd \{z \Rightarrow [p_z/z]\overline{\sigma}\}}
   \quad (\textsc {L-Type})
 	\and
 \inferrule
-  {\varnothing; \Sigma; \varnothing \vdash v_1 : T \\
+  {\varnothing; \Sigma; \varnothing \vdash v_1 : p'.L \\
   	\varnothing; \Sigma; \varnothing \vdash p \ni \texttt{type} \; L : S .. U \\
-  	\varnothing; \Sigma; \varnothing \not\vdash T <: U \\
+  	p \not\equiv p' \\
   	\mu; \Sigma \vdash v_1 \unlhd S \unlhd U \leadsto v_2}
   {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2}
   \quad (\textsc {L-Type-Select-Lower})
 	\and
 \inferrule
-  {\varnothing; \Sigma; \varnothing \vdash v_1 : T \\
+  {\varnothing; \Sigma; \varnothing \vdash v_1 : p'.L \\
   	\varnothing; \Sigma; \varnothing \vdash p \ni \texttt{type} \; L : S .. U \\
-  	\varnothing; \Sigma; \varnothing \vdash T <: U \\
+  	p \equiv p' \\
   	\mu; \Sigma \vdash v_1 \unlhd U \leadsto v_2}
   {\mu; \Sigma \vdash v_1 \unlhd p.L \leadsto v_2}
   \quad (\textsc {L-Type-Select-Upper})
@@ -406,17 +408,387 @@ d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
 
 \newpage
 
-\input{subtype}
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash S <: T$}
+\begin{mathpar}
+%\inferrule
+%  {(S <: T) \in A}
+%  {A; \Sigma; \Gamma \vdash S\; \texttt{<:}\; T}
+%  \quad (\textsc {S-Assume})
+%	\and
+\inferrule
+	{\Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+	{\Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+	\quad (\textsc {S-Struct})
+	\and
+%\inferrule
+%	{\Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
+%	{\Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+%	\quad (\textsc {S-Struct-AMS})
+%	\and
+%\inferrule
+%	{p_1 \equiv p_2 \\
+%	 A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+%	 A; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
+%	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
+%	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2
+%	 }
+%	{\Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
+%	\quad (\textsc {S-Path-Old})
+%	\and
+\inferrule
+	{p_1 \equiv p_2 \\
+	 A; \Sigma; \Gamma \vdash p_1 \ni \texttt{type} \; L : S_1 .. U_1 \\
+	 A; \Sigma; \Gamma \vdash p_2 \ni \texttt{type} \; L : S_2 .. U_2 \\
+	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash S_2 <:\; S_1 \\
+	 A, (p_1.L <: p_2.L); \Sigma; \Gamma \vdash U_1\; <:\; U_2
+	 }
+	{\Sigma; \Gamma \vdash p_1.L\; <:\; p_2.L}
+	\quad (\textsc {S-Path})
+	\and
+\inferrule
+	{\Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U\\
+	 \Sigma; \Gamma \vdash U <: T}
+	{\Sigma; \Gamma \vdash p.L\; <:\; T}
+	\quad (\textsc {S-Select-Upper})
+	\and
+\inferrule
+	{\Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+	 \Sigma; \Gamma \vdash T <: S}
+	{\Sigma; \Gamma \vdash T \; <:\; p.L}
+	\quad (\textsc {S-Select-Lower})
+%	\and
+%\inferrule
+%	{A; \Sigma; \Gamma \vdash S <: T_1 \\
+%	 A; \Sigma; \Gamma \vdash S <: T_2}
+%	{A; \Sigma; \Gamma \vdash S <: T_1 \wedge T_2}
+%	\quad (\textsc {S-Int})
+%	\and
+%\inferrule
+%%	{A; \Sigma; \Gamma \vdash T_1 <: U}
+%	{}
+%	{A; \Sigma; \Gamma \vdash T_1 \wedge T_2 <: T_1}
+%	\quad (\textsc {S-Int-L})
+%	\and
+%\inferrule
+%%	{A; \Sigma; \Gamma \vdash T_2 <: U}
+%	{}
+%	{A; \Sigma; \Gamma \vdash T_1 \wedge T_2 <: T_2}
+%	\quad (\textsc {S-Int-R})
+%	\and
+%\inferrule
+%	{A; \Sigma; \Gamma \vdash T_1 <: U \\
+%	 A; \Sigma; \Gamma \vdash T_2 <: U}
+%	{A; \Sigma; \Gamma \vdash S <: T_1 \vee T_2}
+%	\quad (\textsc {S-Union})
+%	\and
+%\inferrule
+%%	{A; \Sigma; \Gamma \vdash S <: T_1}
+%	{}
+%	{A; \Sigma; \Gamma \vdash T_1 <: T_1 \vee T_2}
+%	\quad (\textsc {S-Union-L})
+%	\and
+%\inferrule
+%%	{A; \Sigma; \Gamma \vdash S <: T_2}
+%	{}
+%	{A; \Sigma; \Gamma \vdash T_2 <: T_1 \vee T_2}
+%	\quad (\textsc {S-Union-R})
+	\and
+\inferrule
+	{}
+	{\Sigma; \Gamma \vdash T\; \texttt{<:}\; \top}
+	\quad (\textsc {S-Top})
+	\and
+\inferrule
+	{}
+	{\Sigma; \Gamma \vdash \bot\; \texttt{<:}\; T}
+	\quad (\textsc {S-Bottom})
+\end{mathpar}
+\hfill \fbox{$A; \Sigma; \Gamma \vdash \sigma <: \sigma'$}
+\begin{mathpar}
+\inferrule
+	{}
+	{A; \Sigma; \Gamma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T}
+	\quad (\textsc {S-Decl-Val})
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash S' <: S \\
+	 A; \Sigma; \Gamma \vdash T <: T'}
+	{A; \Sigma; \Gamma \vdash \texttt{def} \; m:S \rightarrow T <: \texttt{def} \; m:S' \rightarrow T'}
+	\quad (\textsc {S-Decl-Def})
+	\and
+\inferrule
+	{A; \Sigma; \Gamma \vdash S' <: S \\
+	 A; \Sigma; \Gamma \vdash U <: U'}
+	{A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; <:\; \texttt{type} \; L : S' .. U'}
+	\quad (\textsc {S-Decl-Type})
+\end{mathpar}
+\caption{Subtyping}
+\label{f:subtype}
+\end{figure}
 
-\input{wf}
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S .. U \\
+  	A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf} }
+  {A; \Sigma; \Gamma \vdash p.L \; \textbf{wf}}
+  \quad (\textsc {WF-Sel})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma,z:\{z \Rightarrow \overline{\sigma}\} \vdash \overline{\sigma} \; \textbf{wf} \\
+  	\forall j \neq i, \; dom(\sigma_j) \neq dom(\sigma_i)}
+  {A; \Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \; \textbf{wf}}
+  \quad (\textsc {WF-Struct})
+%	\and
+%\inferrule
+%  {\Gamma \vdash S \;  \textbf{wf} \\
+%  	\Gamma \vdash T \;  \textbf{wf}}
+%  {\Gamma \vdash S \rightarrow T \;  \textbf{wf}}
+%  \quad (\textsc {WF-Func})
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \top \;  \textbf{wf}}
+  \quad (\textsc {WF-Top})
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \bot \;  \textbf{wf}}
+  \quad (\textsc {WF-Bottom})
+\end{mathpar}
+\hfill \fbox{$A; \Sigma; \Gamma \vdash \sigma \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash T : \textbf{wf}}
+  {A; \Sigma; \Gamma \vdash \texttt{val} \; f:T \;  \textbf{wf}}
+  \quad (\textsc {WF-Val})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash T : \textbf{wf} \\
+  	A; \Sigma; \Gamma \vdash S : \textbf{wf}}
+  {A; \Sigma; \Gamma \vdash \texttt{def} \; m:S \rightarrow T \;  \textbf{wf}}
+  \quad (\textsc {WF-Def})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash S : \textbf{wfe} \; \vee \; S = \bot\\
+  	A; \Sigma; \Gamma \vdash U : \textbf{wfe} \\
+  	A; \Sigma; \Gamma \vdash S <: U}
+  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf}}
+  \quad (\textsc {WF-Type})
+\end{mathpar}
+\hfill \fbox{$A; \Sigma \vdash \Gamma \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {\forall x \in dom(\Gamma), A; \Sigma; \Gamma \vdash \Gamma(x) \; \textbf{wf}}
+  {\Sigma \vdash \Gamma \;  \textbf{wf}}
+  \quad (\textsc {WF-Environment})
+\end{mathpar}
+\hfill \fbox{$\Sigma \;  \textbf{wf}$}
+\begin{mathpar}
+\inferrule
+  {\forall l \in dom(\Sigma), \varnothing; \Sigma; \varnothing \vdash \Sigma(l) \; \textbf{wf}}
+  {\Sigma \;  \textbf{wf}}
+  \quad (\textsc {WF-Store-Context})
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+  {\forall l \in dom(\mu), \varnothing; \Sigma; \varnothing \vdash \mu(l) : \Sigma(l)}
+  {\mu : \Sigma}
+  \quad (\textsc {WF-Store})
+\end{mathpar}
+\caption{Well-Formedness}
+\label{f:wf}
+\end{figure}
 
-\input{exp}
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash T \;  \textbf{wfe}$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash T \; \textbf{wf} \\
+  	A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash T \; \textbf{wfe}}
+  \quad (\textsc {WFE})
+\end{mathpar}
+\caption{Well-Formed and Expanding Types}
+\label{f:wfe}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash T \prec \overline{\sigma}$}
+\begin{mathpar}
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}}
+  \quad (\textsc {E-Struct})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash p \ni \texttt{type} \; L : S..U \\
+  	A; \Sigma; \Gamma \vdash U \prec_z \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash p.L \prec_z [z \unlhd U/z]\overline{\sigma}}
+  \quad (\textsc {E-Sel})
+%	\and
+%\inferrule
+%  {A; \Sigma; \Gamma \vdash T_1 \prec_z \overline{\sigma}_1 \\
+%   A; \Sigma; \Gamma \vdash T_2 \prec_z \overline{\sigma}_2}
+%  {A; \Sigma; \Gamma \vdash T_1 \wedge T_2 \prec_z \overline{\sigma}_1 \wedge\overline{\sigma}_2}
+%  \quad (\textsc {E-Int})
+%	\and
+%\inferrule
+%  {A; \Sigma; \Gamma \vdash T_1 \prec_z \overline{\sigma}_1 \\
+%   A; \Sigma; \Gamma \vdash T_2 \prec_z \overline{\sigma}_2}
+%  {A; \Sigma; \Gamma \vdash T_1 \vee T_2 \prec_z \overline{\sigma}_1 \vee \overline{\sigma}_2}
+%  \quad (\textsc {E-Union})
+	\and
+\inferrule
+  {}
+  {A; \Sigma; \Gamma \vdash \top \prec_z \varnothing}
+  \quad (\textsc {E-Top})
+\end{mathpar}
+\caption{Expansion}
+\label{f:exp}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash e \ni \sigma$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash p : T \\
+  	A; \Sigma; \Gamma \vdash T \prec_z \overline{\sigma}\\
+  	\sigma_i \in \overline{\sigma}}
+  {\Sigma; \Gamma \vdash p \ni [p/z]\sigma_i}
+  \quad (\textsc {M-Path})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash e : T \\
+  	A; \Sigma; \Gamma \vdash T \prec_z \overline{\sigma}\\
+  	\sigma_i \in \overline{\sigma} \\
+  	z \notin \sigma_i}
+  {A; \Sigma; \Gamma \vdash e \ni \sigma_i}
+  \quad (\textsc {M-Exp})
+\end{mathpar}
+\caption{Membership}
+\label{f:mem}
+\end{figure}
 
 %\subsubsection{Typing}
 
-\input{typing}
+\begin{figure}[h]
+\hfill \fbox{$A; \Sigma; \Gamma \vdash e:T$}
+\begin{mathpar}
+\inferrule
+  {x \in dom(\Gamma)}
+  {	A; \Sigma; \Gamma \vdash x : \Gamma(x)}
+  \quad (\textsc {T-Var})
+	\and
+\inferrule
+  {	l \in dom(\Sigma)}
+  {	A; \Sigma; \Gamma \vdash l : \Sigma(l)}
+  \quad (\textsc {T-Loc})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
+  \vdash \overline{d} : \overline{\sigma}}
+  {A; \Sigma; \Gamma \vdash \texttt{new} \; \{z \Rightarrow \overline{d}\} : 
+  \{z \Rightarrow \overline{\sigma}\}}
+  \quad (\textsc {T-New})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash e_0 \ni \texttt{def} \; m:S \rightarrow T \\
+  	A; \Sigma; \Gamma \vdash e_0 : T_0 \\
+  	A; \Sigma; \Gamma \vdash e_1 : S' \\
+  	A; \Sigma; \Gamma \vdash S' <: S}
+  {A; 	\Sigma; \Gamma \vdash e_0.m(e_1) : T}
+  \quad (\textsc {T-Meth})
+	\and
+\inferrule
+  {	A; \Sigma; \Gamma \vdash e : S \\
+  	A; \Sigma; \Gamma \vdash e \ni \texttt{val} \; f:T}
+  {	A; \Sigma; \Gamma \vdash e.f : T}
+  \quad (\textsc {T-Acc})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash e : S \\
+   A; \Sigma; \Gamma \vdash S <: T}
+  {A; \Sigma; \Gamma \vdash e \unlhd T : T}
+  \quad (\textsc {T-Type})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma, (x : U) \vdash e : T \\
+   A; \Sigma; \Gamma \vdash e' : S\\
+   A; \Sigma; \Gamma \vdash S <: U}
+  {A; \Sigma; \Gamma \vdash \texttt{let} \; x : U = e' \; \texttt{in} \; e : T}
+  \quad (\textsc {T-Let})
+\end{mathpar}
+\caption{Expression Typing}
+\label{f:e_typ}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$A; \Gamma; E \vdash d:\sigma$}
+\begin{mathpar}
+\inferrule
+  {A; \Sigma; \Gamma \vdash p : T' \\
+   A; \Sigma; \Gamma\vdash T' <: T \dashv \Gamma}
+  {A; \Sigma; \Gamma \vdash \texttt{val} \; f:T = p : \texttt{val} \; f:T}
+  \quad (\textsc {T-Decl-Var})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma, x : S \vdash e_0 : T' \\
+   A; \Sigma; \Gamma, x : S \vdash T' <: T \dashv \Gamma, x : S}
+  {A; \Sigma; \Gamma \vdash \texttt{def} \; m(x:S) = e : T : \texttt{def} \; m:S \rightarrow T}
+  \quad (\textsc {T-Decl-Def})
+	\and
+\inferrule
+  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U \; \textbf{wf} }
+  {A; \Sigma; \Gamma \vdash \texttt{type} \; L : S .. U : \texttt{type} \; L : S .. U}
+  \quad (\textsc {T-Decl-Type})
+\end{mathpar}
+\caption{Declaration Typing}
+\label{f:d_typ}
+\end{figure}
+%\begin{figure}[h]
+%\hfill \fbox{$\Gamma \vdash \mu:\Sigma$}
+%\begin{mathpar}
+%\inferrule
+%  {\forall x \in dom(\mu), \; \mu(x)= \{\texttt{z} \Rightarrow \overline{d}\} \\
+%  	\Gamma(x) = \{\texttt{z} \Rightarrow \overline{\sigma}\} \\
+%  	\Gamma \vdash \overline{d} : \overline{\sigma}}
+%  {\Gamma \vdash \mu}
+%  \quad (\textsc {T-Store})
+%\end{mathpar}
+%\caption{Store Typing}
+%\label{f:s_typ}
+%\end{figure}
 
-\input{reduction}
+\begin{figure}[h]
+\hfill \fbox{$\mu \; | \; e \; \rightarrow \mu' \; | \; e'$}
+\begin{mathpar}
+\inferrule
+  {l \notin dom(\mu) \\
+  	\mu' = \mu, l \mapsto \{\texttt{z} \Rightarrow \overline{d_v}\}}
+  {\mu \; | \; \texttt{new} \; \{\texttt{z} \Rightarrow \overline{d_v}\} \; \rightarrow \mu' \; | \; l}
+  \quad (\textsc {R-New})
+  \and
+\inferrule
+  {\mu : \Sigma \\
+   \mu; \Sigma \vdash v_1 \leadsto_{m(v_2)} e}
+  {\mu \; | \; v_1.m(v_2) \;\rightarrow \mu \; | \; e}
+  \quad (\textsc {R-Meth})
+  \and
+\inferrule
+  {\mu : \Sigma \\
+   \mu; \Sigma \vdash v_1 \leadsto_{f} v_2}
+  {\mu \; | \; v_1.f \;\rightarrow \mu \; | \; v_2}
+  \quad (\textsc {R-Field})
+  \and
+\inferrule
+  {	\mu \; | \; e \; \rightarrow \; \mu' \; | \; e'}
+  {\mu \; | \; E[e] \; \rightarrow \mu' \; | \; E[e']}
+  \quad (\textsc {R-Context})
+\end{mathpar}
+\caption{Reduction}
+\label{f:red}
+\end{figure}
 
 \bibliographystyle{plain}
 \bibliography{bib}
