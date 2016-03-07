@@ -47,7 +47,9 @@
     
 \newsavebox{\tmExA}    
 \newsavebox{\tmExAcont}
-\newsavebox{\tmExPreservation}
+\newsavebox{\tmExPreservationA}
+\newsavebox{\tmExPreservationB}
+\newsavebox{\tmExList}
 
 % There are many different themes available for Beamer. A comprehensive
 % list with examples is given here:
@@ -158,13 +160,27 @@ Wyvern is a new structurally typed object oriented language.
 % You can reveal the parts of a slide one at a time
 % with the \pause command:
 \begin{frame}{Generic Type Parameters}
+Generic Type Parameters
 \end{frame}
 
 \section{Type Members}
 
 \subsection{What are Type members?}
 
+\begin{lrbox}{\tmExList}
+\begin{lstlisting}[mathescape, style=customlang]
+List = {z $\Rightarrow$	type E = $\top$
+      val head : z.E
+      val tail : List
+      def add : z.E $\rightarrow$ bool}
+\end{lstlisting}
+\end{lrbox}
+
 \begin{frame}{Type Members}
+Type members are a generic programming language feature.
+\begin{example}
+\usebox{\tmExList}
+\end{example}
 \end{frame}
 
 \begin{lrbox}{\tmExA}
@@ -248,7 +264,7 @@ For any well-typed expression, either it is a value (a fully reduced expression)
 \end{theorem}
 \end{frame}
 
-\begin{lrbox}{\tmExPreservation}
+\begin{lrbox}{\tmExPreservationA}
 \begin{lstlisting}[mathescape, style=customlang]
 X = {z $\Rightarrow$ val f : $\top$}
 Y = {z $\Rightarrow$ type L : $\top$ .. $\top$}
@@ -261,29 +277,59 @@ a.meth.f
 \end{lrbox}
 
 \begin{frame}{Loss of Preservation}
-\begin{example}
-\usebox{\tmExPreservation}
-\end{example}
+Type preservation can be lost at runtime. Well-formed expressions can reduce to interim expressions that are ill-formed even if the program result is well-formed.
+\begin{block}{ }
+\usebox{\tmExPreservationA}
+\end{block}
 \end{frame}
 
 \subsection{Our Solution}
 
+\begin{lrbox}{\tmExPreservationB}
+\begin{lstlisting}[mathescape, style=customlang]
+(new Y(...)$\unlhd$ X).f
+\end{lstlisting}
+\end{lrbox}
+
 \begin{frame}{Avoiding Narrowing}
-%\begin{block}{Block Title}
-%You can also highlight sections of your presentation in a block, with it's own title
-%\end{block}
+Problems in developing sound type members in part stem from the ``narrowing'' of expressions at runtime. That is the well-formedness of expressions is lost when they reduce to expressions with more precise types.
+
+To avoid this we introduce a persistent upcast, and maintain the original type after reduction. Our previous example now reduces to this.
+\begin{block}{ }
+%\begin{center}
+\usebox{\tmExPreservationB}
+%\end{center}
+\end{block}
+
+\end{frame}
+
+\begin{frame}{Avoiding Transitivity}
+Reduction isn't the only place narrowing occurs. Narrowing is also required as part of subtyping structural types.
+\begin{block}{Structural Subtyping}
+\begin{mathpar}
+\inferrule
+	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
+	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+	\quad (\textsc {S-Struct})
+\end{mathpar}
+\end{block}
+We patch the semantics by using our syntactic extension for upcasts.
+\begin{block}{Structural Subtyping Patched}
+\begin{mathpar}
+\inferrule
+	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
+	\quad (\textsc {S-Struct})
+\end{mathpar}
+\end{block}
+Now subtyping is free of narrowing.
 %\begin{example}
 %Here is an example of an example block.
 %\end{example}
 \end{frame}
 
-\begin{frame}{Avoiding Transitivity}
-%\begin{block}{Block Title}
-%You can also highlight sections of your presentation in a block, with it's own title
-%\end{block}
-%\begin{example}
-%Here is an example of an example block.
-%\end{example}
+\begin{frame}{Avoiding Transitivity Continued}
+Now that we are free of narrowing, it turns out that we have lost subtype transitivity too!
 \end{frame}
 
 % Placing a * after \section means it will not show in the
