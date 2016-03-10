@@ -21,7 +21,7 @@
   language = java,
   xleftmargin=\parindent,
   showstringspaces=false,
-  basicstyle=\ttfamily\tiny,
+  basicstyle=\ttfamily\scriptsize,
   otherkeywords={val, def, type, new},
   keywordstyle=\bfseries
 %  keywordstyle=\color{blue},
@@ -50,6 +50,10 @@
 \newsavebox{\tmExPreservationA}
 \newsavebox{\tmExPreservationB}
 \newsavebox{\tmExList}
+\newsavebox{\tmExPaths}
+\newsavebox{\tmExTrans}
+\newsavebox{\tmExWyvern}
+\newsavebox{\tpExList}
 
 % There are many different themes available for Beamer. A comprehensive
 % list with examples is given here:
@@ -153,14 +157,39 @@
 
 \begin{frame}{Wyvern}
 Wyvern is a new structurally typed object oriented language.
+\begin{itemize}
+\item
+An emphasis on secure web programming.
+\item
+Developed using a minimal core calculus.
+\item
+Extensions modelled as syntactic transformations on the core.
+\end{itemize}
 \end{frame}
 
 \subsection{Generic Programming}
 
 % You can reveal the parts of a slide one at a time
 % with the \pause command:
+
+\begin{frame}{Generic Programming}
+Developing generic libraries allows programmers to write code for a range of types. A good example is developing generic a \texttt{Collection} library.
+\end{frame}
+
+\begin{lrbox}{\tpExList}
+\begin{lstlisting}[mathescape, style=customlang]
+List <E extends Object> {
+   val head : E
+   val tail : List<E>
+   def add : E $\rightarrow$ E}
+\end{lstlisting}
+\end{lrbox}
+
 \begin{frame}{Generic Type Parameters}
-Generic Type Parameters
+Using type parameters we can write code that is abstracted over a range of types.
+\begin{example}
+\usebox{\tpExList}
+\end{example}
 \end{frame}
 
 \section{Type Members}
@@ -169,10 +198,10 @@ Generic Type Parameters
 
 \begin{lrbox}{\tmExList}
 \begin{lstlisting}[mathescape, style=customlang]
-List = {z $\Rightarrow$	type E = $\top$
-      val head : z.E
-      val tail : List
-      def add : z.E $\rightarrow$ bool}
+List = {z $\Rightarrow$ type E = $\top$
+             val head : z.E
+             val tail : List
+             def add : z.E $\rightarrow$ z.E}
 \end{lstlisting}
 \end{lrbox}
 
@@ -185,45 +214,40 @@ Type members are a generic programming language feature.
 
 \begin{lrbox}{\tmExA}
 \begin{lstlisting}[mathescape, style=customlang]
-List = {z $\Rightarrow$	type E = $\top$
-      val head : z.E
-      val tail : List
-      def add : z.E $\rightarrow$ bool}
-      
-Graph = {z1 $\Rightarrow$	type E = Edge
-      type EdgeList = List{z2 $\Rightarrow$ type E = z1.E 
-                                 val tail : EdgeList}
-      type VertexList = List{z2 $\Rightarrow$ type E = z1.V
-                                   val tail : VertexList}
-      type V = Vertex}
-		
-Edge = {z $\Rightarrow$	type G = Graph
-      type V = Vertex
-      val source : V
-      val target : V
-      val graph : G}
-		
-Vertex = {z1 $\Rightarrow$	type G = Graph
-      type E = Edge
-      type EdgeList = List{z2 $\Rightarrow$ type E = z1.E
-                                 val tail : EdgeList}
-      type T = $\top$
-      val edges : EdgeList
-      val element : z1.T}
+Graph = {z1 $\Rightarrow$ type E = Edge
+               type EdgeList = List{z2 $\Rightarrow$ type E = z1.E 
+                                          val tail : EdgeList}
+               type VertexList = List{z2 $\Rightarrow$ type E = z1.V
+                                            val tail : VertexList}
+               type V = Vertex}
+
+Edge = {z $\Rightarrow$ type G = Graph
+             type V = Vertex
+             val source : V
+             val target : V
+             val graph : G}
+             
+Vertex = {z1 $\Rightarrow$ type G = Graph
+                type E = Edge
+                type EdgeList = List{z2 $\Rightarrow$ type E = z1.E
+                                           val tail : EdgeList}
+                type T = $\top$
+                val edges : EdgeList
+                val element : z1.T}
 \end{lstlisting}
 \end{lrbox}
 
 \begin{lrbox}{\tmExAcont}
 \begin{lstlisting}[mathescape, style=customlang]		      
-IntegerGraph = Graph{z1 $\Rightarrow$	type E = IntegerEdge
-      type V = IntegerVertex}
+IntegerGraph = Graph{z1 $\Rightarrow$ type E = IntegerEdge
+                           type V = IntegerVertex}
 		
-IntegerEdge = Edge{z $\Rightarrow$	type G = IntegerGraph
-      type V = IntegerVertex}
+IntegerEdge = Edge{z $\Rightarrow$ type G = IntegerGraph
+                        type V = IntegerVertex}
 		
-IntegerVertex = Vertex{z1 $\Rightarrow$	type G = IntegerGraph
-      type E = IntegerEdge
-      type T = Integer}
+IntegerVertex = Vertex{z1 $\Rightarrow$ type G = IntegerGraph
+                             type E = IntegerEdge
+                             type T = Integer}
 \end{lstlisting}
 \end{lrbox}
 
@@ -237,6 +261,50 @@ IntegerVertex = Vertex{z1 $\Rightarrow$	type G = IntegerGraph
 \begin{example}
 \usebox{\tmExAcont}
 \end{example}
+\end{frame}
+
+
+\begin{frame}{DOT, $\mu$DOT and Scala}
+The most prominent use of type members is Scala. 
+\begin{itemize}
+\item
+We base our calculus on the work of Amin et al. (DOT and $\mu$DOT).
+\item
+In 2014 they developed a sound calculus for type members using a big-step semantics.
+\item
+We hope to develop a sound calculus using a small step semantics.
+\end{itemize}
+\end{frame}
+
+\begin{lrbox}{\tmExWyvern}
+\begin{lstlisting}[mathescape, style=customlang]	
+List = {z $\Rightarrow$ type E = $\bot$ .. $\top$
+             val head : z.E
+             val tail : List
+             def add : z.E $\rightarrow$ z.E}
+\end{lstlisting}
+\end{lrbox}
+
+\begin{frame}{Type Members in Wyvern}
+Type members in Wyvern is based on those in DOT and $\mu$DOT. 
+\begin{itemize}
+\item
+Type Members are defined using a lower and upper bound.
+\item
+Type Members are accessed by making type selections on paths (\texttt{p.L}).
+\item
+We define paths as variables and memory locations.
+\end{itemize}
+\begin{example}
+\usebox{\tmExWyvern}
+\end{example}
+For a selection type \texttt{p.L} and type \texttt{T}.
+\begin{itemize}
+\item
+\texttt{T} subtypes \texttt{p.L} if it subtypes the lower bound.
+\item
+\texttt{p.L} subtypes \texttt{T} if the upper bound subtypes \texttt{T}.
+\end{itemize}
 \end{frame}
 
 \subsection{Developing Sound Type Members}
@@ -281,6 +349,15 @@ Type preservation can be lost at runtime. Well-formed expressions can reduce to 
 \begin{block}{ }
 \usebox{\tmExPreservationA}
 \end{block}
+Preservation can also be lost in other ways too.
+\begin{itemize}
+\item
+Loss of Type Expansion
+\item
+Loss of Well-Formedness
+\item
+Loss of Path Equality
+\end{itemize}
 \end{frame}
 
 \subsection{Our Solution}
@@ -303,23 +380,23 @@ To avoid this we introduce a persistent upcast, and maintain the original type a
 
 \end{frame}
 
-\begin{frame}{Avoiding Transitivity}
-Reduction isn't the only place narrowing occurs. Narrowing is also required as part of subtyping structural types.
-\begin{block}{Structural Subtyping}
+\begin{frame}{Avoiding Narrowing Continued}
+Reduction isn't the only place narrowing occurs. Narrowing is also required as part of subtyping record types.
+\begin{block}{Record Subtyping}
 \begin{mathpar}
 \inferrule
 	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
 	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
-	\quad (\textsc {S-Struct})
+	\quad (\textsc {S-Rec})
 \end{mathpar}
 \end{block}
 We patch the semantics by using our syntactic extension for upcasts.
-\begin{block}{Structural Subtyping Patched}
+\begin{block}{Record Subtyping Patched}
 \begin{mathpar}
 \inferrule
 	{A; \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
 	{A; \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
-	\quad (\textsc {S-Struct})
+	\quad (\textsc {S-Rec-Patched})
 \end{mathpar}
 \end{block}
 Now subtyping is free of narrowing.
@@ -328,8 +405,48 @@ Now subtyping is free of narrowing.
 %\end{example}
 \end{frame}
 
-\begin{frame}{Avoiding Transitivity Continued}
+
+\begin{lrbox}{\tmExTrans}
+\begin{lstlisting}[mathescape, style=customlang]
+A = {z $\Rightarrow$ type N : $\bot$ .. $\top$}
+
+B = {z $\Rightarrow$ type N : $\bot$ .. $\top$
+          def meth1(x : $\top$){return new{z $\Rightarrow$}}:$\top$}
+         
+S = {z $\Rightarrow$ type L : A .. $\top$
+          val f : A}
+         
+T = {z $\Rightarrow$ type L : A .. $\top$
+          val f : z.L}
+         
+U = {z $\Rightarrow$ type L : B .. $\top$
+          val f : z.L}
+\end{lstlisting}
+\end{lrbox}
+
+\begin{frame}{Avoiding Transitivity}
 Now that we are free of narrowing, it turns out that we have lost subtype transitivity too!
+\begin{block}{ }
+\usebox{\tmExTrans}
+\end{block}
+\begin{itemize}
+\item
+\texttt{S} $<:$ \texttt{T}
+\item
+\texttt{T} $<:$ \texttt{U}
+\item
+\texttt{S} $\not<:$ \texttt{U}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Avoiding Transitivity Continued}
+Again we use our syntactic extension for upcasts to avoid transitivity.
+\begin{itemize}
+\item
+\texttt{s} : \texttt{S}
+\item
+\texttt{s} $\unlhd$ \texttt{T} $\unlhd$ \texttt{U} : \texttt{U}
+\end{itemize}
 \end{frame}
 
 % Placing a * after \section means it will not show in the
@@ -338,7 +455,36 @@ Now that we are free of narrowing, it turns out that we have lost subtype transi
 
 \subsection{Path Dependent Types}
 
+
+\begin{lrbox}{\tmExPaths}
+\begin{lstlisting}[mathescape, style=customlang]
+val b = new {z $\Rightarrow$ type L : $\top$ .. $\top$
+                  val l : z.L = b}
+val a = new {z $\Rightarrow$ val i : {z $\Rightarrow$ type L : $\bot$ .. $\top$
+                                  val l : z.L} = b
+                  def meth : $\top$ (x : z.i.L){x}}
+a.meth(a.i.l)
+\end{lstlisting}
+\end{lrbox}
+
 \begin{frame}{Path Dependent Types}
+As a second contribution we hope to extend the definition of paths to field accesses. This presents problems at reduction.
+\begin{block}{ }
+\usebox{\tmExPaths}
+\end{block}
+%The above example initially type checks successfully since the parameter type of \texttt{a.meth} is \texttt{a.i.L} which is the exact type of \texttt{a.i.l}. After reduction \texttt{a.i.l} reduces to \texttt{b.l}. While in this case we know that \texttt{a.i} and \texttt{b} point to the same object, in general this is not possible to know.
+\begin{itemize}
+\item
+Initially \texttt{a.meth} types as \texttt{a.i.L} $\rightarrow$ $\top$.
+\item
+\texttt{a.i.l} has exactly type \texttt{a.i.L}.
+\item
+\texttt{a.i.l} reduces to \texttt{b.l} which has type \texttt{b.L}.
+\item
+In general there is no way to determine if \texttt{b} and \texttt{a.i} are the same path.
+\item
+Type checking fails.
+\end{itemize}
 \end{frame}
 
 \subsection{Decidable Subtyping}
@@ -349,9 +495,31 @@ Now that we are free of narrowing, it turns out that we have lost subtype transi
 \begin{frame}{Shapes, Materials and F-Bounded Polymorphism}
 \end{frame}
 
-\section{PhD Proposal}
+\section{In Which we Propose a PhD}
+
+\begin{frame}{In Which we Propose a PhD}
+The Portrait of a PhD as a young man.
+\begin{itemize}
+\item
+Sound type members calculus with small step semantics.
+\item
+Extend type members with complex paths.
+\item
+Decidable subtyping for type members.
+\item
+Develop machine checked proofs for soundness using Coq.
+\end{itemize}
+\end{frame}
 
 \begin{frame}{Threats to Research}
+\begin{itemize}
+\item
+We are developing a type members calculus concurrently with Amin et al.
+\item
+Our work takes a different approach to theirs.
+\item
+There is always a possibility we are unable to prove soundness.
+\end{itemize}
 \end{frame}
 
 \begin{frame}{Timeline}
@@ -403,6 +571,13 @@ bar label font=\normalsize\color{OliveGreen}]{Proposal}{2015-12}{2016-02} \\
 %\caption{Proposed Time line for PhD}
 \label{f:gantt}
 \end{figure}
+\end{frame}
+
+\begin{frame}{The End}
+\Huge
+\begin{center}
+Fin.
+\end{center}
 \end{frame}
 
 
