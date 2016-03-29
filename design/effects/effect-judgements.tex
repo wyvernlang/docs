@@ -1,0 +1,108 @@
+\documentclass{article}
+
+\usepackage{amssymb} % needed for \varnothing
+\usepackage{bussproofs}
+\usepackage{relsize} % make maths formulae larger
+\usepackage{stackengine}
+
+\begin{document}
+
+\section{Grammar}
+
+\paragraph{}
+$e ::= x~|~new x \Rightarrow \overline{ \sigma = e }~|~e.m(e)~|~r$
+
+\paragraph{}
+R is set of resources, M is set of methods
+
+\paragraph{}
+$\epsilon \in Powerset(R \times M)$
+
+\paragraph{}
+$\tau ::= \{ \bar \sigma \}~|~\{ \bar r \}$
+
+\paragraph{}
+$\sigma ::= d~with~\epsilon$
+
+\paragraph{}
+$r \in R, m \in M$
+
+\paragraph{}
+$d ::= def~m(x:\tau):\tau$
+
+\section{Effect Rules (Green)}
+
+\paragraph{}
+\AxiomC{$\Gamma, x : \tau \vdash e : \tau'~with~\epsilon$}
+\AxiomC{$\sigma = def~m(x:\tau):\tau'~with~\epsilon$}
+\LeftLabel{Ep-ValidImpl}
+\BinaryInfC{$\Gamma \vdash \sigma = e$}
+\DisplayProof
+
+\paragraph{}
+
+\AxiomC{} % need at least two axioms or it won't compile.
+\AxiomC{}
+\LeftLabel{Ep-Var}
+\BinaryInfC{$\Gamma, x : \tau \vdash x : \tau~with~\varnothing$}
+\DisplayProof
+
+\paragraph{}
+
+\AxiomC{} % need at least two axioms or it won't compile.
+\AxiomC{}
+\LeftLabel{Ep-Var}
+\BinaryInfC{$\Gamma \vdash r : \{ r \}~with~\varnothing$}
+\DisplayProof
+
+\paragraph{}
+
+\AxiomC{$\Gamma, x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~OK$}
+\AxiomC{}
+\LeftLabel{Ep-NewObj}
+\BinaryInfC{$\Gamma \vdash new~x~\Rightarrow~\overline\{  \sigma = e \} : \{ \bar sigma \} with \varnothing$}
+\DisplayProof
+
+\paragraph{}
+
+\AxiomC{$\Gamma \vdash e_1 : \{\bar r\}~with~\epsilon_1$}
+\AxiomC{$\Gamma \vdash e_2 : \tau_2~with~\epsilon_2$}
+\LeftLabel{Ep-MethCallResource}
+\BinaryInfC{$\Gamma \vdash e_1.m(e_2) : \{ \bar r \}~with~\{ \bar r, m \} \cup \epsilon_1 \cup \epsilon_2$}
+\DisplayProof
+
+\paragraph{}
+\AxiomC{\stackanchor{$\Gamma \vdash e_1 : \{\bar r\}~with~\epsilon_1$}{$\Gamma \vdash e_2 : \tau_2~with~\epsilon_2$}}
+\AxiomC{$\sigma~:=~def~m_i(y:\tau_2):\tau~with~\epsilon$}
+\LeftLabel{Ep-MethCallPure}
+\BinaryInfC{$\Gamma \vdash e_1.m_i(e_2) : \tau~with~\epsilon_1~\cup~\epsilon_2~\cup~\epsilon$}
+\DisplayProof
+
+\section{Capture Rules (Orange)}
+
+\paragraph{}
+\AxiomC{$\Gamma' \subseteq \Gamma$}
+\AxiomC{$\Gamma', x : \{ \bar d ~ captures ~ \varepsilon \vdash d = e\}~OK$}
+\LeftLabel{C-NewObj}
+\BinaryInfC{$\Gamma \vdash new~x \Rightarrow \overline {d = e} : \{ x \Rightarrow \bar d~with~\varepsilon\} $}
+\DisplayProof
+
+\paragraph{}
+
+\LeftLabel{C-MethCall}
+\AxiomC{\stackanchor{$\Gamma \vdash e_1 : \{ \bar d~captures~\varepsilon \}~with~\varepsilon_1$}{$\Gamma \vdash e_2 : \tau_2~with~\varepsilon_2$}}
+\AxiomC{$d~:=~def~m_i(y : \tau_2) : \tau$}
+\BinaryInfC{$\Gamma \vdash e_1.m_i(e_2) : \tau~with~\varepsilon_1~\cup~\varepsilon_2~\cup~effects(\tau_2)$}
+\DisplayProof
+
+\subsection*{Definition of Effects}
+
+\begin{itemize}
+	\item $effects(\cdot) = \varnothing$
+	\item $effects(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
+	\item $effects( \{ \bar d~with~\varepsilon \}) = \epsilon$
+	\item $effects( \{ \bar \sigma \}) = \sum_{\sigma \in \bar \sigma}~effects(\sigma)$
+	\item $effects(d~with~\epsilon) = \epsilon$
+\end{itemize}
+
+\end{document}
