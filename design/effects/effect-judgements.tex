@@ -22,7 +22,7 @@
 
 \section{Grammar}
 
-In our calculus we denote set of methods in a program by $M$ and the set of resources by $R$. Elements of those sets are denoted $m$ and $r$ respectively. An effect $\varepsilon$ is a member of the set of pairs $M \times R$.
+In our calculus we denote set of methods in a program by $M$ and the set of resources by $R$. Elements of those sets are denoted $m$ and $r$ respectively. An effect $\varepsilon$ is a member of the set of pairs $M \times R$. Intuitively we may read the effect $(m,r)$ as meaning 'the effect on resource $r$ when method $m$ is called'.
 
 \[
 \begin{array}{lll}
@@ -61,10 +61,10 @@ e & ::= & x & expressions \\
 
 \infer[\textsc{($\varepsilon$-ValidImpl)}]
 	{\Gamma \vdash \sigma = e~\keywadj{OK}}
-	{\Gamma, x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'} \\[5ex]
+	{\Gamma, x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'~\keyw{with} \varepsilon} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-NewObj)}]
-	{\Gamma \vdash \keywadj{new}~x \Rightarrow \overline{\sigma = e}}
+	{\Gamma \vdash \keywadj{new}~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}~\keyw{with} \varnothing}
 	{\Gamma, x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-MethCallResource)}]
@@ -73,10 +73,20 @@ e & ::= & x & expressions \\
 	
 \infer[\textsc{($\varepsilon$-MethCallObj)}]
 	{\Gamma \vdash e_1.m_i(e_2):\tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon}
-	{\Gamma \vdash e_1 : \{ \bar r \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i := \keyw{def} m_i(y:\tau_2):\tau~\keyw{with} \varepsilon}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i := \keyw{def} m_i(y:\tau_2):\tau~\keyw{with} \varepsilon}
 
 \end{array}
 \]
+
+\noindent \textbf{Notes:}
+
+\begin{itemize}
+	\item The $\varepsilon$ judgements are to be applied to portions of the program where the methods are explicitly annotated with their effects.
+	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their antecedents an expression typed with no effect. Merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for your program to have effects.
+	\item \textsc{$\varepsilon$-ValidImpl} says that the return type and effects of the body of a method must agree with what its signature says.
+	\item According to \textsc{$\varepsilon$-MethCallResource}, we can call any method on a resource. Doing so returns that same resource.
+\end{itemize}
+
 
 \section{Capture Rules (Orange)}
 
@@ -84,8 +94,8 @@ e & ::= & x & expressions \\
 \begin{array}{c}
 
 \infer[\textsc{(C-NewObj)}]
-	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{ d = e} : \{ x \Rightarrow \bar d~\keyw{captures} \varepsilon \} }
-	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash d = e~\keyw{OK}} \\[5ex]
+	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{d = e} : \{ x \Rightarrow \bar d~\keyw{captures} \varepsilon \} }
+	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
 
 \infer[\textsc{(C-MethCall)}]
 	{\Gamma \vdash e_1.m_i(e_2) : \tau~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup effects(\tau_2)}
@@ -95,7 +105,15 @@ e & ::= & x & expressions \\
 \end{array}
 \]
 
+\begin{itemize}
+	\item The capture judgements are to be applied when the program is not explicitly annotated with their effects. These rules perform a conservative effect analysis.
+	\item The rule \textsc{C-NewObj} takes unnannotated methods and labels them using the $\keyw{capture}$ keyword. Whereas $d~\keyw{with} \varepsilon$ means that execution of the method defined by $d$ has the effect $\varepsilon$, $d~\keyw{captures} \varepsilon$ means that $d$ has the authority to perform the effect $\varepsilon$, though it may not actually do so. We can think of $\keyw{captures}$ as an upper bound on the effects of a program, while $\keyw{with}$ is a tight upper bound on the effects of a program.
+	\item \textsc{C-MethCall} performs a conservative effect analysis by concluding the effects of an expression to be those effects which it captures.
+\end{itemize}
+
 \subsection{Definition of effects function}
+
+The $effects$ function returns the set of effects of an expression as determined by our calculus thus far in a certain typing context. It recurses on sub-expressions, looking for effect annotations.
 
 \begin{itemize}
 	\item $effects(\cdot) = \varnothing$
