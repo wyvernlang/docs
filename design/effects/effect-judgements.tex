@@ -22,7 +22,7 @@
 
 \section{Grammar}
 
-In our calculus we denote set of methods in a program by $M$ and the set of resources by $R$. Elements of those sets are denoted $m$ and $r$ respectively. An effect $\varepsilon$ is a member of the set of pairs $M \times R$. Intuitively we may read the effect $(m,r)$ as meaning 'the effect on resource $r$ when method $m$ is called'.
+We denote the set of methods in a program by $M$ and the set of resources by $R$. A resource has the authority to directly perform I/O operations. Elements of those sets are denoted $m$ and $r$ respectively. An effect is a member of the set of pairs $M \times R$. Intuitively we may read the effect $(m,r)$ as meaning 'the effect on resource $r$ when method $m$ is called'. A set of effects is denoted by $\varepsilon$.
 
 \[
 \begin{array}{lll}
@@ -40,7 +40,13 @@ e & ::= & x & expressions \\
 &&\\
 
 \sigma & ::= & d~\keyw{with}\varepsilon  & annotated~ decls.\\
+&&\\
 
+\gamma & ::= & \{ \bar d~\keyw{captures} \varepsilon \} & annotated~decls.\\
+&&\\
+
+\kappa & ::= & d = e~\keyw{OK} & well~formed~decls. \\
+  & | & \sigma = e~\keyw{OK}\\
 \end{array}
 & ~~~~~~
 &
@@ -94,31 +100,29 @@ e & ::= & x & expressions \\
 \begin{array}{c}
 
 \infer[\textsc{(C-NewObj)}]
-	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{d = e} : \{ x \Rightarrow \bar d~\keyw{captures} \varepsilon \} }
+	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} }
 	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
 
 \infer[\textsc{(C-MethCall)}]
 	{\Gamma \vdash e_1.m_i(e_2) : \tau~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup effects(\tau_2)}
 	{\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2&d_i :=~\keyw{def} m_i(y:\tau_2):\tau }
 
-
 \end{array}
 \]
 
 \begin{itemize}
 	\item The capture judgements are to be applied when the program is not explicitly annotated with their effects. These rules perform a conservative effect analysis.
-	\item The rule \textsc{C-NewObj} takes unnannotated methods and labels them using the $\keyw{capture}$ keyword. Whereas $d~\keyw{with} \varepsilon$ means that execution of the method defined by $d$ has the effect $\varepsilon$, $d~\keyw{captures} \varepsilon$ means that $d$ has the authority to perform the effect $\varepsilon$, though it may not actually do so. We can think of $\keyw{captures}$ as an upper bound on the effects of a program, while $\keyw{with}$ is a tight upper bound on the effects of a program.
+	\item The rule \textsc{C-NewObj} takes unnannotated methods and labels them using the $\keywadj{captures}$ keyword. Whereas $d~\keyw{with} \varepsilon$ means that execution of the method defined by $d$ has the effects $\varepsilon$, $d~\keyw{captures} \varepsilon$ means that $d$ has the authority to perform the effects $\varepsilon$, though it may not actually do so. We can think of $\keywadj{captures}$ as an upper bound on the effects of a program, and $\keywadj{with}$ as a tight upper bound.
 	\item \textsc{C-MethCall} performs a conservative effect analysis by concluding the effects of an expression to be those effects which it captures.
 \end{itemize}
 
 \subsection{Definition of effects function}
 
-The $effects$ function returns the set of effects of an expression as determined by our calculus thus far in a certain typing context. It recurses on sub-expressions, looking for effect annotations.
+The $effects$ function returns the set of effects of an expression as determined by our calculus thus far in a certain typing context. It recurses on sub-expressions, looking for effect annotations. If a declaration does not have an effect annotation then the function returns the set of effects captured is returned.
 
 \begin{itemize}
 	\item $effects(\cdot) = \varnothing$
 	\item $effects(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
-	\item $effects(\{ \bar d~\keyw{with} \varepsilon \}) = \varepsilon$
 	\item $effects(\{ \bar d~\keyw{captures} \varepsilon \}) = \varepsilon$
 	\item $effects( \{ \bar \sigma \}) = \bigcup_{\sigma \in \bar \sigma}~effects(\sigma)$
 	\item $effects(d~\keyw{with} \varepsilon) = \varepsilon$
