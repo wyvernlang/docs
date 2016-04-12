@@ -1,15 +1,23 @@
-\documentclass{article}
+\documentclass{llncs}
 
-\usepackage{amsmath}
-\usepackage{amssymb} % needed for \varnothing
-\usepackage[english]{babel}
-\usepackage[margin=.9in]{geometry}
-\usepackage[utf8]{inputenc}
 \usepackage{listings}
 \usepackage{proof}
-\usepackage{relsize} % make maths formulae larger
-\usepackage{stackengine}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
 \usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
 
 \lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
 \lstloadlanguages{Java,VBScript,XML,HTML}
@@ -17,12 +25,46 @@
 
 \newcommand{\keywadj}[1]{\mathtt{#1}}
 \newcommand{\keyw}[1]{\keywadj{#1}~}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+%\newcommand{\intuition}[1]{}
 
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\textit{Case}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~#1}
+  \fi
+  \item
+}
 \begin{document}
 
 \section{Grammar}
 
-In our calculus we denote set of methods in a program by $M$ and the set of resources by $R$. Elements of those sets are denoted $m$ and $r$ respectively. An effect $\varepsilon$ is a member of the set of pairs $M \times R$. Intuitively we may read the effect $(m,r)$ as meaning 'the effect on resource $r$ when method $m$ is called'.
+
+\paragraph{}
+Fix some typing context $\Gamma$. We denote the set of methods in $\Gamma$ by $M$ and the set of resources by $R$. A resource has the authority to directly perform I/O operations. Elements on those sets are denoted $m$ and $r$ respectively. An effect is a member of the set of pairs $M \times R$. Intuitively we may read the effect $(m,r)$ as meaning 'the effect on resource $r$ when method $m$ is called'. A set of effects is denoted by $\varepsilon$.
+
+\paragraph{}
+By convention we let $\bar \sigma$ denote a (non-empty) sequence of $\sigma$-terms. Similarly for $\bar d$ and $\bar \rho$.
+
+\paragraph{}
+A type is a set of declarations. The empty set is the $\keywadj{Unit}$ type.
 
 \[
 \begin{array}{lll}
@@ -34,20 +76,41 @@ e & ::= & x & expressions \\
   & | & r \\
 &&\\
 
-\tau & ::= & \{ \overline{\sigma} \} ~ | ~ \{ \overline r \} & types \\
-
-\\d & ::= & \keyw{def} m(x:\tau):\tau & declarations\\
+\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar d \} ~ | ~ \{ \bar r \} & types \\
 &&\\
 
-\sigma & ::= & d~\keyw{with}\varepsilon  & annotated~ decls.\\
 
+\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+&&\\
+
+d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
+&&\\
+
+\gamma & ::= & \{ \bar d~\keyw{captures} \varepsilon \} & annotated~decls.\\
+&&\\
+
+\kappa & ::= & d = e~\keyw{OK} & well~formed~decls. \\
+ & | & \sigma = e~\keyw{OK}\\
+ & | & d~\keyw{captures} \epsilon~\keyw{OK}\\
+
+  
 \end{array}
 & ~~~~~~
 &
 \end{array}
 \]
 
-\section{Effect Rules (Green)}
+
+\noindent \textbf{Notes:}
+
+\begin{itemize}
+	\item $\sigma$ denotes a declaration with effect labels. $d$ denotes a declaration without effect labels.
+	\item $\gamma$ and $\kappa$ terms are introduced by the calculus and don't appear in the source program.
+\end{itemize}
+
+\section{Effect Rules}
+
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
 
 \[
 \begin{array}{c}
@@ -56,17 +119,40 @@ e & ::= & x & expressions \\
   {} 
 ~~~~~~~~~~
 \infer[\textsc{($\varepsilon$-Resource)}]
-  {\Gamma \vdash r:\{ r \} ~ \keyw{with} \varnothing}
+  {\Gamma, r :\{r\} \vdash r:\{ r \} ~ \keyw{with} \varnothing}
   {} \\[5ex]
-
-\infer[\textsc{($\varepsilon$-ValidImpl)}]
-	{\Gamma \vdash \sigma = e~\keywadj{OK}}
-	{\Gamma, x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'~\keyw{with} \varepsilon} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-NewObj)}]
 	{\Gamma \vdash \keywadj{new}~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}~\keyw{with} \varnothing}
 	{\Gamma, x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
+\end{array}
+\]
 
+
+
+$\fbox{$\Gamma \vdash \kappa$}$
+
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-ValidImpl$_\sigma$)}]
+	{\Gamma \vdash \sigma = e~\keywadj{OK}}
+	{\Gamma, x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'~\keyw{with} \varepsilon} \\[5ex]
+\end{array}
+\]
+
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-ValidImpl$_d$)}]
+	{\Gamma \vdash d = e~\keywadj{OK}}
+	{\Gamma, x:\tau \vdash e: \tau' & \sigma = \keyw{def} m(x:\tau):\tau'} \\[5ex]
+\end{array}
+\]
+
+
+
+$\fbox{$\Gamma \vdash e_1.m(e_2) : \tau~\keyw{with} \varepsilon$}$
+\[
+\begin{array}{c}
 \infer[\textsc{($\varepsilon$-MethCallResource)}]
 	{\Gamma \vdash e_1.m(e_2) : \{ \bar r \}~\keyw{with} \{ \bar r, m\} \cup \varepsilon_1 \cup \varepsilon_2}
 	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2} \\[5ex]
@@ -90,38 +176,63 @@ e & ::= & x & expressions \\
 
 \section{Capture Rules (Orange)}
 
+
+\fbox{$\Gamma e : \{ \bar d~\keyw{captures} \varepsilon\}$}
+
 \[
 \begin{array}{c}
-
 \infer[\textsc{(C-NewObj)}]
-	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{d = e} : \{ x \Rightarrow \bar d~\keyw{captures} \varepsilon \} }
+	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} }
 	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
+\end{array}
+\]
 
+\fbox{$\Gamma \vdash e_1.m(e_2) : \tau~\keyw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
 \infer[\textsc{(C-MethCall)}]
 	{\Gamma \vdash e_1.m_i(e_2) : \tau~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup effects(\tau_2)}
-	{\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2&d_i :=~\keyw{def} m_i(y:\tau_2):\tau }
+	{\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2&d_i :=~\keyw{def} m_i(y:\tau_2):\tau } \\[5ex]
+\end{array}
+\]
 
+$\fbox{$\Gamma \vdash d~\keyw{captures} \varepsilon~\keywadj{OK}$}$
 
+\[
+\begin{array}{c}
+\infer[\textsc{(C-UnlabeledDecl)}]
+	{\Gamma \vdash d~\keyw{captures} \varepsilon~\keywadj{OK}}
+	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma &  \Gamma' \vdash d = e~\keyw{OK} } \\[5ex]
 \end{array}
 \]
 
 \begin{itemize}
 	\item The capture judgements are to be applied when the program is not explicitly annotated with their effects. These rules perform a conservative effect analysis.
-	\item The rule \textsc{C-NewObj} takes unnannotated methods and labels them using the $\keyw{capture}$ keyword. Whereas $d~\keyw{with} \varepsilon$ means that execution of the method defined by $d$ has the effect $\varepsilon$, $d~\keyw{captures} \varepsilon$ means that $d$ has the authority to perform the effect $\varepsilon$, though it may not actually do so. We can think of $\keyw{captures}$ as an upper bound on the effects of a program, while $\keyw{with}$ is a tight upper bound on the effects of a program.
+	\item The rule \textsc{C-NewObj} takes unannotated methods and labels them using the $\keywadj{captures}$ keyword. Whereas $d~\keyw{with} \varepsilon$ means that execution of the method defined by $d$ has the effects $\varepsilon$, $d~\keyw{captures} \varepsilon$ means that $d$ has the authority to perform the effects $\varepsilon$, though it may not actually do so. We can think of $\keywadj{captures}$ as an upper bound on the effects of a program, and $\keywadj{with}$ as a tight upper bound.
 	\item \textsc{C-MethCall} performs a conservative effect analysis by concluding the effects of an expression to be those effects which it captures.
+	\item \textsc{C-UnlabeledDecl} is to be applied to declarations with no effect annotations. The intent is to label $d$ with $\varepsilon$, a conservative set of effects in the body of $d$. The $\Gamma'$ in the rule is meant to be $\Gamma$ restricted to the scope of $d$.
 \end{itemize}
 
 \subsection{Definition of effects function}
 
-The $effects$ function returns the set of effects of an expression as determined by our calculus thus far in a certain typing context. It recurses on sub-expressions, looking for effect annotations.
+The $effects$ function returns the set of effects in a particular typing context. It uses $\keywadj{with}$ annotations to figure this out. Where there are no $\keywadj{with}$ annotations it does a conservative effect inference.
 
 \begin{itemize}
 	\item $effects(\cdot) = \varnothing$
 	\item $effects(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
-	\item $effects(\{ \bar d~\keyw{with} \varepsilon \}) = \varepsilon$
 	\item $effects(\{ \bar d~\keyw{captures} \varepsilon \}) = \varepsilon$
-	\item $effects( \{ \bar \sigma \}) = \bigcup_{\sigma \in \bar \sigma}~effects(\sigma)$
 	\item $effects(d~\keyw{with} \varepsilon) = \varepsilon$
+	\item $effects(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~effects(\sigma)$
 \end{itemize}
 
+The case for unlabeled effects is given as an inference rule:
+
+\[
+\begin{array}{c}
+\infer[\textsc{(Effects-UnlabeledDecl)}]
+	{\Gamma \vdash effects(d) = \varepsilon}
+	{\Gamma \vdash d~\keyw{captures} \varepsilon~\keywadj{OK}} \\[5ex]
+\end{array}
+\]
 \end{document}
