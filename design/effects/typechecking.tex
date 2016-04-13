@@ -1,0 +1,159 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\textit{Case}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~#1}
+  \fi
+  \item
+}
+\begin{document}
+
+\section{Darya's Example 1}
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+// $\Gamma_0 = \{ \{FileIO\} \}$
+let logger1 = new
+    def log(entry : string) : Unit with FileIO.append
+       FileIO.append('/logs/mylog.txt', entry)
+ 
+ // $\Gamma_1 = \{ \{FileIO\},~logger1 \}$
+in new
+   def main() : Unit
+      logger1.log('Hello, World!')
+\end{lstlisting}
+
+\paragraph{}
+Start with $\Gamma_0 \{ \{FileIO\} \}$. After execution of line 2, we obtain $\Gamma_1 = \{ \{FileIO\},~logger1 \}$. Line 7 declares an unannotated object type so we want to apply \textsc{C-NewObj}.
+
+\[
+\begin{array}{c}
+\infer[\textsc{(C-NewObj)}]
+	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} }
+	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\
+\end{array}
+\]
+
+\paragraph{}
+We show the antecedents hold. Firstly $effects(\Gamma_1) = effects(\{FileIO\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$. By expanding this out we get $effects(\Gamma_1) = \{ (FileIO, FileIO.append), (FileIO, FileIO.read), (FileIO, FileIO.write),$\\$(FileIO, logger1.log) \}$.
+
+\paragraph{}
+Secondly the body of the new object is well-typed (according to standard typing rules). Apply \textsc{$\varepsilon$-ValidImpl$_d$}. Then we prove $\overline{d = e}~\keywadj{OK}$ (for the body of the main object).
+
+\paragraph{}
+Apply \textsc{C-NewObj}. Then $\Gamma_1 \vdash new~x \Rightarrow \overline{d = e} : \{ \keywadj{def~main}() : \keyw{Unit~captures} \varepsilon\}$, where $\varepsilon =\{ (FileIO, FileIO.append),$\\$(FileIO, FileIO.read), (FileIO, FileIO.write),(FileIO, logger1.log) \}$.
+
+\section{Darya's Example 2}
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+// $\Gamma_0 = \{ \{FileIO\} \}$
+let logger2 = new
+   def log(entry : String) : Unit with FileIO.append
+      FileIO.append('/logs/mylog.txt', entry)
+   def expose() : { FileIO } with $\varnothing$
+      FileIO
+      
+ // $\Gamma_1 = \{ \{FileIO\},~logger2 \}$
+in new
+   def main() : Unit
+      logger2.expose().read('/etc/passwd')		// has a read effect that is not captured
+\end{lstlisting}
+
+\paragraph{}
+Very similar to example 1 but the set of effects computed is different. $effects(\Gamma_1) = effects(\{FileIO\}) \cup effects(logger2)$. $effects(\{FileIO\}) = \{(FileIO, FileIO.write), (FileIO, FileIO.read), (FileIO, FileIO.write),$\\$(FileIO, logger2.log), (FileIO, logger2.expose)\}$.
+
+\paragraph{}
+$logger2$ matches $\{ \bar \sigma \}$ so we take the union over $effects(\sigma)$, for $\sigma \in \bar \sigma$. This is $effects(logger2.log) \cup effects(logger2.expose) = \{ (FileIO, FileIO.append) \}$.
+
+\paragraph{}
+$effects(logger2) \subseteq effects(\{FileIO\})$, so $effects(\Gamma_1) = effects(\{FileIO\})$.
+
+\paragraph{}
+Then by the same process as before we conclude that $new~x \Rightarrow \overline{d = e} : \{ \keywadj{def~main}() : \keyw{Unit~captures} \varepsilon\}$, where $\varepsilon = \{(FileIO, FileIO.write), (FileIO, FileIO.read), (FileIO, FileIO.write), (FileIO, logger2.log),$\\$(FileIO, logger2.expose)\}$.
+
+\section{Darya's Example 3}
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+// $\Gamma_0 = \{ \{FileIO\} \}$
+let logger3 = new
+   def log(entry : String) : Unit with FileIO.append
+      FileIO.append('/logs/mylog.txt', entry)
+   def createExpose() : SigFoo with $\varnothing$
+      new
+         def getIO() : { FileIO } with $\varnothing$
+            FileIO
+in new
+   def main() : Unit
+      logger3.createExpose().io().read('/etc/passwd')
+\end{lstlisting}
+
+
+\section{Darya's Example 4}
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+// $\Gamma_0 = \{ \{FileIO\} \}$
+type SigPasswordReader
+   def readPasswords(fileio : { FileIO }) : String with FileIO.read
+let passwordReader = new
+   def readPasswords(fileio : { FileIO }) : String with FileIO.read
+      fileio. read('/etc/passwd')
+in
+   let logger4 = new
+      def log(entry : String) : Unit with FileIO.append
+         FileIO.append('/log/mylog.txt', entry)
+      def enablePasswordReading(pr : SigPasswordReader) : Unit
+         pr.readPasswords(FileIO)
+   in new
+      def main() : Unit
+         logger4.enablePasswordReading(passwordReader)
+/* This example also illustrates parametricity: passwordReader accepts any resources of type { FileIO } */
+\end{lstlisting}
+
+
+
+\end{document}
