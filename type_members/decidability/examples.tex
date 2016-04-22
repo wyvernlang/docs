@@ -9,6 +9,8 @@
 \usepackage{color,soul}
 \usepackage{graphicx}
 
+\setcounter{secnumdepth}{5}
+
 %\theoremstyle{definition}
 %%\newtheorem{case1}{Case1}
 \spnewtheorem{casethm}{Case}[theorem]{\itshape}{\rmfamily}
@@ -36,7 +38,8 @@
 \begin{document}
 
 \section{Equatable}
-\subsection{Java}
+\subsection{Java: Cyclic Proofs}
+
 
 \begin{lstlisting}[mathescape, style=custom_lang]
 interface Equatable<T extends Object>{}
@@ -156,6 +159,77 @@ Is \verb|Tree| a subtype of \verb|Equatable<? super Tree>|?
 
 \newpage
 
+\subsection{Java: Acyclic Proofs}
+
+
+\begin{lstlisting}[mathescape, style=custom_lang]
+class C<T> extends List<List<? super C<C<T>>>>{}
+\end{lstlisting}
+Is \verb|C<Byte>| a subtype of \verb|List<? super C<Byte>>|?
+\begin{mathpar}
+\inferrule
+ {\texttt{C<Byte>} <:\texttt{List<? super C<Byte>>}}
+ {}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\Downarrow}
+ {}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\texttt{List<List<? super C<C<Byte>>>>} <:\texttt{List<? super C<Byte>>}}
+ {}
+ \quad{\emph{inheritance}}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\Downarrow}
+ {}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\texttt{C<Byte>} <:\texttt{List<? super C<C<Byte>>>}}
+ {}
+ \quad{\emph{contravariance}}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\Downarrow}
+ {}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\texttt{List<List<? super C<C<Byte>>>>} <:\texttt{List<? super C<C<Byte>>>}}
+ {}
+ \quad{\emph{inheritance}}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\Downarrow}
+ {}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\texttt{C<C<Byte>>} <:\texttt{List<? super C<C<Byte>>>}}
+ {}
+ \quad{\emph{contravariance}}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\Downarrow}
+ {}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {.\\\\
+  .\\\\
+  .}
+ {}
+\end{mathpar}
+
+\newpage
+
 \subsection{Wyvern}
 
 %\begin{lstlisting}[mathescape, style=custom_lang]
@@ -206,19 +280,17 @@ Is \verb|Tree| a subtype of \verb|Equatable<? super Tree>|?
 	type List = {z$_1$ $\Rightarrow$
 		type T = $\bot$ .. $\top$
 		type E = $\bot$ .. z$_0$.Equatable $\wedge$ 
-				{z$_2$ $\Rightarrow$ type E = z$_0$.List $\wedge$ 
-					{z$_3$ $\Rightarrow$ type T = z$_0$.Equatable $\wedge$ 
-						{z$_4$$\Rightarrow$ type E = z$_1$.T}}}
+				{z$_2$ $\Rightarrow$ type E = z$_1$.T}
 		def equals(e : E) : boolean
 	}
 
-	type Tree =  z$_0$.List $\wedge$ {z$_1$ $\Rightarrow$ type T = z$_0$.Tree}
+	type Tree =  z$_0$.List $\wedge$ {z$_1$ $\Rightarrow$ type T = $\bot$ .. z$_0$.Tree}
 }
 \end{lstlisting}
-Is \verb|Tree| a subtype of \verb|Equatable|$\wedge$\verb|{z|$_1 \Rightarrow$ \verb|type E = |$\bot$..\verb|Tree}|?
+Is \verb|Tree| a subtype of \verb|Equatable|$\wedge$\verb|{z|$_1 \Rightarrow$ \verb|type E = |$\bot$..\verb|z|$_0$\verb|Tree}|?
 \begin{mathpar}
 \inferrule
- {\texttt{Tree} <:\texttt{Equatable}\wedge\{\texttt{z}_1 \Rightarrow \texttt{type E =} \bot .. \texttt{Tree}\}}
+ {\texttt{Tree} <:\texttt{Equatable}\wedge\{\texttt{z}_1 \Rightarrow \texttt{type E =} \bot .. \texttt{z}_0.\texttt{Tree}\}}
  {}
 \end{mathpar}
 \begin{mathpar}
@@ -228,10 +300,8 @@ Is \verb|Tree| a subtype of \verb|Equatable|$\wedge$\verb|{z|$_1 \Rightarrow$ \v
 \end{mathpar}
 \begin{mathpar}
 \inferrule
- {\texttt{z}_0.\texttt{Equatable} \wedge 
-				\{z_2 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List} \wedge 
-					\{z_3 \Rightarrow \texttt{type T} = \texttt{z}_0.\texttt{Equatable} \wedge 
-						\{z_4 \Rightarrow \texttt{type E} = \texttt{z}_1.\texttt{T}\}\}\} <: \texttt{Tree}}
+ {\texttt{Equatable} \wedge 
+				\{z_2 \Rightarrow \texttt{type E} = \bot .. \texttt{z}_0.\texttt{Tree}\} <: \texttt{Tree}}
  {}
 \end{mathpar}
 \begin{mathpar}
@@ -241,45 +311,7 @@ Is \verb|Tree| a subtype of \verb|Equatable|$\wedge$\verb|{z|$_1 \Rightarrow$ \v
 \end{mathpar}
 \begin{mathpar}
 \inferrule
- {\texttt{z}_0.\texttt{List} \wedge 
-   \{z_3 \Rightarrow \texttt{type T} = \texttt{z}_0.\texttt{Equatable} \wedge 
-	 \{z_4 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List.T}\}\} <: \\\\
-  \texttt{z}_0.\texttt{Equatable} \wedge 
-				\{z_2 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List} \wedge 
-					\{z_3 \Rightarrow \texttt{type T} = \texttt{z}_0.\texttt{Equatable} \wedge 
-						\{z_4 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List.T}\}\}\}}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{z}_0.\texttt{Equatable} \wedge 
-				\{z_2 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List} \wedge 
-					\{z_3 \Rightarrow \texttt{type T} = \texttt{z}_0.\texttt{Equatable} \wedge 
-						\{z_4 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List.T}\}\}\} <: \\\\
-  \texttt{z}_0.\texttt{List} \wedge 
-   \{z_3 \Rightarrow \texttt{type T} = \texttt{z}_0.\texttt{Equatable} \wedge 
-	 \{z_4 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List.T}\}\}}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{z}_0.\texttt{List} \wedge 
-   \{z_3 \Rightarrow \texttt{type T} = \texttt{z}_0.\texttt{Equatable} \wedge 
-	 \{z_4 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List.T}\}\} <: \\\\
-  \texttt{z}_0.\texttt{Equatable} \wedge 
-				\{z_2 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List} \wedge 
-					\{z_3 \Rightarrow \texttt{type T} = \texttt{z}_0.\texttt{Equatable} \wedge 
-						\{z_4 \Rightarrow \texttt{type E} = \texttt{z}_0.\texttt{List.T}\}\}\}}
+ {\texttt{Tree} <:\texttt{Equatable}\wedge\{\texttt{z}_1 \Rightarrow \texttt{type E =} \bot .. \texttt{z}_0.\texttt{Tree}\}}
  {}
 \end{mathpar}
 \begin{mathpar}
