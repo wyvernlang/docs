@@ -159,77 +159,6 @@ Is \verb|Tree| a subtype of \verb|Equatable<? super Tree>|?
 
 \newpage
 
-\subsection{Java: Acyclic Proofs}
-
-
-\begin{lstlisting}[mathescape, style=custom_lang]
-class List<T> extends Equatable<Equatable<? super List<List<T>>>>{}
-\end{lstlisting}
-Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
-\begin{mathpar}
-\inferrule
- {\texttt{List<Integer>} <:\texttt{Equatable<? super List<Integer>>}}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{Equatable<Equatable<? super List<List<Intger>>>>} <:\texttt{Equatble<? super List<Integer>>}}
- {}
- \quad{\emph{inheritance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{List<Integer>} <:\texttt{Equatable<? super List<List<Integer>>>}}
- {}
- \quad{\emph{contravariance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{Equatble<Equatable<? super List<List<Integer>>>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
- {}
- \quad{\emph{inheritance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{List<List<Integer>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
- {}
- \quad{\emph{contravariance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {.\\\\
-  .\\\\
-  .}
- {}
-\end{mathpar}
-
-\newpage
-
 \subsection{Wyvern}
 
 %\begin{lstlisting}[mathescape, style=custom_lang]
@@ -278,21 +207,23 @@ Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
 	}
 	
 	type List = {z$_1$ $\Rightarrow$
-		type E = $\bot$ .. z$_0$.List $\wedge$ 
-				{z$_2$ $\Rightarrow$ type E = $\bot$ .. z_0.Equatable $\wedge$ 
-				             {z$_3$ $\Rightarrow$ type E = z$_1$.E}}
+		type T = $\bot$ .. $\top$
+		type E = $\bot$ .. z$_0$.Equatable $\wedge$
+				{z$_2$ $\Rightarrow$ type E = z$_0$.List $\wedge$ 
+					{z$_3$ $\Rightarrow$ type E = $\bot$ .. z$_0$.Equatable $\wedge$ 
+						{z$_4$ $\Rightarrow$ type E = z$_1$.T .. $\top$}} .. $\top$}}
 		def equals(e : E) : boolean
 	}
 
-	type Tree =  z$_0$.List $\wedge$ {z$_1$ $\Rightarrow$ type E = $\bot$ .. z$_0$.Tree}
+	type Tree =  z$_0$.List $\wedge$ {z$_1$ $\Rightarrow$ type T = z$_0$.Tree}
 }
 \end{lstlisting}
 %Is \verb|Tree| a subtype of \verb|Equatable|$\wedge$\verb|{z|$_1 \Rightarrow$ \verb|type E = |$\bot$..\verb|z|$_0$.\verb|Tree}|?
 \begin{mathpar}
 \inferrule
- {z_0.\texttt{Tree} <:z_0.\texttt{List} \wedge
-				\{z_2 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
-				             \{z_3 \Rightarrow \texttt{type E = }z_1.E\}\}}
+ {\Gamma \vdash z_0.\texttt{Tree} <:z_0.\texttt{List} \wedge
+				\{z_6 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
+				             \{z_2 \Rightarrow \texttt{type E = }z_0.\texttt{Tree} .. \top\}\}}
  {}
 \end{mathpar}
 \begin{mathpar}
@@ -302,9 +233,10 @@ Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
 \end{mathpar}
 \begin{mathpar}
 \inferrule
- {z_0.\texttt{List} \wedge \{z_1 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Tree}\} <:z_0.\texttt{List} \wedge
-				\{z_2 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
-				             \{z_3 \Rightarrow \texttt{type E = }z_1.E\}\}}
+ {\Gamma \vdash\\\\
+  z_0.\texttt{List} \wedge \{z_1 \Rightarrow \texttt{type T = }z_0.\texttt{Tree}\} <:z_0.\texttt{List} \wedge
+				\{z_1 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
+				             \{z_2 \Rightarrow \texttt{type E = }z_0.\texttt{Tree} .. \top\}\}}
  {}
 \end{mathpar}
 \begin{mathpar}
@@ -314,8 +246,13 @@ Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
 \end{mathpar}
 \begin{mathpar}
 \inferrule
- {z_0.\texttt{Tree} <: z_0.\texttt{Equatable} \wedge 
-				             \{z_3 \Rightarrow \texttt{type E = }z_1.E\}\}}
+ {\Gamma, z_1 : \{z_1 \Rightarrow ..., \texttt{type T = }z_0.\texttt{Tree}, ...\} \vdash\\\\
+  z_0.\texttt{Equatable} \wedge 
+				\{z_2 \Rightarrow \texttt{type E = } z_0.\texttt{List} \wedge 
+				             \{z_3 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
+				             \{z_4 \Rightarrow \texttt{type E = }z_1.\texttt{T} .. \top\}\} .. \top\} <: \\\\
+				              z_0.\texttt{Equatable} \wedge 
+				             \{z_2 \Rightarrow \texttt{type E = }z_0.\texttt{Tree} .. \top\}\}}
  {}
 \end{mathpar}
 \begin{mathpar}
@@ -323,54 +260,34 @@ Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
  {\Downarrow}
  {}
 \end{mathpar}
-%\begin{mathpar}
-%\inferrule
-% {z_0.\texttt{Tree} <: z_0.List \wedge 
-%				{z_2 \Rightarrow type E = \bot .. z_0.Equatable \wedge 
-%				             {z_3 \Rightarrow type E = z_1.E}}
-% {}
-%\end{mathpar}
-%\begin{mathpar}
-%\inferrule
-% {\Downarrow}
-% {}
-%\end{mathpar}
-%\begin{mathpar}
-%\inferrule
-% {z_0.\texttt{Tree} <:\texttt{Equatable}\wedge\{z_2 \Rightarrow \texttt{type E} = \bot .. \texttt{List} \wedge 
-%				             \{z_3 \Rightarrow \texttt{type E} = z_2.E\}\}}
-% {}
-%\end{mathpar}
-%\begin{mathpar}
-%\inferrule
-% {\Downarrow}
-% {}
-%\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\Gamma, z_1 : \{z_1 \Rightarrow ..., \texttt{type T = }z_0.\texttt{Tree}, ...\} \vdash\\\\
+  z_0.\texttt{Tree} <: z_0.\texttt{List} \wedge 
+				             \{z_2 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
+				             \{z_3 \Rightarrow \texttt{type E = }z_1.\texttt{T} .. \top\}\}}
+ {}
+\end{mathpar}
+\begin{mathpar}
+\inferrule
+ {\Downarrow}
+ {}
+\end{mathpar}
+Note on the last two steps $z_1$.\texttt{T} is in fact $z_0$.\texttt{Tree}. I've avoided including the entire environment so the example doesn't become unreadable.
 
-%-----------------------------------------------------------------------------------------------------------------------------
-
-%\begin{lstlisting}[mathescape, style=custom_lang]
-%{z$_0$ $\Rightarrow$
-%	type Equatable[E] = {z$_1$ $\Rightarrow$
-%		type E = $\bot$ .. $\top$
-%		def equals(e : E) : boolean
-%	}
-%	
-%	type List[E] = {z$_1$ $\Rightarrow$
-%		type E = $\bot$ .. z$_0$.Equatable [E = $\bot$ .. List [E = z$_1$.E]]
-%		def equals(e : E) : boolean
-%	}
+%\newpage
 %
-%	type Tree =  z$_0$.List[E = $\bot$ .. z$_0$.Tree]
-%}
+%\subsection{Java: Acyclic Proofs}
+%
+%
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%class List<T> extends Equatable<Equatable<? super List<List<T>>>>{}
 %\end{lstlisting}
-
+%Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
 %\begin{mathpar}
 %\inferrule
-% {\texttt{Equatable} \wedge 
-%				\{z_2 \Rightarrow \texttt{type E} = \bot .. \texttt{z}_0.\texttt{Tree}\} <: \texttt{Tree}}
+% {\texttt{List<Integer>} <:\texttt{Equatable<? super List<Integer>>}}
 % {}
-% \quad{(\emph{by covariance of the upper bound of } \texttt{E})}
 %\end{mathpar}
 %\begin{mathpar}
 %\inferrule
@@ -379,9 +296,42 @@ Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
 %\end{mathpar}
 %\begin{mathpar}
 %\inferrule
-% {\texttt{Tree} <:\texttt{Equatable}\wedge\{\texttt{z}_1 \Rightarrow \texttt{type E =} \bot .. \texttt{z}_0.\texttt{Tree}\}}
+% {\texttt{Equatable<Equatable<? super List<List<Intger>>>>} <:\texttt{Equatble<? super List<Integer>>}}
 % {}
-% \quad{(\emph{by covariance of the upper bound of } \texttt{E})}
+% \quad{\emph{inheritance}}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\texttt{List<Integer>} <:\texttt{Equatable<? super List<List<Integer>>>}}
+% {}
+% \quad{\emph{contravariance}}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\texttt{Equatble<Equatable<? super List<List<Integer>>>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
+% {}
+% \quad{\emph{inheritance}}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\texttt{List<List<Integer>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
+% {}
+% \quad{\emph{contravariance}}
 %\end{mathpar}
 %\begin{mathpar}
 %\inferrule
@@ -395,172 +345,351 @@ Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
 %  .}
 % {}
 %\end{mathpar}
-
-\newpage
-
-\subsection{Wyvern: Acyclic Proofs}
-
-
-
-\begin{lstlisting}[mathescape, style=custom_lang]
-{z$_0$ $\Rightarrow$
-	type Equatable = {z$_1$ $\Rightarrow$
-		type E = $\bot$ .. $\top$
-		def equals(e : E) : boolean
-	}
-	
-	type List = {z$_1$ $\Rightarrow$
-		type T = $\bot$ .. $\top$
-		type E = $\bot$ .. z$_0$.Equatable $\wedge$ 
-				{z$_2$ $\Rightarrow$ type E = z$_1$.T}
-		def equals(e : E) : boolean
-	}
-
-	type Tree =  z$_0$.List $\wedge$ {z$_1$ $\Rightarrow$ type T = $\bot$ .. z$_0$.Tree}
-}
-\end{lstlisting}
-\begin{lstlisting}[mathescape, style=custom_lang]
-class List<T> extends Equatable<Equatable<? super List<List<T>>>>{}
-\end{lstlisting}
-Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
-\begin{mathpar}
-\inferrule
- {\texttt{List<Integer>} <:\texttt{Equatable<? super List<Integer>>}}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{Equatable<Equatable<? super List<List<Intger>>>>} <:\texttt{Equatble<? super List<Integer>>}}
- {}
- \quad{\emph{inheritance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{List<Integer>} <:\texttt{Equatable<? super List<List<Integer>>>}}
- {}
- \quad{\emph{contravariance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{Equatble<Equatable<? super List<List<Integer>>>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
- {}
- \quad{\emph{inheritance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\texttt{List<List<Integer>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
- {}
- \quad{\emph{contravariance}}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {\Downarrow}
- {}
-\end{mathpar}
-\begin{mathpar}
-\inferrule
- {.\\\\
-  .\\\\
-  .}
- {}
-\end{mathpar}
-
-\newpage
-
-%\begin{lstlisting}[mathescape, style=custom_lang]
-%new world =>
-%	type List = list =>
-%		type E
-%		// translation of List[Equatable[E]]
-%		type ListEquatableE
-%		type E = Equatable[list.E]
-%		def equals(x:E):bool
-%		// more here...
-%			
-%		def equals(x:List[Equatable[E]]):bool
-%		def get():E
-%// the rest is like equatable
 %
-%	type ArrayList = …
-%// analogous to list, maybe with one more member or something
+%\newpage
 %
-%	type Tree
-%		type E = Tree
-%		// the rest is like List
+%\subsection{Wyvern}
 %
-%	type Equatable
-%		type T
-%		def equals(x:T):bool
-%
-%	EquatableTree
-%		type T = Tree
-%		def equals(x:this.T):bool
-%
-%	question: is world.Tree <: world.EquatableTree?
-%
-%
-%
-%
-%List[Equatable[E] = List /\ {type E = Equatable /\ {type T = outerThis.E}}
-%\end{lstlisting}
+%%\begin{lstlisting}[mathescape, style=custom_lang]
+%%class Equatable[E] {
+%%    def equals(E other): boolean
+%%}
+%%def myFunction[T](T t1, Equatable[T] t2) { ... equals(t1, t2); }
+%%def myFunctions[T <: Equatable[T]](T t1, T t2) { ... equals(t1, t2); }
+%%def myFunction[T](T t1, Equatable[T] t2) { ... t2.equals(t1); }
+%%Section 5.1: Equatable, List, Tree
+%%type Equatable
+%%    type E
+%%    def equals(other:E):boolean
+%%// Java's List class, simplified
+%%class List<out E> extends Equable<List<E>> {
+%%    E pick();
+%%    boolean equals(other:List<E>);
+%%} 
+%%// in Wyvern
+%%type List
+%%    type T: bottom .. Equatable[E = this.T]
+%%    type E = List[T = this.T, E = this.E]
+%%    def pick():T
+%%    def equals(E other):boolean
+%%// in Wyvern, where List extends Equatable<List<Equatable<E>>>
+%%type List
+%%    type T: bottom .. Equatable[E = this.T]
+%%    type E = List[T = Equatable[T], E = ?]
+%%    def pick():T
+%%    def equals(E other):boolean
+%%// type E is probably this:
+%%type E = List[T = Equatable[T], E = this.T]
+%%type E = List[T = Equatable[T], E = this.E]
+%%type Tree
+%%    type T = List[T = this.T, E = this.E]
+%%    type T = Tree[T = this.T, E = this.E]
+%%    type E = Tree[T = List[Equatable[E]], E = this.E]
+%%    type E = Tree[T = Tree[Equatable[E]], E = this.E] // perhaps better?
+%%\end{lstlisting}
 %
 %\begin{lstlisting}[mathescape, style=custom_lang]
-%class Equatable[E] {
-%    def equals(E other): boolean
+%{z$_0$ $\Rightarrow$
+%	type Equatable = {z$_1$ $\Rightarrow$
+%		type E = $\bot$ .. $\top$
+%		def equals(e : E) : boolean
+%	}
+%	
+%	type List = {z$_1$ $\Rightarrow$
+%		type E = $\bot$ .. z$_0$.List $\wedge$ 
+%				{z$_2$ $\Rightarrow$ type E = $\bot$ .. z_0.Equatable $\wedge$ 
+%				             {z$_3$ $\Rightarrow$ type E = z$_1$.E}}
+%		def equals(e : E) : boolean
+%	}
+%
+%	type Tree =  z$_0$.List $\wedge$ {z$_1$ $\Rightarrow$ type E = $\bot$ .. z$_0$.Tree}
 %}
-%def myFunction[T](T t1, Equatable[T] t2) { ... equals(t1, t2); }
-%def myFunctions[T <: Equatable[T]](T t1, T t2) { ... equals(t1, t2); }
-%def myFunction[T](T t1, Equatable[T] t2) { ... t2.equals(t1); }
-%Section 5.1: Equatable, List, Tree
-%type Equatable
-%    type E
-%    def equals(other:E):boolean
-%// Java's List class, simplified
-%class List<out E> extends Equable<List<E>> {
-%    E pick();
-%    boolean equals(other:List<E>);
-%}
-%// in Wyvern
-%type List
-%    type T: bottom .. Equatable[E = this.T]
-%    type E = List[T = this.T, E = this.E]
-%    def pick():T
-%    def equals(E other):boolean
-%// in Wyvern, where List extends Equatable<List<Equatable<E>>>
-%type List
-%    type T: bottom .. Equatable[E = this.T]
-%    type E = List[T = Equatable[T], E = ?]
-%    def pick():T
-%    def equals(E other):boolean
-%// type E is probably this:
-%type E = List[T = Equatable[T], E = this.T]
-%type E = List[T = Equatable[T], E = this.E]
-%type Tree
-%    type T = List[T = this.T, E = this.E]
-%    type T = Tree[T = this.T, E = this.E]
-%    type E = Tree[T = List[Equatable[E]], E = this.E]
-%    type E = Tree[T = Tree[Equatable[E]], E = this.E] // perhaps better?
 %\end{lstlisting}
+%%Is \verb|Tree| a subtype of \verb|Equatable|$\wedge$\verb|{z|$_1 \Rightarrow$ \verb|type E = |$\bot$..\verb|z|$_0$.\verb|Tree}|?
+%\begin{mathpar}
+%\inferrule
+% {z_0.\texttt{Tree} <:z_0.\texttt{List} \wedge
+%				\{z_2 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
+%				             \{z_3 \Rightarrow \texttt{type E = }z_1.E\}\}}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {z_0.\texttt{List} \wedge \{z_1 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Tree}\} <:z_0.\texttt{List} \wedge
+%				\{z_2 \Rightarrow \texttt{type E = }\bot .. z_0.\texttt{Equatable} \wedge 
+%				             \{z_3 \Rightarrow \texttt{type E = }z_1.E\}\}}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {z_0.\texttt{Tree} <: z_0.\texttt{Equatable} \wedge 
+%				             \{z_3 \Rightarrow \texttt{type E = }z_1.E\}\}}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {z_0.\texttt{Tree} <: z_0.\texttt{Equatable} \wedge 
+%				             \{z_3 \Rightarrow \texttt{type E = }z_1.E\}\}}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {z_0.\texttt{Tree} <: z_0.List \wedge 
+%%				{z_2 \Rightarrow type E = \bot .. z_0.Equatable \wedge 
+%%				             {z_3 \Rightarrow type E = z_1.E}}
+%% {}
+%%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {\Downarrow}
+%% {}
+%%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {z_0.\texttt{Tree} <:\texttt{Equatable}\wedge\{z_2 \Rightarrow \texttt{type E} = \bot .. \texttt{List} \wedge 
+%%				             \{z_3 \Rightarrow \texttt{type E} = z_2.E\}\}}
+%% {}
+%%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {\Downarrow}
+%% {}
+%%\end{mathpar}
+%
+%%-----------------------------------------------------------------------------------------------------------------------------
+%
+%%\begin{lstlisting}[mathescape, style=custom_lang]
+%%{z$_0$ $\Rightarrow$
+%%	type Equatable[E] = {z$_1$ $\Rightarrow$
+%%		type E = $\bot$ .. $\top$
+%%		def equals(e : E) : boolean
+%%	}
+%%	
+%%	type List[E] = {z$_1$ $\Rightarrow$
+%%		type E = $\bot$ .. z$_0$.Equatable [E = $\bot$ .. List [E = z$_1$.E]]
+%%		def equals(e : E) : boolean
+%%	}
+%%
+%%	type Tree =  z$_0$.List[E = $\bot$ .. z$_0$.Tree]
+%%}
+%%\end{lstlisting}
+%
+%%\begin{mathpar}
+%%\inferrule
+%% {\texttt{Equatable} \wedge 
+%%				\{z_2 \Rightarrow \texttt{type E} = \bot .. \texttt{z}_0.\texttt{Tree}\} <: \texttt{Tree}}
+%% {}
+%% \quad{(\emph{by covariance of the upper bound of } \texttt{E})}
+%%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {\Downarrow}
+%% {}
+%%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {\texttt{Tree} <:\texttt{Equatable}\wedge\{\texttt{z}_1 \Rightarrow \texttt{type E =} \bot .. \texttt{z}_0.\texttt{Tree}\}}
+%% {}
+%% \quad{(\emph{by covariance of the upper bound of } \texttt{E})}
+%%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {\Downarrow}
+%% {}
+%%\end{mathpar}
+%%\begin{mathpar}
+%%\inferrule
+%% {.\\\\
+%%  .\\\\
+%%  .}
+%% {}
+%%\end{mathpar}
+%
+%\newpage
+%
+%\subsection{Wyvern: Acyclic Proofs}
+%
+%
+%
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%{z$_0$ $\Rightarrow$
+%	type Equatable = {z$_1$ $\Rightarrow$
+%		type E = $\bot$ .. $\top$
+%		def equals(e : E) : boolean
+%	}
+%	
+%	type List = {z$_1$ $\Rightarrow$
+%		type T = $\bot$ .. $\top$
+%		type E = $\bot$ .. z$_0$.Equatable $\wedge$ 
+%				{z$_2$ $\Rightarrow$ type E = z$_1$.T}
+%		def equals(e : E) : boolean
+%	}
+%
+%	type Tree =  z$_0$.List $\wedge$ {z$_1$ $\Rightarrow$ type T = $\bot$ .. z$_0$.Tree}
+%}
+%\end{lstlisting}
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%class List<T> extends Equatable<Equatable<? super List<List<T>>>>{}
+%\end{lstlisting}
+%Is \verb|List<Integer>| a subtype of \verb|Equatable<? super List<Integer>>|?
+%\begin{mathpar}
+%\inferrule
+% {\texttt{List<Integer>} <:\texttt{Equatable<? super List<Integer>>}}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\texttt{Equatable<Equatable<? super List<List<Intger>>>>} <:\texttt{Equatble<? super List<Integer>>}}
+% {}
+% \quad{\emph{inheritance}}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\texttt{List<Integer>} <:\texttt{Equatable<? super List<List<Integer>>>}}
+% {}
+% \quad{\emph{contravariance}}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\texttt{Equatble<Equatable<? super List<List<Integer>>>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
+% {}
+% \quad{\emph{inheritance}}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\texttt{List<List<Integer>>} <:\texttt{Equatable<? super List<List<Integer>>>}}
+% {}
+% \quad{\emph{contravariance}}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {\Downarrow}
+% {}
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+% {.\\\\
+%  .\\\\
+%  .}
+% {}
+%\end{mathpar}
+%
+%\newpage
+%
+%%\begin{lstlisting}[mathescape, style=custom_lang]
+%%new world =>
+%%	type List = list =>
+%%		type E
+%%		// translation of List[Equatable[E]]
+%%		type ListEquatableE
+%%		type E = Equatable[list.E]
+%%		def equals(x:E):bool
+%%		// more here...
+%%			
+%%		def equals(x:List[Equatable[E]]):bool
+%%		def get():E
+%%// the rest is like equatable
+%%
+%%	type ArrayList = …
+%%// analogous to list, maybe with one more member or something
+%%
+%%	type Tree
+%%		type E = Tree
+%%		// the rest is like List
+%%
+%%	type Equatable
+%%		type T
+%%		def equals(x:T):bool
+%%
+%%	EquatableTree
+%%		type T = Tree
+%%		def equals(x:this.T):bool
+%%
+%%	question: is world.Tree <: world.EquatableTree?
+%%
+%%
+%%
+%%
+%%List[Equatable[E] = List /\ {type E = Equatable /\ {type T = outerThis.E}}
+%%\end{lstlisting}
+%%
+%%\begin{lstlisting}[mathescape, style=custom_lang]
+%%class Equatable[E] {
+%%    def equals(E other): boolean
+%%}
+%%def myFunction[T](T t1, Equatable[T] t2) { ... equals(t1, t2); }
+%%def myFunctions[T <: Equatable[T]](T t1, T t2) { ... equals(t1, t2); }
+%%def myFunction[T](T t1, Equatable[T] t2) { ... t2.equals(t1); }
+%%Section 5.1: Equatable, List, Tree
+%%type Equatable
+%%    type E
+%%    def equals(other:E):boolean
+%%// Java's List class, simplified
+%%class List<out E> extends Equable<List<E>> {
+%%    E pick();
+%%    boolean equals(other:List<E>);
+%%}
+%%// in Wyvern
+%%type List
+%%    type T: bottom .. Equatable[E = this.T]
+%%    type E = List[T = this.T, E = this.E]
+%%    def pick():T
+%%    def equals(E other):boolean
+%%// in Wyvern, where List extends Equatable<List<Equatable<E>>>
+%%type List
+%%    type T: bottom .. Equatable[E = this.T]
+%%    type E = List[T = Equatable[T], E = ?]
+%%    def pick():T
+%%    def equals(E other):boolean
+%%// type E is probably this:
+%%type E = List[T = Equatable[T], E = this.T]
+%%type E = List[T = Equatable[T], E = this.E]
+%%type Tree
+%%    type T = List[T = this.T, E = this.E]
+%%    type T = Tree[T = this.T, E = this.E]
+%%    type E = Tree[T = List[Equatable[E]], E = this.E]
+%%    type E = Tree[T = Tree[Equatable[E]], E = this.E] // perhaps better?
+%%\end{lstlisting}
 
 
 \bibliographystyle{plain}
