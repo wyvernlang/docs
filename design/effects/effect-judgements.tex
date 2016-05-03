@@ -73,10 +73,12 @@ Types are either resources or structural. Structural types have a set of method 
 We assume there are constructions of the familiar types using the basic structural type $\varnothing$ and method declarations (for example, $\mathbb{N}$ could be made using $\varnothing$ and a $\keywadj{successor}$ function, Peano-style).
 
 \paragraph{}
-Note the distinction between methods (usually denoted $m$) and operations (usually denoted $\mu$). An operation can only be invoked on a resource. Resources can only have operations invoked on them. A method can only be invoked on an object. Objects can only have methods invoked on them.
+Note the distinction between methods (usually denoted $m$) and operations (usually denoted $\pi$). An operation can only be invoked on a resource; resources can only have operations invoked on them. A method can only be invoked on an object; objects can only have methods invoked on them.
 
 \paragraph{}
 We make a simplifying assumption that every method/lambda takes exactly one argument. Invoking some operation $\pi$ on a resource returns $\varnothing$.
+
+\newpage
 
 \section{Fully-Annotated Programs}
 
@@ -93,8 +95,6 @@ In this first system every method in the program is explicitly annotated with it
   		& | & \keywadj{new}~x \Rightarrow \overline{\sigma = e} \\
   		& | & e.m(e)\\
   		& | & e.\pi(e)\\
-  		& | & \keywadj{let}~x = e~\keywadj{in}~e \\
-  		& | & \lambda x : \tau . e \\
 		&&\\
 
 	\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar r \} & types \\
@@ -126,6 +126,36 @@ In this first system every method in the program is explicitly annotated with it
 	\item Although $e_1.\pi(e_2)$ is a syntactically valid expression, it is only well-formed if $e_1$ is a resource (so $e_1$ is only a resource in well-typed programs).
 \end{itemize}
 
+
+\subsection{Syntactic Sugar}
+
+\paragraph{}
+Programs may also contain $\keywadj{let}$, $\keywadj{val}$, and $\lambda$ expressions. These can be encoded using the current grammar using transformation rules. We use $\leadsto$ for this purpose: if the relation $\Gamma \mid a \leadsto b$ holds if and only if in any piece of code $S[a]$ with context $\Gamma$, the dynamic semantics of $S[b/a]$ are exactly the same as $S[a]$.
+
+\paragraph{}
+
+\[
+\begin{array}{c}
+	
+\infer[\textsc{(Trans-Let)}]
+	{ \keyw{let} x = e_1~\keyw{in} e_2  \leadsto (\keyw{new~def}m(x : \tau_1) : \tau_2)).m(e_1) }
+	{\Gamma \vdash e_1 : \tau_1 & \Gamma, x : \tau_1 \vdash e_2 : \tau_2} \\[5ex]
+
+\infer[\textsc{(Trans-ValDef)}]
+	{\keyw{val} x : \tau_1 = e_1 \leadsto \keyw{let} \alpha x = (\keyw{new~def}get() : \tau_1 = e_1)~\keyw{in} (\alpha x.get())}
+	{\Gamma \vdash e_1 : \tau_1} \\[5ex]
+
+\infer[\textsc{(Trans-Val)}]
+	{x \leadsto \alpha x.get() }
+	{x : \tau \in \Gamma} \\[5ex]
+
+\end{array}
+\]	
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item We use the symbol $\alpha$ to prefix anonymous objects. These are objects constructed by the application of transformation rule. The variable $x$ is turned into $\alpha x$, an object with a single $get$ method that returns the expression defining $x$.
+\end{itemize}
 \subsection{Rules}
 
 \fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
@@ -202,8 +232,6 @@ e & ::= & x & expressions \\
  		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
  		& | & e.m(e)\\
  		& | & e.\pi(e)\\
-  		& | & \keywadj{let}~x = e~\keywadj{in}~e \\
-  		& | & \lambda x : \tau . e \\
 		&&\\
 
 \tau & ::= & \{ \bar \sigma \} & types \\
@@ -268,18 +296,6 @@ $\fbox{$\Gamma \vdash e : \tau$}$
 \infer[\textsc{(T-New$_d$)}]
 	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{ \bar d \}}
 	{\Gamma \vdash d_i = e_i~\keywadj{OK}}\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Let)}]
-	{\Gamma \vdash \keyw{let} x = e_1~\keyw{in} e_2 : \tau_2}
-	{\Gamma \vdash e_1 : \tau_1 & \Gamma, x : \tau_1 \vdash e_2 : \tau_2}
-~~~~~~~~~~
-\infer[\textsc{(T-$\lambda$)}]
-	{\Gamma \vdash \lambda x:\tau_1 . e~:~ \tau_1 \rightarrow \tau_2}
-	{\Gamma, x : \tau_1 \vdash e : \tau_2}\\[5ex]
-~~~~~~~~~~
-\infer[\textsc{(T-Apply$\lambda$)}]
-	{\Gamma \vdash f(x) : \tau_2}
-	{\Gamma \vdash f : \tau_1 \rightarrow \tau_2 & \Gamma \vdash x : \tau_1}
 \end{array}
 \]
 
@@ -328,14 +344,13 @@ $\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
 The $\keywadj{effects}$ function returns the set of effects in a particular typing context.
 
 \paragraph{}
-A method $m$ can return a resource $r$ (or an object that returns $r$, and so on). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, when the $\keywadj{effects}$ function is operating on a type $\tau$ it must analyse the return type of the method declarations in $\tau$.
+A method $m$ can return a resource $r$ (directly or via some enclosing object). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, when the $\keywadj{effects}$ function is operating on a type $\tau$ it must analyse the return type of the method declarations in $\tau$.
 
 \begin{itemize}
 	\item $\keywadj{effects}(\varnothing) = \varnothing$
 	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
 	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
 	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
-	\item $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon_1 \}~\keyw{with} \varepsilon_2) = \varepsilon_1 \cup \varepsilon_2$
 	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
 	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1)~\tau_2) = \keywadj{effects}(\tau_2)$
 
