@@ -58,16 +58,25 @@
 \section{Effects}
 
 \paragraph{}
-Fix some set of resources $R$. A resource is some language primitive that has the authority to directly perform I/O operations. Elements of the set $R$ are denoted by $r$. $M$ is another fixed set of methods on resources. An effect is a member of the set of pairs $R \times M$. A set of effects is denoted by $\varepsilon$. In this system we cannot dynamically create resources or resource-operations.
+Fix some set of resources $R$. A resource is some language primitive that has the authority to directly perform I/O operations. Elements of the set $R$ are denoted by $r$. $\Pi$ is a fixed set of operations on resources. Its members are denoted $\pi$. An effect is a member of the set of pairs $R \times \Pi$. A set of effects is denoted by $\varepsilon$. In this system we cannot dynamically create resources or resource-operations.
 
 \paragraph{}
-Throughout we refer to the notions of effects and captures. A piece of code $C$ has the effect $(r, m)$ if operation $m$ is performed on resource $r$ during execution of $C$. $C$ captures the effect $(r, m)$ if it has the authority to perform operation $m$ on resource $r$ at some point during its execution.
+Throughout we refer to the notions of effects and captures. A piece of code $C$ has the effect $(r, \pi)$ if operation $\pi$ is performed on resource $r$ during execution of $C$. $C$ captures the effect $(r, \pi)$ if it has the authority to perform operation $\pi$ on resource $r$ at some point during its execution.
 
 \paragraph{}
-We use $r.m$ as syntactic sugar for the effect $(r,m)$. For example, $FileIO.append$ instead of $(FileIO, append)$.
+We use $r.\pi$ as syntactic sugar for the effect $(r,\pi)$. For example, $FileIO.append$ instead of $(FileIO, append)$.
 
 \paragraph{}
-Non-resource types may be structural or primitive (is this right?). The set of primitive types $P$ contains familiar types. For example, $Int \in P$. If a type is not a resource and not primitive, we call it composite. Structural types are sets of method declarations. An example is $\{ \keyw{def} double(x : Int) : Int \}$. An interesting composite type is $\keywadj{Unit}$, which is equivalent to the empty set $\varnothing$.
+Types are either resources or structural. Structural types have a set of method declarations. An object of a particular structural type $\{ \bar \sigma \}$ can have any of the methods defined by $\sigma$ invoked on it. The structural type $\varnothing$ with no methods is called $\keywadj{Unit}$.
+
+\paragraph{}
+We assume there are constructions of the familiar types using the basic structural type $\varnothing$ and method declarations (for example, $\mathbb{N}$ could be made using $\varnothing$ and a $\keywadj{successor}$ function, Peano-style).
+
+\paragraph{}
+Note the distinction between methods (usually denoted $m$) and operations (usually denoted $\mu$). An operation can only be invoked on a resource. Resources can only have operations invoked on them. A method can only be invoked on an object. Objects can only have methods invoked on them.
+
+\paragraph{}
+We make a simplifying assumption that every method/lambda takes exactly one argument. Invoking some operation $\pi$ on a resource returns $\varnothing$.
 
 \section{Fully-Annotated Programs}
 
@@ -80,9 +89,12 @@ In this first system every method in the program is explicitly annotated with it
 \begin{array}{lllr}
 
 	e & ::= & x & expressions \\
+  		& | & r \\
   		& | & \keywadj{new}~x \Rightarrow \overline{\sigma = e} \\
   		& | & e.m(e)\\
-  		& | & r \\
+  		& | & e.\pi(e)\\
+  		& | & \keywadj{let}~x = e~\keywadj{in}~e \\
+  		& | & \lambda x : \tau . e \\
 		&&\\
 
 	\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar r \} & types \\
@@ -90,6 +102,8 @@ In this first system every method in the program is explicitly annotated with it
 
 	\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
 		&&\\
+		
+	d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\		&&\\
 		
 	\Gamma & ::= & \varnothing \\
 		& | & \Gamma,~x : \tau\\
@@ -106,12 +120,15 @@ In this first system every method in the program is explicitly annotated with it
 
 \begin{itemize}
 	\item Declarations ($\sigma$-terms) are annotated by what effects they have.
-	\item All methods take exactly one argument. If a method specifies no argument, then the argument is implicitly oaf type $\keywadj{Unit}$.
+	\item $d$-terms do not appear in programs, except as part of $\sigma$-terms.
+	\item All methods (and lambda expressions) take exactly one argument. If a method specifies no argument, then the argument is implicitly of type.
+	 $\keywadj{Unit}$.
+	\item Although $e_1.\pi(e_2)$ is a syntactically valid expression, it is only well-formed if $e_1$ is a resource (so $e_1$ is only a resource in well-typed programs).
 \end{itemize}
 
 \subsection{Rules}
 
-\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varnothing$}
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
 
 \[
 \begin{array}{c}
@@ -126,6 +143,15 @@ In this first system every method in the program is explicitly annotated with it
 \infer[\textsc{($\varepsilon$-NewObj)}]
 	{\Gamma \vdash \keywadj{new}~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}~\keyw{with} \varnothing}
 	{\Gamma,~x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
+
+\infer[\textsc{($\varepsilon$-OperCall)}]
+	{\Gamma \vdash e_1.\pi(e_2) : \varnothing~\keyw{with} \{ \bar r, m\} \cup \varepsilon_1 \cup \varepsilon_2}
+	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2 & \pi \in \Pi} \\[5ex]
+	
+\infer[\textsc{($\varepsilon$-MethCallObj)}]
+	{\Gamma \vdash e_1.m_i(e_2):\tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i = \keyw{def} m_i(y:\tau_2):\tau~\keyw{with} \varepsilon}
+
 \end{array}
 \]
 
@@ -136,20 +162,6 @@ $\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
 \infer[\textsc{($\varepsilon$-ValidImpl$_\sigma$)}]
 	{\Gamma \vdash \sigma = e~\keywadj{OK}}
 	{\Gamma,~x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'~\keyw{with} \varepsilon} \\[5ex]
-\end{array}
-\]
-
-$\fbox{$\Gamma \vdash e_1.m(e_2) : \tau~\keyw{with} \varepsilon$}$
-\[
-\begin{array}{c}
-\infer[\textsc{($\varepsilon$-MethCallResource)}]
-	{\Gamma \vdash e_1.m(e_2) : \{ \bar r \}~\keyw{with} \{ \bar r, m\} \cup \varepsilon_1 \cup \varepsilon_2}
-	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2 & m \in M} \\[5ex]
-	
-\infer[\textsc{($\varepsilon$-MethCallObj)}]
-	{\Gamma \vdash e_1.m_i(e_2):\tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon}
-	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i = \keyw{def} m_i(y:\tau_2):\tau~\keyw{with} \varepsilon}
-
 \end{array}
 \]
 
@@ -185,10 +197,13 @@ In this second system methods may either be fully labeled with their effects or 
 \begin{array}{lllr}
 
 e & ::= & x & expressions \\
+  		& | & r \\
 		& | & \keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} \\
  		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
  		& | & e.m(e)\\
-  		& | & r \\
+ 		& | & e.\pi(e)\\
+  		& | & \keywadj{let}~x = e~\keywadj{in}~e \\
+  		& | & \lambda x : \tau . e \\
 		&&\\
 
 \tau & ::= & \{ \bar \sigma \} & types \\
@@ -233,7 +248,7 @@ $\fbox{$\Gamma \vdash e : \tau$}$
 	{} \\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-MethCall$_r$)}]
-	{\Gamma \vdash r.m(e_1) : \{ \bar r\}}
+	{\Gamma \vdash r.\phi(e_1) : \varnothing}
 	{\Gamma \vdash r : \{ \bar r \} & \Gamma \vdash e : \tau & m \in M} \\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-MethCall$_\sigma$)}]
@@ -253,6 +268,18 @@ $\fbox{$\Gamma \vdash e : \tau$}$
 \infer[\textsc{(T-New$_d$)}]
 	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{ \bar d \}}
 	{\Gamma \vdash d_i = e_i~\keywadj{OK}}\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-Let)}]
+	{\Gamma \vdash \keyw{let} x = e_1~\keyw{in} e_2 : \tau_2}
+	{\Gamma \vdash e_1 : \tau_1 & \Gamma, x : \tau_1 \vdash e_2 : \tau_2}
+~~~~~~~~~~
+\infer[\textsc{(T-$\lambda$)}]
+	{\Gamma \vdash \lambda x:\tau_1 . e~:~ \tau_1 \rightarrow \tau_2}
+	{\Gamma, x : \tau_1 \vdash e : \tau_2}\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-Apply$\lambda$)}]
+	{\Gamma \vdash f(x) : \tau_2}
+	{\Gamma \vdash f : \tau_1 \rightarrow \tau_2 & \Gamma \vdash x : \tau_1}
 \end{array}
 \]
 
@@ -266,7 +293,7 @@ $\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
 \end{array}
 \]
 
-\fbox{$\Gamma \vdash e_1.m(e_2) : \tau~\keyw{with} \varepsilon$}
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
 
 \[
 \begin{array}{c}
@@ -301,51 +328,18 @@ $\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
 The $\keywadj{effects}$ function returns the set of effects in a particular typing context.
 
 \paragraph{}
-A method $m$ can return a resource $r$ (or an object that returns $r$, and so on). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, $\keywadj{effects}$ also uses $\keywadj{escapes}$.
+A method $m$ can return a resource $r$ (or an object that returns $r$, and so on). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, when the $\keywadj{effects}$ function is operating on a type $\tau$ it must analyse the return type of the method declarations in $\tau$.
 
 \begin{itemize}
-	\item $\keywadj{effects}(\cdot) = \varnothing$
+	\item $\keywadj{effects}(\varnothing) = \varnothing$
 	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
-	\item $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon_1 \}~\keyw{with} \varepsilon_2) = \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{escapes}(\bar d)$
-	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{escapes}(d~\keyw{with} \varepsilon)$
 	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
+	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
+	\item $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon_1 \}~\keyw{with} \varepsilon_2) = \varepsilon_1 \cup \varepsilon_2$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1)~\tau_2) = \keywadj{effects}(\tau_2)$
+
 \end{itemize}
-
-\subsection{Escapes Function}
-
-\fbox{$\keywadj{escapes(\tau)}$}
-
-\[
-\begin{array}{c}
-\infer[\textsc{(Escapes-Resource)}]
-	{\keyw{escapes(def} m(x : \tau) : \{ \bar r \}) = \{ (r, m) \mid r \in \bar r, m \in M \}}
-	{} \\[4ex]
-	
-\infer[\textsc{(Escapes-Structural)}]
-	{\keywadj{escapes(def}~m(x : \tau_1) : \tau_2) = escapes(\tau_2)}
-	{\tau_2 \notin P & \tau_2 \notin R} \\[4ex]
-
-\infer[\textsc{(Escapes-Primitive)}]
-	{\keyw{escapes(def} m(x : \tau_1) : \tau_2) = \varnothing}
-	{\tau_2 \in P} \\[4ex]
-
-\infer[\textsc{(Escapes$_\sigma$)}]
-	{\keywadj{escapes(def}~m(x : \tau_1) : \tau_2~ with~\varepsilon) = \keywadj{escapes(def}~m(x : \tau_1) : \tau_2)}
-	{} \\[4ex]
-
-\infer[\textsc{(Escapes$_{\bar d}$)}]
-	{\keywadj{escapes}(\{\bar d\}) = \bigcup_{d \in \bar d}~escapes(d)}
-	{}
-~~~~~~~~
-\infer[\textsc{(Escapes$_{\bar \sigma}$)}]
-	{\keywadj{escapes}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~escapes(\sigma)}
-	{} \\[4ex]
-	
-%\infer[\textsc{(Escapes-Recursive)}]
-%	{\keyw{escapes(def} m(x : \tau_1) : \{ \bar \sigma \}) = \bigcup_{\sigma \in %\bar \sigma}~\keyw{escapes(\sigma)}}
-%	{\tau_2 \notin P & \tau_2 \notin R} \\[2ex]
-\end{array}
-\]
 
 \newpage
 

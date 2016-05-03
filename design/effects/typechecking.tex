@@ -100,8 +100,10 @@ To prove $\overline {\sigma = e}~\keywadj{OK}$ we need the following rules.
 \]
 
 \paragraph{}
+$\keyw{logger1.log(''Hello, world!'')}$ can be checked with \textsc{$\varepsilon$-MethCallResource}. In this case, $logger1 : \{ ... \}~\keyw{with} \varnothing$ by \textsc{$\varepsilon$-Var} and $\keywadj{''Hello, world!''} : String~\keyw{with} \varnothing$ (although there's no rule for constants).
 
-$\keyw{logger1.log(''Hello, world!'')}$ can be checked with \textsc{$\varepsilon$-MethCallResource}. In this case, $logger1 : \{ ... \}~\keyw{with} \varnothing$ by \textsc{$\varepsilon$-Var} and $\keywadj{''Hello, world!''} : String~\keyw{with} \varnothing$ (but there's no rule for constants). The definition of $\keywadj{log}$ says that it has the effect $\keywadj{FileIO.append}$, so the effect set for $\keywadj{logger1.log(''Hello, world!'')}$ is the singleton
+\paragraph{}
+The definition of $\keywadj{log}$ says that it has the effect $\keywadj{FileIO.append}$, so the effect set for $\keywadj{logger1.log(''Hello, world!'')}$ is the singleton
 $\keywadj{\{FileIO.append\}}$.
 
 \paragraph{}
@@ -129,7 +131,7 @@ in new
 \end{lstlisting}
 
 \paragraph{}
-Start with $\Gamma_0$. After execution of line 2, we obtain $\Gamma_1$. Line 7 declares an unannotated object type so we want to match that with the consequent of \textsc{C-NewObj}.
+1. Start with $\Gamma_0$. After execution of line 2, we obtain $\Gamma_1$. Line 7 declares an unannotated object type so we want to match that with the consequent of \textsc{C-NewObj}.
 
 \[
 \begin{array}{c}
@@ -142,36 +144,42 @@ Start with $\Gamma_0$. After execution of line 2, we obtain $\Gamma_1$. Line 7 d
 \subsection*{Typechecking}
 
 \paragraph{}
-We must type the body of the $\keywadj{main}$ method. First we type $\keywadj{logger1}$. As $\keywadj{logger1 \in \Gamma}$ we can apply  \textsc{T-Var}.
+2. We must type the body of the $\keywadj{main}$ method. First we type $\keywadj{logger1}$. As $\keywadj{logger1 \in \Gamma}$ we can apply  \textsc{T-Var}.
 
 \paragraph{}
-There is no rule for typechecking string constants but it should typecheck to $\keywadj{String}$.
+3. There is no rule for typechecking string constants but $\keywadj{''Hello, world''}$ should typecheck to $\keywadj{String}$.
 
 \paragraph{}
-Then we can typecheck $\keywadj{logger1.log(''Hello, world'')}$ with \textsc{T-MethCall$_\sigma$}. All the types match up, so this expression types to $\keywadj{Unit}$. The body of $\keywadj{main}$ matches the signature, so we're good.
+4. With 1. and 2. We can typecheck $\keywadj{logger1.log(''Hello, world'')}$ with \textsc{T-MethCall$_\sigma$}. All the types match up, so this expression types to $\keywadj{Unit}$. The declared return type of $\keywadj{main}$ is also $\keywadj{Unit}$, so we're good.
 
 
 \subsection*{Effect-Checking}
 
 \paragraph{}
-We need the $effects$ function and a choice of $\Gamma'$. We choose $\keyw{\Gamma' = \{ logger1 : \{ log : Str -> Unit \}\}}$, because $\keyw{logger1}$ is the only free-variable appearing in the body of $\keywadj{main}$.
+5. We need the $\keywadj{effects}$ function and a choice of $\Gamma'$. We choose $\keyw{\Gamma' = \{ logger1 : \{ log : Str -> Unit \}\}}$, because $\keywadj{logger1}$ is the only free variable appearing in the body of $\keywadj{main}$. We need the following cases of the effects function.
 
 \begin{itemize}
-	\item $effects(d~\keyw{with} \varepsilon) = \varepsilon$
-	\item $effects(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~effects(\sigma)$
+	\item $\keywadj{effects}(\varnothing) = \varnothing$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1)~\tau_2) = \keywadj{effects}(\tau_2)$
+	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~effects(\sigma)$
 \end{itemize}
 
 \paragraph{}
-By applying the above cases of the $effects$ function we see that:\\
-$\keywadj{effects(\Gamma') = effects(logger1) = effects(logger1.log)}$.
-
-\paragraph{}
-$\keywadj{escapes(def~log(entry : String) : Unit) = escapes(Unit)}$.  $\keywadj{Unit}$ is equivalent to the structural type $\varnothing$, so the $\keywadj{escapes}$ function evaluates to $\varnothing$ by a degenerate case of the rule \textsc{Escapes-Composite}.
+6. By applying those cases of the $effects$ function we see that:\\
+$\keywadj{effects(\Gamma')}$\\
+$\keywadj{= effects(logger1)}$\\
+$\keywadj{= effects(logger1.log)}$\\
+$ = \keywadj{effects(def~log(entry : string) : Unit~with~FileIO.append}$\\
+$ = \keywadj{\{FileIO.append\} \cup effects(Unit)\}}$\\
+$ = \keywadj{\{FileIO.append\} \cup effects(\varnothing)\}}$\\
+$ = \keywadj{\{FileIO.append\} \cup \varnothing\}}$\\
+$ = \keywadj{\{FileIO.append\}}$
 
 \subsection*{Conclusion}
 
 \paragraph{}
-Now we've satisfied the antecedents of $\textsc{C-NewObj}$. We label the new object with the following type:\\
+7. Now we've satisfied the antecedents of $\textsc{C-NewObj}$. We label the new object with the following type:\\
 $\keywadj{ main : Unit \rightarrow Unit~captures~\{ FileIO.append \} }$.
 
 \section{Example 3}
@@ -194,7 +202,7 @@ in new
 \end{lstlisting}
 
 \paragraph{}
-Similar to example 2. Again we want to apply \textsc{C-NewObj}.
+1. Similar to example 2 we want to apply \textsc{C-NewObj}.
 
 
 \[
@@ -208,39 +216,52 @@ Similar to example 2. Again we want to apply \textsc{C-NewObj}.
 \subsection*{Type-Checking}
 
 \paragraph{}
-To type the body of $\keywadj{main}$ we apply \textsc{T-MethCall$_\sigma$} to $\keywadj{logger2.expose()}$, which types to $\keywadj{\{FileIO\}}$. Then we can type  $\keywadj{logger2.expose().read(''/etc/passwd'')}$ by applying \textsc{T-MethCall$_r$}, which says that it types to $\{ r \}$ (because $\keywadj{\{ r \} <: \varnothing = Unit}$). 
+2. To type the body of $\keywadj{main}$ we apply \textsc{T-MethCall$_\sigma$} to $\keywadj{logger2.expose()}$, which types to $\keywadj{\{FileIO\}}$. Then we can type  $\keywadj{logger2.expose().read(''/etc/passwd'')}$ by applying \textsc{T-MethCall$_r$}, which says that it types to $\keywadj{\varnothing = Unit}$. This matches the return type of $\keywadj{main}$, so we're good.
 
 \subsection*{Effect-Checking}
 
 \paragraph{}
-Our choice of $\keywadj{\Gamma'}$ will be $\keywadj{logger2}$, as this is the set of free variables in the body of $\keywadj{main}$. We use the following cases of the $\keywadj{effects}$ function.
+3. Our choice of $\keywadj{\Gamma'}$ will be $\keywadj{logger2}$, as this is the set of free variables in the body of $\keywadj{main}$. We use the following cases of the $\keywadj{effects}$ function.
 
 \begin{itemize}
-	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{escapes}(d)$
-	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
+	\item $\keywadj{effects}(\varnothing) = \varnothing$
+		\item $\keywadj{effects}(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1)~\tau_2) = \keywadj{effects}(\tau_2)$
+	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~effects(\sigma)$
 \end{itemize}
 
 \paragraph{}
-$\keywadj{effects(logger2.log)} = \keywadj{effects(def~log (entry : String) : Unit~with~FileIO.append)}$.
+4. $\keywadj{effects(logger2.log)}$\\
+$\keywadj{= effects(def~log (entry : String) : Unit~with~FileIO.append)}$\\
+$\keywadj{= \{ FileIO.append \} \cup effects(Unit)}$\\
+$\keywadj{= \{ FileIO.append \}}$
 
 \paragraph{}
-Which is $\keywadj{\{FileIO.append\} \cup escapes(def~log(entry : String) : Unit)}$. Because $\keywadj{Unit}$ is equivalent to the composite type with no declarations $\varnothing$, the $\keywadj{escapes}$ function returns $\varnothing$ (a degenerate case of the rule \textsc{Escapes-Composite}).
+5. $\keywadj{effects(logger2.expose)}$\\
+$\keywadj{= effects(def~expose () : \{ FileIO \}~with~\varnothing)}$\\
+$\keywadj{= \varnothing \cup effects(\{ FileIO \})}$\\
+$\keywadj{ = \{ (FileIO, m) \mid m \in M \}}$\\
+$\keywadj{= \{ FileIO.append,~FileIO.write,~ FileIO.read \}}$
 
 \paragraph{}
-Now for $\keywadj{effects(logger2.expose)}$. This is the same as $\keywadj{effects(def~expose() : \{ FileIO \}~with~\varnothing})$. This is $\varnothing \cup escapes \{ FileIO \}$. By the rule \textsc{Escapes-Resource}, this is the set of all possible effects on $FileIO$.
+6. By combining 4. and 5. and the last case above of the $\keywadj{effects}$ function:
+$\keywadj{effects(logger2)}$\\
+$\keywadj{= effects(logger2.log) \cup effects(logger2.expose)}$\\
+$\keywadj{= \{ FileIO.append \} \cup \{ FileIO.append,~FileIO.write,~ FileIO.read \}}$\\
+$\keywadj{= \{ FileIO.append,~FileIO.write,~ FileIO.read \}}$
 
 \subsection*{Conclusion}
 
 \paragraph{}
-Finally we can apply $\textsc{C-NewObj}$. The object we created types to the following.
-
+7. The result of 2. and 6. show the antecedents of $\textsc{C-NewObj}$ hold. We can apply the consequence, typing the newly-created object to the following type.
 \paragraph{}
  $\keywadj{ \{ main : Unit \rightarrow Unit~captures~\{FileIO.append, FileIO.read, FileIO.write\} ~with~\varnothing \}}$
 
 \section{Example 4}
 
 \paragraph{}
-In this example the resource is exposed by returning an object which has an authority for it.\\
+In this example the $\keywadj{FileIO}$ resource is exposed by returning an object with an authority for it.\\
 
 \vspace{-6pt}
 \begin{lstlisting}[xleftmargin=20pt]
@@ -261,7 +282,7 @@ in new
 \end{lstlisting}
 
 \paragraph{}
-As in previous examples we want to apply \textsc{C-NewObj}.
+1. As in previous examples we want to apply \textsc{C-NewObj}.
 
 \[
 \begin{array}{c}
@@ -274,49 +295,62 @@ As in previous examples we want to apply \textsc{C-NewObj}.
 \subsection*{Typechecking}
 
 \paragraph{}
-First we'll typecheck the body of $\keywadj{main}$. $\keywadj{logger3 : \{ log : String \rightarrow Unit ..., expose : Unit \rightarrow SigFoo ... \}}$ by the rule \textsc{T-Var}, as $\keywadj{logger3} \in \Gamma$.
+First we'll typecheck the body of $\keywadj{main}$. 
 
 \paragraph{}
-We apply \textsc{T-MethCall$_\sigma$} to $\keywadj{logger3.expose()}$. The argument is of type $\keywadj{Unit}$ (need a rule for this?). The return type of $\keywadj{expose}$ is $\keywadj{SigFoo}$, so $\keywadj{logger3.expose() : SigFoo}$.
+2. $\keywadj{logger3 : \{ log : String \rightarrow Unit ..., expose : Unit \rightarrow SigFoo ... \}}$ by the rule \textsc{T-Var}, as $\keywadj{logger3} \in \Gamma$.
 
 \paragraph{}
-We apply \textsc{T-MethCall$_\sigma$} to $\keywadj{logger3.expose().getIO()}$. This typechecks  to $\{ FileIO \}$.
+3. Apply \textsc{T-MethCall$_\sigma$} to $\keywadj{logger3.expose()}$. The argument is of type $\keywadj{Unit}$ (need a rule for this? -- no argument type specified). The return type of $\keywadj{expose}$ is $\keywadj{SigFoo}$, so $\keywadj{logger3.expose() : SigFoo}$.
 
 \paragraph{}
-We apply \textsc{T-MethCall$_r$} to $\keywadj{logger3.expose().getIO().read(''/etc/passwd'')}$. This typechecks to $\{ FileIO \}$, and $\{ FileIO \} <: \keywadj{Unit}$, so the body matches the signature.
+4. Apply \textsc{T-MethCall$_\sigma$} to $\keywadj{logger3.expose().getIO()}$. This typechecks  to $\{ FileIO \}$.
+
+\paragraph{}
+5. Apply \textsc{T-MethCall$_r$} to $\keywadj{logger3.expose().getIO().read(''/etc/passwd'')}$. This typechecks to $\varnothing$ which matches the declared return type of $\keywadj{main}$. Then the definition of $\keywadj{main}$ is well-typed.
 
 \subsection*{Effect-Checking}
 
 \paragraph{}
-The free variables of $\keywadj{main}$ is $\keywadj{logger3}$, so we choose $\Gamma'$ containing only $\keywadj{logger3}$. Here are the relevant cases for the $\keywadj{effects}$ function.
-
+6. The free variables of $\keywadj{main}$ is $\keywadj{logger3}$, so we choose $\Gamma'$ containing only $\keywadj{logger3}$. Here are the relevant cases for the $\keywadj{effects}$ function.
 \begin{itemize}
-	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{escapes}(d)$
+	\item $\keywadj{effects}(\varnothing) = \varnothing$
+	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
 	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
+	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
+	\item $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon_1 \}~\keyw{with} \varepsilon_2) = \varepsilon_1 \cup \varepsilon_2$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1)~\tau_2) = \keywadj{effects}(\tau_2)$
 \end{itemize}
 
 \paragraph{}
-$\keywadj{effects(logger3) = effects(logger3.log) \cup effects(logger3.expose)}$
+7. $\keywadj{effects(logger3.log)}$\\
+$\keywadj{= effects(def~log (entry : String) : Unit~with~FileIO.append)}$\\
+$\keywadj{= \{ FileIO.append \} \cup effects(Unit)}$\\
+$\keywadj{= \{ FileIO.append \}}$
 
 \paragraph{}
-First, $\keywadj{effects(logger3.log) = \{ FileIO.append \} \cup escapes(def~log(entry : String) : Unit)}$. By \textsc{Escapes-Composite}, $\keywadj{escapes}$ returns $\varnothing$ here.
+8. $\keywadj{effects(SigFoo)}$\\
+$\keywadj{= effects(getIO)}$\\
+$\keywadj{= effects(def~getIO() : \{ FileIO \}~with~\varnothing}$\\
+$\keywadj{= \varnothing \cup effects(\{FileIO\})}$\\
+$\keywadj{= \{ FileIO.append, FileIO.read, FileIO.write \}}$
 
 \paragraph{}
-Second, $\keywadj{effects(logger3.expose) = \varnothing \cup escapes(def~expose() : SigFoo)}$. $\keywadj{SigFoo}$ is a structural type so we apply \textsc{Escapes-Structural}. Then $\keywadj{escapes(logger3.expose) = escapes(SigFoo)}$.
+9. $\keywadj{effects(logger3.expose)}$\\
+$\keywadj{= effects(def~expose() : SigFoo~with~\varnothing}$\\
+$\keywadj{= \varnothing \cup effects(SigFoo)}$\\
+$\keywadj{= \{ FileIO.append, FileIO.read, FileIO.write \}}$ (by 8)
 
 \paragraph{}
-$\keywadj{SigFoo}$ has the form $\{ \bar \sigma \}$, so we apply \textsc{Escapes$_{\bar \sigma}$} The only declaration is $\keywadj{getIO}$, which has the form $\sigma$, so we apply \textsc{Escapes$_\sigma$}. This gives us $\keywadj{escapes(SigFoo) = escapes(def~getIO() : \{ FileIO \})}$.
-
-\paragraph{}
-Finally we can apply \textsc{Escapes-Resource}. We have $\keywadj{escapes(SigFoo)}$ is the set of all effects on $\keywadj{FileIO}$. Then $\keywadj{effects(logger3)}$ is the set of all effects on $\keywadj{FileIO}$.
+10. $\keywadj{effects(logger3)}$\\
+$\keywadj{= effects(logger3.log) \cup effects(logger3.expose)}$\\
+$\keywadj{= \{ FileIO.append, FileIO.read, FileIO.write \}}$ (by 7 and 9)
 
 \subsection*{Conclusion}
 
 \paragraph{}
-Now we know $\keywadj{effects(\Gamma')}$ to be the set of all effects on $\keywadj{FileIO}$, we may finally apply $\textsc{C-NewObj}$. We conclude that the new object types to:
-
-\paragraph{}
- $\keywadj{\{main : Unit \rightarrow Unit~captures~\{FileIO.read,~FileIO.write,~FileIO.append\} \}~with~\varnothing}$
+11. The results of 10 and 5 satisfy the antecendets of $\textsc{C-NewObj}$. Applying it we conclude that the object types to: $\keywadj{\{main : Unit \rightarrow Unit~captures~\{FileIO.read,~FileIO.write,~FileIO.append\} \}~with~\varnothing}$
 
 \section{Example 5}
 
@@ -343,7 +377,7 @@ in
 \end{lstlisting}
 
 \paragraph{}
-Want to apply \textsc{C-NewObj}.
+1. Want to apply \textsc{C-NewObj}.
 
 \[
 \begin{array}{c}
@@ -355,43 +389,159 @@ Want to apply \textsc{C-NewObj}.
 
 \subsection*{Type-Checking}
 
-Same as previous sections.
+\paragraph{}
+2. $\keywadj{passwordReader \in \Gamma}$ so we can apply \textsc{T-Var}. $\keywadj{passwordReader}$ types to $\keywadj{SigPasswordReader}$.
+
+\paragraph{}
+3. Apply \textsc{T-MethCall$_\sigma$} to $\keywadj{logger4.enablePasswordReading(passwordReader)}$. This types to $\keywadj{Unit}$, which matches the declared return type of $\keywadj{main}$, so everything is well-typed.
 
 \subsection*{Effect-Checking}
 
 \paragraph{}
-The body of the new expression contains the free variables $\keywadj{logger4}$ and $\keywadj{passwordReader}$, so we choose $\Gamma'$ containing those objects.
+4. $\keywadj{logger4}$ and $\keywadj{passwordReader}$ occur free in the body of the new object, so we choose $\Gamma'$ equal to $\Gamma$, restricted to those two variables. The relevant cases of the $\keywadj{effects}$ function are:
+
+\begin{itemize}
+	\item $\keywadj{effects}(\varnothing) = \varnothing$
+	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
+	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
+	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
+	\item $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon_1 \}~\keyw{with} \varepsilon_2) = \varepsilon_1 \cup \varepsilon_2$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1)~\tau_2) = \keywadj{effects}(\tau_2)$
+\end{itemize}
 
 \paragraph{}
-Then $\keywadj{effects(Gamma') = effects(logger3) \cup effects(passwordReader)}$.
+5. $\keywadj{effects(\Gamma') = effects(logger4) \cup effects(passwordReader)}$, so we'll compute the effects of $\keywadj{logger4}$ and $\keywadj{passwordReader}$ first.
 
 \paragraph{}
-First, $\keywadj{effects(logger4) = effects(logger4.log) \cup effects(logger4.enablePasswordReading)}$.
+6. $\keywadj{effects(logger4)}$\\
+$\keywadj{= effects(logger4.log) \cup effects(logger4.enablePasswordReading)}$.
 
 \paragraph{}
-Then $\keywadj{effects(logger4.log = \{ FileIO.append \} \cup escapes(def~log(entry : String) : Unit}$.
+6.1. First we have \\$\keywadj{effects(logger4.log)}$\\
+$\keywadj{= effects(def~log(entry:String):Unit~with~FileIO.append) }$\\
+$\keywadj{ = \{ FileIO.append \} \cup effects(Unit) }$\\
+$\keywadj{ = \{ FileIO.append \} }$
 
 \paragraph{}
-This expands to $\keywadj{ \{ FileIO.append \} \cup \varnothing = \{ FileIO.append \}}$ by applying \textsc{Escapes-Structural}.
+6.2. Second we have\\ $\keywadj{effects(logger4.enablePasswordReading)}$\\
+$\keywadj{= effects(def~enablePasswordReading(pr : SigPasswordReader) : Unit~with~\varnothing)}$\\
+$\keywadj{= \varnothing \cup effects(Unit)}$\\
+$\keywadj{= \varnothing}$
 
 \paragraph{}
-Second, $\keywadj{effects(passwordReader) = effects(readPasswords)}$.
+6.3. $\keywadj{effects(logger4) = \{ FileIO.append \}}$ (6.1 and 6.2).
 
 \paragraph{}
-Which expands to $\keywadj{\{ FileIO.read \} \cup escapes(def~ readPasswords(fileio : \{ FileIO \})) }$.
+7. $\keywadj{effects(passwordReader)}$\\
+$\keywadj{ = effects(passwordReader.readPasswords)}$\\
+$\keywadj{= effects(def~readPasswords(fileio : \{ FileIO \}) : String~with~FileIO.read)}$\\
+$\keywadj{= \{ FileIO.read \} \cup effects(String)}$\\
+$\keywadj{= \{ FileIO.read \}}$
 
 \paragraph{}
-We apply \textsc{Escapes-Resource}. The set of effects escaping is everything on $\keywadj{ FileIO }$. Therefore $\keywadj{effects(\Gamma')}$ is everything on $\keywadj{ FileIO }$.
+8. $\keywadj{effects(\Gamma')}$\\
+$\keywadj{= effects(logger4) \cup effects(passwordReader)}$\\
+$\keywadj{= \{ FileIO.append \} \cup \{ FileIO.read \}}$ (from 6. and 7.)\\
+$\keywadj{= \{ FileIO.append, FileIO.read \}}$
 
 \subsection*{Conclusion}
 
 \paragraph{}
-We apply \textsc{C-NewObj}. The object created has the following type.
+9. From 3. and 8. we may apply \textsc{C-NewObj}. The object created has the following type.
 
 \paragraph{}
-$\keywadj{ \{ main : Unit \rightarrow Unit~captures~\{FileIO.read, FileIO.append, FIleIO.write\} \}~with~\varnothing }$
+$\keywadj{ \{ main : Unit \rightarrow Unit~captures~\{FileIO.read, FileIO.append\} \}~with~\varnothing }$
 
 \section{Example 6}
+
+This example looks at a function which takes a function $f_1$ as argument and returns another function $f_2$. $f_1$ has effects, causing $f_2$ to have effects.
+
+
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+
+let env = new
+    def filter (f : (Int $\rightarrow$ Bool) $\rightarrow$ Int) : Int $\rightarrow$ Bool $\keyw{with} \varnothing$
+        $\lambda$x : Int . f(x)
+    def isZero (x : Int) : Bool $\keyw{with~ FileIO.append}$
+        let _ = FileIO.append(x) in
+            x == 0
+in new
+    def main (x : Int) : Bool
+        env.filter(env.is_zero,x)
+
+\end{lstlisting}
+
+1. Want to apply \textsc{C-NewObj}.
+
+\[
+\begin{array}{c}
+\infer[\textsc{(C-NewObj)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} }
+	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\
+\end{array}
+\]
+
+2. Straightforward application of the rule. The desired effect ($\keywadj{FileIO}$) is captured because it is captured by $\keywadj{env}$, which is in $\Gamma'$.
+
+
+\section{Example 7}
+
+This example looks at a function which takes a function $f_1$ as argument and returns another function $f_2$. $f_1$ is pure, but $f_2$ has effects.
+
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+
+let env = new
+    def filter (f : Int $\rightarrow$ Bool) : Int $\rightarrow$ Bool $\keyw{with~FileIO.append}$
+        $\lambda$x : Int . let _ = FileIO.append(x)
+                  in f(x)
+    def isZero (x : Int) : Bool $\keyw{with} \varnothing$
+        x == 0
+in new
+    def main (x : Int) : Bool
+        let f = env.filter(env.is_zero)
+            in f(x)
+
+\end{lstlisting}
+
+\paragraph{}
+We're still safe because $\keywadj{FileIO}$ is captured by $\keywadj{env}$, which is in $\Gamma'$, so we'll capture it in $effects(\Gamma')$.
+
+
+\section{Example 8}
+
+\vspace{-6pt}
+\begin{lstlisting}[xleftmargin=20pt]
+let obj1 = new
+    def fmake () : Int $\rightarrow$ Bool with FileIO.append
+        $\lambda$x : Int . let _ = FileIO.append(x)
+            in x == 0
+
+in let obj2 = new
+    def app (f : Int $\rightarrow$ Bool,x  : Int) : Bool with $\varnothing$
+        f(x)
+     
+in new
+    def main () : Unit
+        let f = obj1.fmake()
+            in obj2.app(f, 3)
+\end{lstlisting}
+
+\paragraph{}
+This one is OK. Although the effect actually takes place during execution of $obj2$, it is captured by the client calling $obj2$ because $obj1$ creates the effectful function and that's in the environment when the client is executing.
+
+\paragraph{}
+Invoking a higher-order function $hof$ may have an effect not captured by that higher-order function, because the client passed in some function $f$ with effects.
+
+\paragraph{}
+If the client constructed $f$, and $f$ has effects, then they must be effects on the resources in the context visible to the client, and so any client code involving $hof(f)$ will have the effects in $f$ captured.
+
+\paragraph{}
+If the client obtains a function $f$ with effects from some object $o$, via a method $o.m$ which builds and returns $f$, then $o.m$ (and by extension, $o$) will capture all effects in $f$. Since $o$ is visible to the client, then $o$ is in the environment, so the effects of $f$ are captured.
+
+\section{Example 9}
 
 This has partially-labeled declarations.
 
@@ -409,6 +559,4 @@ in new
    def main() : Unit
       logger2.expose().read('/etc/passwd')		// has a read effect that is not captured
 \end{lstlisting}
-
-
 \end{document}
