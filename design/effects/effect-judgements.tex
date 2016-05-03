@@ -54,46 +54,47 @@
 }
 \begin{document}
 
-\section{Grammar}
-
-
-\paragraph{}
-Fix some typing context $\Gamma$. We denote the set of methods in $\Gamma$ by $M$ and the set of resources by $R$. A resource has the authority to directly perform I/O operations. Elements on those sets are denoted $m$ and $r$ respectively. An effect is a member of the set of pairs $M \times R$. Intuitively we may read the effect $(m,r)$ as meaning 'the effect on resource $r$ when method $m$ is called'. A set of effects is denoted by $\varepsilon$.
+\today
+\section{Effects}
 
 \paragraph{}
-By convention we let $\bar \sigma$ denote a (non-empty) sequence of $\sigma$-terms. Similarly for $\bar d$ and $\bar \rho$.
+Fix some set of resources $R$. A resource is some language primitive that has the authority to directly perform I/O operations. Elements of the set $R$ are denoted by $r$. $M$ is another fixed set of methods on resources. An effect is a member of the set of pairs $R \times M$. A set of effects is denoted by $\varepsilon$. In this system we cannot dynamically create resources or resource-operations.
 
 \paragraph{}
-A type is a set of declarations. The empty set is the $\keywadj{Unit}$ type.
+Throughout we refer to the notions of effects and captures. A piece of code $C$ has the effect $(r, m)$ if operation $m$ is performed on resource $r$ during execution of $C$. $C$ captures the effect $(r, m)$ if it has the authority to perform operation $m$ on resource $r$ at some point during its execution.
+
+\paragraph{}
+We use $r.m$ as syntactic sugar for the effect $(r,m)$. For example, $FileIO.append$ instead of $(FileIO, append)$.
+
+\paragraph{}
+Non-resource types may be structural or primitive (is this right?). The set of primitive types $P$ contains familiar types. For example, $Int \in P$. If a type is not a resource and not primitive, we call it composite. Structural types are sets of method declarations. An example is $\{ \keyw{def} double(x : Int) : Int \}$. An interesting composite type is $\keywadj{Unit}$, which is equivalent to the empty set $\varnothing$.
+
+\section{Fully-Annotated Programs}
+
+In this first system every method in the program is explicitly annotated with its set of effects.
+
+\subsection{Grammar}
 
 \[
 \begin{array}{lll}
-
 \begin{array}{lllr}
-e & ::= & x & expressions \\
-  & | & \keywadj{new}~x \Rightarrow \overline{\sigma = e} \\
-  & | & e.m(e)\\
-  & | & r \\
-&&\\
 
-\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar d \} ~ | ~ \{ \bar r \} & types \\
-&&\\
+	e & ::= & x & expressions \\
+  		& | & \keywadj{new}~x \Rightarrow \overline{\sigma = e} \\
+  		& | & e.m(e)\\
+  		& | & r \\
+		&&\\
 
+	\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar r \} & types \\
+		&&\\
 
-\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
-&&\\
+	\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+		
+	\Gamma & ::= & \varnothing \\
+		& | & \Gamma,~x : \tau\\
+		&&\\
 
-d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
-&&\\
-
-\gamma & ::= & \{ \bar d~\keyw{captures} \varepsilon \} & annotated~decls.\\
-&&\\
-
-\kappa & ::= & d = e~\keyw{OK} & well~formed~decls. \\
- & | & \sigma = e~\keyw{OK}\\
- & | & d~\keyw{captures} \epsilon~\keyw{OK}\\
-
-  
 \end{array}
 & ~~~~~~
 &
@@ -104,62 +105,50 @@ d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
 \noindent \textbf{Notes:}
 
 \begin{itemize}
-	\item $\sigma$ denotes a declaration with effect labels. $d$ denotes a declaration without effect labels.
-	\item $\gamma$ and $\kappa$ terms are introduced by the calculus and don't appear in the source program.
+	\item Declarations ($\sigma$-terms) are annotated by what effects they have.
+	\item All methods take exactly one argument. If a method specifies no argument, then the argument is implicitly oaf type $\keywadj{Unit}$.
 \end{itemize}
 
-\section{Effect Rules}
+\subsection{Rules}
 
-\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varnothing$}
 
 \[
 \begin{array}{c}
 \infer[\textsc{($\varepsilon$-Var)}]
-  {\Gamma, x:\tau \vdash x:\tau~ \keyw{with} \varnothing}
+  {\Gamma,~x:\tau \vdash x:\tau~ \keyw{with} \varnothing}
   {} 
 ~~~~~~~~~~
 \infer[\textsc{($\varepsilon$-Resource)}]
-  {\Gamma, r :\{r\} \vdash r:\{ r \} ~ \keyw{with} \varnothing}
+  {\Gamma,~r :\{r\} \vdash r:\{ r \} ~ \keyw{with} \varnothing}
   {} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-NewObj)}]
 	{\Gamma \vdash \keywadj{new}~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}~\keyw{with} \varnothing}
-	{\Gamma, x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
+	{\Gamma,~x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
 \end{array}
 \]
 
-
-
-$\fbox{$\Gamma \vdash \kappa$}$
+$\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
 
 \[
 \begin{array}{c}
 \infer[\textsc{($\varepsilon$-ValidImpl$_\sigma$)}]
 	{\Gamma \vdash \sigma = e~\keywadj{OK}}
-	{\Gamma, x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'~\keyw{with} \varepsilon} \\[5ex]
+	{\Gamma,~x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'~\keyw{with} \varepsilon} \\[5ex]
 \end{array}
 \]
-
-\[
-\begin{array}{c}
-\infer[\textsc{($\varepsilon$-ValidImpl$_d$)}]
-	{\Gamma \vdash d = e~\keywadj{OK}}
-	{\Gamma, x:\tau \vdash e: \tau' & \sigma = \keyw{def} m(x:\tau):\tau'} \\[5ex]
-\end{array}
-\]
-
-
 
 $\fbox{$\Gamma \vdash e_1.m(e_2) : \tau~\keyw{with} \varepsilon$}$
 \[
 \begin{array}{c}
 \infer[\textsc{($\varepsilon$-MethCallResource)}]
 	{\Gamma \vdash e_1.m(e_2) : \{ \bar r \}~\keyw{with} \{ \bar r, m\} \cup \varepsilon_1 \cup \varepsilon_2}
-	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2} \\[5ex]
+	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2 & m \in M} \\[5ex]
 	
 \infer[\textsc{($\varepsilon$-MethCallObj)}]
 	{\Gamma \vdash e_1.m_i(e_2):\tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon}
-	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i := \keyw{def} m_i(y:\tau_2):\tau~\keyw{with} \varepsilon}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i = \keyw{def} m_i(y:\tau_2):\tau~\keyw{with} \varepsilon}
 
 \end{array}
 \]
@@ -167,23 +156,113 @@ $\fbox{$\Gamma \vdash e_1.m(e_2) : \tau~\keyw{with} \varepsilon$}$
 \noindent \textbf{Notes:}
 
 \begin{itemize}
-	\item The $\varepsilon$ judgements are to be applied to portions of the program where the methods are explicitly annotated with their effects.
-	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their antecedents an expression typed with no effect. Merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for your program to have effects.
+	\item Every expression in the program must be explicitly annotated; either as $\sigma$-terms or by what they capture.
+	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their consequents an expression typed with no effect: merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for it to be an effect.
 	\item \textsc{$\varepsilon$-ValidImpl} says that the return type and effects of the body of a method must agree with what its signature says.
-	\item According to \textsc{$\varepsilon$-MethCallResource}, we can call any method on a resource. Doing so returns that same resource.
+	\item In \textsc{$\varepsilon$-MethCallResource}, we may only call a method $m$ on a resource $r$ if $m$ is a predefined operation in the set $M$. Invoking $m$ returns the resource $r$ you called it upon (which has potentially different state afterwards).
 \end{itemize}
 
 
-\section{Capture Rules (Orange)}
 
 
-\fbox{$\Gamma e : \{ \bar d~\keyw{captures} \varepsilon\}$}
+
+\newpage
+
+
+% ========================================
+% Partially-Annotated Programs
+% ========================================
+
+\section{Partially-Annotated Programs}
+
+In this second system methods may either be fully labeled with their effects or have no labels. When they have no labels a conservative effect inference is performed using rules which provide an upper-bound (not necessarily tight) on the effects of the code when executed.
+
+\subsection{Grammar}
+
+\[
+\begin{array}{lll}
+
+\begin{array}{lllr}
+
+e & ::= & x & expressions \\
+		& | & \keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} \\
+ 		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
+ 		& | & e.m(e)\\
+  		& | & r \\
+		&&\\
+
+\tau & ::= & \{ \bar \sigma \} & types \\
+		& | & \{ \bar r \} \\
+		& | & \{ \bar d \} \\
+		& | & \{ \bar d ~\keyw{captures} \varepsilon \} \\
+		&&\\
+		
+\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+
+d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
+		&&\\
+
+\end{array}
+& ~~~~~~
+&
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item $\sigma$ denotes a declaration with effect labels. $d$ denotes a declaration without effect labels.
+	\item There are two new expressions: $\keywadj{new}_\sigma$ for objects whose declarations are annotated; $\keywadj{new}_d$ for objects whose declarations aren't.
+	\item $\{ \bar d ~\keyw{captures} \varepsilon \}$ is a special kind of type that doesn't appear in the source program, but may be assigned as a consequence of the capture rules.
+\end{itemize}
+
+\subsection{Rules}
+
+In addition to the rules from the previous system, the partially-annotated system has the following rules.\\
+
+$\fbox{$\Gamma \vdash e : \tau$}$
 
 \[
 \begin{array}{c}
-\infer[\textsc{(C-NewObj)}]
-	{\Gamma \vdash~\keywadj{new}~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} }
-	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
+\infer[\textsc{(T-Var)}]
+	{\Gamma,~x : \tau \vdash x : \tau}
+	{}
+~~~~~~~~~~
+\infer[\textsc{(T-Resource)}]
+	{\Gamma,~r : \{ \bar r \} \vdash r : \{ \bar r \}}
+	{} \\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_r$)}]
+	{\Gamma \vdash r.m(e_1) : \{ \bar r\}}
+	{\Gamma \vdash r : \{ \bar r \} & \Gamma \vdash e : \tau & m \in M} \\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_\sigma$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_2}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \},~\keyw{def} m(x : \tau_1) : \tau_2~\keyw{with} \varepsilon \in \{ \bar \sigma \} &  \Gamma \vdash e_2 : \tau_1 }\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_d$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_2}
+	{\Gamma \vdash e_1 : \{ \bar d\},~\keyw{def} m(x : \tau_1) : \tau_2 \in \{ \bar d \} &  \Gamma \vdash e_2 : \tau_1 }\\[5ex]
+~~~~~~~~~~
+
+~~~~~~~~~~
+\infer[\textsc{(T-New$_\sigma$)}]
+	{\Gamma \vdash~\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}}
+	{\Gamma \vdash \sigma_i = e_i~\keywadj{OK}}
+~~~~~~~~~~
+\infer[\textsc{(T-New$_d$)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{ \bar d \}}
+	{\Gamma \vdash d_i = e_i~\keywadj{OK}}\\[5ex]
+\end{array}
+\]
+
+$\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-ValidImpl$_d$)}]
+	{\Gamma \vdash d = e~\keywadj{OK}}
+	{d = \keyw{def} m(x : \tau_1) : \tau_2 & \Gamma \vdash e : \tau_2}
+	\\[5ex]
 \end{array}
 \]
 
@@ -191,48 +270,83 @@ $\fbox{$\Gamma \vdash e_1.m(e_2) : \tau~\keyw{with} \varepsilon$}$
 
 \[
 \begin{array}{c}
+\infer[\textsc{(C-NewObj)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} ~\keyw{with} \varnothing }
+	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
+\end{array}
+\]
+
+\[
+\begin{array}{c}
 \infer[\textsc{(C-MethCall)}]
-	{\Gamma \vdash e_1.m_i(e_2) : \tau~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup effects(\tau_2)}
+	{\Gamma \vdash e_1.m_i(e_2) : \tau~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup effects(\tau_2) \cup \varepsilon}
 	{\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2&d_i :=~\keyw{def} m_i(y:\tau_2):\tau } \\[5ex]
 \end{array}
 \]
 
-$\fbox{$\Gamma \vdash d~\keyw{captures} \varepsilon~\keywadj{OK}$}$
+
+\noindent \textbf{Notes:}
+
+\begin{itemize}
+	\item The \textsc{$\varepsilon$} judgements are to be applied to annotated parts of the program; the \textsc{C} rules for unannotated parts. 
+	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their antecedents an expression typed with no effect. Merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for your program to have effects.
+	\item The \textsc{T} judgements before standard typechecking, but they operate on annotated terms. They are needed to apply the \textsc{$\varepsilon$-ValidImpl$_d$)} rule.
+	\item In applying \textsc{C-NewObj} the variable $\Gamma$ is the current context. The variable $\Gamma'$ is some sub-context. A good choice of sub-context is $\Gamma$ restricted to the free variables in the method-body being typechecked. This means we only consider the effects used in the method-body and gives a better approximation of its effects.
+	\item When an unannotated $d$-declaration is encountered it is first assigned a $\gamma$-type by \textsc{C-NewObj}. This annotates it as capturing a certain set of effects. \textsc{C-MethCall} can then conclude its effects to be what it captures.
+\end{itemize}
+
+\subsection{Effects Function}
+
+\paragraph{}
+The $\keywadj{effects}$ function returns the set of effects in a particular typing context.
+
+\paragraph{}
+A method $m$ can return a resource $r$ (or an object that returns $r$, and so on). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, $\keywadj{effects}$ also uses $\keywadj{escapes}$.
+
+\begin{itemize}
+	\item $\keywadj{effects}(\cdot) = \varnothing$
+	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
+	\item $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon_1 \}~\keyw{with} \varepsilon_2) = \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{escapes}(\bar d)$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{escapes}(d~\keyw{with} \varepsilon)$
+	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
+\end{itemize}
+
+\subsection{Escapes Function}
+
+\fbox{$\keywadj{escapes(\tau)}$}
 
 \[
 \begin{array}{c}
-\infer[\textsc{(C-UnlabeledDecl)}]
-	{\Gamma \vdash d~\keyw{captures} \varepsilon~\keywadj{OK}}
-	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma &  \Gamma' \vdash d = e~\keyw{OK} } \\[5ex]
+\infer[\textsc{(Escapes-Resource)}]
+	{\keyw{escapes(def} m(x : \tau) : \{ \bar r \}) = \{ (r, m) \mid r \in \bar r, m \in M \}}
+	{} \\[4ex]
+	
+\infer[\textsc{(Escapes-Structural)}]
+	{\keywadj{escapes(def}~m(x : \tau_1) : \tau_2) = escapes(\tau_2)}
+	{\tau_2 \notin P & \tau_2 \notin R} \\[4ex]
+
+\infer[\textsc{(Escapes-Primitive)}]
+	{\keyw{escapes(def} m(x : \tau_1) : \tau_2) = \varnothing}
+	{\tau_2 \in P} \\[4ex]
+
+\infer[\textsc{(Escapes$_\sigma$)}]
+	{\keywadj{escapes(def}~m(x : \tau_1) : \tau_2~ with~\varepsilon) = \keywadj{escapes(def}~m(x : \tau_1) : \tau_2)}
+	{} \\[4ex]
+
+\infer[\textsc{(Escapes$_{\bar d}$)}]
+	{\keywadj{escapes}(\{\bar d\}) = \bigcup_{d \in \bar d}~escapes(d)}
+	{}
+~~~~~~~~
+\infer[\textsc{(Escapes$_{\bar \sigma}$)}]
+	{\keywadj{escapes}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~escapes(\sigma)}
+	{} \\[4ex]
+	
+%\infer[\textsc{(Escapes-Recursive)}]
+%	{\keyw{escapes(def} m(x : \tau_1) : \{ \bar \sigma \}) = \bigcup_{\sigma \in %\bar \sigma}~\keyw{escapes(\sigma)}}
+%	{\tau_2 \notin P & \tau_2 \notin R} \\[2ex]
 \end{array}
 \]
 
-\begin{itemize}
-	\item The capture judgements are to be applied when the program is not explicitly annotated with their effects. These rules perform a conservative effect analysis.
-	\item The rule \textsc{C-NewObj} takes unannotated methods and labels them using the $\keywadj{captures}$ keyword. Whereas $d~\keyw{with} \varepsilon$ means that execution of the method defined by $d$ has the effects $\varepsilon$, $d~\keyw{captures} \varepsilon$ means that $d$ has the authority to perform the effects $\varepsilon$, though it may not actually do so. We can think of $\keywadj{captures}$ as an upper bound on the effects of a program, and $\keywadj{with}$ as a tight upper bound.
-	\item \textsc{C-MethCall} performs a conservative effect analysis by concluding the effects of an expression to be those effects which it captures.
-	\item \textsc{C-UnlabeledDecl} is to be applied to declarations with no effect annotations. The intent is to label $d$ with $\varepsilon$, a conservative set of effects in the body of $d$. The $\Gamma'$ in the rule is meant to be $\Gamma$ restricted to the scope of $d$.
-\end{itemize}
+\newpage
 
-\subsection{Definition of effects function}
-
-The $effects$ function returns the set of effects in a particular typing context. It uses $\keywadj{with}$ annotations to figure this out. Where there are no $\keywadj{with}$ annotations it does a conservative effect inference.
-
-\begin{itemize}
-	\item $effects(\cdot) = \varnothing$
-	\item $effects(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
-	\item $effects(\{ \bar d~\keyw{captures} \varepsilon \}) = \varepsilon$
-	\item $effects(d~\keyw{with} \varepsilon) = \varepsilon$
-	\item $effects(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~effects(\sigma)$
-\end{itemize}
-
-The case for unlabeled effects is given as an inference rule:
-
-\[
-\begin{array}{c}
-\infer[\textsc{(Effects-UnlabeledDecl)}]
-	{\Gamma \vdash effects(d) = \varepsilon}
-	{\Gamma \vdash d~\keyw{captures} \varepsilon~\keywadj{OK}} \\[5ex]
-\end{array}
-\]
 \end{document}
