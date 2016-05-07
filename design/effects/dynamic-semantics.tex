@@ -1,0 +1,162 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\textit{Case}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~#1}
+  \fi
+  \item
+}
+
+% definition of a configuration
+\newcommand{\config}[1] { \langle #1 \rangle }
+
+\begin{document}
+
+\today
+
+\section{Notation}
+
+\begin{itemize}
+	\item We use $\mu$ to refer to a heap. A heap is treated as a function from memory addresses to variables.
+	\item $\mu\{a \mapsto b\}$ refers to a new function $\mu'$ defined as:
+	
+\[
+\mu'(x) = 
+\left\{\begin{array}{lr}
+	\mu(x), & x \neq a \\
+	b, & x = a
+\end{array}\right\}
+\]
+	\item For an expression $e$, $e[e_1/x_1, ..., e_n/x_n]$ refers to $e$ where every free occurrence of $x_i$ in $e$ is replaced with $e_i$.
+	\item If $f$ is a function $f(x) \uparrow$ and $f(x) \downarrow$ are boolean-valued postfix operators meaning that $f(x)$ is undefined or defined, respectively. $\uparrow$ alone is taken to mean the 'undefined' value.
+	\item $\varnothing$ is overloaded to represent the single instance of the special empty type, aka $\keywadj{Unit}$.
+	\item A configuration is a pair $\config{\mu, e}$.
+	\item $\config{\mu, e} \longrightarrow \config{\mu', e'}$ if, after one reduction step on $e$ in heap $\mu$, the program ends in heap $\mu'$, ready to execute $e'$.
+	\item A program consisting of body $e$ begins execution in the configuration $\config{\lambda x . \uparrow, e}$.
+	\item Terms which are values are members of the set $V = \{ x \Rightarrow \overline{\sigma = e}, r \}$
+	\item A valid program terminates in a finite number of reductions in the configuration $\config{\mu, v}$ for some $v \in V$.
+	\item $\config{\mu_1, e_1} \longrightarrow_* \config{\mu_2, v}$ if $\config{\mu_2, v}$ is the terminating configuration after repeatedly applying reduction rules (assuming that reduction rules are congruent and that $\config{\mu_1, e_1}$ terminates).
+\end{itemize}
+
+\section{Dynamic Semantics}
+
+This first section introduces a basic dynamic semantics that has no notion of an effect.
+\\
+
+\fbox{$\config{\mu, e, \varepsilon} \simeq \config{\mu, e, \varepsilon}$}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+	\infer[\textsc{(E-Var)}]
+		{\config{\mu, x} \longrightarrow \config{\mu, y}}
+		{\mu(x) = y}
+~~~~~~~~~~
+	\infer[\textsc{(E-New$_\sigma$)}]
+		{\config{\mu, \keywadj{new~x} \Rightarrow \overline{\sigma = e}} \longrightarrow \config{\mu, \{ l \mapsto \keywadj{new~x} \Rightarrow \overline{\sigma = e} \}, l }}
+		{\mu(l) \uparrow} \\[5ex]
+		
+	\infer[\textsc{(E-MethCall)}]
+		{\config{\mu_1, e_1.m(e_2)} \longrightarrow \config{\mu_3, e[l/x, v/y]}}
+  		{\def\arraystretch{1.6}
+  			\begin{array}{c}
+  				\config{\mu_1, e_1} \longrightarrow_* \config{\mu_2, l} ~~~~~
+  		        \config{\mu_2, e_2} \longrightarrow_* \config{\mu_3, v} \\
+  		        \mu_3() = x \Rightarrow \overline{\sigma = e} ~~~~~
+			    \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon \in \overline {\sigma = e}
+			\end{array} }\\[5ex]
+			
+	\infer[\textsc{(E-OperCall)}]
+		{\config{\mu, e_1.\pi(e_2)} \longrightarrow \config{, \varnothing}}
+		{\config{\mu_1, e_1} \longrightarrow_* \config{\mu_2, r} & \config{\mu_2, e_2} \longrightarrow_* \config{\mu_3, v} }
+			
+\end{array}
+\end{array}
+\]
+
+\section{Dynamic Semantics With Effects}
+
+We amend the definition of configuration. A configuration is a triple $\config{\mu, e, \varepsilon}$, where $\varepsilon$ is an accumulated set of effects (i.e. pairs from $R \times \Pi$). The code $e$ has the effect $(r,\pi)$ if, when $\config{\lambda x . \uparrow, e, \varnothing} \longrightarrow_* \config{\mu, e', \varepsilon}$, we have $(r,m) \in \varepsilon$.
+\\\\
+This definition could be overstrict. A non-terminating program (or a program which does not terminate in a value) still has effects during execution. However, it might be a useful simplification to narrow our focus to only consider those programs which terminate.
+\\
+
+\fbox{$\config{\mu, e, \varepsilon} \simeq \config{\mu, e, \varepsilon}$}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+	\infer[\textsc{(E-Var)}]
+		{\config{\mu, x, \varepsilon} \longrightarrow \config{\mu, y, \varepsilon}}
+		{\mu(x) = y}
+~~~~~~~~~~
+	\infer[\textsc{(E-New$_\sigma$)}]
+		{\config{\mu, \keywadj{new~x} \Rightarrow \overline{\sigma = e}, \varepsilon} \longrightarrow \config{\mu, \{ l \mapsto \keywadj{new~x} \Rightarrow \overline{\sigma = e} , l, \varepsilon}}
+		{\mu(l) \uparrow} \\[5ex]
+		
+	\infer[\textsc{(E-MethCall)}]
+		{\config{\mu_1, e_1.m(e_2), \varepsilon_1} \longrightarrow \config{\mu_3, e[l/x, v/y], \varepsilon_3}}
+  		{\def\arraystretch{1.6}
+  			\begin{array}{c}
+  				\config{\mu_1, e_1, \varepsilon_1} \longrightarrow_* \config{\mu_2, l, \varepsilon_2} ~~~~~
+  		        \config{\mu_2, e_2, \varepsilon_2} \longrightarrow_* \config{\mu_3, v, \varepsilon_3} \\
+  		        \mu_3(l) = x \Rightarrow \overline{\sigma = e} ~~~~~
+			    \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon \in \overline {\sigma = e}
+			\end{array} }\\[5ex]
+			
+	\infer[\textsc{(E-Oper)}]
+		{e_1.\pi(e_2) \longrightarrow \config{\mu_3, \varnothing, \varepsilon_3 \cup \{ (r, \pi) \}}}
+		{\config{\mu_1, e_1, \varepsilon_1} \longrightarrow_* \config{\mu_2, r, \varepsilon_2}
+      & \config{\mu_2, e_2, \varepsilon_2} \longrightarrow_* \config{\mu_3, v, \varepsilon_3} } \\[5ex]
+		
+\end{array}
+\end{array}
+\]
+
+\end{document}
