@@ -60,151 +60,167 @@
 
 \today
 
-\section{Notation}
-
-\begin{itemize}
-	\item The store $\Sigma$ is a function from variable names to memory addresses.
-	\item A heap $\mu$ is a function from memory addresses to objects or resources.
-	\item If $f$ is a function, $f\{ a \mapsto b\}$ refers to a new function $f'$ defined as:
-	
-\[
-f'(x) = 
-\left\{\begin{array}{lr}
-	f(x), & x \neq a \\
-	b, & x = a
-\end{array}\right\}
-\]
-
-	\item For an expression $e$, $e[e_1/x_1, ..., e_n/x_n]$ is a new expression with the structure of $e$, where every free occurrence of $x_i$ is replaced with $e_i$.
-	\item If $f$ is a function, $f(x) \uparrow$ means that $f(x)$ is undefined. $\uparrow$ on its own represents 'undefined'.
-	\item $\varnothing$ refers to the empty set. The single instance of the empty type is denoted $\keywadj{Unit}$.
-	\item A configuration is a triple $\config{\mu, \Sigma, e}$.
-	\item $\config{\mu, \Sigma, e} \longrightarrow \config{\mu', \Sigma', e'}$ if, after one reduction step on $e$ in heap $\mu$ and store $\Sigma$, the program ends in heap $\mu'$ and store $\Sigma'$, ready to execute $e'$.
-	\item A program with body $e$ begins execution in the configuration $\config{\lambda x . \uparrow, \lambda x . \uparrow, e}$.
-	\item Terms which are values are members of the set $V = \{ l \}$
-	\item A valid program terminates in a finite number of reductions in the configuration $\config{\mu, v}$ for some $v \in V$.
-	\item $\config{\mu_1, e_1} \longrightarrow_* \config{\mu_2, v}$ if $\config{\mu_2, v}$ is the terminating configuration after repeatedly applying reduction rules (assuming that reduction rules are congruent and that $\config{\mu_1, e_1}$ terminates).
-	\item $l \mapsto x \Rightarrow \{ \overline{\sigma = e} \}$ means that memory address $l$ contains the object $x \Rightarrow \{ \overline{\sigma = e} \}$.
-	\item $l \mapsto x \Rightarrow \{ \bar r \}$ means that memory address $l$ contains the resource $\bar r$.
-\end{itemize}
 \section{Grammar}
-
 
 \[
 \begin{array}{lll}
 \begin{array}{lllr}
-
-	c & ::= & \config{\mu, \varepsilon} & configurations \\
-	&&\\
-
 	e & ::= & x & expressions \\
   		& | & r \\
   		& | & \keywadj{new}~x \Rightarrow \overline{\sigma = e} \\
   		& | & e.m(e)\\
   		& | & e.\pi(e)\\
-		& | & l & (memory~address) \\
+		& | & l & (runtime form) \\
 		&&\\
+		
+	v & ::= & r & values \\
+		& | & l \\
+		&&\\
+
+	d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\		&&\\
+		
+	\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+\end{array}
+& ~~~~~~
+&
+
+\begin{array}{lllr}
+
+	\tau & ::= & \{ \bar \sigma \}  & types \\
+		& | & \{ \bar r \} \\
+		&&\\
+
+	\Gamma & :: = & \varnothing & contexts\\
+		& | & \Gamma,~x : \tau\\
+		&&\\
+
+	\mu & :: = & \varnothing & store\\
+		& | & \mu,~l \mapsto \{ x \Rightarrow \overline{\sigma = e}\} \\
+		& | & \mu,~l \mapsto \{ x \Rightarrow \bar r \} \\
+&&\\
 
 \end{array}
 \end{array}
 \]
 
 
+\begin{itemize}
+	\item The contents of $\mu$ have the form $l \mapsto \{ x \Rightarrow \overline{\sigma = e}\}$, which means the memory address $l$ points to an object with the type $\{ \bar \sigma \}$. $x$ is the 'this' variable.
+	\item For an expression $e$, $e[e_1/x_1, ..., e_n/x_n]$ is a new expression with the structure of $e$, where every free occurrence of $x_i$ is replaced with $e_i$.
+	\item $\varnothing$ refers to the empty set. The empty type, consisting of zero method declarations, is denoted $\keywadj{Unit}$.
+	\item A configuration is a pair $\config{\mu~;~ e}$.
+	\item $\config{\mu~;~e} \longrightarrow \config{\mu'~;~e'}$ if, after one reduction step on $e$ in heap $\mu$, the program ends in heap $\mu'$ and ready to execute $e'$.
+	\item To execute a program $e$ is to perform reduction steps starting from the configuration $\config{\varnothing, e}$.
+	\item $\config{\mu_1~;~e_1} \longrightarrow_* \config{\mu_2~;~e_2}$ if the configuration $\config{\mu_2~;~e_2}$ can be reached from the configuration $\config{\mu_1, e_1}$ by the application of one or more reduction rules.
+	\item If $\config{\mu_1~;~e_1} \longrightarrow_* \config{\mu_2~;~v}$, for some value $v$, then we say that $\config{\mu_1~;~e_1}$ terminates.
+\end{itemize}
 
 \section{Dynamic Semantics}
 
 This first section introduces a basic dynamic semantics that has no notion of an effect.
 \\
 
-\fbox{$\config{\mu, \Sigma, e} \longrightarrow \config{\mu, \Sigma, e}$}
+\fbox{$\config{\mu, e} \longrightarrow \config{\mu, e}$}
 
 \[
 \begin{array}{lll}
 \begin{array}{lllr}
-	\infer[\textsc{(E-Var)}]
-		{\config{\mu, \Sigma, x} \longrightarrow \config{\mu, \Sigma, l}}
-		{\Sigma(x) = l}
-~~~~~~~~~~
-	\infer[\textsc{(E-New$_\sigma$)}]
-		{\config{\mu, \keywadj{new~x} \Rightarrow \overline{\sigma = e}, \Sigma }
-			\longrightarrow
-		 \config{\mu\{ l \mapsto \keywadj{new~x} \Rightarrow \overline{\sigma = e} \},  \Sigma, l }}
-		{\mu(l) \uparrow} \\[5ex]
+	\infer[\textsc{(E-MethCall1)}]
+		{\config{\mu~;~e_1.m(e_2)} \longrightarrow \config{\mu'~;~e_1'.m(e_2)}}
+		{\config{\mu~;~e_1} \longrightarrow \config{\mu~;~e_1'}}
 		
-	\infer[\textsc{(E-MethCall)}]
-		{\config{\mu_1, \Sigma, e_1.m(e_2)}
+		~~~~~~
+		
+	\infer[\textsc{(E-MethCall2)}]
+		{\config{\mu~;~l.m(e_2)} \longrightarrow \config{\mu'~;~l.m(e_2')}}
+		{\config{\mu~;~e_2} \longrightarrow \config{\mu'~;~e_2'}}\\[5ex]
+		
+	\infer[\textsc{(E-MethCall3)}]
+		{\config{\mu~;~l.m(v)}
 			\longrightarrow
-		 \config{\mu_3, \Sigma\{ y \mapsto v \}, e[l/x, v/y]}}
-  		{\def\arraystretch{1.6}
-  			\begin{array}{c}
-  				\config{\mu_1, e_1} \longrightarrow_* \config{\mu_2, l} ~~~~~
-  		        	\config{\mu_2, e_2} \longrightarrow_* \config{\mu_3, v} \\
-  		        \mu_3(l) = x \Rightarrow \overline{\sigma = e} ~~~~~
-			    \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon \in \overline {\sigma = e}
-			\end{array} }\\[5ex]
+		 \config{\mu~;~e'[l/x, v/y]}}
+  		{l \mapsto \{ x \Rightarrow \overline{\sigma = e} \} \in \mu & \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon = e' \in \overline {\sigma = e}} \\[5ex]
+
 			
-	\infer[\textsc{(E-OperCall)}]
-		{\config{\mu, \Sigma, e_1.\pi(e_2)}
+	\infer[\textsc{(E-OperCall1)}]
+		{\config{\mu~;~e_1.\pi(e_2)}
 			\longrightarrow
-		\config{\mu, \Sigma, \keywadj{Unit}}}
-		{\config{\mu_1, e_1} \longrightarrow_* \config{\mu_2, r} & \config{\mu_2, e_2} \longrightarrow_* \config{\mu_3, v} }
+		\config{\mu'~;~e_1'.\pi(e_2)}}
+		{\config{\mu~;~e_1} \longrightarrow \config{\mu'~;~e_1'}}
+~~~~~~
+			\infer[\textsc{(E-OperCall2)}]
+		{\config{\mu~;~r.\pi(e_2)}
+			\longrightarrow
+		\config{\mu'~;~r.\pi(e_2')}}
+		{\config{\mu~;~e_2} \longrightarrow \config{\mu'~;~e_2'}} \\[5ex]
 			
+			\infer[\textsc{(E-OperCall3)}]
+		{\config{\mu~;~r.\pi(v)}
+			\longrightarrow
+		\config{\mu'~;~\keywadj{Unit}}}
+		{r \in R & \pi \in \Pi} \\[5ex]
+			
+	\infer[\textsc{(E-New$_\sigma$)}]
+		{\config{\mu~;~\keywadj{new~x} \Rightarrow \overline{\sigma = e} }
+			\longrightarrow
+		 \config{\mu, l \mapsto \keywadj{new~x} \Rightarrow \overline{\sigma = e}~;~l }}
+		{l \notin dom(\mu)} \\[5ex]
+		
 \end{array}
 \end{array}
 \]
 
 \section{Dynamic Semantics With Effects}
 
-We amend the definition of configuration. A configuration is a quadruple $\config{\mu, \Sigma, e, \varepsilon}$, where $\varepsilon$ is an accumulated set of effects (i.e. pairs from $R \times \Pi$) from the computation so far. The code $e$ has the effect $(r,\pi)$ if, when $\config{\lambda x . \uparrow, \lambda x . \uparrow, e, \varnothing} \longrightarrow_* \config{\mu, \Sigma, e', \varepsilon}$, we have $(r,m) \in \varepsilon$.
-\\\\
-This definition could be overstrict. A non-terminating program (or a program which does not terminate in a value) still has effects during execution. However, it might be a useful simplification to narrow our focus to only consider those programs which terminate.
+We amend the definition of configuration. A configuration is a triple $\config{\mu, e, \varepsilon}$, where $\varepsilon$ is an accumulated set of effects (i.e. pairs from $R \times \Pi$) from the computation so far. A program $e$ has the effect $(r, \pi)$ if $\config{\varnothing~;~e~;~\varnothing} \longrightarrow_* \config{\mu~;~e'~;~\varepsilon}$, where $(r, \pi) \in \varepsilon$. 
 \\
 
-\fbox{$\config{\mu, \Sigma, e, \varepsilon} \simeq \config{\mu, \Sigma, e, \varepsilon}$}
-
+\fbox{$\config{\mu, e, \varepsilon} \longrightarrow \config{\mu, e, \varepsilon}$}
 
 \[
 \begin{array}{lll}
 \begin{array}{lllr}
-	\infer[\textsc{(E-Var)}]
-		{\config{\mu, \Sigma, x, \varepsilon}
-			\longrightarrow
-		 \config{\mu, \Sigma, l, \varepsilon}}
-		{\Sigma(x) = l}
-~~~~~~~~~~
-	\infer[\textsc{(E-New$_\sigma$)}]
-		{\config{\mu, \keywadj{new~x} \Rightarrow \overline{\sigma = e}, \Sigma, \varepsilon }
-			\longrightarrow
-		 \config{\mu\{ l \mapsto \keywadj{new~x} \Rightarrow \overline{\sigma = e} \},  \Sigma, l, \varepsilon }}
-		{\mu(l) \uparrow} \\[5ex]
+	\infer[\textsc{(E-MethCall1)}]
+		{\config{\mu~;~e_1.m(e_2)~;~\varepsilon} \longrightarrow \config{\mu'~;~e_1'.m(e_2)~;~\varepsilon'}}
+		{\config{\mu~;~e_1~;~\varepsilon} \longrightarrow \config{\mu~;~e_1'~;~\varepsilon'}}
 		
-	\infer[\textsc{(E-MethCall)}]
-		{\config{\mu_1, \Sigma, e_1.m(e_2), \varepsilon_1}
+		~~~~~~
+		
+	\infer[\textsc{(E-MethCall2)}]
+		{\config{\mu~;~l.m(e_2)~;~\varepsilon} \longrightarrow \config{\mu'~;~l.m(e_2')~;~\varepsilon'}}
+		{\config{\mu~;~e_2~;~\varepsilon} \longrightarrow \config{\mu'~;~e_2'~;~\varepsilon'}}\\[5ex]
+		
+	\infer[\textsc{(E-MethCall3)}]
+		{\config{\mu~;~l.m(v)~;~\varepsilon}
 			\longrightarrow
-		 \config{\mu_3, \Sigma\{ y \mapsto v \}, e[l/x, v/y], \varepsilon_3}}
-  		{\def\arraystretch{1.6}
-  			\begin{array}{c}
-  				\config{\mu_1, \Sigma, e_1, \varepsilon_1}
-					\longrightarrow_*
-				\config{\mu_2, \Sigma_2, r, \varepsilon_2} ~~~~~
-				\config{\mu_2, \Sigma, e_2, \varepsilon_2}
-					\longrightarrow_*
-				\config{\mu_3, \Sigma_3, v, \varepsilon_3}\\
-  		        \mu_3(l) = x \Rightarrow \overline{\sigma = e} ~~~~~
-			    \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon \in \overline {\sigma = e}
-			\end{array} }\\[5ex]
-			
-	\infer[\textsc{(E-OperCall)}]
-		{\config{\mu, \Sigma, e_1.\pi(e_2), \varepsilon_1}
+		 \config{\mu~;~e'[l/x, v/y]~;~\varepsilon}}
+  		{l \mapsto \{ x \Rightarrow \overline{\sigma = e} \} \in \mu & \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon_2 = e' \in \overline {\sigma = e}} \\[5ex]
+
+	\infer[\textsc{(E-OperCall1)}]
+		{\config{\mu~;~e_1.\pi(e_2)~;~\varepsilon}
 			\longrightarrow
-		\config{\mu, \Sigma_3, \keywadj{Unit}, \varepsilon_3}}
-		{\config{\mu_1, \Sigma, e_1, \varepsilon_1}
-			\longrightarrow_*
-		 \config{\mu_2, \Sigma_2, r, \varepsilon_2} &
-		 \config{\mu_2, \Sigma, e_2, \varepsilon_2}
-			\longrightarrow_*
-		 \config{\mu_3, \Sigma_3, v, \varepsilon_3} }
+		\config{\mu'~;~e_1'.\pi(e_2)~;~\varepsilon'}}
+		{\config{\mu~;~e_1~;~\varepsilon} \longrightarrow \config{\mu'~;~e_1'~;~\varepsilon'}}
+~~~~~~
+			\infer[\textsc{(E-OperCall2)}]
+		{\config{\mu~;~r.\pi(e_2)~;~\varepsilon}
+			\longrightarrow
+		\config{\mu'~;~r.\pi(e_2')~;~\varepsilon'}}
+		{\config{\mu~;~e_2~;~\varepsilon} \longrightarrow \config{\mu'~;~e_2'~;~\varepsilon'}} \\[5ex]
 			
+			\infer[\textsc{(E-OperCall3)}]
+		{\config{\mu~;~r.\pi(v)~;~\varepsilon}
+			\longrightarrow
+		\config{\mu'~;~\keywadj{Unit}~;~\varepsilon \cup \{(r,m)\}}}
+		{r \in R & \pi \in \Pi} \\[5ex]
+			
+	\infer[\textsc{(E-New$_\sigma$)}]
+		{\config{\mu~;~\keywadj{new~x} \Rightarrow \overline{\sigma = e}~;~\varepsilon}
+			\longrightarrow
+		 \config{\mu, l \mapsto \keywadj{new~x} \Rightarrow \overline{\sigma = e}~;~l~;~\varepsilon}}
+		{l \notin dom(\mu)} \\[5ex]
+		
 \end{array}
 \end{array}
 \]
