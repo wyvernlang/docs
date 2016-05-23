@@ -49,49 +49,46 @@ e & ::= & x & expression \\
 & | & e.m(e) &\\
 & | & e.f &\\
 & | & l &\\
-&&\\
-p & ::= & x & paths \\
+%&&\\
+%p & ::= & x & paths \\
 %& | & l &\\
 %& | & p \unlhd T &\\
 &&\\
 v & ::= & l & value \\
 %& | & v \unlhd T &\\
 &&\\
-d & ::= & \texttt{val} \; f : T = p & declaration \\
-  & |   & \texttt{def} \; m(x:T) = e : T &\\
+d & ::= & \texttt{val} \; f : \tau = e & declaration \\
+  & |   & \texttt{def} \; m(x:\tau) = e : \tau &\\
   & |   & \texttt{type} \; M \; L : \tau .. \tau&\\
 &&\\
-M & :: = & Material \; | \; Shape &  Type\; Annotation \\
+M & :: = & Material \; | \; Shape &  Type \; Modifier \\
 &&\\
-T & ::= & p.L & type \\
-& | & \top & \\
-& | & \bot & \\
-&&\\
-\tau & ::= & \{z \Rightarrow \overline{\sigma}\} & type \\
-& | & T & \\
+\tau & ::= & N_M\{z \Rightarrow \overline{\sigma}\} & type \\
+& | & x.L \\
 & | & \tau \wedge \tau & \\
 & | & \tau \vee \tau & \\
  \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
-\sigma & ::= & \texttt{val} \; f:T & decl \; type\\
-       & |   & \texttt{def} \; m:T \rightarrow T \\
+\sigma & ::= & \texttt{val} \; f:\tau & decl \; type\\
+       & |   & \texttt{def} \; m:\tau \rightarrow \tau \\
 		 & |   & \texttt{type} \; M \; L : \tau .. \tau &\\
 &&\\
 E & :: = & \bigcirc & eval \; context\\
        & | & E.m(e)\\
        & | & p.m(E)\\
        & | & E.f\\
-%       & | & E \unlhd T\\
 &&\\
-d_v & ::= & \texttt{val} \; f : T = v & declaration \; value \\
-  & |   & \texttt{def} \; m(x:T) = e : T &\\
-  & |   & \texttt{type} \; L : \tau .. \tau &\\
+d_v & ::= & \texttt{val} \; f : \tau = e & declaration \; value \\
+  & |   & \texttt{def} \; m(x:\tau) = e : \tau &\\
+  & |   & \texttt{type} \; M \; L : \tau .. \tau &\\
 &&\\
-\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : T & Environment \\
+\Gamma & :: = & \varnothing \; | \; \Gamma,\; x : \tau & Environment \\
 &&\\
-A & :: = & \varnothing \; | \; A,\;  <: T & Assumption \; Context \\
+%A & :: = & \varnothing \; | \; A,\; \tau <: \tau & Assumption \; Context \\
+%&&\\
+A & :: = & \varnothing \; | \; A,\; N <:: N & Subtype \; Table \\
 &&\\
 \mu & :: = & \varnothing \; | \; \mu,\; l \mapsto \{z \Rightarrow \overline{d}\} & store \\
 &&\\
@@ -104,23 +101,23 @@ A & :: = & \varnothing \; | \; A,\;  <: T & Assumption \; Context \\
 \end{figure}
 
 
-%	\begin{figure}[h]
-%	\begin{mathpar}
-%	\inferrule
-%	  {}
-%	  {label(\texttt{val} \, f : T) = f}
-%	  \and
-%	\inferrule
-%	  {}
-%	  {label(\texttt{def} \, m : S \rightarrow T) = m}
-%	  \and
-%	\inferrule
-%	  {}
-%	  {label(\texttt{type} \, L : S .. U) = L}
-%	\end{mathpar}
-%	\caption{Declaration Label Function}
-%	\label{f:label}
-%	\end{figure}
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {}
+  {\mathcal{M}(N_M\{z \Rightarrow \overline{\sigma}\}) = M}
+  \and
+\inferrule
+  {}
+  {label(\texttt{def} \, m : S \rightarrow T) = m}
+  \and
+\inferrule
+  {}
+  {label(\texttt{type} \, L : S .. U) = L}
+\end{mathpar}
+\caption{Declaration Label Function}
+\label{f:label}
+\end{figure}
 
 
 %\begin{figure}[h]
@@ -427,25 +424,33 @@ A & :: = & \varnothing \; | \; A,\;  <: T & Assumption \; Context \\
 \hfill \fbox{$A; \Sigma; \Gamma \vdash \tau <: \tau'$}
 \begin{mathpar}
 \inferrule
-  {}
-  {A; \Sigma; \Gamma \vdash \tau <: \tau'}
-  \quad (\textsc {S-Assume})
+	{}
+	{A, \Sigma; \Gamma \vdash \tau \; \texttt{<:}\; \tau}
+	\quad (\textsc {S-Refl})
 	\and
 \inferrule
-	{A, \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
+	{N_M <:: {N'}_M \in A \\
+	 A, \Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\; \overline{\sigma}_2}
 	{A, \Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\; <:\; \{z \Rightarrow \overline{\sigma}_2\}}
 	\quad (\textsc {S-Struct})
 	\and
 \inferrule
-	{A, \Sigma; \Gamma \vdash p \ni \texttt{type} \; M \; L : \tau_1 .. \tau_2\\
+  {A, \Sigma; \Gamma \vdash x \ni \texttt{type} \; L : \tau_1 .. \tau_2\\
+   A, \Sigma; \Gamma \vdash x' \ni \texttt{type} \; L : \tau_1' .. \tau_2'\\
+   A, \Sigma; \Gamma \vdash \tau_1' <: \tau_1, \tau_2 <: \tau_2'}
+  {A; \Sigma; \Gamma \vdash x.L <: x'.L}
+  \quad (\textsc {S-Path})
+	\and
+\inferrule
+	{A, \Sigma; \Gamma \vdash x \ni \texttt{type} \; L : \tau_1 .. \tau_2\\
 	 A, \Sigma; \Gamma \vdash \tau_2 <: \tau}
-	{A, \Sigma; \Gamma \vdash p.L\; <:\; \tau}
+	{A, \Sigma; \Gamma \vdash x.L\; <:\; \tau}
 	\quad (\textsc {S-Select-Upper})
 	\and
 \inferrule
-	{A, \Sigma; \Gamma \vdash p \ni \texttt{type} \; M \; L : \tau_1 .. \tau_2\\
+	{A, \Sigma; \Gamma \vdash x \ni \texttt{type} \; L : \tau_1 .. \tau_2\\
 	 A, \Sigma; \Gamma \vdash \tau <: \tau_1}
-	{A, \Sigma; \Gamma \vdash \tau \; <:\; p.L}
+	{A, \Sigma; \Gamma \vdash \tau \; <:\; x.L}
 	\quad (\textsc {S-Select-Lower})
 	\and
 \inferrule
