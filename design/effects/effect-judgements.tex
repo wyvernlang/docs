@@ -78,10 +78,13 @@ Note the distinction between methods (usually denoted $m$) and operations (usual
 \paragraph{}
 We make a simplifying assumption that every method/lambda takes exactly one argument. Invoking some operation $\pi$ on a resource returns $\varnothing$.
 
+
+
 \newpage
 
-\section{Fully-Annotated Programs}
+\section{Static Semantics For Fully-Annotated Programs}
 
+\paragraph{}
 In this first system every method in the program is explicitly annotated with its set of effects.
 
 \subsection{Grammar}
@@ -100,10 +103,8 @@ In this first system every method in the program is explicitly annotated with it
 	\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar r \} & types \\
 		&&\\
 
-	\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+	\sigma & ::= &  \keyw{def} m(x:\tau):\tau~\keyw{with}\varepsilon  & labeled~ decls.\\
 		&&\\
-		
-	d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\		&&\\
 		
 	\Gamma & ::= & \varnothing \\
 		& | & \Gamma,~x : \tau\\
@@ -121,9 +122,8 @@ In this first system every method in the program is explicitly annotated with it
 \begin{itemize}
 	\item Declarations ($\sigma$-terms) are annotated by what effects they have.
 	\item $d$-terms do not appear in programs, except as part of $\sigma$-terms.
-	\item All methods (and lambda expressions) take exactly one argument. If a method specifies no argument, then the argument is implicitly of type.
-	 $\keywadj{Unit}$.
-	\item Although $e_1.\pi(e_2)$ is a syntactically valid expression, it is only well-formed if $e_1$ is a resource (so $e_1$ is only a resource in well-typed programs).
+	\item All methods (and lambda expressions) take exactly one argument. If a method specifies no argument, then the argument is implicitly of type $\keywadj{Unit}$.
+	\item Although $e_1.\pi(e_2)$ is a syntactically valid expression, it is only well-formed under the static semantics if $e_1$ has a resource-type (remembering that $\pi$ operations can only be performed on resources). 
 \end{itemize}
 
 \subsection{Rules}
@@ -138,14 +138,14 @@ In this first system every method in the program is explicitly annotated with it
 ~~~~~~~~~~
 \infer[\textsc{($\varepsilon$-Resource)}]
   {\Gamma,~r :\{r\} \vdash r:\{ r \} ~ \keyw{with} \varnothing}
-  {} \\[5ex]
+  {r \in R} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-NewObj)}]
 	{\Gamma \vdash \keywadj{new}~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}~\keyw{with} \varnothing}
 	{\Gamma,~x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-OperCall)}]
-	{\Gamma \vdash e_1.\pi(e_2) : \varnothing~\keyw{with} \{ \bar r, m\} \cup \varepsilon_1 \cup \varepsilon_2}
+	{\Gamma \vdash e_1.\pi(e_2) : \keyw{Unit} \keyw{with} \{ \bar r, m\} \cup \varepsilon_1 \cup \varepsilon_2}
 	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2 & \pi \in \Pi} \\[5ex]
 	
 \infer[\textsc{($\varepsilon$-MethCallObj)}]
@@ -168,26 +168,22 @@ $\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
 \noindent \textbf{Notes:}
 
 \begin{itemize}
-	\item Every expression in the program must be explicitly annotated; either as $\sigma$-terms or by what they capture.
-	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their consequents an expression typed with no effect: merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for it to be an effect.
+	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their consequents an expression typed with no effect: merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for it to have an effect.
 	\item \textsc{$\varepsilon$-ValidImpl} says that the return type and effects of the body of a method must agree with what its signature says.
-	\item In \textsc{$\varepsilon$-MethCallResource}, we may only call a method $m$ on a resource $r$ if $m$ is a predefined operation in the set $M$. Invoking $m$ returns the resource $r$ you called it upon (which has potentially different state afterwards).
 \end{itemize}
 
-
-
-
-
-\newpage
 
 
 % ========================================
 % Partially-Annotated Programs
 % ========================================
 
-\section{Partially-Annotated Programs}
+\newpage
 
-In this second system methods may either be fully labeled with their effects or have no labels. When they have no labels a conservative effect inference is performed using rules which provide an upper-bound (not necessarily tight) on the effects of the code when executed.
+\section{Static Semantics For Partly-Annotated Programs}
+
+\paragraph{}
+What happens if we relax the requirement that all methods in an object must be effect-annotated? In the next system we allow objects which have no effect-annotated methods. When an object is annotated we can use the rules from the previous section. When an object has no annotations we use the additional rules introduced here, which give an upper bound on the effects of a program.
 
 \subsection{Grammar}
 
@@ -225,13 +221,12 @@ d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
 \noindent \textbf{Notes:}
 \begin{itemize}
 	\item $\sigma$ denotes a declaration with effect labels. $d$ denotes a declaration without effect labels.
-	\item There are two new expressions: $\keywadj{new}_\sigma$ for objects whose declarations are annotated; $\keywadj{new}_d$ for objects whose declarations aren't.
-	\item $\{ \bar d ~\keyw{captures} \varepsilon \}$ is a special kind of type that doesn't appear in the source program, but may be assigned as a consequence of the capture rules.
+	\item There are two new expressions: $\keywadj{new}_\sigma$ for objects whose methods are annotated; $\keywadj{new}_d$ for objects whose methods aren't.
+	\item $\{ \bar \sigma \}$ is the type of an annotated object. $\{ \bar d \}$ is the type of an unannotated object.
+	\item $\{ \bar d ~\keyw{captures} \varepsilon \}$ is a special kind of type that doesn't appear in source programs but may be assigned as a consequence of the capture rules. $\varepsilon$ is an upper-bound on the possible effects of the object $\{ \bar d \}$.
 \end{itemize}
 
 \subsection{Rules}
-
-In addition to the rules from the previous system, the partially-annotated system has the following rules.\\
 
 $\fbox{$\Gamma \vdash e : \tau$}$
 
@@ -246,7 +241,7 @@ $\fbox{$\Gamma \vdash e : \tau$}$
 	{} \\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-MethCall$_r$)}]
-	{\Gamma \vdash r.\phi(e_1) : \varnothing}
+	{\Gamma \vdash r.\phi(e_1) : \keywadj{Unit}}
 	{\Gamma \vdash r : \{ \bar r \} & \Gamma \vdash e : \tau & m \in M} \\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-MethCall$_\sigma$)}]
@@ -285,7 +280,7 @@ $\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
 \begin{array}{c}
 \infer[\textsc{(C-NewObj)}]
 	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} ~\keyw{with} \varnothing }
-	{\varepsilon = effects(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
+	{\varepsilon = \keywadj{effects}(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
 \end{array}
 \]
 
@@ -301,20 +296,19 @@ $\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
 \noindent \textbf{Notes:}
 
 \begin{itemize}
-	\item The \textsc{$\varepsilon$} judgements are to be applied to annotated parts of the program; the \textsc{C} rules for unannotated parts. 
-	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their antecedents an expression typed with no effect. Merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for your program to have effects.
-	\item The \textsc{T} judgements before standard typechecking, but they operate on annotated terms. They are needed to apply the \textsc{$\varepsilon$-ValidImpl$_d$)} rule.
-	\item In applying \textsc{C-NewObj} the variable $\Gamma$ is the current context. The variable $\Gamma'$ is some sub-context. A good choice of sub-context is $\Gamma$ restricted to the free variables in the method-body being typechecked. This means we only consider the effects used in the method-body and gives a better approximation of its effects.
-	\item When an unannotated $d$-declaration is encountered it is first assigned a $\gamma$-type by \textsc{C-NewObj}. This annotates it as capturing a certain set of effects. \textsc{C-MethCall} can then conclude its effects to be what it captures.
+	\item Rules with the judgement form $\Gamma \vdash e : \tau$ do standard typing judgements on structural objects, without any effect analysis. These rules are needed to apply the $\varepsilon$-ValidImpl$_d$ rule.
+	\item The \textsc{$\varepsilon$} judgements from the previous section are to be applied to annotated parts of the program; the \textsc{C} from this section are for unannotated parts.
+	\item In applying \textsc{C-NewObj} the variable $\Gamma$ is the current context. The variable $\Gamma'$ is some sub-context. A good choice of sub-context is $\Gamma$ restricted to the free variables in the method-body being typechecked. This means we only consider the effects used in the method-body, giving a tighter upper bound on the effects.
+	\item To perform effect analysis on an unannotated object $\{ \bar d \}$ we give it the type $\{ \bar d~\keyw{captures} \varepsilon \}$ by the rule $\textsc{C-NewObj}$, where $\varepsilon$ is an upper-bound on the possible effects that object can have. If a method is called on that object, $\textsc{C-NewObj}$ concludes the effects to be those captured in $\varepsilon$.
 \end{itemize}
 
 \subsection{Effects Function}
 
 \paragraph{}
-The $\keywadj{effects}$ function returns the set of effects in a particular typing context.
+The $\keywadj{effects}$ function returns the set of effects in a particular context.
 
 \paragraph{}
-A method $m$ can return a resource $r$ (directly or via some enclosing object). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, when the $\keywadj{effects}$ function is operating on a type $\tau$ it must analyse the return type of the method declarations in $\tau$.
+A method $m$ can return a resource $r$ (directly or via some enclosing object). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, when the $\keywadj{effects}$ function is operating on a type $\tau$ it must analyse the return type of the method declarations in $\tau$. Since the resource might be itself enclosed by an object, we do a recursive analysis.
 
 \begin{itemize}
 	\item $\keywadj{effects}(\varnothing) = \varnothing$
@@ -327,5 +321,332 @@ A method $m$ can return a resource $r$ (directly or via some enclosing object). 
 \end{itemize}
 
 \newpage
+
+
+\section{Dynamic Semantics}
+
+\subsection{Terminology}
+
+\begin{itemize}
+	\item If $e$ is an expression, then $[e_1/x_1, ..., e_n/x_n]e$ is a new expression, the same as e, but with every free occurrence of $x_i$ replaced by $e_i$.
+	\item $\varnothing$ is the empty set. The empty type is denoted $\keywadj{Unit}$. Its single instance is $\keywadj{unit}$.
+	\item A configuration is a pair $e~|~\varepsilon$.
+	\item To execute a program $e$ is to perform reduction steps starting from the configuration $e~|~\varnothing$.
+	\item $e_1~|~\varepsilon_1 \longrightarrow_* e_2~|~\varepsilon_2$ if $e_2~|~\varepsilon_2$ can be obtained by applying one or more reduction rules to $e_1~|~\varepsilon_1$.
+	\item If $e_1~|~\varepsilon_1 \longrightarrow_* v~|~\varepsilon_2$, for some value $v$ then we say that $e_1~|~\varepsilon_1$ terminates.
+\end{itemize}
+
+\subsection{Grammar}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+	e & ::= & x & expressions \\
+  		& | & e.m(e)\\
+  		& | & e.\pi(e)\\
+		& | & v \\
+		&&\\
+		
+	v & ::= & r & values \\
+  		& | & \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e} \\
+  		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
+		&&\\
+
+	d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\		&&\\
+		
+	\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+\end{array}
+& ~~~~~~
+&
+
+\begin{array}{lllr}
+
+	\tau & ::= & \{ \bar \sigma \}  & types \\
+		& | & \{ \bar r \} \\
+		&&\\
+
+	\Gamma & :: = & \varnothing & contexts\\
+		& | & \Gamma,~x : \tau\\
+		&&\\
+
+&&\\
+
+\end{array}
+\end{array}
+\]
+
+\subsection{Rules}
+
+\fbox{$e~|~\varepsilon \longrightarrow e~|~\varepsilon$}
+
+\[
+\begin{array}{lll}
+	\infer[\textsc{(E-MethCall1)}]
+		{e_1.m(e_2)~|~\varepsilon \longrightarrow e_1'.m(e_2)~|~\varepsilon'}
+		{e_1~|~\varepsilon \longrightarrow e_1'~|~\varepsilon'}\\[5ex]
+
+	\infer[\textsc{(E-MethCall2$_{\sigma}$)}]
+		{v_1.m(e_2)~|~\varepsilon \longrightarrow v_1.m(e_2')~|~\varepsilon'}
+		{v_1 = \keywadj{new}~x \Rightarrow \overline{\sigma = e} & e_2~|~\varepsilon \longrightarrow e_2'~|~\varepsilon'}
+				
+		~~~~~~
+	\infer[\textsc{(E-MethCall2$_d$)}]
+		{v_1.m(e_2)~|~\varepsilon \longrightarrow v_1.m(e_2')~|~\varepsilon'}
+		{v_1 = \keywadj{new}~x \Rightarrow \overline{d = e} & e_2~|~\varepsilon \longrightarrow e_2'~|~\varepsilon'}
+		\\[5ex]
+		
+	\infer[\textsc{(E-MethCall3$_{\sigma}$)}]
+		{v_1.m(v_2)~|~\varepsilon
+			\longrightarrow
+		 [v_1/x, v_2/y]e'~|~\varepsilon}
+  		{v_1 = \keywadj{new}~x \Rightarrow \overline{\sigma = e} & \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon' = e' \in \overline {\sigma = e}} \\[5ex]
+
+	\infer[\textsc{(E-MethCall3$_{d}$)}]
+		{v_1.m(v_2)~|~\varepsilon
+			\longrightarrow
+		 [v_1/x, v_2/y]e'~|~\varepsilon}
+  		{v_1 = \keywadj{new}~x \Rightarrow \overline{d = e} & \keywadj{def~m}(y: \tau_1) : \tau_2 = e' \in \overline {d = e}} \\[5ex]
+			
+	\infer[\textsc{(E-OperCall1)}]
+		{e_1.\pi(e_2)~|~\varepsilon
+			\longrightarrow
+		 e_1'.\pi(e_2)~|~\varepsilon'}
+		{e_1~|~\varepsilon \longrightarrow e_1'~|~\varepsilon'}
+~~~~~~
+			\infer[\textsc{(E-OperCall2)}]
+		{r.\pi(e_2)~|~\varepsilon
+			\longrightarrow
+		 r.\pi(e_2')~|~\varepsilon'}
+		{e_2~|~\varepsilon \longrightarrow e_2'~|~\varepsilon'} \\[5ex]
+			
+			\infer[\textsc{(E-OperCall3)}]
+		{r.\pi(v)~|~\varepsilon
+			\longrightarrow
+		 \keywadj{unit}~|~\varepsilon \cup \{(r, \pi)\}}
+		{r \in R & \pi \in \Pi} \\[5ex]
+			
+		
+\end{array}
+\]
+
+\newpage
+
+
+\section{Theorems}
+
+
+\begin{lemma}[Atom]
+Suppose $e$ is a value. The following are true.
+\begin{itemize} 
+	\item If $e : \{ \bar r \}~\keyw{with} \varepsilon$, then $e = r$ for some resource $r \in R$.
+	\item If $e : \{ \bar \sigma \} \keyw{with} \varepsilon$, then $e = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$.
+	\item If $e : \{ \bar d~\keyw{captures} \} \keyw{with} \varepsilon$, then $e = \keywadj{new}_{d}~x \Rightarrow \overline{ d = e }$.
+\end{itemize}
+\end{lemma}
+
+\begin{proof}
+These typing judgements each appear exactly once, in the conclusion of different rules. The result follows by inversion of \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-NewObj}, and \textsc{C-NewObj} respectively. \qed
+\end{proof}
+
+\begin{theorem}[Progress]
+Suppose the following holds:
+\begin{itemize}
+	\item $e_A : \tau~\keyw{with} \varepsilon$
+\end{itemize}
+
+\noindent
+Then for any configuration $e_A~|~\varepsilon_A$ one of the following is true:
+\begin{itemize}
+	\item $e_A$ is a value.
+	\item $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+By structural induction on possible derivations of $e_A : \tau~\keyw{with} \varepsilon$.
+
+\begin{pcases}
+
+\pcase[\textsc{$\varepsilon$-Var}]
+Then $e_A = x$ is a value.
+\\
+
+\pcase[\textsc{$\varepsilon$-Resource}]
+Then $e_A = r$ is a value.
+\\
+
+\pcase[\textsc{$\varepsilon$-NewObj}]
+Then $e_A = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$ is a value.
+\\
+ 
+\pcase[\textsc{C-NewObj}]
+Then $e_A = \keywadj{new}_{d}~x \Rightarrow \overline{\sigma = e}$, which is a value.
+\\
+
+\pcase[\textsc{$\varepsilon$-MethCall}]
+Then $e_A = e_1.m_i(e_2)$ and the following are known:
+\begin{itemize}
+	\item~$e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$
+	\item~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
+	\item~$\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau~ \keyw{with} \varepsilon_3$
+\end{itemize}
+We look at the cases for when $e_1$ and $e_2$ are values.
+
+\begin{itemize}
+	\item[] \textit{Subcase $e_1$ is not a value}: The derivation of $e_A : \tau~\keyw{with} \varepsilon$ includes the subderivation $e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$, so by the inductive hypothesis. Then $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-MethCall1} to $e~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow e_1'.m_i(e_2)~|~\varepsilon_B$.\\
+	
+	\item[] \textit{Subcase $e_2$ is not a value}: Without loss of generality, $e_1 = v_1$ is a value. Also, $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis, $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-MethCall2$_{\sigma}$} to $e_A~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow v_1.m_i(e_2')~|~\varepsilon_B$.\\
+	
+	\item[] \textit{Subcase $e_1 = v_1$ and $e_2 = v_2$ are values}: By the Atom lemma, $e_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$. Also, $\keyw{def} m_i(y: \tau_2) : \tau~\keyw{with} \varepsilon_3 = e_i \in \overline{ \sigma = e }$. Then applying \textsc{E-MethCall3$_{\sigma}$} to $e_A~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow [v_1/x, v_2/y]e_i~|~\varepsilon_A$.
+		
+\end{itemize}
+
+So we're done.\\
+
+\pcase[\textsc{$\varepsilon$-OperCall}]
+Then $e_A = e_1.\pi(e_2) : \keyw{Unit~with} \{ r. \pi \} \cup \varepsilon_1 \cup \varepsilon_2$ and the following are known:
+\begin{itemize}
+	\item~$e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$
+	\item~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
+	\item~$\pi \in \Pi$
+\end{itemize}
+	We look at the cases for when $e_1$ and $e_2$ are values.
+	
+\begin{itemize}
+	\item[] \textit{Subcase $e_1$ is not a value}: $e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$ is a subderivation. By the inductive hypothesis $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-OperCall1} to $e_A~|~\varepsilon_A$, we have $e_1.\pi(e_2)~|~\varepsilon_A \longrightarrow e_1'.\pi(e_2)~|~\varepsilon_B$. \\
+		
+	\item[] \textit{Subcase $e_2$ is not a value}: Without loss of generality, $e_1 = v_1$ is a value. Furthermore, it is some resource $r$ by the Atom lemma. Now, $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-OperCall2} to $e_A~|~\varepsilon_A$, we have $r.\pi(e_2)~|~\varepsilon_A \longrightarrow r.\pi(e_2')~|~\varepsilon_B$. \\
+	
+	\item[] \textit{Subcase $e_1$ and $e_2 = v_2$ are values}: By the Atom lemma, $e_1 = r$ for some $r \in R$. Then applying \textsc{E-OperCall3} to $e_A~|~\varepsilon_A$, we have $r.\pi(v_2)~|~\varepsilon_A \longrightarrow \keywadj{unit}~|~\varepsilon_A \cup \{ r.\pi \}$. \\
+	
+\end{itemize}
+
+So we're done.\\
+
+
+\pcase[\textsc{C-MethCall}]
+
+Then $e_A = e_1.m_i(e_2)~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup~\keywadj{effects}(\tau_2) \cup \varepsilon$ and the following are known:
+
+\begin{itemize}
+	\item ~$e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keywadj{with}~\varepsilon_1$
+	\item ~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
+	\item ~$d_i = \keyw{def} m_i(y : \tau_2) : \tau$
+\end{itemize}
+	We look at the cases for when $e_1$ and $e_2$ are values.
+	
+\begin{itemize}
+	\item[] \textit{Subcase $e_1$ is not a value}: $e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keywadj{with}~\varepsilon_1$ is a subderivation. By the inductive hypothesis, $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-MethCall1} to $e_A~|~\varepsilon_A$, we have $e_1.m_i(e_2)~|~\varepsilon_A \longrightarrow e_1'.m_i(e_2)~|~\varepsilon_B$. \\
+	
+	\item[] \textit{Subcase $e_2$ is not a value}: Without loss of generality, $e_1 = v_1$ is a value. Also, $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis, $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-MethCall2$_d$} to $e_A~|~\varepsilon_A$, we have $v_1.m_i(e_2)~|~\varepsilon_A \longrightarrow v_1.m_i(e_2')~|~\varepsilon_B$. \\
+	
+	\item[] \textit{Subcase $e_1 = v_1$ and $e_2 = v_2$ are values}: By the Atom lemma, $e_1 = \keywadj{new}_d~x \Rightarrow \overline{ d = e }$. Also, $\keyw{def} m_i(y : \tau_2) : \tau = e_i \in \overline {d = e}$. Then applying \textsc{E-MethCall3$_d$} to $e_A~|~\varepsilon_A$, we have $v_1.m_i(v_2)~|~\varepsilon_A \longrightarrow [v_1/x, v_2/y]e_i~|~\varepsilon_A$.
+	
+\end{itemize}
+
+So we're done.
+
+\end{pcases}
+
+\noindent
+This concludes all the cases. So either $e$ is a value, or a single reduction step can be made on $e_A~|~\varepsilon_A$ to give a new configuration $e_B~|~\varepsilon_B$. \qed
+
+\end{proof}
+
+\begin{theorem}[Preservation]
+If the following holds:
+\begin{itemize}
+	\item $e_A : \tau~\keyw{with} \varepsilon$
+	\item $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$
+\end{itemize}
+
+\noindent
+Then $e_B : \tau~\keyw{with} \varepsilon$.
+\end{theorem}
+
+\begin{proof}
+By structural induction on possible derivations of $e_A : \tau~\keyw{with} \varepsilon$. First, if the rule used was \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-NewObj}, or \textsc{C-NewObj}, then $e_A$ is a value, so no reduction can be applied to it. This means the theorem is vacuously satisfied. Otherwise we consider the remaining rules and then induct on possible derivations of $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$.
+
+\begin{pcases}
+
+\pcase[\textsc{$\varepsilon$-MethCall$_{\sigma}$}]
+Then $e_A = e_1.m_i(e_2) : \tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon$, and we know:
+\begin{itemize}
+	\item~$e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$
+	\item~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
+	\item~$\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau~ \keyw{with} \varepsilon_3$
+\end{itemize}
+We do a case analysis on the reduction rules applicable to $e_1.m_i(e_2)$, for $m_i$ an annotated method.
+
+
+\begin{itemize}
+	\item[] \textit{Subcase \textsc{E-MethCall1}}:
+	Then $e_1~|~\varepsilon_A \rightarrow e_1'~|~\varepsilon_B$. By the inductive assumption $e_1' : \{ \bar \sigma \}~\keyw{with} \varepsilon$. Then by \textsc{$\varepsilon$-MethCall} we have $e_B = e_1'.m_i(e_2) : \tau~\keyw{with} \varepsilon$. \\
+	
+	\item[] \textit{Subcase \textsc{E-MethCall2$_{\sigma}$}}:
+	Then $e_1 = v_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$, and $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. By the inductive assumption $e_2' : \tau_2~\keyw{with} \varepsilon_2$. Then by \textsc{$\varepsilon$-MethCall} we have $e_B = e_1'.m_i(e_2) : \tau~\keyw{with} \varepsilon$. \\
+	
+	\newpage
+	
+	\item[] \textit{Subcase \textsc{E-MethCall3$_{\sigma}$}}: Then $e_1 = v_1 = \keywadj{new}_{\sigma} \Rightarrow \overline{\sigma = e}$, and $\keyw{def} m_i(y : \tau_2) : \tau~\keyw{with} \varepsilon_3 = e' \in \overline{\sigma = e}$, and $e_2 = v_2$ is a value. Furthermore, since we know $e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$, the only rule with this conclusion is \textsc{$\varepsilon$-NewObj}. Then its antecedent must hold. of \textsc{$\varepsilon$-NewObj} holds, so $\overline{ \sigma = e }~\keywadj{OK}$. The only rule with this conclusion is \textsc{$\varepsilon$-ValidImpl$_{\sigma}$}. Then its antecedent must hold, so $e' : \tau~\keyw{with} \varepsilon_3$.
+	
+	\paragraph{}
+	Now, $e_B = [v_1/x, v_2/y]e'$, since the rule \textsc{E-MethCall3} was used. We know $v_1 = e_1$ and $x$ have the same type $\{ \overline \sigma \}~ \keyw{with} \varepsilon_1$. $v_2 = e_2$ and $y$ have the same type $\tau_2~\keyw{with} \varepsilon_2$. So the type of $e'$, which is $\tau~\keyw{with} \varepsilon_3$, is preserved by the substitution. So $e_B : \tau~\keyw{with} \varepsilon_3$.
+
+\end{itemize}
+
+\end{pcases}
+
+\end{proof}
+
+
+\begin{theorem}[Monotonicity]
+If $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$, then $\varepsilon_A \subseteq \varepsilon_B$.
+\end{theorem}
+
+\begin{proof}
+
+Consider the degenerate case where $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$ consists of a single reduction. We induct on that reduction, considering three classes of rules.
+
+\begin{pcases}
+
+\pcase[\textsc{E-MethCall3$_d$}, \textsc{E-MethCall3$_{\sigma}$}]
+In these rules $\varepsilon_A = \varepsilon_B$.
+\\
+
+\pcase[\textsc{E-MethCall1}, \textsc{E-MethCall2$_{\sigma}$}, \textsc{E-MethCall2$_{d}$}, \textsc{E-OperCall1}, \textsc{E-OperCall2}]
+In these rules the antecedent contains a subreduction of the form $e~|~\varepsilon_A \longrightarrow e'~|~\varepsilon_B$. By the inductive assumption, $\varepsilon_A \subseteq \varepsilon_B$.
+\\
+
+\pcase[\textsc{E-OperCall3}]
+We have $\varepsilon_B = \varepsilon_A \cup \{ r.\pi \}$, so $\varepsilon_A \subseteq \varepsilon_B$.
+
+\end{pcases}
+
+\noindent
+Therefore the theorem statement holds for single-step reductions. If $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$ is a sequence of reduction steps then it holds by induction on the length of the sequence. \qed
+
+\end{proof}
+
+\begin{theorem}[Soundness]
+If the following holds:
+\begin{itemize}
+	\item $e_A : \tau~\keyw{with} \varepsilon$
+	\item $e_A~|~\varnothing \longrightarrow_* e_B~|~\varepsilon_B$
+\end{itemize}
+
+\noindent
+Then $\varepsilon_B \subseteq \varepsilon$
+
+\end{theorem}
+
+\begin{note}
+A more general form of soundness is that if $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$, then $\varepsilon_B \setminus \varepsilon_A \subseteq \varepsilon$.
+\end{note}
+
+\begin{proof}
+\end{proof}
+
 
 \end{document}
