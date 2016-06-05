@@ -1,0 +1,491 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+
+
+
+\begin{document}
+
+\today
+\section{Effects}
+
+\paragraph{}
+Fix some set of resources $R$. A resource is some language primitive that has the authority to directly perform I/O operations. Elements of the set $R$ are denoted by $r$. $\Pi$ is a fixed set of operations on resources. Its members are denoted $\pi$. An effect is a member of the set of pairs $R \times \Pi$. A set of effects is denoted by $\varepsilon$. In this system we cannot dynamically create resources or resource-operations.
+
+\paragraph{}
+Throughout we refer to the notions of effects and captures. A piece of code $C$ has the effect $(r, \pi)$ if operation $\pi$ is performed on resource $r$ during execution of $C$. $C$ captures the effect $(r, \pi)$ if it has the authority to perform operation $\pi$ on resource $r$ at some point during its execution.
+
+\paragraph{}
+We use $r.\pi$ as syntactic sugar for the effect $(r,\pi)$. For example, $FileIO.append$ instead of $(FileIO, append)$.
+
+\paragraph{}
+Types are either resources or structural. Structural types have a set of method declarations. An object of a particular structural type $\{ \bar \sigma \}$ can have any of the methods defined by $\sigma$ invoked on it. The structural type $\varnothing$ with no methods is called $\keywadj{Unit}$.
+
+\paragraph{}
+We assume there are constructions of the familiar types using the basic structural type $\varnothing$ and method declarations (for example, $\mathbb{N}$ could be made using $\varnothing$ and a $\keywadj{successor}$ function, Peano-style).
+
+\paragraph{}
+Note the distinction between methods (usually denoted $m$) and operations (usually denoted $\pi$). An operation can only be invoked on a resource; resources can only have operations invoked on them. A method can only be invoked on an object; objects can only have methods invoked on them.
+
+\paragraph{}
+We make a simplifying assumption that every method/lambda takes exactly one argument. Invoking some operation $\pi$ on a resource returns $\varnothing$.
+
+
+
+\newpage
+
+\section{Static Semantics For Fully-Annotated Programs}
+
+\paragraph{}
+In this first system every method in the program is explicitly annotated with its set of effects.
+
+\subsection{Grammar}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+
+	e & ::= & x & expressions \\
+  		& | & r \\
+  		& | & \keywadj{new}~x \Rightarrow \overline{\sigma = e} \\
+  		& | & e.m(e)\\
+  		& | & e.\pi(e)\\
+		&&\\
+
+	\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar r \} & types \\
+		&&\\
+
+	\sigma & ::= &  \keyw{def} m(x:\tau):\tau~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+		
+	\Gamma & ::= & \varnothing \\
+		& | & \Gamma,~x : \tau\\
+		&&\\
+
+\end{array}
+& ~~~~~~
+&
+\end{array}
+\]
+
+
+\noindent \textbf{Notes:}
+
+\begin{itemize}
+	\item Declarations ($\sigma$-terms) are annotated by what effects they have.
+	\item $d$-terms do not appear in programs, except as part of $\sigma$-terms.
+	\item All methods (and lambda expressions) take exactly one argument. If a method specifies no argument, then the argument is implicitly of type $\keywadj{Unit}$.
+	\item Although $e_1.\pi(e_2)$ is a syntactically valid expression, it is only well-formed under the static semantics if $e_1$ has a resource-type (as $\pi$ operations can only be performed on resources). 
+\end{itemize}
+
+\subsection{Rules}
+
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-Var)}]
+  {\Gamma,~x:\tau \vdash x:\tau~ \keyw{with} \varnothing}
+  {} 
+~~~~~~~~~~
+\infer[\textsc{($\varepsilon$-Resource)}]
+  {\Gamma,~r :\{r\} \vdash r:\{ r \} ~ \keyw{with} \varnothing}
+  {r \in R} \\[5ex]
+
+\infer[\textsc{($\varepsilon$-NewObj)}]
+	{\Gamma \vdash \keywadj{new}~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}~\keyw{with} \varnothing}
+	{\Gamma,~x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
+
+\infer[\textsc{($\varepsilon$-OperCall)}]
+	{\Gamma \vdash e_1.\pi(e_2) : \keyw{Unit} \keyw{with} \{ \bar r.\pi \} \cup \varepsilon_1 \cup \varepsilon_2}
+	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2 & \pi \in \Pi} \\[5ex]
+	
+\infer[\textsc{($\varepsilon$-MethCallObj)}]
+	{\Gamma \vdash e_1.m_i(e_2):\tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i = \keyw{def} m_i(y:\tau_2):\tau~\keyw{with} \varepsilon}
+
+\end{array}
+\]
+
+$\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
+
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-ValidImpl$_\sigma$)}]
+	{\Gamma \vdash \sigma = e~\keywadj{OK}}
+	{\Gamma,~x:\tau \vdash e: \tau'~\keyw{with} \varepsilon & \sigma = \keyw{def} m(x:\tau):\tau'~\keyw{with} \varepsilon} \\[5ex]
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+
+\begin{itemize}
+	\item The rules \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} have in their consequents an expression typed with no effect: merely having an object or resource is not an effect; you must do something with it, like a call a method on it, in order for it to have an effect.
+	\item \textsc{$\varepsilon$-ValidImpl} says that the return type and effects of the body of a method must agree with what its signature says.
+\end{itemize}
+
+
+
+% ========================================
+% Partially-Annotated Programs
+% ========================================
+
+\newpage
+
+\section{Static Semantics For Partly-Annotated Programs}
+
+\paragraph{}
+What happens if we relax the requirement that all methods in an object must be effect-annotated? In the next system we allow objects which have no effect-annotated methods. When an object is annotated we can use the rules from the previous section. When an object has no annotations we use the additional rules introduced here, which give an upper bound on the effects of a program.
+
+\subsection{Grammar}
+
+\[
+\begin{array}{lll}
+
+\begin{array}{lllr}
+
+e & ::= & x & expressions \\
+  		& | & r \\
+		& | & \keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} \\
+ 		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
+ 		& | & e.m(e)\\
+ 		& | & e.\pi(e)\\
+		&&\\
+
+\tau & ::= & \{ \bar \sigma \} & types \\
+		& | & \{ \bar r \} \\
+		& | & \{ \bar d \} \\
+		& | & \{ \bar d ~\keyw{captures} \varepsilon \} \\
+		&&\\
+		
+\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+
+d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
+		&&\\
+
+\end{array}
+& ~~~~~~
+&
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item $\sigma$ denotes a declaration with effect labels. $d$ denotes a declaration without effect labels.
+	\item There are two new expressions: $\keywadj{new}_\sigma$ for objects whose methods are annotated; $\keywadj{new}_d$ for objects whose methods aren't.
+	\item $\{ \bar \sigma \}$ is the type of an annotated object. $\{ \bar d \}$ is the type of an unannotated object.
+	\item $\{ \bar d ~\keyw{captures} \varepsilon \}$ is a special kind of type that doesn't appear in source programs but may be assigned as a consequence of the capture rules. $\varepsilon$ is an upper-bound on the possible effects of the object $\{ \bar d \}$.
+\end{itemize}
+
+\subsection{Rules}
+
+$\fbox{$\Gamma \vdash e : \tau$}$
+
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Var)}]
+	{\Gamma,~x : \tau \vdash x : \tau}
+	{}
+~~~~~~~~~~
+\infer[\textsc{(T-Resource)}]
+	{\Gamma,~r : \{ \bar r \} \vdash r : \{ \bar r \}}
+	{} \\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_r$)}]
+	{\Gamma \vdash r.\phi(e_1) : \keywadj{Unit}}
+	{\Gamma \vdash r : \{ \bar r \} & \Gamma \vdash e : \tau & m \in M} \\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_\sigma$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_2}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \},~\keyw{def} m(x : \tau_1) : \tau_2~\keyw{with} \varepsilon \in \{ \bar \sigma \} &  \Gamma \vdash e_2 : \tau_1 }\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_d$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_2}
+	{\Gamma \vdash e_1 : \{ \bar d\},~\keyw{def} m(x : \tau_1) : \tau_2 \in \{ \bar d \} &  \Gamma \vdash e_2 : \tau_1 }\\[5ex]
+~~~~~~~~~~
+
+~~~~~~~~~~
+\infer[\textsc{(T-New$_\sigma$)}]
+	{\Gamma \vdash~\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}}
+	{\Gamma \vdash \sigma_i = e_i~\keywadj{OK}}
+~~~~~~~~~~
+\infer[\textsc{(T-New$_d$)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{ \bar d \}}
+	{\Gamma \vdash d_i = e_i~\keywadj{OK}}\\[5ex]
+\end{array}
+\]
+
+$\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-ValidImpl$_d$)}]
+	{\Gamma \vdash d = e~\keywadj{OK}}
+	{d = \keyw{def} m(x : \tau_1) : \tau_2 & \Gamma \vdash e : \tau_2}
+	\\[5ex]
+\end{array}
+\]
+
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+\infer[\textsc{(C-NewObj)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon \} ~\keyw{with} \varnothing }
+	{\varepsilon = \keywadj{effects}(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
+\end{array}
+\]
+
+\[
+\begin{array}{c}
+\infer[\textsc{(C-MethCall)}]
+	{\Gamma \vdash e_1.m_i(e_2) : \tau~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup effects(\tau_2) \cup \varepsilon}
+	{\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2&d_i :=~\keyw{def} m_i(y:\tau_2):\tau } \\[5ex]
+\end{array}
+\]
+
+
+\noindent \textbf{Notes:}
+
+\begin{itemize}
+	\item Rules with the judgement form $\Gamma \vdash e : \tau$ do standard typing judgements on structural objects, without any effect analysis. These rules are needed to apply the $\varepsilon$-ValidImpl$_d$ rule.
+	\item The \textsc{$\varepsilon$} judgements from the previous section are to be applied to annotated parts of the program; the \textsc{C} from this section are for unannotated parts.
+	\item In applying \textsc{C-NewObj} the variable $\Gamma$ is the current context. The variable $\Gamma'$ is some sub-context. A good choice of sub-context is $\Gamma$ restricted to the free variables in the method-body being typechecked. This means we only consider the effects used in the method-body, giving a tighter upper bound on the effects.
+	\item To perform effect analysis on an unannotated object $\{ \bar d \}$ we give it the type $\{ \bar d~\keyw{captures} \varepsilon \}$ by the rule $\textsc{C-NewObj}$, where $\varepsilon$ is an upper-bound on the possible effects that object can have. If a method is called on that object, $\textsc{C-NewObj}$ concludes the effects to be those captured in $\varepsilon$.
+\end{itemize}
+
+\subsection{Effects Function}
+
+\noindent
+The $\keywadj{effects}$ function returns the set of effects in a particular context. \\
+
+\noindent
+A method $m$ can return a resource $r$ (directly or via some enclosing object). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, when the $\keywadj{effects}$ function is operating on a type $\tau$ it must analyse the return type of the method declarations in $\tau$. Since the resource might be itself enclosed by an object, we do a recursive analysis.
+
+\begin{itemize}
+	\item $\keywadj{effects}(\varnothing) = \varnothing$
+	\item $\keywadj{effects}(\Gamma, x : \tau) = \keywadj{effects}(\Gamma) \cup \keywadj{effects}(\tau)$
+	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, \pi) \mid r \in \bar r, \pi \in \Pi \}$
+	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
+	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1) : \tau_2) = \keywadj{effects}(\tau_2)$
+\end{itemize}
+
+\noindent
+QUESTION: to make $\keywadj{effects}$ total over the set of types we should define it on types of the form $\{ \bar d~\keyw{captures} \varepsilon\}$. Otherwise we might be in trouble, since the input $\Gamma$ could theoretically have these types in it (although I think with these rules it never will in practice). The definition should probably be $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon\}) = \varepsilon$, because if it is already annotated with what it captures then we must have previously called $\keywadj{effects}$ on it.
+
+\newpage
+
+
+\section{Dynamic Semantics}
+
+\subsection{Terminology}
+
+\begin{itemize}
+	\item If $e$ is an expression, then $[e_1/x_1, ..., e_n/x_n]e$ is a new expression, the same as e, but with every free occurrence of $x_i$ replaced by $e_i$.
+	\item $\varnothing$ is the empty set/sequence. The empty type is denoted $\keywadj{Unit}$. Its single instance is $\keywadj{unit}$.
+	\item A small-step reduction has the form $e~|~\Sigma \longrightarrow e'~|~\Sigma'~|~\varepsilon'$. $\Sigma$ and $\Sigma'$ are the stores before and after; $e$ and $e'$ are the expression to be evaluated before and after; $\varepsilon$ is the set of effects during execution of $e$.
+	\item A store $\Sigma$ is a mapping from variables to value-type pairs $(v,\tau)$.
+	\item To execute a program $e$ is to perform reduction steps starting from the configuration $e~|~\varnothing$.
+	\item $e_1~|~\Sigma_1 \longrightarrow_* e_2~|~\Sigma_2~|~\varepsilon_2$ if multiple small-step rules can be applied to $e_1~|~\Sigma_1$, with $\varepsilon_2$ as the set of accumulated effects. 
+	\item If $e_1~|~\Sigma_1 \longrightarrow_* v~|~\Sigma_2~|~\varepsilon_2$, for some value $v$ then we say that $e_1~|~\Sigma$ terminates.
+\end{itemize}
+
+\subsection{Grammar}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+	e & ::= & x & expressions \\
+  		& | & e.m(e)\\
+  		& | & e.\pi(e)\\
+		& | & v \\
+		&&\\
+		
+	v & ::= & r & values \\
+  		& | & \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e} \\
+  		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
+		&&\\
+
+	d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\		&&\\
+		
+	\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+\end{array}
+& ~~~~~~
+&
+
+\begin{array}{lllr}
+
+	\tau & ::= & \{ \bar \sigma \}  & types \\
+		& | & \{ \bar r \} \\
+		&&\\
+
+	\Gamma & :: = & \varnothing & context\\
+		& | & \Gamma,~x : \tau\\
+		&&\\
+
+	\Sigma & :: = & \varnothing & store\\
+		& | & \Sigma, ~x \mapsto (v, \tau)\\
+		&&\\
+
+&&\\
+
+\end{array}
+\end{array}
+\]
+
+\newpage
+
+\subsection{Rules}
+
+\fbox{$e~|~\Sigma \longrightarrow e~|~\Sigma~|~\varepsilon$}
+\[
+\begin{array}{lll}
+	\infer[\textsc{(E-MethCall1)}]
+		{e_1.m(e_2)~|~\Sigma \longrightarrow e_1'.m(e_2)~|~\Sigma'~|~\varepsilon'}
+		{e_1~|~\Sigma \longrightarrow e_1'~|~\Sigma'~|~\varepsilon'}\\[5ex]
+
+	\infer[\textsc{(E-MethCall2$_{\sigma}$)}]
+		{v_1.m(e_2)~|~\Sigma \longrightarrow v_1.m(e_2')~|~\Sigma'~|~\varepsilon'}
+		{v_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e} & e_2~|~\Sigma \longrightarrow e_2'~|~\Sigma'~|~\varepsilon'} \\[5ex]
+				
+	\infer[\textsc{(E-MethCall2$_d$)}]
+		{v_1.m(e_2)~|~\Sigma \longrightarrow v_1.m(e_2')~|~\Sigma'~|~\varepsilon'}
+		{v_1 = \keywadj{new}_{d}~x \Rightarrow \overline{d = e} & e_2~|~\Sigma \longrightarrow e_2'~|~\Sigma'~|~\varepsilon'}
+		\\[5ex]
+		
+	\infer[\textsc{(E-MethCall3$_{\sigma}$)}]
+		{v_1.m(v_2)~|~\Sigma
+			\longrightarrow
+		 e'~|~\Sigma, x \mapsto (v_1, \{\bar \sigma\}), y \mapsto (v_2, \tau_2)~|~\varnothing}
+  		{v_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e} & \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon' = e' \in \overline {\sigma = e}} \\[5ex]
+
+	\infer[\textsc{(E-MethCall3$_{d}$)}]
+		{v_1.m(v_2)~|~\Sigma
+			\longrightarrow
+		 e'~|~\Sigma, x \mapsto (v_1, \{ \bar d \}), y \mapsto (v_2, \tau_2)~|~\varnothing}
+  		{v_1 = \keywadj{new}_{d}~x \Rightarrow \overline{d = e} & \keywadj{def~m}(y: \tau_1) : \tau_2 = e' \in \overline {d = e}} \\[5ex]
+			
+	\infer[\textsc{(E-OperCall1)}]
+		{e_1.\pi(e_2)~|~\Sigma
+			\longrightarrow
+		 e_1'.\pi(e_2)~|~\Sigma'~|~\varepsilon'}
+		{e_1~|~\Sigma \longrightarrow e_1'~|~\Sigma'~|~\varepsilon'}
+~~~~~~
+			\infer[\textsc{(E-OperCall2)}]
+		{r.\pi(e_2)~|~\Sigma
+			\longrightarrow
+		 r.\pi(e_2')~|~\Sigma'~|~\varepsilon'}
+		{e_2~|~\Sigma \longrightarrow e_2'~|~\Sigma'~|~\varepsilon'} \\[5ex]
+			
+			\infer[\textsc{(E-OperCall3)}]
+		{r.\pi(v)~|~\Sigma
+			\longrightarrow
+		 \keywadj{unit}~|~\Sigma~|~\{r.\pi\}}
+		{r \in R & \pi \in \Pi}
+\end{array}
+\]
+
+			
+\fbox{$e~|~\Sigma \longrightarrow_* e~|~\Sigma~|~\varepsilon$}
+
+\[
+\begin{array}{lll}
+			
+			\infer[\textsc{(E-BigStep1)}]
+			{e_1~|~\Sigma_1 \longrightarrow_* e_3~|~\Sigma_3~|~\varepsilon_2 \cup \varepsilon_3}
+			{e_1~|~\Sigma_1 \longrightarrow e_2~|~\Sigma_2~|~\varepsilon_2
+		  & e_2~|~\Sigma_2 \longrightarrow e_3~|~\Sigma_3~|~\varepsilon_3} \\[5ex]
+			
+			\infer[\textsc{(E-BigStep2)}]
+			{e_1~|~\Sigma_1 \longrightarrow_* e_3~|~\Sigma_3~|~\varepsilon_3}
+			{e_1~|~\Sigma_1 \longrightarrow_* e_2~|~\Sigma_2~|~\varepsilon_2 & e_2~|~\Sigma_2 \longrightarrow_* e_3~|~\Sigma_3~|~\varepsilon_3 }
+			
+		
+\end{array}
+\]
+
+\end{document}
