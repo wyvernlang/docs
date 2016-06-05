@@ -11,6 +11,7 @@
 \usepackage{filecontents}
 \usepackage{calc}
 \usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
 \allowdisplaybreaks
 
 \usepackage{fancyhdr}
@@ -36,7 +37,7 @@
 
 \newlist{pcases}{enumerate}{1}
 \setlist[pcases]{
-  label=\textit{Case}\protect\thiscase\textit{:}~,
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
   ref=\arabic*,
   align=left,
   labelsep=0pt,
@@ -45,13 +46,45 @@
   parsep=0pt
 }
 \newcommand{\pcase}[1][]{
+
   \if\relax\detokenize{#1}\relax
     \def\thiscase{}
   \else
-    \def\thiscase{~#1}
+    \def\thiscase{~\fbox{#1:}}
   \fi
   \item
 }
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+
+
+
 \begin{document}
 
 \today
@@ -145,7 +178,7 @@ In this first system every method in the program is explicitly annotated with it
 	{\Gamma,~x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-OperCall)}]
-	{\Gamma \vdash e_1.\pi(e_2) : \keyw{Unit} \keyw{with} \{ \bar r, m\} \cup \varepsilon_1 \cup \varepsilon_2}
+	{\Gamma \vdash e_1.\pi(e_2) : \keyw{Unit} \keyw{with} \{ \bar r.\pi \} \cup \varepsilon_1 \cup \varepsilon_2}
 	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2 & \pi \in \Pi} \\[5ex]
 	
 \infer[\textsc{($\varepsilon$-MethCallObj)}]
@@ -304,21 +337,24 @@ $\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
 
 \subsection{Effects Function}
 
-\paragraph{}
-The $\keywadj{effects}$ function returns the set of effects in a particular context.
+\noindent
+The $\keywadj{effects}$ function returns the set of effects in a particular context. \\
 
-\paragraph{}
+\noindent
 A method $m$ can return a resource $r$ (directly or via some enclosing object). Returning a resource isn't an effect but it means any unannotated program using $m$ also captures $r$. To account for this, when the $\keywadj{effects}$ function is operating on a type $\tau$ it must analyse the return type of the method declarations in $\tau$. Since the resource might be itself enclosed by an object, we do a recursive analysis.
 
 \begin{itemize}
 	\item $\keywadj{effects}(\varnothing) = \varnothing$
-	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, m) \mid r \in \bar r, m \in M \}$
+	\item $\keywadj{effects}(\Gamma, x : \tau) = \keywadj{effects}(\Gamma) \cup \keywadj{effects}(\tau)$
+	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, \pi) \mid r \in \bar r, \pi \in \Pi \}$
 	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
 	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
 	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
-	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1)~\tau_2) = \keywadj{effects}(\tau_2)$
-
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1) : \tau_2) = \keywadj{effects}(\tau_2)$
 \end{itemize}
+
+\noindent
+QUESTION: to make $\keywadj{effects}$ total over the set of types we should define it on types of the form $\{ \bar d~\keyw{captures} \varepsilon\}$. Otherwise we might be in trouble, since the input $\Gamma$ could theoretically have these types in it (although I think with these rules it never will in practice). The definition should probably be $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon\}) = \varepsilon$, because if it is already annotated with what it captures then we must have previously called $\keywadj{effects}$ on it.
 
 \newpage
 
@@ -432,101 +468,93 @@ A method $m$ can return a resource $r$ (directly or via some enclosing object). 
 
 \newpage
 
-
 \section{Theorems}
 
-
-\begin{lemma}[Atom]
-Suppose $e$ is a value. The following are true.
-\begin{itemize} 
+\ 
+\thm{Lemma 5.1. (Atom)}
+{Suppose $e$ is a value. The following are true:
+	\begin{itemize}
 	\item If $e : \{ \bar r \}~\keyw{with} \varepsilon$, then $e = r$ for some resource $r \in R$.
 	\item If $e : \{ \bar \sigma \} \keyw{with} \varepsilon$, then $e = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$.
 	\item If $e : \{ \bar d~\keyw{captures} \} \keyw{with} \varepsilon$, then $e = \keywadj{new}_{d}~x \Rightarrow \overline{ d = e }$.
-\end{itemize}
-\end{lemma}
+	\end{itemize}
+Furthermore, $\varepsilon = \varnothing$ in each case. \\\\
+}
+{ These typing judgements each appear exactly once, in the conclusion of different rules. The result follows by inversion of \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-NewObj}, and \textsc{C-NewObj} respectively.
+}
 
-\begin{proof}
-These typing judgements each appear exactly once, in the conclusion of different rules. The result follows by inversion of \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-NewObj}, and \textsc{C-NewObj} respectively. \qed
-\end{proof}
 
-\begin{theorem}[Progress]
-Suppose the following holds:
-\begin{itemize}
-	\item $e_A : \tau~\keyw{with} \varepsilon$
-\end{itemize}
+%\thm{Lemma 5.2. (Component)}
+%{The following are true.
+%\begin{itemize}
+%	\item If $e_1 = \keywadj{new}_{\sigma}~x %\Rightarrow \{ \overline{\sigma = e} \}$ and %$e_1 : \{ \bar \sigma \}~\keyw{with} %\varepsilon$, then for any $\keywadj{def~m_i}(y : \tau_1) : \tau_2~ \keyw{with} \varepsilon_i = e_i \in \overline {\sigma = e}$, $e_i : \tau_2~\keyw{with} \varepsilon_i$.
+%	\item If $e_1 = \keywadj{new}_{d}~x \Rightarrow \{ \overline{d = e} \}$ and $e_1 : \{ \bar d \}~\keyw{with} \varepsilon$, then for any $\keywadj{def~m_i}(y : \tau_1) : \tau_2~ \keyw{with} \varepsilon_i = e_i \in \overline {\sigma = e}$, $e_i : \tau_2~\keyw{with} \varepsilon_i$
+%\end{itemize}
+%}
+%{hi}
 
-\noindent
-Then for any configuration $e_A~|~\varepsilon_A$ one of the following is true:
-\begin{itemize}
-	\item $e_A$ is a value.
-	\item $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$
-\end{itemize}
-\end{theorem}
+\ 
 
-\begin{proof}
-By structural induction on possible derivations of $e_A : \tau~\keyw{with} \varepsilon$.
+\thm{Theorem 5.1. (Progress)}
+{If $e_A : \tau~\keyw{with} \varepsilon$, then for any configuration $e_A~|~\varepsilon_A$, either $e_A$ is a value or $e_A~|~\varepsilon \longrightarrow e_B~|~\varepsilon_B$. \\\\}
+{By structural induction on possible derivations of $e_A : \tau~\keyw{with} \varepsilon$. We consider every rule which could have made this typing judgement. \\
 
-\begin{pcases}
-
-\pcase[\textsc{$\varepsilon$-Var}]
-Then $e_A = x$ is a value.
-\\
-
-\pcase[\textsc{$\varepsilon$-Resource}]
-Then $e_A = r$ is a value.
-\\
-
-\pcase[\textsc{$\varepsilon$-NewObj}]
-Then $e_A = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$ is a value.
-\\
- 
-\pcase[\textsc{C-NewObj}]
-Then $e_A = \keywadj{new}_{d}~x \Rightarrow \overline{\sigma = e}$, which is a value.
-\\
-
-\pcase[\textsc{$\varepsilon$-MethCall}]
-Then $e_A = e_1.m_i(e_2)$ and the following are known:
-\begin{itemize}
-	\item~$e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$
-	\item~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
-	\item~$\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau~ \keyw{with} \varepsilon_3$
-\end{itemize}
-We look at the cases for when $e_1$ and $e_2$ are values.
-
-\begin{itemize}
-	\item[] \textit{Subcase $e_1$ is not a value}: The derivation of $e_A : \tau~\keyw{with} \varepsilon$ includes the subderivation $e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$, so by the inductive hypothesis. Then $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-MethCall1} to $e~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow e_1'.m_i(e_2)~|~\varepsilon_B$.\\
+	\proofcase{\textsc{$\varepsilon$-Var}} {
+		Then $e_A = x$ is a value. \\
+	}
 	
-	\item[] \textit{Subcase $e_2$ is not a value}: Without loss of generality, $e_1 = v_1$ is a value. Also, $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis, $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-MethCall2$_{\sigma}$} to $e_A~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow v_1.m_i(e_2')~|~\varepsilon_B$.\\
+	\proofcase{\textsc{$\varepsilon$-Resource}} {
+		Then $e_A = r$ is a value. \\
+	}
 	
-	\item[] \textit{Subcase $e_1 = v_1$ and $e_2 = v_2$ are values}: By the Atom lemma, $e_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$. Also, $\keyw{def} m_i(y: \tau_2) : \tau~\keyw{with} \varepsilon_3 = e_i \in \overline{ \sigma = e }$. Then applying \textsc{E-MethCall3$_{\sigma}$} to $e_A~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow [v_1/x, v_2/y]e_i~|~\varepsilon_A$.
+	\proofcase{\textsc{$\varepsilon$-NewObj}} {
+		Then $e_A = new_\sigma~x \Rightarrow \overline{ \sigma = e }$ is a value. \\
+	}
+	
+	\proofcase{\textsc{C-NewObj}} {
+		Then $e_A = x$ is a value. \\
+	}
 		
-\end{itemize}
+	\proofcase{\textsc{$\varepsilon$-MethCall}} {
+		Then $e_A = e_1.m_i(e_2)$ and the following are known:
+		\begin{itemize}
+			\item~$e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$
+			\item~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
+			\item~$\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau~ \keyw{with} \varepsilon_3$
+		\end{itemize}
+		We look at the cases for when $e_1$ and $e_2$ are values.
+		
+			\subcase{ $e_1$ is not a value. The derivation of $e_A : \tau~\keyw{with} \varepsilon$ includes the subderivation $e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$, so by the inductive hypothesis. Then $e_1~ ~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-MethCall1} to $e~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow e_1'.m_i(e_2)~|~\varepsilon_B$. }
+	
+			\subcase{ $e_2$ is not a value. Then without loss of generality, $e_1 = v_1$ is a value. Also,
+		$e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis, $e_2~|
+		~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E
+		MethCall2$_{\sigma}$} to $e_A~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow
+		v_1.m_i(e_2')~|~\varepsilon_B$.}
+		
+			\subcase{ $e_1 = v_1$ and $e_2 = v_2$ are values. By the Atom lemma, $e_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$. Also, $\keyw{def} m_i(y: \tau_2)  \tau~\keyw{with} \varepsilon_3 = e_i \in \overline{ \sigma = e }$. Then applying \textsc{E-MethCall3$_{\sigma}$} to $e_A~|~\varepsilon_A$, we have $e_A~|~\varepsilon_A \longrightarrow [v_1/x, v_2/y]e_i~|~\varepsilon_A$\\}
 
-So we're done.\\
-
-\pcase[\textsc{$\varepsilon$-OperCall}]
+	}
+	
+	\proofcase{\textsc{$\varepsilon$-OperCall}} {
 Then $e_A = e_1.\pi(e_2) : \keyw{Unit~with} \{ r. \pi \} \cup \varepsilon_1 \cup \varepsilon_2$ and the following are known:
 \begin{itemize}
-	\item~$e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$
+	\item~$e_1 : \{ \bar r \}~\keyw{with} \varepsilon_1$
 	\item~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
 	\item~$\pi \in \Pi$
 \end{itemize}
-	We look at the cases for when $e_1$ and $e_2$ are values.
+We look at the cases for when $e_1$ and $e_2$ are values.
 	
-\begin{itemize}
-	\item[] \textit{Subcase $e_1$ is not a value}: $e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$ is a subderivation. By the inductive hypothesis $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-OperCall1} to $e_A~|~\varepsilon_A$, we have $e_1.\pi(e_2)~|~\varepsilon_A \longrightarrow e_1'.\pi(e_2)~|~\varepsilon_B$. \\
+		\subcase { $e_1$ is not a value. $e_1 : \{ \bar r \}~\keyw{with} \varepsilon_1$ is a subderivation, so applying the inductive assumption, we have $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-OperCall1} to $e_A~|~\varepsilon_A$ we have $e_1.\pi(e_2)~|~\varepsilon_A \longrightarrow e_1'.\pi(e_2)~|~\varepsilon_B$.
+		}
 		
-	\item[] \textit{Subcase $e_2$ is not a value}: Without loss of generality, $e_1 = v_1$ is a value. Furthermore, it is some resource $r$ by the Atom lemma. Now, $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-OperCall2} to $e_A~|~\varepsilon_A$, we have $r.\pi(e_2)~|~\varepsilon_A \longrightarrow r.\pi(e_2')~|~\varepsilon_B$. \\
+		\subcase { $e_2$ is not a value. Without loss of generality, $e_1 = v_1$ is a value. $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation, so applying the inductive assumption, we have $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-OperCall2} to $e_A~|~\varepsilon_A$ we have $v_1.\pi(e_2)~|~\varepsilon_A \longrightarrow v_1.\pi(e_2')$. }
+		
+		\subcase { $e_1$ and $e_2$ are values. By the Atom lemma, $e_1 = r$ for some $r \in R$. Then applying \textsc{E-OperCall3} to $e_A~|~\varepsilon_A$, we have $r.\pi(v_2)~|~\varepsilon_A \longrightarrow \keywadj{unit}~|~\varepsilon_A \cup \{ r.\pi \}$.\\}
+		
+	}
 	
-	\item[] \textit{Subcase $e_1$ and $e_2 = v_2$ are values}: By the Atom lemma, $e_1 = r$ for some $r \in R$. Then applying \textsc{E-OperCall3} to $e_A~|~\varepsilon_A$, we have $r.\pi(v_2)~|~\varepsilon_A \longrightarrow \keywadj{unit}~|~\varepsilon_A \cup \{ r.\pi \}$. \\
-	
-\end{itemize}
-
-So we're done.\\
-
-
-\pcase[\textsc{C-MethCall}]
-
+	\proofcase{\textsc{C-MethCall}} {
 Then $e_A = e_1.m_i(e_2)~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup~\keywadj{effects}(\tau_2) \cup \varepsilon$ and the following are known:
 
 \begin{itemize}
@@ -536,117 +564,153 @@ Then $e_A = e_1.m_i(e_2)~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup~\keyw
 \end{itemize}
 	We look at the cases for when $e_1$ and $e_2$ are values.
 	
-\begin{itemize}
-	\item[] \textit{Subcase $e_1$ is not a value}: $e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keywadj{with}~\varepsilon_1$ is a subderivation. By the inductive hypothesis, $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-MethCall1} to $e_A~|~\varepsilon_A$, we have $e_1.m_i(e_2)~|~\varepsilon_A \longrightarrow e_1'.m_i(e_2)~|~\varepsilon_B$. \\
+		\subcase { $e_1$ is not a value. $e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keywadj{with}~\varepsilon_1$ is a subderivation. By the inductive hypothesis, $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Then applying \textsc{E-MethCall1} to $e_A~|~\varepsilon_A$, we have $e_1.m_i(e_2)~|~\varepsilon_A \longrightarrow e_1'.m_i(e_2)~|~\varepsilon_B$.}
+		
+		\subcase { $e_2$ is not a value. Without loss of generality, $e_1 = v_1$ is a value. Also, $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis, $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-MethCall2$_d$} to $e_A~|~\varepsilon_A$, we have $v_1.m_i(e_2)~|~\varepsilon_A \longrightarrow v_1.m_i(e_2')~|~\varepsilon_B$. }
+		
+		\subcase{ $e_1$ and $e_2$ are values. By the Atom lemma, $e_1 = \keywadj{new}_d~x \Rightarrow \overline{ d = e }$. Also, $\keyw{def} m_i(y : \tau_2) : \tau = e_i \in \overline {d = e}$. Then applying \textsc{E-MethCall3$_d$} to $e_A~|~\varepsilon_A$, we have $v_1.m_i(v_2)~|~\varepsilon_A \longrightarrow [v_1/x, v_2/y]e_i~|~\varepsilon_A$ }
+	}
+}
+
+
+
+
+
+
+
+\thm{Theorem 5.2. (Effect Preservation)}
+{If $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$, then $\varepsilon_A \subseteq \varepsilon_B$. \\\\}
+{We can divide reduction rules into three classes of rules based on what they do to the effect-set of a configuration. We consider each.\\
+
+\proofcase{\textsc{E-MethCall3$_d$}, \textsc{E-MethCall3$_{\sigma}$}}{
+In these rules $\varepsilon_A = \varepsilon_B$.
+}
+
+\proofcase{\textsc{E-MethCall1}, \textsc{E-MethCall2$_{\sigma}$}, \textsc{E-MethCall2$_{d}$}, \textsc{E-OperCall1}, \textsc{E-OperCall2}}{
+In these rules the antecedent contains a subreduction of the form $e~|~\varepsilon_A \longrightarrow e'~|~\varepsilon_B$. By the inductive assumption, $\varepsilon_A \subseteq \varepsilon_B$.
+}
+
+\proofcase{\textsc{E-OperCall3}}{
+We have $\varepsilon_B = \varepsilon_A \cup \{ r.\pi \}$, so $\varepsilon_A \subseteq \varepsilon_B$.
+}
+}
+
+
+
+
+
+
+
+
+
+\thm{Theorem 5.3. (Type Preservation)}
+{If $e_A : \tau~\keyw{with} \varepsilon$ and $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$, then $e_B : \tau~\keyw{with} \varepsilon$. \\\\}
+{We first induct on possible derivations of $e_A : \tau ~\keyw{with} \varepsilon$, and then on the rule used to reduce $e_A~|~\varepsilon_A$ to $e_B~|~\varepsilon_B$.\\
+
+	\proofcase{ \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-NewObj}, \textsc{C-NewObj}} {
+		$e_A$ is a value, so no reduction rules can be applied to it. The theorem statement is vacuously satisfied.\\ }
 	
-	\item[] \textit{Subcase $e_2$ is not a value}: Without loss of generality, $e_1 = v_1$ is a value. Also, $e_2 : \tau_2~\keyw{with} \varepsilon_2$ is a subderivation. By the inductive hypothesis, $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Then applying \textsc{E-MethCall2$_d$} to $e_A~|~\varepsilon_A$, we have $v_1.m_i(e_2)~|~\varepsilon_A \longrightarrow v_1.m_i(e_2')~|~\varepsilon_B$. \\
-	
-	\item[] \textit{Subcase $e_1 = v_1$ and $e_2 = v_2$ are values}: By the Atom lemma, $e_1 = \keywadj{new}_d~x \Rightarrow \overline{ d = e }$. Also, $\keyw{def} m_i(y : \tau_2) : \tau = e_i \in \overline {d = e}$. Then applying \textsc{E-MethCall3$_d$} to $e_A~|~\varepsilon_A$, we have $v_1.m_i(v_2)~|~\varepsilon_A \longrightarrow [v_1/x, v_2/y]e_i~|~\varepsilon_A$.
-	
-\end{itemize}
-
-So we're done.
-
-\end{pcases}
-
-\noindent
-This concludes all the cases. So either $e$ is a value, or a single reduction step can be made on $e_A~|~\varepsilon_A$ to give a new configuration $e_B~|~\varepsilon_B$. \qed
-
-\end{proof}
-
-\begin{theorem}[Preservation]
-If the following holds:
+	\proofcase{\textsc{$\varepsilon$-MethCall$_{\sigma}$}}
+	{Then $e_A = e_1.m_i(e_2) : \tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon$ and the following are true:
 \begin{itemize}
-	\item $e_A : \tau~\keyw{with} \varepsilon$
-	\item $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$
-\end{itemize}
-
-\noindent
-Then $e_B : \tau~\keyw{with} \varepsilon$.
-\end{theorem}
-
-\begin{proof}
-By structural induction on possible derivations of $e_A : \tau~\keyw{with} \varepsilon$. First, if the rule used was \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-NewObj}, or \textsc{C-NewObj}, then $e_A$ is a value, so no reduction can be applied to it. This means the theorem is vacuously satisfied. Otherwise we consider the remaining rules and then induct on possible derivations of $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$.
-
-\begin{pcases}
-
-\pcase[\textsc{$\varepsilon$-MethCall$_{\sigma}$}]
-Then $e_A = e_1.m_i(e_2) : \tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon$, and we know:
-\begin{itemize}
-	\item~$e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$
-	\item~$e_2 : \tau_2~\keyw{with} \varepsilon_2$
-	\item~$\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau~ \keyw{with} \varepsilon_3$
+	\item $e_A : \tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \varepsilon$
+	\item $e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$
+	\item $e_2 : \tau_2~\keyw{with} \varepsilon_2$
+	\item $\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau~ \keyw{with} \varepsilon_3$
 \end{itemize}
 We do a case analysis on the reduction rules applicable to $e_1.m_i(e_2)$, for $m_i$ an annotated method.
 
-
-\begin{itemize}
-	\item[] \textit{Subcase \textsc{E-MethCall1}}:
-	Then $e_1~|~\varepsilon_A \rightarrow e_1'~|~\varepsilon_B$. By the inductive assumption $e_1' : \{ \bar \sigma \}~\keyw{with} \varepsilon$. Then by \textsc{$\varepsilon$-MethCall} we have $e_B = e_1'.m_i(e_2) : \tau~\keyw{with} \varepsilon$. \\
+		\subcase{ \textsc{E-MethCall1} Then $e_1~|~\varepsilon_A \rightarrow e_1'~|~\varepsilon_B$. By the inductive assumption $e_1' : \{ \bar \sigma \}~\keyw{with} \varepsilon$. Then by \textsc{$\varepsilon$-MethCall} we have $e_B = e_1'.m_i(e_2) : \tau~\keyw{with} \varepsilon$. }
+		
+		\subcase{ \textsc{E-MethCall2$_\sigma$} 	Then $e_1 = v_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$, and $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. By the inductive assumption $e_2' : \tau_2~\keyw{with} \varepsilon_2$. Then by \textsc{$\varepsilon$-MethCall} we have $e_B = v_1.m_i(e_2) : \tau~\keyw{with} \varepsilon$.
+		}
+		
+		\subcase{ \textsc{E-MethCall3$_\sigma$} Then $e_1 = v_1 = \keywadj{new}_{\sigma} \Rightarrow \overline{\sigma = e}$, and $\keyw{def} m_i(y : \tau_2) : \tau~\keyw{with} \varepsilon_3 = e' \in \overline{\sigma = e}$, and $e_2 = v_2$ is a value. 
 	
-	\item[] \textit{Subcase \textsc{E-MethCall2$_{\sigma}$}}:
-	Then $e_1 = v_1 = \keywadj{new}_{\sigma}~x \Rightarrow \overline{\sigma = e}$, and $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. By the inductive assumption $e_2' : \tau_2~\keyw{with} \varepsilon_2$. Then by \textsc{$\varepsilon$-MethCall} we have $e_B = e_1'.m_i(e_2) : \tau~\keyw{with} \varepsilon$. \\
+	\noindent	
+Now, since we know $e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$, the only rule with this conclusion is \textsc{$\varepsilon$-NewObj}. Then the premises of that rule must hold. So $\overline{ \sigma = e }~\keywadj{OK}$. The only rule with this conclusion is \textsc{$\varepsilon$-ValidImpl$_{\sigma}$}. The premises of that rule must hold, so $e' : \tau~\keyw{with} \varepsilon_3$.
+		\\ \noindent
+			Now, $e_B = [v_1/x, v_2/y]e'$, since the rule \textsc{E-MethCall3} was used. We know $v_1 = e_1$ and $x$ have the same type $\{ \overline \sigma \}~ \keyw{with} \varepsilon_1$. $v_2 = e_2$ and $y$ have the same type $\tau_2~\keyw{with} \varepsilon_2$. So the type of $e'$, which is $\tau~\keyw{with} \varepsilon_3$, is preserved by the substitution. So $e_B : \tau~\keyw{with} \varepsilon_3$. \\ }
+}
+
+
+	\proofcase{\textsc{$\varepsilon$-OperCall$_{\sigma}$}} {Then $e_A = e_1.\pi(e_2) : \keyw{Unit~with} \{ r, \pi \} \cup \varepsilon_1 \cup \varepsilon_2$, and we know:
+	\begin{itemize}
+		\item $e_1 : \{ \bar r \}~\keyw{with} \varepsilon_1$
+		\item $e_2 : \tau_2~\keyw{with} \varepsilon_2$
+		\item $\pi \in \Pi$
+	\end{itemize}
+There are three reduction rules applicable to terms of the form $e_1.\pi(e_2)$ for $\pi$ an operation. We consider each.
+
+	\subcase { \textsc{E-OperCall}. Then $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. By the inductive assumption, $e_1' : \{ \bar r \} ~ \keyw{with} \varepsilon_1$. From these we can apply \textsc{$\varepsilon$-OperCall}, giving $e_B = e_1'.\pi(e_2) : \keyw{Unit~with} \{ r.\pi \} \cup \varepsilon_1 \cup \varepsilon_2$.
+	}
 	
-	\newpage
+	\subcase{ \textsc{E-OperCall2}. Then $e_1 = r$ for some $r \in R$ and $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. By the inductive assumption $e_2' : \tau_2~\keyw{with} \varepsilon_2$. From these we can apply \textsc{$\varepsilon$-OperCall}, giving $e_B = r.\pi(e_2')~\keyw{with} \varepsilon$.
+		}
 	
-	\item[] \textit{Subcase \textsc{E-MethCall3$_{\sigma}$}}: Then $e_1 = v_1 = \keywadj{new}_{\sigma} \Rightarrow \overline{\sigma = e}$, and $\keyw{def} m_i(y : \tau_2) : \tau~\keyw{with} \varepsilon_3 = e' \in \overline{\sigma = e}$, and $e_2 = v_2$ is a value. Furthermore, since we know $e_1  : \{ \overline \sigma \}~ \keyw{with} \varepsilon_1$, the only rule with this conclusion is \textsc{$\varepsilon$-NewObj}. Then its antecedent must hold. of \textsc{$\varepsilon$-NewObj} holds, so $\overline{ \sigma = e }~\keywadj{OK}$. The only rule with this conclusion is \textsc{$\varepsilon$-ValidImpl$_{\sigma}$}. Then its antecedent must hold, so $e' : \tau~\keyw{with} \varepsilon_3$.
+	\subcase{ \textsc{E-OperCall3}. Then $r.\pi(v)~|~\varepsilon_A \longrightarrow \keywadj{unit}~|~\varepsilon_A \cup \{ r.\pi \}$. By the Atom lemma, $\varepsilon_1 = \varepsilon_2 = \varnothing$, so $e_A : \keyw{Unit~with} \{ r.\pi \}$. By a degenerate case of \textsc{$\varepsilon$-NewObj}, $\keywadj{unit} : \keyw{Unit~with} \varnothing$. \textbf{But this isn't the same type as $e_A$. After performing an operation you lose the effect from the type information, but gain it in the runtime information. Should the statement really be reworded to say that you don't lose effect annotations as you reduce, except when performing an operation at which point the runtime gains something from the type info (and that type info is allowed to be discarded). We can use the fact that once you call an operation, evaluation (on this particular configuration) must stop, so the only time we discard effect annotations for a configuration is when it's about to terminate} \\}	
+}
 	
-	\paragraph{}
-	Now, $e_B = [v_1/x, v_2/y]e'$, since the rule \textsc{E-MethCall3} was used. We know $v_1 = e_1$ and $x$ have the same type $\{ \overline \sigma \}~ \keyw{with} \varepsilon_1$. $v_2 = e_2$ and $y$ have the same type $\tau_2~\keyw{with} \varepsilon_2$. So the type of $e'$, which is $\tau~\keyw{with} \varepsilon_3$, is preserved by the substitution. So $e_B : \tau~\keyw{with} \varepsilon_3$.
+	\proofcase{\textsc{C-MethCall}} { Then $e_A = e_1.m_i(e_2)$ and the following are known:
+	\begin{itemize}
+		\item $e_A : \tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \varepsilon$
+		\item $e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1$
+		\item $e_2 : \tau_2~\keyw{with} \varepsilon_2$
+		\item $d_i = \keyw{def} m_i(y : \tau_2) : \tau$
+	\end{itemize}
+	
+	We do a case analysis on the reduction rules applicable to $e_1.m(e_2)$, for $m_i$ an unannotated method.
+	
+	\subcase{ \textsc{E-MethCall1}
+		Then $e_1.m_i(e_2)~|~\varepsilon_A \longrightarrow e_1'.m_i(e_2)~|~\varepsilon_B$. By the inductive assumption $e_1'$ types to the same as $e_1$. Then applying $\textsc{C-MethCall}$ we get $\keywadj{type}(e_B) = \keywadj{type}(e_A)$.
+	}
+	
+	\subcase{ \textsc{E-MethCall2$_d$}
+		Then $e_1 = v_1$ some value and $v_1.m_i(e_2)~|~\varepsilon_A \longrightarrow v_1.m_i(e_2')$. By the inductive assumption $\keywadj{type}(e_2') = \keywadj{type}(e_2)$. Then applying \textsc{C-MethCall} we get $\keywadj{type}(e_B) = \keywadj{type}(e_A)$.
+	}		
+	
+	\subcase{ \textsc{E-MethCall3$_d$} Then $v_1.m_i(v_2)~|~\varepsilon_A \longrightarrow [v_1/x, v_2/y]e_i~|~\varepsilon_B$, where $e_i$ is the body of method $m_i$. Now $e_1$ has the type $\{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1$, and the only rule matching this judgement is \textsc{C-NewObj}. So the premises of that rule, applied to $e_1$, must be true.
+	\\ \noindent
+Firstly this means $\overline{d = e}~\keywadj{OK}$, so $d_i = e_i~\keywadj{OK}$.
+	\\ \noindent
+\textbf{But what happens to the effects? $e_i$ and $\tau$ could be anything and there are no rules for effect-checking isolated expressions. Is there a smarter way than proceeding by case analysis on $e_i$ and $\tau$?}
+}
+		
+	}
+}
 
-\end{itemize}
 
-\end{pcases}
+\thm{Theorem 5.4 (Soundness Of Effects).}
+{If $e_A : \tau~\keyw{with} \varepsilon$ and $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$, then $\varepsilon_B \setminus \varepsilon_A \subseteq \varepsilon$. \\ \\}
+{By the Effect Preservation Theorem, $\varepsilon_A \subseteq \varepsilon_B$. Now proceed by structural induction on the evaluation rule.\\
 
-\end{proof}
+	\proofcase{\textsc{E-MethCall3$_d$}, \textsc{E-MethCall3$_\sigma$}} {
+	In these rules $e_A = e_B$. Then $e_B \setminus e_A = \varnothing$, so $e_B \setminus e_A \subseteq \varepsilon$ is vacuously true.
+	}
+	
+	\proofcase{\textsc{E-OperCall1}} {
+		Then $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Theorem holds by the inductive assumption.
+}
+	
+	\proofcase{\textsc{E-OperCall2}} {
+		Then $\exists r \in R \mid e_1 = r$ and $r.\pi(e_2) \longrightarrow r.\pi(e_2')$ and $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Theorem holds by the inductive assumption.
+	}
 
+	\proofcase{\textsc{E-OperCall3}} {
+		Then $\varepsilon_B = \varepsilon_A \cup \{ r.\pi \}$, so we have to show $r.\pi \in \varepsilon$. From the Atom lemma, $r : \{ r \}~ \keyw{with} \varnothing$ and $v : \tau_2~ \keyw{with} \varnothing$, for some $\tau_2$. By applying \textsc{$\varepsilon$-OperCall} then $r.m(\pi) : \{ r.\pi \} \cup \varnothing \cup \varnothing$. So $\varepsilon = \{ r.\pi \}$.
+	}
+	
+	\proofcase{\textsc{E-MethCall1}} {
+		Then $e_1~|~\varepsilon_A \longrightarrow e_1'~|~\varepsilon_B$. Theorem holds by the inductive assumption.
+	}
 
-\begin{theorem}[Monotonicity]
-If $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$, then $\varepsilon_A \subseteq \varepsilon_B$.
-\end{theorem}
-
-\begin{proof}
-
-Consider the degenerate case where $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$ consists of a single reduction. We induct on that reduction, considering three classes of rules.
-
-\begin{pcases}
-
-\pcase[\textsc{E-MethCall3$_d$}, \textsc{E-MethCall3$_{\sigma}$}]
-In these rules $\varepsilon_A = \varepsilon_B$.
-\\
-
-\pcase[\textsc{E-MethCall1}, \textsc{E-MethCall2$_{\sigma}$}, \textsc{E-MethCall2$_{d}$}, \textsc{E-OperCall1}, \textsc{E-OperCall2}]
-In these rules the antecedent contains a subreduction of the form $e~|~\varepsilon_A \longrightarrow e'~|~\varepsilon_B$. By the inductive assumption, $\varepsilon_A \subseteq \varepsilon_B$.
-\\
-
-\pcase[\textsc{E-OperCall3}]
-We have $\varepsilon_B = \varepsilon_A \cup \{ r.\pi \}$, so $\varepsilon_A \subseteq \varepsilon_B$.
-
-\end{pcases}
-
-\noindent
-Therefore the theorem statement holds for single-step reductions. If $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$ is a sequence of reduction steps then it holds by induction on the length of the sequence. \qed
-
-\end{proof}
-
-\begin{theorem}[Soundness]
-If the following holds:
-\begin{itemize}
-	\item $e_A : \tau~\keyw{with} \varepsilon$
-	\item $e_A~|~\varnothing \longrightarrow_* e_B~|~\varepsilon_B$
-\end{itemize}
-
-\noindent
-Then $\varepsilon_B \subseteq \varepsilon$
-
-\end{theorem}
-
-\begin{note}
-A more general form of soundness is that if $e_A~|~\varepsilon_A \longrightarrow_* e_B~|~\varepsilon_B$, then $\varepsilon_B \setminus \varepsilon_A \subseteq \varepsilon$.
-\end{note}
-
-\begin{proof}
-\end{proof}
-
+	\proofcase{\textsc{E-MethCall2$_\sigma$}} {
+		Then $e_1 = v$ some value and $e_2~|~\varepsilon_A \longrightarrow e_2'~|~\varepsilon_B$. Theorem holds by the inductive assumption.
+	}
+	
+	\proofcase{\textsc{E-MethCall2$_d$}} {
+		Then $e_1 = v = \keywadj{new}_d~x \Rightarrow \overline {d = e}$ and $e_2~|~\varepsilon \longrightarrow e_2'~|~\varepsilon_B$. Theorem holds by inductive assumption.
+	}
+}
 
 \end{document}
