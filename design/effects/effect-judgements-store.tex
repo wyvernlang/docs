@@ -322,8 +322,14 @@ $\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
 \infer[\textsc{(C-MethCall)}]
 	{\Gamma \vdash e_1.m_i(e_2) : \tau~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup effects(\tau_2) \cup \varepsilon}
 	{\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2&d_i :=~\keyw{def} m_i(y:\tau_2):\tau } \\[5ex]
+	
+\infer[\textsc{(C-EffectInference)}]
+	{\Gamma \vdash e : \tau~\keyw{with} effects(\Gamma')}
+	{\Gamma' \subseteq \Gamma & \Gamma \vdash e : \tau}
+	
 \end{array}
 \]
+
 
 
 \noindent \textbf{Notes:}
@@ -351,10 +357,8 @@ A method $m$ can return a resource $r$ (directly or via some enclosing object). 
 	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
 	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
 	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1) : \tau_2) = \keywadj{effects}(\tau_2)$
+	\item $\keywadj{effects}(\{  \bar d~\keyw{captures} \varepsilon\}) = \varepsilon$
 \end{itemize}
-
-\noindent
-QUESTION: to make $\keywadj{effects}$ total over the set of types we should define it on types of the form $\{ \bar d~\keyw{captures} \varepsilon\}$. Otherwise we might be in trouble, since the input $\Gamma$ could theoretically have these types in it (although I think with these rules it never will in practice). The definition should probably be $\keywadj{effects}(\{ \bar d~\keyw{captures} \varepsilon\}) = \varepsilon$, because if it is already annotated with what it captures then we must have previously called $\keywadj{effects}$ on it.
 
 \newpage
 
@@ -425,6 +429,8 @@ QUESTION: to make $\keywadj{effects}$ total over the set of types we should defi
 \[
 \begin{array}{lll}
 
+\begin{array}{lllr}
+
 	\infer[\textsc{(E-Var)}]
 		{x~|~\Sigma, x \mapsto (v, \tau) \longrightarrow v~|~\Sigma, x \mapsto (v, \tau)~|~\varepsilon}
 		{} \\[5ex]
@@ -470,7 +476,9 @@ QUESTION: to make $\keywadj{effects}$ total over the set of types we should defi
 		{r.\pi(v)~|~\Sigma
 			\longrightarrow
 		 \keywadj{unit}~|~\Sigma~|~\{r.\pi\}}
-		{r \in R & \pi \in \Pi}
+		{r \in R & \pi \in \Pi} \\[5ex]
+		
+\end{array}
 \end{array}
 \]
 
@@ -493,4 +501,78 @@ QUESTION: to make $\keywadj{effects}$ total over the set of types we should defi
 \end{array}
 \]
 
+\newpage
+
+\section{Proofs}
+
+\thm{Theorem 5.3. (Type Preservation)}
+{If $e_A : \tau~\keyw{with} \varepsilon$ and $e_A~|~\varepsilon_A \longrightarrow e_B~|~\varepsilon_B$, then $e_B : \tau~\keyw{with} \varepsilon$. \\\\}
+{We first induct on possible derivations of $e_A : \tau ~\keyw{with} \varepsilon$, and then on the rule used to reduce $e_A~|~\varepsilon_A$ to $e_B~|~\varepsilon_B$.\\
+
+
+	\proofcase{\textsc{C-MethCall}} { Then we know the following:
+	\begin{itemize}
+		\item 1. $e_A = e_1.m_i(e_2)$
+		\item 2. $e_A : \tau~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \varepsilon$
+		\item 3. $e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1$
+		\item 4. $e_2 : \tau_2~\keyw{with} \varepsilon_2$
+		\item 5. $d_i = \keyw{def} m_i(y : \tau_2) : \tau$
+	\end{itemize}
+	
+	We do a case analysis on the reduction rules applicable to $e_1.m(e_2)$, for $m_i$ an unannotated method.
+	
+	\subcase{ \textsc{E-MethCall3$_d$} Then we also know:
+
+	\begin{itemize}
+		\item 6. $e_1 = v_1 = \keyw{new} x \Rightarrow \overline{d = e}$
+		\item 7. $\keywadj{def~m_i}(y : \tau_2) : \tau = e_i \in \overline{d = e}$
+		\item 8. $\Sigma_B = \Sigma_A, x \mapsto (v, \{ \bar d \}), y \mapsto (v_2, \tau_2)$
+		\item 9. $e_B = e'$
+		\item 10. $e_2 = v_2$, some value.
+	\end{itemize}
+
+\noindent
+(P1) We need to figure out the type of $e_B$ and make sure it aligns with the type of $e_A$. First lets say $\Gamma_B$ is the context inside the method body $e_i = e_B$, and $\Gamma_A$ is the context at the method call $e_A = e_1.m_i(e_2)$. To type $e_B$ we'll apply \textsc{C-EffectInference}. To do that we need to choose some $\Gamma'_B \subseteq \Gamma_B$. \\
+	
+	\noindent
+(P2) The only rule that can be used to produce (3) is \textsc{C-NewObj}. By rule inversion we have that $\varepsilon = effects(\Gamma')$, for some $\Gamma' \subseteq \Gamma_A$. Furthermore $\Gamma', x : \{ \bar d~\keyw{captures}~ \varepsilon \} \vdash \overline{d = e}~\keywadj{OK}$. This can be weakened to $\Gamma', x : \{ \bar d~\keyw{captures}  \varepsilon \} \vdash d_i = e_i~\keywadj{OK}$. We'll build $\Gamma'_B$ out of that context on the left-hand side of the turnstile. \\
+
+	\noindent
+(P3) Let $\Gamma'' = \Gamma' \cap ~\keywadj{freevars}(e_i)$. Then $\Gamma'' \subseteq \Gamma_B$ because $\Gamma''$ only contains variables used in the method body $e_i$, and by the closure assumption the free variables in $e_i$ are in $\Gamma_B$. Let $\Gamma'_B = \Gamma'', x : \{ \bar d~\keyw{captures} \varepsilon \}, y : \tau_2~\keyw{with} \varepsilon_2$. $x$ is in $\Gamma_B$ because $x$ is the 'this' variable that gets added to the context when we invoke the method on the object. $y$ is in $\Gamma_B$ because $y$ is the parameter passed in during the method call. So $\Gamma'_B \subseteq \Gamma_B$. \\
+
+	\noindent
+(P4) Now we'll show that \textsc{C-EffectInference} can be applied using $\Gamma'_B \subset \Gamma_B$ as our choice of subcontext. We showed $\Gamma', x : \{ \bar d~\keyw{captures}  \varepsilon \} \vdash d_i = e_i~\keywadj{OK}$ in (P2). The statement is true for any restriction of $\Gamma'$ to the variables used in $e_i$, which is $\Gamma' \cap \keywadj{freevars}(e_i)$, which is how we defined $\Gamma''$. So $\Gamma'', x : \{ \bar d~\keyw{captures}  \varepsilon \} \vdash d_i = e_i~\keywadj{OK}$. We can arbitrarily extend the context left of the turnstile and the statement still holds. So if we add $y : \tau_2$ to the context left of the turnstile then we have $\Gamma'_B \vdash d_i = e_i~\keywadj{OK}$. The only judgement with this form is \textsc{$\varepsilon$-ValidImpl$_d$}. By rule inversion $\Gamma'_B \vdash e_i : \tau$, recalling from (5) that $d_i = \keywadj{def~m_i}(y : \tau_2) : \tau$. \\
+
+\noindent
+(P5) From (P3) and (P4) we can apply \textsc{C-EffectInference} to type $e_B$. Then $e_B : \tau~\keywadj{with~effects}(\Gamma'_B)$. From (3) we can immediately see that $e_A$ and $e_B$ have the same type $\tau$. The effect info of $e_A$ is $\varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \varepsilon$. The effect info $e_B$ is $\keywadj{effects(\Gamma'_B)}$. What is the relationship between their effect info? \\
+
+\noindent
+(P6) We show the effect info of $e_B$ is a subset of the effect info of $e_A$. Note that $\keywadj{effects}(\Gamma'_B)$ is the same as $\keywadj{effects}(\Gamma'') \cup \varepsilon \cup \keywadj{effects}(\tau_2)$. Let $r.\pi \in \keywadj{effects}(\Gamma'_B)$. There are 3 places it could have come from. If $r.\pi \in \varepsilon \cup \keywadj{effects}(\tau_2)$ then we're done since these are in the effect info of $e_A$. Otherwise if $r.\pi \in \keywadj{effects}(\Gamma'')$ then $r.\pi \in \keywadj{effects}(\Gamma' \cap \keywadj{freevars}(e_i)$. Then $r.\pi \in \keywadj{effects}(\Gamma') = \varepsilon$.
+
+\noindent
+(P7) Let $r.\pi \in \varepsilon_1$. This is the set of effects associated with evaluation of $e_1$ in the expression $e_1.m_i(e_2)$. From (3), $e_1 = v_1 = \keyw{new} x \Rightarrow \overline{d = e}$. The only judgement matching $e_1 : \{ \bar d~\keyw{captures} \varepsilon \}~\keyw{with} \varepsilon_1$ is \textsc{C-NewObj}. From rule inversion $\varepsilon_1 = \varnothing$, so we're done (vacuously). \\
+
+\noindent
+(P8) Let $r.\pi \in \varepsilon_2$. This is the set of effects associated with evaluation of $e_2$. Since $e_2 = v_2$ for some value, by canonical forms $\varepsilon_2 = \varnothing$. \\
+
+\noindent
+(P9) From (P6), (P7), and (P8) we've shown that $e_A$ and $e_B$ have the exact same effect info. From (P5) we know they have the same type info. Therefore $e_A$ and $e_B$ have the same type.
+
+}
+}		
+}
+
 \end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
