@@ -523,162 +523,169 @@ choose Properties, go to the Java Compiler tab, and make JDK
 compliance is set to 1.8 (enable project-specific settings
 if necessary).
 </p>
-<p class="indent" data-line="34"><span data-line="34"></span>To run the regression test suite, go to the package
-wyvern.tools.tests.suites and run AntRegressionTestSuite as a
-JUnit test.
+<p class="indent" data-line="34"><span data-line="34"></span>To run the regression test suite directly via JUnit or an IDE,
+go to the package wyvern.tools.tests.suites and run
+AntRegressionTestSuite as a JUnit test.  All regression tests
+in this suite should run correctly.  However, some tests that
+are excluded from the AntRegressionTestSuite (either by not
+including them explicitly, or by marking them in
+<span data-line="40"></span><code class="code code1">@Category(CurrentlyBroken.class)</code><span data-line="40"></span>) may fail, because they
+describe bugs that were discovered but not yet fixed or
+functionality we know we want to support but we have
+not yet implemented.
 </p>
-<p class="indent" data-line="38"><span data-line="38"></span>Every time you edit the parser specifications, or pull changes
+<p class="indent" data-line="45"><span data-line="45"></span>Every time you edit the parser specifications, or pull changes
 that affect the parser specifications, you will need to re-run
-<span data-line="40"></span>&#8220;ant test&#8221;<span data-line="40"></span> and then right-click on the project and type refresh.
-</p><h2 id="sec-overall-architecture"  data-line="44"  style="bookmark:2.&#8194;Overall Architecture"><span data-line="44"></span><span class="heading-before"><span class="heading-label">2</span>.&#8194;</span><span data-line="44"></span>Overall Architecture</h2>
-<p class="para-continue" data-line="47"><span data-line="47"></span>Like many language tools, the Wyvern interpreter is structured as a
+<span data-line="47"></span>&#8220;ant test&#8221;<span data-line="47"></span> and then right-click on the project and type refresh.
+</p><h2 id="sec-overall-architecture"  data-line="51"  style="bookmark:2.&#8194;Overall Architecture"><span data-line="51"></span><span class="heading-before"><span class="heading-label">2</span>.&#8194;</span><span data-line="51"></span>Overall Architecture</h2>
+<p class="para-continue" data-line="54"><span data-line="54"></span>Like many language tools, the Wyvern interpreter is structured as a
 pipeline.  The stages of the front end are as follows:
 </p>
-<ol class="ol compact" data-line="50">
-<li class="li ol-li compact-li" data-line="50"><span data-line="50"></span><strong>Lexing</strong><span data-line="50"></span>: producing a sequence of tokens from textual input
+<ol class="ol compact" data-line="57">
+<li class="li ol-li compact-li" data-line="57"><span data-line="57"></span><strong>Lexing</strong><span data-line="57"></span>: producing a sequence of tokens from textual input
 </li>
-<li class="li ol-li compact-li" data-line="51"><span data-line="51"></span><strong>Parsing</strong><span data-line="51"></span>: producing a high-level AST from a sequence of tokens
+<li class="li ol-li compact-li" data-line="58"><span data-line="58"></span><strong>Parsing</strong><span data-line="58"></span>: producing a high-level AST from a sequence of tokens
 </li>
-<li class="li ol-li compact-li" data-line="52"><span data-line="52"></span><strong>Intermediate Code Generation</strong><span data-line="52"></span>: producing code in a foundational
+<li class="li ol-li compact-li" data-line="59"><span data-line="59"></span><strong>Intermediate Code Generation</strong><span data-line="59"></span>: producing code in a foundational
 intermediate representation.
 </li>
-<li class="li ol-li compact-li" data-line="54"><span data-line="54"></span><strong>Typechecking</strong><span data-line="54"></span>: ensuring that the generated intermediate
+<li class="li ol-li compact-li" data-line="61"><span data-line="61"></span><strong>Typechecking</strong><span data-line="61"></span>: ensuring that the generated intermediate
 representation typechecks.
 </li></ol>
 
-<p data-line="57"><span data-line="57"></span>Wyvern has several back ends.  The main one is simply interpreting the
+<p data-line="64"><span data-line="64"></span>Wyvern has several back ends.  The main one is simply interpreting the
 intermediate representation directly.  However, another pathway compiles
 down to a lower-level, partially-typed class-based form, then generates
 assembly languages using the LLVM infrastructure.
 </p>
-<p class="indent" data-line="62"><span data-line="62"></span>As of this writing there is a fair bit of code that is out of date.
+<p class="indent" data-line="69"><span data-line="69"></span>As of this writing there is a fair bit of code that is out of date.
 This will be removed as the current implementation is more fleshed out,
 but is left in the codebase at the moment because it is a good reference
 for some of the functionality we are reimplementing.
 </p>
-<p class="indent" data-line="67"><span data-line="67"></span>The rest of this document will describe each of these stages in turn,
-discussing the code by using the processing of the <span data-line="68"></span><code class="code code1">val</code><span data-line="68"></span> concept as
+<p class="indent" data-line="74"><span data-line="74"></span>The rest of this document will describe each of these stages in turn,
+discussing the code by using the processing of the <span data-line="75"></span><code class="code code1">val</code><span data-line="75"></span> concept as
 a running example.
-</p><h2 id="sec-lexing"  data-line="71"  style="bookmark:3.&#8194;Lexing"><span data-line="71"></span><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span><span data-line="71"></span>Lexing</h2>
-<p data-line="74"><span data-line="74"></span>The lexer is implemented based on the Copper parser and scanner generator
-(<span data-line="75"></span><a href="http://www.melt.cs.umn.edu/copper/">http://www.melt.cs.umn.edu/copper/</a><span data-line="75"></span>).  Copper was chosen because it
+</p><h2 id="sec-lexing"  data-line="78"  style="bookmark:3.&#8194;Lexing"><span data-line="78"></span><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span><span data-line="78"></span>Lexing</h2>
+<p data-line="81"><span data-line="81"></span>The lexer is implemented based on the Copper parser and scanner generator
+(<span data-line="82"></span><a href="http://www.melt.cs.umn.edu/copper/">http://www.melt.cs.umn.edu/copper/</a><span data-line="82"></span>).  Copper was chosen because it
 supports context-sensitive, stateful lexing.  Wyvern uses state and a
 simple form of context-sensitive lexing both to make indentation-sensitive
 syntax easier to process, and to defer lexing for blocks of domain-specific
 code.  For documentation on the syntax of Copper, see the Copper website.
 </p>
-<p class="indent" data-line="81"><span data-line="81"></span>The implementation of lexing is in
-<span data-line="82"></span><code class="code code1">tools/src/wyvern/tools/lexing/WyvernLexer.x</code><span data-line="82"></span>  The state used in the
-lexer is at the top of the file: we track whether a tilde (<span data-line="83"></span><code class="code code1">~</code><span data-line="83"></span>) symbol
+<p class="indent" data-line="88"><span data-line="88"></span>The implementation of lexing is in
+<span data-line="89"></span><code class="code code1">tools/src/wyvern/tools/lexing/WyvernLexer.x</code><span data-line="89"></span>  The state used in the
+lexer is at the top of the file: we track whether a tilde (<span data-line="90"></span><code class="code code1">~</code><span data-line="90"></span>) symbol
 was found in the current line, indicating a DSL block in the next line;
 a boolean flag indicating that the next line is a DSL block, and a flag
 recording whether we are currently scanning a DSL block.  Finally, there
 is a stack of indentation levels for indentation-sensitive syntax.
 </p>
-<p class="indent" data-line="89"><span data-line="89"></span>A few helper functions at the beginning handle indentation levels,
+<p class="indent" data-line="96"><span data-line="96"></span>A few helper functions at the beginning handle indentation levels,
 logical line detection, and token creation.  Tokens are declared in the
-usual way; for example see the <span data-line="91"></span><code class="code code1">valKwd_t</code><span data-line="91"></span> token used for the <span data-line="91"></span><code class="code code1">val</code><span data-line="91"></span>
+usual way; for example see the <span data-line="98"></span><code class="code code1">valKwd_t</code><span data-line="98"></span> token used for the <span data-line="98"></span><code class="code code1">val</code><span data-line="98"></span>
 keyword.
 </p>
-<p class="indent" data-line="94"><span data-line="94"></span>After the tokens, there is a simple parser that detects lines as sequences
+<p class="indent" data-line="101"><span data-line="101"></span>After the tokens, there is a simple parser that detects lines as sequences
 of tokens separated by generated indent and newline tokens, with DSL
-block tokens embedded as appropriate.  We can find <span data-line="96"></span><code class="code code1">val</code><span data-line="96"></span> in the <span data-line="96"></span><code class="code code1">keyw</code><span data-line="96"></span>
+block tokens embedded as appropriate.  We can find <span data-line="103"></span><code class="code code1">val</code><span data-line="103"></span> in the <span data-line="103"></span><code class="code code1">keyw</code><span data-line="103"></span>
 production, which is in turn part of a non-whitespace line element
-(<span data-line="98"></span><code class="code code1">nonWSLineElement</code><span data-line="98"></span>).  This element is combined with other elements of
+(<span data-line="105"></span><code class="code code1">nonWSLineElement</code><span data-line="105"></span>).  This element is combined with other elements of
 a line to form lines and then programs.
 </p>
-<p class="indent" data-line="101"><span data-line="101"></span>An example test case that illustrates creating and using the lexer is
-<span data-line="102"></span><code class="code code1">wyvern.tools.tests.LexingTests.testDSLBLock1()</code><span data-line="102"></span>, which calls the
-<span data-line="103"></span><code class="code code1">checkLex()</code><span data-line="103"></span> function in the same file to parse a string and compare
-the tokens generated to the expected token sequence.  Here <span data-line="104"></span><code class="code code1">checkLex()</code><span data-line="104"></span>
-simply creates a <span data-line="105"></span><code class="code code1">WyvernLexer</code><span data-line="105"></span> and invokes <span data-line="105"></span><code class="code code1">parse</code><span data-line="105"></span> on it to get a
+<p class="indent" data-line="108"><span data-line="108"></span>An example test case that illustrates creating and using the lexer is
+<span data-line="109"></span><code class="code code1">wyvern.tools.tests.LexingTests.testDSLBLock1()</code><span data-line="109"></span>, which calls the
+<span data-line="110"></span><code class="code code1">checkLex()</code><span data-line="110"></span> function in the same file to parse a string and compare
+the tokens generated to the expected token sequence.  Here <span data-line="111"></span><code class="code code1">checkLex()</code><span data-line="111"></span>
+simply creates a <span data-line="112"></span><code class="code code1">WyvernLexer</code><span data-line="112"></span> and invokes <span data-line="112"></span><code class="code code1">parse</code><span data-line="112"></span> on it to get a
 list of tokens.
-</p><h2 id="sec-parsing"  data-line="108"  style="bookmark:4.&#8194;Parsing"><span data-line="108"></span><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span><span data-line="108"></span>Parsing</h2>
-<p data-line="111"><span data-line="111"></span>The parser is implemented using JavaCC
-(<span data-line="112"></span><a href="https://java.net/projects/javacc">https://java.net/projects/javacc</a><span data-line="112"></span>).  We chose JavaCC because it is
+</p><h2 id="sec-parsing"  data-line="115"  style="bookmark:4.&#8194;Parsing"><span data-line="115"></span><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span><span data-line="115"></span>Parsing</h2>
+<p data-line="118"><span data-line="118"></span>The parser is implemented using JavaCC
+(<span data-line="119"></span><a href="https://java.net/projects/javacc">https://java.net/projects/javacc</a><span data-line="119"></span>).  We chose JavaCC because it is
 fairly easy to understand and use, generates efficient parsers using
 a top-down parsing approach, and (unlike Copper) it can take a stream
 of lexical tokens generated by an earlier phase.
 </p>
-<p class="indent" data-line="117"><span data-line="117"></span>The parser is implemented in
-<span data-line="118"></span><code class="code code1">tools/src/wyvern/tools/coreparser/WyvernParser.jj</code><span data-line="118"></span>  The significant
+<p class="indent" data-line="124"><span data-line="124"></span>The parser is implemented in
+<span data-line="125"></span><code class="code code1">tools/src/wyvern/tools/coreparser/WyvernParser.jj</code><span data-line="125"></span>  The significant
 options (shown at the top of the file) are to use our own custom
 token manager (which produces tokens from the lexer described above)
 and to generate a non-static parser (sacrifices a tiny bit of
 performance but makes testing or parallel parsing much easier because
 it avoids global state).
 </p>
-<p class="indent" data-line="125"><span data-line="125"></span>JavaCC requires that we declare our tokens up front, and it generates
-a constant for each token in <span data-line="126"></span><code class="code code1">WyvernParserConstants.java</code><span data-line="126"></span>.  We declare
+<p class="indent" data-line="132"><span data-line="132"></span>JavaCC requires that we declare our tokens up front, and it generates
+a constant for each token in <span data-line="133"></span><code class="code code1">WyvernParserConstants.java</code><span data-line="133"></span>.  We declare
 one token for each kind of token produced by the lexer.  The
-constants from <span data-line="128"></span><code class="code code1">WyvernParserConstants</code><span data-line="128"></span> are used in <span data-line="128"></span><code class="code code1">WyvernLexer.x</code><span data-line="128"></span> to
-construct <span data-line="129"></span><code class="code code1">Token</code><span data-line="129"></span> objects of the type expected by JavaCC.  There is
-some code in <span data-line="130"></span><code class="code code1">WyvernTokenManager</code><span data-line="130"></span> and <span data-line="130"></span><code class="code code1">LexerUtils</code><span data-line="130"></span> that identifies
-which tokens are <span data-line="131"></span>&#8220;special&#8221;<span data-line="131"></span> (i.e. ignored when parsing<span data-line="131"></span>&#8211;<span data-line="131"></span>things like
+constants from <span data-line="135"></span><code class="code code1">WyvernParserConstants</code><span data-line="135"></span> are used in <span data-line="135"></span><code class="code code1">WyvernLexer.x</code><span data-line="135"></span> to
+construct <span data-line="136"></span><code class="code code1">Token</code><span data-line="136"></span> objects of the type expected by JavaCC.  There is
+some code in <span data-line="137"></span><code class="code code1">WyvernTokenManager</code><span data-line="137"></span> and <span data-line="137"></span><code class="code code1">LexerUtils</code><span data-line="137"></span> that identifies
+which tokens are <span data-line="138"></span>&#8220;special&#8221;<span data-line="138"></span> (i.e. ignored when parsing<span data-line="138"></span>&#8211;<span data-line="138"></span>things like
 comments and whitespace that is not significant for indentation).
 </p>
-<p class="indent" data-line="134"><span data-line="134"></span>The <span data-line="134"></span><code class="code code1">WyvernParser</code><span data-line="134"></span> is then implemented in standard JavaCC recursive
+<p class="indent" data-line="141"><span data-line="141"></span>The <span data-line="141"></span><code class="code code1">WyvernParser</code><span data-line="141"></span> is then implemented in standard JavaCC recursive
 descent style.  For documentation on the syntax, see the JavaCC
-website and examples.  The top-level production is <span data-line="136"></span><code class="code code1">CompilationUnit</code><span data-line="136"></span>.
-Each production returns an AST<span data-line="137"></span>&#8211;<span data-line="137"></span>this is a type parameter of
-<span data-line="138"></span><code class="code code1">WyvernParser</code><span data-line="138"></span> in order to reduce coupling with the rest of the
+website and examples.  The top-level production is <span data-line="143"></span><code class="code code1">CompilationUnit</code><span data-line="143"></span>.
+Each production returns an AST<span data-line="144"></span>&#8211;<span data-line="144"></span>this is a type parameter of
+<span data-line="145"></span><code class="code code1">WyvernParser</code><span data-line="145"></span> in order to reduce coupling with the rest of the
 codebase, but in practice it is instantiated with the root of the
-high-level AST hierarchy, <span data-line="140"></span><code class="code code1">wyvern.tools.typedAST.interfaces.TypeAST</code><span data-line="140"></span>.
-From the <span data-line="141"></span><code class="code code1">CompilationUnit</code><span data-line="141"></span> we parse a <span data-line="141"></span><code class="code code1">ModuleBody</code><span data-line="141"></span>, then a
-<span data-line="142"></span><code class="code code1">DeclSequence</code><span data-line="142"></span>, then a <span data-line="142"></span><code class="code code1">Declaration</code><span data-line="142"></span>, one case of which is
-<span data-line="143"></span><code class="code code1">ValDeclaration</code><span data-line="143"></span>.  We use an abstract factory to build the AST so as
+high-level AST hierarchy, <span data-line="147"></span><code class="code code1">wyvern.tools.typedAST.interfaces.TypeAST</code><span data-line="147"></span>.
+From the <span data-line="148"></span><code class="code code1">CompilationUnit</code><span data-line="148"></span> we parse a <span data-line="148"></span><code class="code code1">ModuleBody</code><span data-line="148"></span>, then a
+<span data-line="149"></span><code class="code code1">DeclSequence</code><span data-line="149"></span>, then a <span data-line="149"></span><code class="code code1">Declaration</code><span data-line="149"></span>, one case of which is
+<span data-line="150"></span><code class="code code1">ValDeclaration</code><span data-line="150"></span>.  We use an abstract factory to build the AST so as
 to decouple the parser from AST generation.  The factory is of type
-<span data-line="145"></span><code class="code code1">wyvern.tools.parsing.coreparser.ASTBuilder</code><span data-line="145"></span> and the relevant
+<span data-line="152"></span><code class="code code1">wyvern.tools.parsing.coreparser.ASTBuilder</code><span data-line="152"></span> and the relevant
 implementation of this interface is
-<span data-line="147"></span><code class="code code1">wyvern.tools.parsing.coreparser.WyvernASTBuilder</code><span data-line="147"></span>.  Notice that when
-creating the <span data-line="148"></span><code class="code code1">val</code><span data-line="148"></span> declaration AST element we extract the text location
+<span data-line="154"></span><code class="code code1">wyvern.tools.parsing.coreparser.WyvernASTBuilder</code><span data-line="154"></span>.  Notice that when
+creating the <span data-line="155"></span><code class="code code1">val</code><span data-line="155"></span> declaration AST element we extract the text location
 information from the identifier; this can be used to identify the
 location in the source code if errors in this declaration are found
-later (e.g. during typechecking).  Here the <span data-line="151"></span><code class="code code1">loc()</code><span data-line="151"></span> helper function
-takes the <span data-line="152"></span><code class="code code1">Token</code><span data-line="152"></span> an extracts a <span data-line="152"></span><code class="code code1">FileLocation</code><span data-line="152"></span> object that stores the
+later (e.g. during typechecking).  Here the <span data-line="158"></span><code class="code code1">loc()</code><span data-line="158"></span> helper function
+takes the <span data-line="159"></span><code class="code code1">Token</code><span data-line="159"></span> an extracts a <span data-line="159"></span><code class="code code1">FileLocation</code><span data-line="159"></span> object that stores the
 filename, line, and column.
 </p>
-<p class="indent" data-line="155"><span data-line="155"></span>The <span data-line="155"></span><code class="code code1">WyvernASTBuilder</code><span data-line="155"></span>&#39;<span data-line="155"></span>s <span data-line="155"></span><code class="code code1">valDecl</code><span data-line="155"></span> function simply constructs a
-<span data-line="156"></span><code class="code code1">wyvern.tools.typedAST.core.declarations.ValDeclaration</code><span data-line="156"></span> object
+<p class="indent" data-line="162"><span data-line="162"></span>The <span data-line="162"></span><code class="code code1">WyvernASTBuilder</code><span data-line="162"></span>&#39;<span data-line="162"></span>s <span data-line="162"></span><code class="code code1">valDecl</code><span data-line="162"></span> function simply constructs a
+<span data-line="163"></span><code class="code code1">wyvern.tools.typedAST.core.declarations.ValDeclaration</code><span data-line="163"></span> object
 with the passed-in parameters.
 </p>
-<p class="indent" data-line="159"><span data-line="159"></span>Use of the parser can be seen in
-<span data-line="160"></span><code class="code code1">wyvern.tools.tests.CoreParserTests.testIdentityApp()</code><span data-line="160"></span>, which
-creates a <span data-line="161"></span><code class="code code1">WyvernParser</code><span data-line="161"></span> object by using the <span data-line="161"></span><code class="code code1">makeParser</code><span data-line="161"></span>
-utility and then parses an expression by calling <span data-line="162"></span><code class="code code1">Expression(null)</code><span data-line="162"></span>
-on the result (here the <span data-line="163"></span><code class="code code1">null</code><span data-line="163"></span> argument is used for flags which are
+<p class="indent" data-line="166"><span data-line="166"></span>Use of the parser can be seen in
+<span data-line="167"></span><code class="code code1">wyvern.tools.tests.CoreParserTests.testIdentityApp()</code><span data-line="167"></span>, which
+creates a <span data-line="168"></span><code class="code code1">WyvernParser</code><span data-line="168"></span> object by using the <span data-line="168"></span><code class="code code1">makeParser</code><span data-line="168"></span>
+utility and then parses an expression by calling <span data-line="169"></span><code class="code code1">Expression(null)</code><span data-line="169"></span>
+on the result (here the <span data-line="170"></span><code class="code code1">null</code><span data-line="170"></span> argument is used for flags which are
 not needed in this test case but are important for parsing uses of
-<span data-line="165"></span><code class="code code1">new</code><span data-line="165"></span> in Wyvern).  We would call <span data-line="165"></span><code class="code code1">CompilationUnit()</code><span data-line="165"></span> if we wanted to
+<span data-line="172"></span><code class="code code1">new</code><span data-line="172"></span> in Wyvern).  We would call <span data-line="172"></span><code class="code code1">CompilationUnit()</code><span data-line="172"></span> if we wanted to
 parse a whole compilation unit.
 </p>
-<p class="indent" data-line="168"><span data-line="168"></span>To close the loop, looking at the <span data-line="168"></span><code class="code code1">makeParser</code><span data-line="168"></span> helper, it creates a
-<span data-line="169"></span><code class="code code1">WyvernTokenManager</code><span data-line="169"></span> from the input character stream.  This token
-manager will in turn create the <span data-line="170"></span><code class="code code1">WyvernLexer</code><span data-line="170"></span> mentioned above.  The
-<span data-line="171"></span><code class="code code1">WyvernTokenManager</code><span data-line="171"></span> is passed to a new <span data-line="171"></span><code class="code code1">WyvernParser</code><span data-line="171"></span> object.  We
-set the builder to be used to a <span data-line="172"></span><code class="code code1">WyvernASTBuilder</code><span data-line="172"></span> and the
-<span data-line="173"></span><code class="code code1">WyvernParser</code><span data-line="173"></span> is ready to parse.
-</p><h2 id="sec-intermediate-code-generation"  data-line="176"  style="bookmark:5.&#8194;Intermediate Code Generation"><span data-line="176"></span><span class="heading-before"><span class="heading-label">5</span>.&#8194;</span><span data-line="176"></span>Intermediate Code Generation</h2>
-<p data-line="179"><span data-line="179"></span>Intermediate code generation takes a <span data-line="179"></span><code class="code code1">TypedAST</code><span data-line="179"></span> generated by the
+<p class="indent" data-line="175"><span data-line="175"></span>To close the loop, looking at the <span data-line="175"></span><code class="code code1">makeParser</code><span data-line="175"></span> helper, it creates a
+<span data-line="176"></span><code class="code code1">WyvernTokenManager</code><span data-line="176"></span> from the input character stream.  This token
+manager will in turn create the <span data-line="177"></span><code class="code code1">WyvernLexer</code><span data-line="177"></span> mentioned above.  The
+<span data-line="178"></span><code class="code code1">WyvernTokenManager</code><span data-line="178"></span> is passed to a new <span data-line="178"></span><code class="code code1">WyvernParser</code><span data-line="178"></span> object.  We
+set the builder to be used to a <span data-line="179"></span><code class="code code1">WyvernASTBuilder</code><span data-line="179"></span> and the
+<span data-line="180"></span><code class="code code1">WyvernParser</code><span data-line="180"></span> is ready to parse.
+</p><h2 id="sec-intermediate-code-generation"  data-line="183"  style="bookmark:5.&#8194;Intermediate Code Generation"><span data-line="183"></span><span class="heading-before"><span class="heading-label">5</span>.&#8194;</span><span data-line="183"></span>Intermediate Code Generation</h2>
+<p data-line="186"><span data-line="186"></span>Intermediate code generation takes a <span data-line="186"></span><code class="code code1">TypedAST</code><span data-line="186"></span> generated by the
 parser and generates code in the Wyvern Intermediate Language
 (Wyvern IL).  The translation is partially type-based, in that
 blocks of intermediate code already produced are typechecked and
 the results are used to buide the translation of other parts
 (most importantly DSL code blocks).
 </p>
-<p class="indent" data-line="186"><span data-line="186"></span>The abstract syntax of Wyvern IL is described in
-<span data-line="187"></span><code class="code code1">vm-spec.pdf</code><span data-line="187"></span> in the <span data-line="187"></span><code class="code code1">vm</code><span data-line="187"></span> directory of the Wyvern <span data-line="187"></span><code class="code code1">docs</code><span data-line="187"></span>
+<p class="indent" data-line="193"><span data-line="193"></span>The abstract syntax of Wyvern IL is described in
+<span data-line="194"></span><code class="code code1">vm-spec.pdf</code><span data-line="194"></span> in the <span data-line="194"></span><code class="code code1">vm</code><span data-line="194"></span> directory of the Wyvern <span data-line="194"></span><code class="code code1">docs</code><span data-line="194"></span>
 repository.  Wyvern IL is implemented in the
-<span data-line="189"></span><code class="code code1">wyvern.target.corewyvernIL</code><span data-line="189"></span> package and its subpackages.
+<span data-line="196"></span><code class="code code1">wyvern.target.corewyvernIL</code><span data-line="196"></span> package and its subpackages.
 The design is expressed in UML diagrams in the wyvern repository,
-in the <span data-line="191"></span><code class="code code1">docs\design</code><span data-line="191"></span> subdirectory.  Some of the diagrams may be
+in the <span data-line="198"></span><code class="code code1">docs\design</code><span data-line="198"></span> subdirectory.  Some of the diagrams may be
 slightly out of date in the details but in concept they are
 accurate.
 </p>
-<p class="indent" data-line="195"><span data-line="195"></span>Intermediate code generation is illustrated in the test case
-<span data-line="196"></span><code class="code code1">wyvern.tools.tests.ILTests.testFieldRead()</code><span data-line="196"></span> and the code that
+<p class="indent" data-line="202"><span data-line="202"></span>Intermediate code generation is illustrated in the test case
+<span data-line="203"></span><code class="code code1">wyvern.tools.tests.ILTests.testFieldRead()</code><span data-line="203"></span> and the code that
 it invokes.
-</p><h2 id="sec-typechecking"  data-line="199"  style="bookmark:6.&#8194;Typechecking"><span data-line="199"></span><span class="heading-before"><span class="heading-label">6</span>.&#8194;</span><span data-line="199"></span>Typechecking</h2><h2 id="sec-interpreting-wyvern"  data-line="202"  style="bookmark:7.&#8194;Interpreting Wyvern"><span data-line="202"></span><span class="heading-before"><span class="heading-label">7</span>.&#8194;</span><span data-line="202"></span>Interpreting Wyvern</h2><h2 id="sec-lowering-to-a-class-based-ir"  data-line="205"  style="bookmark:8.&#8194;Lowering to a Class-Based IR"><span data-line="205"></span><span class="heading-before"><span class="heading-label">8</span>.&#8194;</span><span data-line="205"></span>Lowering to a Class-Based IR</h2><h2 id="sec-generating-llvm-code"  data-line="208"  style="bookmark:9.&#8194;Generating LLVM Code"><span data-line="208"></span><span class="heading-before"><span class="heading-label">9</span>.&#8194;</span><span data-line="208"></span>Generating LLVM Code</h2>
-<div class="logomadoko block" data-line="212" style="text-align:right;font-size:xx-small;margin-top:4em"><span data-line="213"></span>Created with&nbsp;<a href="https://www.madoko.net">Madoko.net</a>.</div><span data-line=""></span>
+</p><h2 id="sec-typechecking"  data-line="206"  style="bookmark:6.&#8194;Typechecking"><span data-line="206"></span><span class="heading-before"><span class="heading-label">6</span>.&#8194;</span><span data-line="206"></span>Typechecking</h2><h2 id="sec-interpreting-wyvern"  data-line="209"  style="bookmark:7.&#8194;Interpreting Wyvern"><span data-line="209"></span><span class="heading-before"><span class="heading-label">7</span>.&#8194;</span><span data-line="209"></span>Interpreting Wyvern</h2><h2 id="sec-lowering-to-a-class-based-ir"  data-line="212"  style="bookmark:8.&#8194;Lowering to a Class-Based IR"><span data-line="212"></span><span class="heading-before"><span class="heading-label">8</span>.&#8194;</span><span data-line="212"></span>Lowering to a Class-Based IR</h2><h2 id="sec-generating-llvm-code"  data-line="215"  style="bookmark:9.&#8194;Generating LLVM Code"><span data-line="215"></span><span class="heading-before"><span class="heading-label">9</span>.&#8194;</span><span data-line="215"></span>Generating LLVM Code</h2>
+<div class="logomadoko block" data-line="219" style="text-align:right;font-size:xx-small;margin-top:4em"><span data-line="220"></span>Created with&nbsp;<a href="https://www.madoko.net">Madoko.net</a>.</div><span data-line=""></span>
 </body>
 
 </html>
