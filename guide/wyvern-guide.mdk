@@ -18,19 +18,18 @@ An Introduction to Wyvern
 
 Here is a "Hello, World!" program in Wyvern:
 
-	require stdout
+	import stdout
 
 	stdout.print("Hello, World!")
 
-This program already illustrates several basic aspects of Wyvern.  First,
+This program already illustrates a couple of basic aspects of Wyvern.  First,
 Wyvern is object-oriented: `stdout` is an object, and we are invoking the
 `print` method on it.  For expressions, much of Wyvern's syntax is similar
 to Java's.
 
-A second notable feature of Wyvern illustrateed by this program is that
-the `stdout` object is not ambiently available to programs, nor can it be
-imported in the sense of a Java `import` statement.  Because `stdout`
-does I/O, it is a *resource*.  A primary goal of Wyvern's module system
+Second, system resources such as the standard output object, `stdout`,
+are not ambiently available to programs, but must be explicitly
+imported.  A primary goal of Wyvern's module system
 is helping developers to reason about the use of resources.  Thus even
 a simple script such as Hello World must declare the resources it
 requires in order to execute.  This allows engineers to determine at a
@@ -40,163 +39,295 @@ situation.  In this case, even without looking at the actual code, we
 know that this program may write to the standard output stream, but will
 not access the file system or access the network.
 
+In planned, but not yet implemented, functionality, using system
+resources such as `stdout` will involve the use of the `require`
+construct defined below.
 
-Objects and Modules in Wyvern
-=============================
 
-Let us further illustrate objects and modules in Wyvern through a simple
-logging module:
+Anonymous Functions
+===================
 
-	resource module logging
+Anonymous functions can be defined in Wyvern using the syntax:
 
-	import wyvern.collections.list
-	require files
+	(x:Int) => x + 1
+
+We can bind the expresison above to a variable and invoke it:
+
+	val addOne = (x:Int) => x + 1
+	addOne(1)
 	
-	resource type Log
-		def log(x:String):Unit
+and the result will be 2.
 
-	def makeLog(path:String):Log
-		val logFile = files.openForAppend(path)
-		val messageList = list.make()
-		new
-			def log(x:String):Unit
-				messageList.append(x)
-				logFile.print(x)
+Anonymous functions can also have multiple parameters:
 
-A module starts with the module keyword and a name that denotes the module.
-The logging module needs access to the
-file system in order to write to log files, so it declares that it
-requires the `files` resource.  Because this module requires a 
-resource, it becomes a resource itself, in that other modules can use
-it to access the file system via log-related operations.  Thus we must
-declare it to be a `resource` module.
-
-In our example, the log stores logged messages in an internal list,
-perhaps so it can be accessed programmatically (through an interface
-not shown here).  Thus we need to `import` a `list` abstraction.
-We could `require` the `list` module, but this is unnecessary: the
-`list` module does not provide any access to I/O, and it does not
-have any internal state (`List` objects created by the `list` module
-are stateful in our example, but that is not relevant for module
-imports).  It is thus not a resource module, and can therefore be
-used by any module in the program with a simple `import` statement
-similar to Java's.
-
-The import statement uses a fully-qualified name similar to package
-names in Java (in the future, this fully-qualified name will be given
-at the head of the module definition, rather than just a simple name,
-but this is not fully specified or implemented yet).
-A protocol similar to Java's is used to find a file defining that module:
-specifically, we check the library directory and the current directory
-for subdirectories named by the qualifier and search recursively down
-until we find the file list.wyv.  In this example, the library directory
-is tools/src/wyvern/lib and so the import statement binds to the file
-wyvern/collections/list.wyv within this directory tree.
-
-Next, we declare a type for `Log` objects.  The interface is pretty
-simple: a single method `log` taking a `String` argument is
-defined using the `def` keyword.
-The return type of `Unit`--equivalent to `void` in Java--is specified
-at the end of the method declaration.
-Note that the members of the `Log`
-type are described in indented lines, rather than (for example)
-within curly braces.  We mark the type as being a resource type,
-again because a `Log` object encapsulates the ability to write to
-a particular log file.
-
-Finally, we define a `makeLog` method in order to create a `Log`
-object.
-The implementation of the function is given in indented lines.  The
-first line declares a local variable, `logFile`, which is the file
-we will be logging to.  Likewise, we declare a variable for the list
-where we will store the log messages.  The last line that is indented
-at the function implementation level is returned by the function--in
-this case a `new` expression  that actually creates the `Log` object.
-The type of object to be created is inferred based on the return type
-of the method.  We implement the object's methods in indented lines
-following the `new` expression.
-
-
-Now we can write a program that uses the logging module:
-
-	require files
-	import examples.logging
-	import examples.logApplication
+	(x:Int,y:Int) => x + y
 	
-	val logger = logging(files)
-	val client = logApplication(logger)
-	
-	client.run()
-	
-Since the `logging` module defined earlier requires a
-`files` in order to operate, and since `files` represents a resource
-that we can only get from the operating system, our program must also
-`require files`.  We can then import the code for the `logging` module
-(specifying the fully qualified location `examples.logging`) and then
-instantiate the code by passing the `files` module to fulfill its
-requirement.  We bind the resulting instantiated module to `logger`,
-which we can use in the rest of the code as if it were an object.
+or no parameters:
 
-The main program that uses the `logger` is defined in a module
-`examples.logApplication` (not shown).  It requires the `logger`
-and so we must instantiate `logApplication` with the `logger` as
-an argument, and then bind the result to the name `client`.
-We can then execute the application code by invoking `client.run()`.
+	() => 7
 
 
+Functions in Wyvern
+===================
 
-Reasoning about Security in Wyvern
+Consider the definition of the `factorial` function in Wyvern:
+
+	import stdout
+
+	def factorial(n:Int):Int
+		(n < 2).ifTrue(
+			() => 1,
+			() => n * factorial(n-1)
+		)
+
+	stdout.print("factorial(15) = ")
+	stdout.printInt(factorial(15))
+
+A function is defined with the `def` keyword, and its argument and
+return types are given in Algol-like syntax.  Functions defined with
+`def` are recursive, so we can call `factorial` in the body.  The
+example illustrates how an integer comparison `n-2` is a boolean object,
+on which we can invoke the `ifTrue` method.  This method takes two
+functions, one of which is evaluated in the true case and one of which
+is evaluated in the false case.
+
+Note that `factorial(15)` would overflow in languages such
+as Java in which the default integer types is represented using only
+32 bits.  In Wyvern, `Int` means an arbitrary precision integer.
+
+
+Objects and Object Types in Wyvern
 ==================================
 
-The program code above is notable for the security analysis it
-facilitates based on the principle of least privilege.  The overall
-program requires the `files` resource, but the only use of this
-resource is to instantiate the `logging` module.  Wyvern is a
-capability-safe language, so the `logApplication` module cannot
-ambiently import the `files` without getting permission from
-the main module.  Furthermore, Wyvern does not provide unconstrained global
-state which could, in a language like Java, be used to share the
-`files` between modules in a hard-to-analyze way.  We can
-conclude that `logApplication` does not directly use the `files`
-simply by observing that it is not passed to `logApplication` upon
-instantiation, and further observing that it is not exposed
-in the interface of the `logging` module.
+We can define a sumable integer list type as follows:
 
-Of course, `logApplication` can write to a log file by using the
-`logging` module, and this is a use of the file system.  But
-by our knowledge of the `logging` module, or by a brief inspection
-of its code, we can see that it provides only a restricted mode of
-use of the file system: reading files is not permitted, and writing
-files is only possible in append mode.  A refinement of the
-`logging` module could impose additional restrictions, such as
-restricting log writes to particular directories.
+	type IntList
+		def sum():Int
 
-Thus the combination of the capability-safe nature of the Wyvern
-language, the `require` construct, and the careful structuring
-of the source program, we get a strong guarantee about the behavior
-of `logApplication`: the only I/O effect it has is logging, which is
-a refinement of file system access, which is a refinement of
-general I/O.  Furthermore, we paid a relatively low cost to
-facilitate this reasoning.  In the `logging` module (and in
-`logApplication`, if we were to examine it) the code is no more
-verbose than you would expect of code in another typed language
-such as Java: basically we just have to use the `require` keyword
-in place of `import` and we have to mark types and modules
-with the `resource` keyword as appropriate.  The overhead in the
-main module is a substantially higher, as we have to instantiate
-modules explicitly and thread resources through them.
+The `type` keyword declares a new object type, called `IntList` in
+this case.  The public methods available in the type are listed below,
+but no method bodies may be given as we are defining a type, not an
+implementation.
 
-**Note:** The logging example above does not run yet.  In
-particular, we have not yet implemented the `files` module.
+We can implement a constant representing the empty list and a
+constructor for creating a larger list out of a smaller one as
+follows:
+
+	val empty:IntList = new
+		def sum():Int = 0
+	
+	def cons(elem:Int,rest:IntList):IntList = new
+		def sum():int = elem + rest.sum()
+		
+	cons(3,cons(4,empty)).sum() // evalutes to 7
+
+The `new` expression creates an object with the methods given.  In
+the example above, we just have one method, `sum()`, which evaluates
+to `0` in the case of the `empty` list and sums up the integers in
+the list otherwise.
 
 
+Anonymous Functions as Objects
+==============================
+	
+The anonymous function syntax described above is actually
+a shorthand for creating an object with an `apply` method
+that has the same arguments and body:
 
-Module Bodies
+	new
+		def apply(x:Int):Int = x + 1
+
+which is an instance of the following type:
+
+	type IntToIntFn
+		def apply(x:Int):Int
+
+Unsurprisingly, the type above can be abbreviated `Int -> Int`, as in
+many other languages with good support for functional programming.
+
+
+Mutable State and Resource Types
+================================
+
+Types with mutable state can be defined, but need to be marked as
+`resource` types:
+
+	resource type Cell
+		def set(newValue:Int):Unit
+		def get():Int
+	
+	def makeCell(initVal:Int):Cell = new
+		var value : Int = initVal
+		def set(newValue:Int):Unit
+			this.value = newValue
+		def get():Int = value
+
+	val c = makeCell(5)
+	c.get() // evalutes to 5
+	c.set(3)
+	c.get() // evalutes to 3
+
+Here `makeCell` uses a `new` statement to create an object with a `var`
+field `value`.  `var` fields are assignable, so the `set` funtion is
+implemented to assign the `value` field of the receiver object `this` to
+the passed-in argument.  Note that we must initialize a `var` field with
+an initial value.  If we had not declared `Cell` to be a `resource`
+type, we would get an error because the `new` expression creates a
+stateful object that is a resource.
+
+In the example above, `Unit` is used as the return type of functions
+that do not return any interesting value.
+
+Modules
+=======
+
+We can define the `Cell` abstraction above in a module:
+
+	module cell
+	
+	resource type Cell
+		def set(newValue:Int):Unit
+		def get():Int
+	
+	def make(initVal:Int):Cell = new
+		var value : Int = initVal
+		def set(newValue:Int):Unit
+			this.value = newValue
+		def get():Int = value
+
+In Wyvern, analogously to Java, a module named `m` should be stored in
+a file `m.wyv` (we expect that the implementation will enforce this in
+the near future).  The file system forms a hierarchical namespace with one
+name per directory that allows us to find modules by their qualified
+name.  Thus, assuming we have the module above defined in a file
+`myPackage/mySubPackage/cell.wyv`, we can use it in a program as follows:
+
+	import myPackage.mySubPackage.cell
+	
+	val myCell : cell.Cell = cell.make(3)
+	myCell.set(7)
+	myCell.get() // evalutes to 7
+	
+Here the import statement takes a fully qualified name and uses this to
+find the file defining module `cell`.  The module is actually an object
+that gets bound to the name `cell`.  We can invoke `make()` on `cell`
+just as if it were a method.  Types such as `Cell` defined in the `cell`
+module can be referred to by their qualified names, i.e. `cell.Cell`.
+In fact, types can be defined as members of an object as well, and the
+same qualified syntax can be used to refer to them.  So modules are not
+special semantically: they are just a convenient syntax for defining an
+object.  Consider what is the type of `cell`?  The answer could be
+written as follows:
+
+	type TCell
+		resource type Cell
+			def set(newValue:Int):Unit
+			def get():Int
+		
+		def make(initVal:Int):this.Cell
+
+
+
+Resource Modules
+================
+
+Just as objects with state must be given a resource type, stateful
+modules have resource type.  A `resource` module is one that captures
+state in its implementation.  The `cell` module is not a `resource`
+module; although it can be used to create stateful `Cell`s, the module
+itself does not capture state.  Here is a module that does:
+
+	resource module cellModule
+
+	var value : Int = 0
+	def set(newValue:Int):Unit
+		value = newValue
+	def get():Int = value
+
+Wyvern does not allow implicitly shared global state, because this
+often causes problems in software development.  So `cellModule` does
+not evaluate to an object, but rather a function that, when invoked,
+yields a fresh object with its own copy of the internal state defined
+by the module.  We can use `cellModule` in a program as follows:
+
+	import myPackage.cellModule
+	
+	val m1 = cellModule()	
+	val m2 = cellModule()
+	m1.set(1)
+	m2.set(2)
+	m1.get() // evalutes to 1
+	m2.get() // evalutes to 2
+
+In this example you can see that we have instantiated the `resource`
+module `cellModule` twice, and each instance of the module has its
+own internal state.
+
+	
+Module Parameters
+=================
+
+If resource modules are functions, we expect to be able to pass
+parameters--and so we can.  First let's define the type that
+`cellModule` returns.  For convenience, we will put this type in a
+file `TCellModule.wyt` (here `.wyt` stands for Wyvern Type):
+
+	resource type TCellModule
+		def set(newValue:Int):Unit
+		def get():Int
+
+Here is a client of the cellModule:
+
+	resource module cellClient
+	
+	require myPackage.TCellModule as cell
+	
+	def addOne():Unit
+		cell.set(cell.get()+1)
+		
+	def getValue():Int = cell.get()
+	
+In order to define a parameter of a module, we use a `require` statement
+in place of an import.  The `require` statement specifies the type that
+we expect the module parameter to be, and gives the parameter the name
+`cell`.  If the `as cell` part is left out, the parameter will just be
+bound to the type name; this is somewhat inelegant, but does not cause
+a conflict because the namespace of types and values are separate in
+Wyvern.
+
+Now we can use the two resource modules together in a program:
+
+	import myPackage.cellModule
+	import myPackage.cellClient
+	
+	val client = cellClient(cellModule())
+	client.addOne()
+	client.getValue() // evalutes to 1
+
+
+Dynamic Types
 =============
 
-Module bodies are made up of four kinds of core declarations: `val`,
-`var`, `def`, and `type`, as well as expressions.  The `val` and
-`var` declarations and the expressions in a module body are evaluated
+Wyvern is intended to be a mostly statically typed language.  However,
+while getting type members to work, we implemented a `Dyn` type that
+partially implements dynamic types.  Specifically, `Dyn` is a subtype
+of any type, and any type is a subtype of `Dyn`.  (Note that subtyping
+is not transitive where `Dyn` is involved, as this would effectively
+collapse the type system to a single type.)
+
+We recommend avoiding `Dyn` where possible, and gradually transitioning
+existing `Dyn` code to remove use of this construct.  If we do keep this
+in the long term, we need to think about how it interacts with resource
+types.
+
+
+Declaration Sequences and Mutual Recursion
+==========================================
+
+Programs are made up of four kinds of core
+declarations: `val`, `var`, `def`, and `type`, as well as expressions.
+The `val` and `var` declarations and the expressions in a program
+are evaluated
 in sequence, and the variables defined earlier in the sequence are
 in scope in later declarations and expressions.  In contrast,
 `def` and `type` declarations do not evaluate, and therefore these
@@ -210,9 +341,14 @@ To understand why we allow recursive `def` and `type` declarations
 but do not allow this for `val` and `var` declarations, consider
 the following example:
 
-	def foo() = baz()
-	val bar = foo()
-	def baz() = bar
+	type IntCell
+		def get():Int
+	
+	def foo():IntCell = baz()
+	val bar:IntCell = foo()
+	def baz():IntCell = bar
+	
+	bar.get()
 
 When we try to initialize the `bar` value, we call `foo()`, which in
 turn invokes `baz()`.  However, `baz()` reads the `bar` variable, which
@@ -221,37 +357,25 @@ such as Java handle this by initializing `bar` to `null` at first and
 then writing a permanent value to it after the initializer executes.
 However, in order to avoid null pointer errors, Wyvern does not allow
 `null` as a value.  Languages such as Haskell would use a special
-"black hole" value and signal a run-time error in cases such as the
-above.  We avoid this semantics as it adds complexity and means the
+"black hole" value and signal a run-time error if the black hole is
+ever used, as in the `bar.get` statement at the end.
+We avoid this semantics as it adds complexity and means the
 program can fail at run time.  Of course, infinite loops can still
 exist in Wyvern, but they come from recursive functions, never
 recursively defined values.
 
 
-Anonymous Functions
-===================
+Some Examples
+=============
 
-Anonymous functions can be defined in Wyvern using the syntax:
+The Wyvern standard library files are in subdirectories of `tools/src/wyvern/lib`.  For example, `stdout` is defined in `stdout.wyv`, within that directory.  The definition of `stdout` uses some Java helper code defined in the Java class `wyvern.stdlib.support.Stdio`.
 
-	(x:Int) => x + 1
+An example of a utility library that provides a small part of a regular expression package is in `wyvern/util/matching/regex.wyv`.  The design approximately follows the corresponding Scala library.
 
-This is a shorthand for creating an object with an `apply` method
-that has the same arguments and body:
+An example of a data structure library is `wyvern/collections/list.wyv`.  Also see `wyvern/option.wyv`.
 
-	new
-		def apply(x:Int):Int = x + 1
+Examples that are working test cases are in subdirectories of `tools/src/wyvern/tools/tests`.  For example, `rosetta/hello.wyv`, `rosetta/fibonacci.wyv`, and `rosetta/factorial.wyv` illustrate writing to standard out, integer operations and tests, and recursion.  These examples are in the `rosetta` subdirectory because they are inspired by the Rosetta Code project.
 
-which is an instance of the following type:
+For a semi-realistic example that shows instantiation of resource modules, see `modules/safeSQLdriver.wyv`.
 
-	type IntToIntFn
-		def apply(x:Int):Int
-
-Anonymous functions can also have multiple parameters:
-
-	(x:Int,y:Int) => x + y
-	
-or no parameters:
-
-	() => 7
-
-We expect to define a convenient shorthand for function types in the near future.
+All of the above examples are tested by the Wyvern regression test suite that is run as part of `ant test` when building Wyvern.

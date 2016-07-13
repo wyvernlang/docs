@@ -501,18 +501,17 @@ body.madoko.preview {
 <div class="mathdefs hidden input-mathdefs" data-line="10"></div><h2 id="sec-an-introduction-to-wyvern"  data-line="16"  style="bookmark:1.&#8194;An Introduction to Wyvern"><span data-line="16"></span><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span><span data-line="16"></span>An Introduction to Wyvern</h2>
 <p data-line="19"><span data-line="19"></span>Here is a <span data-line="19"></span>&#8220;Hello, World!&#8221;<span data-line="19"></span> program in Wyvern:
 </p>
-<pre class="para-block pre-indented" data-line="21"><code>require stdout
+<pre class="para-block pre-indented" data-line="21"><code>import stdout
 
 stdout.print(&quot;Hello, World!&quot;)</code></pre>
-<p data-line="25"><span data-line="25"></span>This program already illustrates several basic aspects of Wyvern.  First,
+<p data-line="25"><span data-line="25"></span>This program already illustrates a couple of basic aspects of Wyvern.  First,
 Wyvern is object-oriented: <span data-line="26"></span><code class="code code1">stdout</code><span data-line="26"></span> is an object, and we are invoking the
 <span data-line="27"></span><code class="code code1">print</code><span data-line="27"></span> method on it.  For expressions, much of Wyvern<span data-line="27"></span>&#39;<span data-line="27"></span>s syntax is similar
 to Java<span data-line="28"></span>&#39;<span data-line="28"></span>s.
 </p>
-<p class="indent" data-line="30"><span data-line="30"></span>A second notable feature of Wyvern illustrateed by this program is that
-the <span data-line="31"></span><code class="code code1">stdout</code><span data-line="31"></span> object is not ambiently available to programs, nor can it be
-imported in the sense of a Java <span data-line="32"></span><code class="code code1">import</code><span data-line="32"></span> statement.  Because <span data-line="32"></span><code class="code code1">stdout</code><span data-line="32"></span>
-does I/O, it is a <span data-line="33"></span><em>resource</em><span data-line="33"></span>.  A primary goal of Wyvern<span data-line="33"></span>&#39;<span data-line="33"></span>s module system
+<p class="indent" data-line="30"><span data-line="30"></span>Second, system resources such as the standard output object, <span data-line="30"></span><code class="code code1">stdout</code><span data-line="30"></span>,
+are not ambiently available to programs, but must be explicitly
+imported.  A primary goal of Wyvern<span data-line="32"></span>&#39;<span data-line="32"></span>s module system
 is helping developers to reason about the use of resources.  Thus even
 a simple script such as Hello World must declare the resources it
 requires in order to execute.  This allows engineers to determine at a
@@ -521,199 +520,292 @@ making a decision about whether to run this program in a particular
 situation.  In this case, even without looking at the actual code, we
 know that this program may write to the standard output stream, but will
 not access the file system or access the network.
-</p><h2 id="sec-objects-and-modules-in-wyvern"  data-line="44"  style="bookmark:2.&#8194;Objects and Modules in Wyvern"><span data-line="44"></span><span class="heading-before"><span class="heading-label">2</span>.&#8194;</span><span data-line="44"></span>Objects and Modules in Wyvern</h2>
-<p data-line="47"><span data-line="47"></span>Let us further illustrate objects and modules in Wyvern through a simple
-logging module:
 </p>
-<pre class="para-block pre-indented" data-line="50"><code>resource module logging
-
-import wyvern.collections.list
-require files
-
-resource type Log
-    def log(x:String):Unit
-
-def makeLog(path:String):Log
-    val logFile = files.openForAppend(path)
-    val messageList = list.make()
-    new
-        def log(x:String):Unit
-            messageList.append(x)
-            logFile.print(x)</code></pre>
-<p data-line="66"><span data-line="66"></span>A module starts with the module keyword and a name that denotes the module.
-The logging module needs access to the
-file system in order to write to log files, so it declares that it
-requires the <span data-line="69"></span><code class="code code1">files</code><span data-line="69"></span> resource.  Because this module requires a 
-resource, it becomes a resource itself, in that other modules can use
-it to access the file system via log-related operations.  Thus we must
-declare it to be a <span data-line="72"></span><code class="code code1">resource</code><span data-line="72"></span> module.
+<p class="indent" data-line="42"><span data-line="42"></span>In planned, but not yet implemented, functionality, using system
+resources such as <span data-line="43"></span><code class="code code1">stdout</code><span data-line="43"></span> will involve the use of the <span data-line="43"></span><code class="code code1">require</code><span data-line="43"></span>
+construct defined below.
+</p><h2 id="sec-anonymous-functions"  data-line="47"  style="bookmark:2.&#8194;Anonymous Functions"><span data-line="47"></span><span class="heading-before"><span class="heading-label">2</span>.&#8194;</span><span data-line="47"></span>Anonymous Functions</h2>
+<p data-line="50"><span data-line="50"></span>Anonymous functions can be defined in Wyvern using the syntax:
 </p>
-<p class="indent" data-line="74"><span data-line="74"></span>In our example, the log stores logged messages in an internal list,
-perhaps so it can be accessed programmatically (through an interface
-not shown here).  Thus we need to <span data-line="76"></span><code class="code code1">import</code><span data-line="76"></span> a <span data-line="76"></span><code class="code code1">list</code><span data-line="76"></span> abstraction.
-We could <span data-line="77"></span><code class="code code1">require</code><span data-line="77"></span> the <span data-line="77"></span><code class="code code1">list</code><span data-line="77"></span> module, but this is unnecessary: the
-<span data-line="78"></span><code class="code code1">list</code><span data-line="78"></span> module does not provide any access to I/O, and it does not
-have any internal state (<span data-line="79"></span><code class="code code1">List</code><span data-line="79"></span> objects created by the <span data-line="79"></span><code class="code code1">list</code><span data-line="79"></span> module
-are stateful in our example, but that is not relevant for module
-imports).  It is thus not a resource module, and can therefore be
-used by any module in the program with a simple <span data-line="82"></span><code class="code code1">import</code><span data-line="82"></span> statement
-similar to Java<span data-line="83"></span>&#39;<span data-line="83"></span>s.
+<pre class="para-block pre-indented" data-line="52"><code>(x:Int) =&gt; x + 1</code></pre>
+<p data-line="54"><span data-line="54"></span>We can bind the expresison above to a variable and invoke it:
 </p>
-<p class="indent" data-line="85"><span data-line="85"></span>The import statement uses a fully-qualified name similar to package
-names in Java (in the future, this fully-qualified name will be given
-at the head of the module definition, rather than just a simple name,
-but this is not fully specified or implemented yet).
-A protocol similar to Java<span data-line="89"></span>&#39;<span data-line="89"></span>s is used to find a file defining that module:
-specifically, we check the library directory and the current directory
-for subdirectories named by the qualifier and search recursively down
-until we find the file list.wyv.  In this example, the library directory
-is tools/src/wyvern/lib and so the import statement binds to the file
-wyvern/collections/list.wyv within this directory tree.
-</p>
-<p class="indent" data-line="96"><span data-line="96"></span>Next, we declare a type for <span data-line="96"></span><code class="code code1">Log</code><span data-line="96"></span> objects.  The interface is pretty
-simple: a single method <span data-line="97"></span><code class="code code1">log</code><span data-line="97"></span> taking a <span data-line="97"></span><code class="code code1">String</code><span data-line="97"></span> argument is
-defined using the <span data-line="98"></span><code class="code code1">def</code><span data-line="98"></span> keyword.
-The return type of <span data-line="99"></span><code class="code code1">Unit</code><span data-line="99"></span>&#8211;<span data-line="99"></span>equivalent to <span data-line="99"></span><code class="code code1">void</code><span data-line="99"></span> in Java<span data-line="99"></span>&#8211;<span data-line="99"></span>is specified
-at the end of the method declaration.
-Note that the members of the <span data-line="101"></span><code class="code code1">Log</code><span data-line="101"></span>
-type are described in indented lines, rather than (for example)
-within curly braces.  We mark the type as being a resource type,
-again because a <span data-line="104"></span><code class="code code1">Log</code><span data-line="104"></span> object encapsulates the ability to write to
-a particular log file.
-</p>
-<p class="indent" data-line="107"><span data-line="107"></span>Finally, we define a <span data-line="107"></span><code class="code code1">makeLog</code><span data-line="107"></span> method in order to create a <span data-line="107"></span><code class="code code1">Log</code><span data-line="107"></span>
-object.
-The implementation of the function is given in indented lines.  The
-first line declares a local variable, <span data-line="110"></span><code class="code code1">logFile</code><span data-line="110"></span>, which is the file
-we will be logging to.  Likewise, we declare a variable for the list
-where we will store the log messages.  The last line that is indented
-at the function implementation level is returned by the function<span data-line="113"></span>&#8211;<span data-line="113"></span>in
-this case a <span data-line="114"></span><code class="code code1">new</code><span data-line="114"></span> expression  that actually creates the <span data-line="114"></span><code class="code code1">Log</code><span data-line="114"></span> object.
-The type of object to be created is inferred based on the return type
-of the method.  We implement the object<span data-line="116"></span>&#39;<span data-line="116"></span>s methods in indented lines
-following the <span data-line="117"></span><code class="code code1">new</code><span data-line="117"></span> expression.
-</p>
-<p class="indent" data-line="120"><span data-line="120"></span>Now we can write a program that uses the logging module:
-</p>
-<pre class="para-block pre-indented" data-line="122"><code>require files
-import examples.logging
-import examples.logApplication
-
-val logger = logging(files)
-val client = logApplication(logger)
-
-client.run()
+<pre class="para-block pre-indented" data-line="56"><code>val addOne = (x:Int) =&gt; x + 1
+addOne(1)
 </code></pre>
-<p data-line="131"><span data-line="131"></span>Since the <span data-line="131"></span><code class="code code1">logging</code><span data-line="131"></span> module defined earlier requires a
-<span data-line="132"></span><code class="code code1">files</code><span data-line="132"></span> in order to operate, and since <span data-line="132"></span><code class="code code1">files</code><span data-line="132"></span> represents a resource
-that we can only get from the operating system, our program must also
-<span data-line="134"></span><code class="code code1">require files</code><span data-line="134"></span>.  We can then import the code for the <span data-line="134"></span><code class="code code1">logging</code><span data-line="134"></span> module
-(specifying the fully qualified location <span data-line="135"></span><code class="code code1">examples.logging</code><span data-line="135"></span>) and then
-instantiate the code by passing the <span data-line="136"></span><code class="code code1">files</code><span data-line="136"></span> module to fulfill its
-requirement.  We bind the resulting instantiated module to <span data-line="137"></span><code class="code code1">logger</code><span data-line="137"></span>,
-which we can use in the rest of the code as if it were an object.
+<p data-line="59"><span data-line="59"></span>and the result will be 2.
 </p>
-<p class="indent" data-line="140"><span data-line="140"></span>The main program that uses the <span data-line="140"></span><code class="code code1">logger</code><span data-line="140"></span> is defined in a module
-<span data-line="141"></span><code class="code code1">examples.logApplication</code><span data-line="141"></span> (not shown).  It requires the <span data-line="141"></span><code class="code code1">logger</code><span data-line="141"></span>
-and so we must instantiate <span data-line="142"></span><code class="code code1">logApplication</code><span data-line="142"></span> with the <span data-line="142"></span><code class="code code1">logger</code><span data-line="142"></span> as
-an argument, and then bind the result to the name <span data-line="143"></span><code class="code code1">client</code><span data-line="143"></span>.
-We can then execute the application code by invoking <span data-line="144"></span><code class="code code1">client.run()</code><span data-line="144"></span>.
-</p><h2 id="sec-reasoning-about-security-in-wyvern"  data-line="148"  style="bookmark:3.&#8194;Reasoning about Security in Wyvern"><span data-line="148"></span><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span><span data-line="148"></span>Reasoning about Security in Wyvern</h2>
-<p data-line="151"><span data-line="151"></span>The program code above is notable for the security analysis it
-facilitates based on the principle of least privilege.  The overall
-program requires the <span data-line="153"></span><code class="code code1">files</code><span data-line="153"></span> resource, but the only use of this
-resource is to instantiate the <span data-line="154"></span><code class="code code1">logging</code><span data-line="154"></span> module.  Wyvern is a
-capability-safe language, so the <span data-line="155"></span><code class="code code1">logApplication</code><span data-line="155"></span> module cannot
-ambiently import the <span data-line="156"></span><code class="code code1">files</code><span data-line="156"></span> without getting permission from
-the main module.  Furthermore, Wyvern does not provide unconstrained global
-state which could, in a language like Java, be used to share the
-<span data-line="159"></span><code class="code code1">files</code><span data-line="159"></span> between modules in a hard-to-analyze way.  We can
-conclude that <span data-line="160"></span><code class="code code1">logApplication</code><span data-line="160"></span> does not directly use the <span data-line="160"></span><code class="code code1">files</code><span data-line="160"></span>
-simply by observing that it is not passed to <span data-line="161"></span><code class="code code1">logApplication</code><span data-line="161"></span> upon
-instantiation, and further observing that it is not exposed
-in the interface of the <span data-line="163"></span><code class="code code1">logging</code><span data-line="163"></span> module.
+<p class="indent" data-line="61"><span data-line="61"></span>Anonymous functions can also have multiple parameters:
 </p>
-<p class="indent" data-line="165"><span data-line="165"></span>Of course, <span data-line="165"></span><code class="code code1">logApplication</code><span data-line="165"></span> can write to a log file by using the
-<span data-line="166"></span><code class="code code1">logging</code><span data-line="166"></span> module, and this is a use of the file system.  But
-by our knowledge of the <span data-line="167"></span><code class="code code1">logging</code><span data-line="167"></span> module, or by a brief inspection
-of its code, we can see that it provides only a restricted mode of
-use of the file system: reading files is not permitted, and writing
-files is only possible in append mode.  A refinement of the
-<span data-line="171"></span><code class="code code1">logging</code><span data-line="171"></span> module could impose additional restrictions, such as
-restricting log writes to particular directories.
+<pre class="para-block pre-indented" data-line="63"><code>(x:Int,y:Int) =&gt; x + y
+</code></pre>
+<p data-line="65"><span data-line="65"></span>or no parameters:
 </p>
-<p class="indent" data-line="174"><span data-line="174"></span>Thus the combination of the capability-safe nature of the Wyvern
-language, the <span data-line="175"></span><code class="code code1">require</code><span data-line="175"></span> construct, and the careful structuring
-of the source program, we get a strong guarantee about the behavior
-of <span data-line="177"></span><code class="code code1">logApplication</code><span data-line="177"></span>: the only I/O effect it has is logging, which is
-a refinement of file system access, which is a refinement of
-general I/O.  Furthermore, we paid a relatively low cost to
-facilitate this reasoning.  In the <span data-line="180"></span><code class="code code1">logging</code><span data-line="180"></span> module (and in
-<span data-line="181"></span><code class="code code1">logApplication</code><span data-line="181"></span>, if we were to examine it) the code is no more
-verbose than you would expect of code in another typed language
-such as Java: basically we just have to use the <span data-line="183"></span><code class="code code1">require</code><span data-line="183"></span> keyword
-in place of <span data-line="184"></span><code class="code code1">import</code><span data-line="184"></span> and we have to mark types and modules
-with the <span data-line="185"></span><code class="code code1">resource</code><span data-line="185"></span> keyword as appropriate.  The overhead in the
-main module is a substantially higher, as we have to instantiate
-modules explicitly and thread resources through them.
+<pre class="para-block pre-indented" data-line="67"><code>() =&gt; 7</code></pre><h2 id="sec-functions-in-wyvern"  data-line="70"  style="bookmark:3.&#8194;Functions in Wyvern"><span data-line="70"></span><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span><span data-line="70"></span>Functions in Wyvern</h2>
+<p data-line="73"><span data-line="73"></span>Consider the definition of the <span data-line="73"></span><code class="code code1">factorial</code><span data-line="73"></span> function in Wyvern:
 </p>
-<p class="indent" data-line="189"><span data-line="189"></span><strong>Note:</strong><span data-line="189"></span> The logging example above does not run yet.  In
-particular, we have not yet implemented the <span data-line="190"></span><code class="code code1">files</code><span data-line="190"></span> module.
-</p><h2 id="sec-module-bodies"  data-line="194"  style="bookmark:4.&#8194;Module Bodies"><span data-line="194"></span><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span><span data-line="194"></span>Module Bodies</h2>
-<p data-line="197"><span data-line="197"></span>Module bodies are made up of four kinds of core declarations: <span data-line="197"></span><code class="code code1">val</code><span data-line="197"></span>,
-<span data-line="198"></span><code class="code code1">var</code><span data-line="198"></span>, <span data-line="198"></span><code class="code code1">def</code><span data-line="198"></span>, and <span data-line="198"></span><code class="code code1">type</code><span data-line="198"></span>, as well as expressions.  The <span data-line="198"></span><code class="code code1">val</code><span data-line="198"></span> and
-<span data-line="199"></span><code class="code code1">var</code><span data-line="199"></span> declarations and the expressions in a module body are evaluated
+<pre class="para-block pre-indented" data-line="75"><code>import stdout
+
+def factorial(n:Int):Int
+    (n &lt; 2).ifTrue(
+        () =&gt; 1,
+        () =&gt; n * factorial(n-1)
+    )
+
+stdout.print(&quot;factorial(15) = &quot;)
+stdout.printInt(factorial(15))</code></pre>
+<p data-line="86"><span data-line="86"></span>A function is defined with the <span data-line="86"></span><code class="code code1">def</code><span data-line="86"></span> keyword, and its argument and
+return types are given in Algol-like syntax.  Functions defined with
+<span data-line="88"></span><code class="code code1">def</code><span data-line="88"></span> are recursive, so we can call <span data-line="88"></span><code class="code code1">factorial</code><span data-line="88"></span> in the body.  The
+example illustrates how an integer comparison <span data-line="89"></span><code class="code code1">n-2</code><span data-line="89"></span> is a boolean object,
+on which we can invoke the <span data-line="90"></span><code class="code code1">ifTrue</code><span data-line="90"></span> method.  This method takes two
+functions, one of which is evaluated in the true case and one of which
+is evaluated in the false case.
+</p>
+<p class="indent" data-line="94"><span data-line="94"></span>Note that <span data-line="94"></span><code class="code code1">factorial(15)</code><span data-line="94"></span> would overflow in languages such
+as Java in which the default integer types is represented using only
+32 bits.  In Wyvern, <span data-line="96"></span><code class="code code1">Int</code><span data-line="96"></span> means an arbitrary precision integer.
+</p><h2 id="sec-objects-and-object-types-in-wyvern"  data-line="99"  style="bookmark:4.&#8194;Objects and Object Types in Wyvern"><span data-line="99"></span><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span><span data-line="99"></span>Objects and Object Types in Wyvern</h2>
+<p data-line="102"><span data-line="102"></span>We can define a sumable integer list type as follows:
+</p>
+<pre class="para-block pre-indented" data-line="104"><code>type IntList
+    def sum():Int</code></pre>
+<p data-line="107"><span data-line="107"></span>The <span data-line="107"></span><code class="code code1">type</code><span data-line="107"></span> keyword declares a new object type, called <span data-line="107"></span><code class="code code1">IntList</code><span data-line="107"></span> in
+this case.  The public methods available in the type are listed below,
+but no method bodies may be given as we are defining a type, not an
+implementation.
+</p>
+<p class="indent" data-line="112"><span data-line="112"></span>We can implement a constant representing the empty list and a
+constructor for creating a larger list out of a smaller one as
+follows:
+</p>
+<pre class="para-block pre-indented" data-line="116"><code>val empty:IntList = new
+    def sum():Int = 0
+
+def cons(elem:Int,rest:IntList):IntList = new
+    def sum():int = elem + rest.sum()
+    
+cons(3,cons(4,empty)).sum() // evalutes to 7</code></pre>
+<p data-line="124"><span data-line="124"></span>The <span data-line="124"></span><code class="code code1">new</code><span data-line="124"></span> expression creates an object with the methods given.  In
+the example above, we just have one method, <span data-line="125"></span><code class="code code1">sum()</code><span data-line="125"></span>, which evaluates
+to <span data-line="126"></span><code class="code code1">0</code><span data-line="126"></span> in the case of the <span data-line="126"></span><code class="code code1">empty</code><span data-line="126"></span> list and sums up the integers in
+the list otherwise.
+</p><h2 id="sec-anonymous-functions-as-objects"  data-line="130"  style="bookmark:5.&#8194;Anonymous Functions as Objects"><span data-line="130"></span><span class="heading-before"><span class="heading-label">5</span>.&#8194;</span><span data-line="130"></span>Anonymous Functions as Objects</h2>
+<pre class="para-block pre-indented" data-line="133"><code></code></pre>
+<p data-line="133"><span data-line="133"></span>The anonymous function syntax described above is actually
+a shorthand for creating an object with an <span data-line="134"></span><code class="code code1">apply</code><span data-line="134"></span> method
+that has the same arguments and body:
+</p>
+<pre class="para-block pre-indented" data-line="137"><code>new
+    def apply(x:Int):Int = x + 1</code></pre>
+<p data-line="140"><span data-line="140"></span>which is an instance of the following type:
+</p>
+<pre class="para-block pre-indented" data-line="142"><code>type IntToIntFn
+    def apply(x:Int):Int</code></pre>
+<p data-line="145"><span data-line="145"></span>Unsurprisingly, the type above can be abbreviated <span data-line="145"></span><code class="code code1">Int -&gt; Int</code><span data-line="145"></span>, as in
+many other languages with good support for functional programming.
+</p><h2 id="sec-mutable-state-and-resource-types"  data-line="149"  style="bookmark:6.&#8194;Mutable State and Resource Types"><span data-line="149"></span><span class="heading-before"><span class="heading-label">6</span>.&#8194;</span><span data-line="149"></span>Mutable State and Resource Types</h2>
+<p data-line="152"><span data-line="152"></span>Types with mutable state can be defined, but need to be marked as
+<span data-line="153"></span><code class="code code1">resource</code><span data-line="153"></span> types:
+</p>
+<pre class="para-block pre-indented" data-line="155"><code>resource type Cell
+    def set(newValue:Int):Unit
+    def get():Int
+
+def makeCell(initVal:Int):Cell = new
+    var value : Int = initVal
+    def set(newValue:Int):Unit
+        this.value = newValue
+    def get():Int = value
+
+val c = makeCell(5)
+c.get() // evalutes to 5
+c.set(3)
+c.get() // evalutes to 3</code></pre>
+<p data-line="170"><span data-line="170"></span>Here <span data-line="170"></span><code class="code code1">makeCell</code><span data-line="170"></span> uses a <span data-line="170"></span><code class="code code1">new</code><span data-line="170"></span> statement to create an object with a <span data-line="170"></span><code class="code code1">var</code><span data-line="170"></span>
+field <span data-line="171"></span><code class="code code1">value</code><span data-line="171"></span>.  <span data-line="171"></span><code class="code code1">var</code><span data-line="171"></span> fields are assignable, so the <span data-line="171"></span><code class="code code1">set</code><span data-line="171"></span> funtion is
+implemented to assign the <span data-line="172"></span><code class="code code1">value</code><span data-line="172"></span> field of the receiver object <span data-line="172"></span><code class="code code1">this</code><span data-line="172"></span> to
+the passed-in argument.  Note that we must initialize a <span data-line="173"></span><code class="code code1">var</code><span data-line="173"></span> field with
+an initial value.  If we had not declared <span data-line="174"></span><code class="code code1">Cell</code><span data-line="174"></span> to be a <span data-line="174"></span><code class="code code1">resource</code><span data-line="174"></span>
+type, we would get an error because the <span data-line="175"></span><code class="code code1">new</code><span data-line="175"></span> expression creates a
+stateful object that is a resource.
+</p>
+<p class="indent" data-line="178"><span data-line="178"></span>In the example above, <span data-line="178"></span><code class="code code1">Unit</code><span data-line="178"></span> is used as the return type of functions
+that do not return any interesting value.
+</p><h2 id="sec-modules"  data-line="181"  style="bookmark:7.&#8194;Modules"><span data-line="181"></span><span class="heading-before"><span class="heading-label">7</span>.&#8194;</span><span data-line="181"></span>Modules</h2>
+<p data-line="184"><span data-line="184"></span>We can define the <span data-line="184"></span><code class="code code1">Cell</code><span data-line="184"></span> abstraction above in a module:
+</p>
+<pre class="para-block pre-indented" data-line="186"><code>module cell
+
+resource type Cell
+    def set(newValue:Int):Unit
+    def get():Int
+
+def make(initVal:Int):Cell = new
+    var value : Int = initVal
+    def set(newValue:Int):Unit
+        this.value = newValue
+    def get():Int = value</code></pre>
+<p data-line="198"><span data-line="198"></span>In Wyvern, analogously to Java, a module named <span data-line="198"></span><code class="code code1">m</code><span data-line="198"></span> should be stored in
+a file <span data-line="199"></span><code class="code code1">m.wyv</code><span data-line="199"></span> (we expect that the implementation will enforce this in
+the near future).  The file system forms a hierarchical namespace with one
+name per directory that allows us to find modules by their qualified
+name.  Thus, assuming we have the module above defined in a file
+<span data-line="203"></span><code class="code code1">myPackage/mySubPackage/cell.wyv</code><span data-line="203"></span>, we can use it in a program as follows:
+</p>
+<pre class="para-block pre-indented" data-line="205"><code>import myPackage.mySubPackage.cell
+
+val myCell : cell.Cell = cell.make(3)
+myCell.set(7)
+myCell.get() // evalutes to 7
+</code></pre>
+<p data-line="211"><span data-line="211"></span>Here the import statement takes a fully qualified name and uses this to
+find the file defining module <span data-line="212"></span><code class="code code1">cell</code><span data-line="212"></span>.  The module is actually an object
+that gets bound to the name <span data-line="213"></span><code class="code code1">cell</code><span data-line="213"></span>.  We can invoke <span data-line="213"></span><code class="code code1">make()</code><span data-line="213"></span> on <span data-line="213"></span><code class="code code1">cell</code><span data-line="213"></span>
+just as if it were a method.  Types such as <span data-line="214"></span><code class="code code1">Cell</code><span data-line="214"></span> defined in the <span data-line="214"></span><code class="code code1">cell</code><span data-line="214"></span>
+module can be referred to by their qualified names, i.e. <span data-line="215"></span><code class="code code1">cell.Cell</code><span data-line="215"></span>.
+In fact, types can be defined as members of an object as well, and the
+same qualified syntax can be used to refer to them.  So modules are not
+special semantically: they are just a convenient syntax for defining an
+object.  Consider what is the type of <span data-line="219"></span><code class="code code1">cell</code><span data-line="219"></span>?  The answer could be
+written as follows:
+</p>
+<pre class="para-block pre-indented" data-line="222"><code>type TCell
+    resource type Cell
+        def set(newValue:Int):Unit
+        def get():Int
+    
+    def make(initVal:Int):this.Cell</code></pre><h2 id="sec-resource-modules"  data-line="231"  style="bookmark:8.&#8194;Resource Modules"><span data-line="231"></span><span class="heading-before"><span class="heading-label">8</span>.&#8194;</span><span data-line="231"></span>Resource Modules</h2>
+<p data-line="234"><span data-line="234"></span>Just as objects with state must be given a resource type, stateful
+modules have resource type.  A <span data-line="235"></span><code class="code code1">resource</code><span data-line="235"></span> module is one that captures
+state in its implementation.  The <span data-line="236"></span><code class="code code1">cell</code><span data-line="236"></span> module is not a <span data-line="236"></span><code class="code code1">resource</code><span data-line="236"></span>
+module; although it can be used to create stateful <span data-line="237"></span><code class="code code1">Cell</code><span data-line="237"></span>s, the module
+itself does not capture state.  Here is a module that does:
+</p>
+<pre class="para-block pre-indented" data-line="240"><code>resource module cellModule
+
+var value : Int = 0
+def set(newValue:Int):Unit
+    value = newValue
+def get():Int = value</code></pre>
+<p data-line="247"><span data-line="247"></span>Wyvern does not allow implicitly shared global state, because this
+often causes problems in software development.  So <span data-line="248"></span><code class="code code1">cellModule</code><span data-line="248"></span> does
+not evaluate to an object, but rather a function that, when invoked,
+yields a fresh object with its own copy of the internal state defined
+by the module.  We can use <span data-line="251"></span><code class="code code1">cellModule</code><span data-line="251"></span> in a program as follows:
+</p>
+<pre class="para-block pre-indented" data-line="253"><code>import myPackage.cellModule
+
+val m1 = cellModule()    
+val m2 = cellModule()
+m1.set(1)
+m2.set(2)
+m1.get() // evalutes to 1
+m2.get() // evalutes to 2</code></pre>
+<p data-line="262"><span data-line="262"></span>In this example you can see that we have instantiated the <span data-line="262"></span><code class="code code1">resource</code><span data-line="262"></span>
+module <span data-line="263"></span><code class="code code1">cellModule</code><span data-line="263"></span> twice, and each instance of the module has its
+own internal state.
+</p>
+<pre class="para-block pre-indented" data-line="267"><code></code></pre><h2 id="sec-module-parameters"  data-line="267"  style="bookmark:9.&#8194;Module Parameters"><span data-line="267"></span><span class="heading-before"><span class="heading-label">9</span>.&#8194;</span><span data-line="267"></span>Module Parameters</h2>
+<p data-line="270"><span data-line="270"></span>If resource modules are functions, we expect to be able to pass
+parameters<span data-line="271"></span>&#8211;<span data-line="271"></span>and so we can.  First let<span data-line="271"></span>&#39;<span data-line="271"></span>s define the type that
+<span data-line="272"></span><code class="code code1">cellModule</code><span data-line="272"></span> returns.  For convenience, we will put this type in a
+file <span data-line="273"></span><code class="code code1">TCellModule.wyt</code><span data-line="273"></span> (here <span data-line="273"></span><code class="code code1">.wyt</code><span data-line="273"></span> stands for Wyvern Type):
+</p>
+<pre class="para-block pre-indented" data-line="275"><code>resource type TCellModule
+    def set(newValue:Int):Unit
+    def get():Int</code></pre>
+<p data-line="279"><span data-line="279"></span>Here is a client of the cellModule:
+</p>
+<pre class="para-block pre-indented" data-line="281"><code>resource module cellClient
+
+require myPackage.TCellModule as cell
+
+def addOne():Unit
+    cell.set(cell.get()+1)
+    
+def getValue():Int = cell.get()
+</code></pre>
+<p data-line="290"><span data-line="290"></span>In order to define a parameter of a module, we use a <span data-line="290"></span><code class="code code1">require</code><span data-line="290"></span> statement
+in place of an import.  The <span data-line="291"></span><code class="code code1">require</code><span data-line="291"></span> statement specifies the type that
+we expect the module parameter to be, and gives the parameter the name
+<span data-line="293"></span><code class="code code1">cell</code><span data-line="293"></span>.  If the <span data-line="293"></span><code class="code code1">as cell</code><span data-line="293"></span> part is left out, the parameter will just be
+bound to the type name; this is somewhat inelegant, but does not cause
+a conflict because the namespace of types and values are separate in
+Wyvern.
+</p>
+<p class="indent" data-line="298"><span data-line="298"></span>Now we can use the two resource modules together in a program:
+</p>
+<pre class="para-block pre-indented" data-line="300"><code>import myPackage.cellModule
+import myPackage.cellClient
+
+val client = cellClient(cellModule())
+client.addOne()
+client.getValue() // evalutes to 1</code></pre><h2 id="sec-dynamic-types"  data-line="308"  style="bookmark:10.&#8194;Dynamic Types"><span data-line="308"></span><span class="heading-before"><span class="heading-label">10</span>.&#8194;</span><span data-line="308"></span>Dynamic Types</h2>
+<p data-line="311"><span data-line="311"></span>Wyvern is intended to be a mostly statically typed language.  However,
+while getting type members to work, we implemented a <span data-line="312"></span><code class="code code1">Dyn</code><span data-line="312"></span> type that
+partially implements dynamic types.  Specifically, <span data-line="313"></span><code class="code code1">Dyn</code><span data-line="313"></span> is a subtype
+of any type, and any type is a subtype of <span data-line="314"></span><code class="code code1">Dyn</code><span data-line="314"></span>.  (Note that subtyping
+is not transitive where <span data-line="315"></span><code class="code code1">Dyn</code><span data-line="315"></span> is involved, as this would effectively
+collapse the type system to a single type.)
+</p>
+<p class="indent" data-line="318"><span data-line="318"></span>We recommend avoiding <span data-line="318"></span><code class="code code1">Dyn</code><span data-line="318"></span> where possible, and gradually transitioning
+existing <span data-line="319"></span><code class="code code1">Dyn</code><span data-line="319"></span> code to remove use of this construct.  If we do keep this
+in the long term, we need to think about how it interacts with resource
+types.
+</p><h2 id="sec-declaration-sequences-and-mutual-recursion"  data-line="324"  style="bookmark:11.&#8194;Declaration Sequences and Mutual Recursion"><span data-line="324"></span><span class="heading-before"><span class="heading-label">11</span>.&#8194;</span><span data-line="324"></span>Declaration Sequences and Mutual Recursion</h2>
+<p data-line="327"><span data-line="327"></span>Programs are made up of four kinds of core
+declarations: <span data-line="328"></span><code class="code code1">val</code><span data-line="328"></span>, <span data-line="328"></span><code class="code code1">var</code><span data-line="328"></span>, <span data-line="328"></span><code class="code code1">def</code><span data-line="328"></span>, and <span data-line="328"></span><code class="code code1">type</code><span data-line="328"></span>, as well as expressions.
+The <span data-line="329"></span><code class="code code1">val</code><span data-line="329"></span> and <span data-line="329"></span><code class="code code1">var</code><span data-line="329"></span> declarations and the expressions in a program
+are evaluated
 in sequence, and the variables defined earlier in the sequence are
 in scope in later declarations and expressions.  In contrast,
-<span data-line="202"></span><code class="code code1">def</code><span data-line="202"></span> and <span data-line="202"></span><code class="code code1">type</code><span data-line="202"></span> declarations do not evaluate, and therefore these
+<span data-line="333"></span><code class="code code1">def</code><span data-line="333"></span> and <span data-line="333"></span><code class="code code1">type</code><span data-line="333"></span> declarations do not evaluate, and therefore these
 declaration forms can be safely used to define mutually recursive
 functions and types.  Each sequence of declarations that consists
-exclusively of <span data-line="205"></span><code class="code code1">def</code><span data-line="205"></span> and <span data-line="205"></span><code class="code code1">type</code><span data-line="205"></span> is therefore treated as a mutually
+exclusively of <span data-line="336"></span><code class="code code1">def</code><span data-line="336"></span> and <span data-line="336"></span><code class="code code1">type</code><span data-line="336"></span> is therefore treated as a mutually
 recursive block, so that the definition or type defined in each of
 the declarations is in scope in all the other declarations.
 </p>
-<p class="indent" data-line="209"><span data-line="209"></span>To understand why we allow recursive <span data-line="209"></span><code class="code code1">def</code><span data-line="209"></span> and <span data-line="209"></span><code class="code code1">type</code><span data-line="209"></span> declarations
-but do not allow this for <span data-line="210"></span><code class="code code1">val</code><span data-line="210"></span> and <span data-line="210"></span><code class="code code1">var</code><span data-line="210"></span> declarations, consider
+<p class="indent" data-line="340"><span data-line="340"></span>To understand why we allow recursive <span data-line="340"></span><code class="code code1">def</code><span data-line="340"></span> and <span data-line="340"></span><code class="code code1">type</code><span data-line="340"></span> declarations
+but do not allow this for <span data-line="341"></span><code class="code code1">val</code><span data-line="341"></span> and <span data-line="341"></span><code class="code code1">var</code><span data-line="341"></span> declarations, consider
 the following example:
 </p>
-<pre class="para-block pre-indented" data-line="213"><code>def foo() = baz()
-val bar = foo()
-def baz() = bar</code></pre>
-<p data-line="217"><span data-line="217"></span>When we try to initialize the <span data-line="217"></span><code class="code code1">bar</code><span data-line="217"></span> value, we call <span data-line="217"></span><code class="code code1">foo()</code><span data-line="217"></span>, which in
-turn invokes <span data-line="218"></span><code class="code code1">baz()</code><span data-line="218"></span>.  However, <span data-line="218"></span><code class="code code1">baz()</code><span data-line="218"></span> reads the <span data-line="218"></span><code class="code code1">bar</code><span data-line="218"></span> variable, which
+<pre class="para-block pre-indented" data-line="344"><code>type IntCell
+    def get():Int
+
+def foo():IntCell = baz()
+val bar:IntCell = foo()
+def baz():IntCell = bar
+
+bar.get()</code></pre>
+<p data-line="353"><span data-line="353"></span>When we try to initialize the <span data-line="353"></span><code class="code code1">bar</code><span data-line="353"></span> value, we call <span data-line="353"></span><code class="code code1">foo()</code><span data-line="353"></span>, which in
+turn invokes <span data-line="354"></span><code class="code code1">baz()</code><span data-line="354"></span>.  However, <span data-line="354"></span><code class="code code1">baz()</code><span data-line="354"></span> reads the <span data-line="354"></span><code class="code code1">bar</code><span data-line="354"></span> variable, which
 is what we are defining, so there is no well-defined result.  Languages
-such as Java handle this by initializing <span data-line="220"></span><code class="code code1">bar</code><span data-line="220"></span> to <span data-line="220"></span><code class="code code1">null</code><span data-line="220"></span> at first and
+such as Java handle this by initializing <span data-line="356"></span><code class="code code1">bar</code><span data-line="356"></span> to <span data-line="356"></span><code class="code code1">null</code><span data-line="356"></span> at first and
 then writing a permanent value to it after the initializer executes.
 However, in order to avoid null pointer errors, Wyvern does not allow
-<span data-line="223"></span><code class="code code1">null</code><span data-line="223"></span> as a value.  Languages such as Haskell would use a special
-<span data-line="224"></span>&#8220;black hole&#8221;<span data-line="224"></span> value and signal a run-time error in cases such as the
-above.  We avoid this semantics as it adds complexity and means the
+<span data-line="359"></span><code class="code code1">null</code><span data-line="359"></span> as a value.  Languages such as Haskell would use a special
+<span data-line="360"></span>&#8220;black hole&#8221;<span data-line="360"></span> value and signal a run-time error if the black hole is
+ever used, as in the <span data-line="361"></span><code class="code code1">bar.get</code><span data-line="361"></span> statement at the end.
+We avoid this semantics as it adds complexity and means the
 program can fail at run time.  Of course, infinite loops can still
 exist in Wyvern, but they come from recursive functions, never
 recursively defined values.
-</p><h2 id="sec-anonymous-functions"  data-line="231"  style="bookmark:5.&#8194;Anonymous Functions"><span data-line="231"></span><span class="heading-before"><span class="heading-label">5</span>.&#8194;</span><span data-line="231"></span>Anonymous Functions</h2>
-<p data-line="234"><span data-line="234"></span>Anonymous functions can be defined in Wyvern using the syntax:
+</p><h2 id="sec-some-examples"  data-line="368"  style="bookmark:12.&#8194;Some Examples"><span data-line="368"></span><span class="heading-before"><span class="heading-label">12</span>.&#8194;</span><span data-line="368"></span>Some Examples</h2>
+<p data-line="371"><span data-line="371"></span>The Wyvern standard library files are in subdirectories of <span data-line="371"></span><code class="code code1">tools/src/wyvern/lib</code><span data-line="371"></span>.  For example, <span data-line="371"></span><code class="code code1">stdout</code><span data-line="371"></span> is defined in <span data-line="371"></span><code class="code code1">stdout.wyv</code><span data-line="371"></span>, within that directory.  The definition of <span data-line="371"></span><code class="code code1">stdout</code><span data-line="371"></span> uses some Java helper code defined in the Java class <span data-line="371"></span><code class="code code1">wyvern.stdlib.support.Stdio</code><span data-line="371"></span>.
 </p>
-<pre class="para-block pre-indented" data-line="236"><code>(x:Int) =&gt; x + 1</code></pre>
-<p data-line="238"><span data-line="238"></span>This is a shorthand for creating an object with an <span data-line="238"></span><code class="code code1">apply</code><span data-line="238"></span> method
-that has the same arguments and body:
+<p class="indent" data-line="373"><span data-line="373"></span>An example of a utility library that provides a small part of a regular expression package is in <span data-line="373"></span><code class="code code1">wyvern/util/matching/regex.wyv</code><span data-line="373"></span>.  The design approximately follows the corresponding Scala library.
 </p>
-<pre class="para-block pre-indented" data-line="241"><code>new
-    def apply(x:Int):Int = x + 1</code></pre>
-<p data-line="244"><span data-line="244"></span>which is an instance of the following type:
+<p class="indent" data-line="375"><span data-line="375"></span>An example of a data structure library is <span data-line="375"></span><code class="code code1">wyvern/collections/list.wyv</code><span data-line="375"></span>.  Also see <span data-line="375"></span><code class="code code1">wyvern/option.wyv</code><span data-line="375"></span>.
 </p>
-<pre class="para-block pre-indented" data-line="246"><code>type IntToIntFn
-    def apply(x:Int):Int</code></pre>
-<p data-line="249"><span data-line="249"></span>Anonymous functions can also have multiple parameters:
+<p class="indent" data-line="377"><span data-line="377"></span>Examples that are working test cases are in subdirectories of <span data-line="377"></span><code class="code code1">tools/src/wyvern/tools/tests</code><span data-line="377"></span>.  For example, <span data-line="377"></span><code class="code code1">rosetta/hello.wyv</code><span data-line="377"></span>, <span data-line="377"></span><code class="code code1">rosetta/fibonacci.wyv</code><span data-line="377"></span>, and <span data-line="377"></span><code class="code code1">rosetta/factorial.wyv</code><span data-line="377"></span> illustrate writing to standard out, integer operations and tests, and recursion.  These examples are in the <span data-line="377"></span><code class="code code1">rosetta</code><span data-line="377"></span> subdirectory because they are inspired by the Rosetta Code project.
 </p>
-<pre class="para-block pre-indented" data-line="251"><code>(x:Int,y:Int) =&gt; x + y
-</code></pre>
-<p data-line="253"><span data-line="253"></span>or no parameters:
+<p class="indent" data-line="379"><span data-line="379"></span>For a semi-realistic example that shows instantiation of resource modules, see <span data-line="379"></span><code class="code code1">modules/safeSQLdriver.wyv</code><span data-line="379"></span>.
 </p>
-<pre class="para-block pre-indented" data-line="255"><code>() =&gt; 7</code></pre>
-<p data-line="257"><span data-line="257"></span>We expect to define a convenient shorthand for function types in the near future.
+<p class="indent" data-line="381"><span data-line="381"></span>All of the above examples are tested by the Wyvern regression test suite that is run as part of <span data-line="381"></span><code class="code code1">ant test</code><span data-line="381"></span> when building Wyvern.
 </p>
-<div class="logomadoko block" data-line="260" style="text-align:right;font-size:xx-small;margin-top:4em"><span data-line="261"></span>Created with&nbsp;<a href="https://www.madoko.net">Madoko.net</a>.</div><span data-line=""></span>
+<div class="logomadoko block" data-line="384" style="text-align:right;font-size:xx-small;margin-top:4em"><span data-line="385"></span>Created with&nbsp;<a href="https://www.madoko.net">Madoko.net</a>.</div><span data-line=""></span>
 </body>
 
 </html>
