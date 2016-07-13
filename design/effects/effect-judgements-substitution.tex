@@ -23,7 +23,6 @@
 \lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
 \lstloadlanguages{Java,VBScript,XML,HTML}
 
-
 \newcommand{\keywadj}[1]{\mathtt{#1}}
 \newcommand{\keyw}[1]{\keywadj{#1}~}
 \newcommand{\reftt}{\mathtt{ref}~}
@@ -33,6 +32,8 @@
 \newcommand{\stepsto}{\leadsto}
 \newcommand{\todo}[1]{\textbf{[#1]}}
 \newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
 %\newcommand{\intuition}[1]{}
 
 \newlist{pcases}{enumerate}{1}
@@ -887,16 +888,72 @@ Using the results of the previous theorem we define a program-transforming funct
 	\item $\keywadj{label}(x)$ = x
 	\item $\keywadj{label}(e_1.m(e_2)) = \keywadj{label}(e_1).m(\keywadj{label}(e_2))$
 	\item $\keywadj{label}(e_1.\pi(e_2)) = \keywadj{label}(e_1).\pi(\keywadj{label}(e_2))$
-	\item $\keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label}(\overline{\sigma = e})$
-	\item $\keywadj{label}(\sigma = e) = \sigma = \keywadj{label}(e)$
-	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}) = \keyw{new_\sigma} x \Rightarrow \keywadj{label}(\overline{d = e})$
-	\item $\keywadj{label}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \Gamma \cap \keywadj{freevars}(e) = \keywadj{label}(e)$
+	\item $\keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e})$
+	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}) = \keyw{new_\sigma} x \Rightarrow \keywadj{label \hyphen helper}(\overline{d = e})$
+	\item $\keywadj{label \hyphen helper}(\sigma = e) = \sigma = \keywadj{label}(e)$
+	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \Gamma \cap \keywadj{freevars}(e) = \keywadj{label}(e)$
 \end{itemize}
 
-\noindent
-We abbreviate $\keywadj{labels}(e) = \hat e$ and use $\hat \varepsilon$ to refer to the set of effects with which $\hat e$ is annotated.\\
+\noindent \textbf{Notes:}
+\begin{itemize}
+\item $\keywadj{label}$ is defined on expressions; $\keywadj{label \hyphen helper}$ on declarations. This is just for clarity; everywhere other than this section we'll only use $\keywadj{label}$.
+\item Initially it seems like $\keywadj{label}$ on a $\keywadj{new_\sigma}$ object should just be the identity function; but the body of the methods of such an object may instantiate unlabeled objects and/or call methods on unlabeled objects, so we must recursively label those.
+\item From here on out we will use $\hat e$ to refer to a fully-labeled program. We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to $\hat e$ as the labeled program. Likewise, we will use $\hat \tau$ and $\hat \varepsilon$ to refer to the type and effects of $\hat e$.
+\end{itemize}
 
-\thm{Theorem 5.9. (Preservation Under Labeling)}
+
+
+
+
+
+\thm{Theorem 5.9. (Refinement)}
+{If $e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$ and $\hat e : \hat \tau~\keyw{with} \hat \varepsilon$, then $\hat \varepsilon \subseteq \varepsilon$.\\\\}
+{We show the property holds for each case of the $\keywadj{label}$ function by inducting on the complexity of $e$.
+
+\proofcase{$\keywadj{label}(r),~\keywadj{label}(x)$}{
+	Then $e = \hat e$ so it holds immediately.
+}
+	
+\proofcase{$\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}), \keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e})$}{
+Typing judgements for objects only give $\varnothing$ as the set of effects so we're done automatically. Although an object can have capabilities for effects bu those are encoded in its methods (in the case of a labeled object) or in its type (in the case of an unlabeled object having type $\{ \bar d~\keyw{captures} \varepsilon_c\}$).
+}	
+	
+\proofcase{$\keywadj{e_1.m(e_2)}$}{Then $\keywadj{label}(e_1.m(e_2)) = \hat e_1 . m(\hat e_2)$ and the inductive assumption holds for $\hat e_1$ and $\hat e_2$. Since $\hat e_1 . m(\hat e_2)$ is a labeled object we may type it with \textsc{$\varepsilon$-MethCall$_\sigma$}. By inspecting that rule we see the set of effects after labeling is $\hat \varepsilon = \hat \varepsilon_1 \cup \hat \varepsilon_2 \cup \hat \varepsilon_3$. By inductive assumption on subexpressions, each $\hat \varepsilon_i \subseteq \varepsilon_i$. \\
+
+\noindent
+Now what is the form of $e_1.m(e_2)$? If $e_i$ is already labeled then $\hat \varepsilon_i = \varepsilon$. So without loss of generality, let's assume $e_1$ and $e_2$ are both unlabeled. There are two judgments that might have typed $e_1.m(e_2)$ so let's examine them.
+
+
+
+	\subcase{\textsc{C-ConservativeTyping/}
+	Then $\varepsilon = \keywadj{effects}(\Gamma')$. Any effect in $\hat \varepsilon$ must be captured in the environment at large; therefore $\hat \varepsilon \subseteq \varepsilon$.
+	}
+
+	\subcase{\textsc{C-MethCall}. Then $\varepsilon = \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \keywadj{effects}(\Gamma')$ for some sub-context. Since $\hat \varepsilon_i \subseteq \varepsilon_i$, we just need to show that $\hat \varepsilon_3 \subseteq \varepsilon$. \\\\ Note that $\hat \varepsilon_3$ represents the effects captured by executing method $m$. Let $r.\pi \in \hat \varepsilon_3$. If $r.\pi$ is captured then someone must be able to call $r.\pi$ from somewhere as a result of the method call. From the perspective of the method call $e_1.m(e_2)$ there are two ways $r.\pi$ could be invoked:
+\begin{itemize}
+	\item During execution of method $m$ the operation $r.\pi$ is invoked, either directly or indirectly, before control-flow returns to the call-site.
+	\item As a result of executing method $m$ a capability for $r$ is gained at the call-site. $r$ may then be passed back up the call-chain and someone later may invoke $r.\pi$, after $e_1.m(e_2)$ has finished executing.
+\end{itemize}	
+	
+~\\In the first case, the resource $r$ must be visible in the current environment, i.e. $r \in \Gamma'$. Then $r.\pi \in \keywadj{effects}(\Gamma') \subseteq \varepsilon$.
+	\\\\
+	In the second case, if $r$ is currently in the environment then $r.\pi \in \keywadj{effects}(\Gamma')$ again. Otherwise $r$ might not be in the environment; the only way for the call-site to gain a capability then is for the method $m$ to have returned it. Therefore $r \in \keywadj{effects}(\tau_2) \subseteq \varepsilon$, where $\tau_2$ is the return type of $m$.
+}
+\proofcase{$\keywadj{e_1.\pi(e_2)}$}{
+	Then $\hat e = \hat e_1.\pi(\hat e_2)$. By inductive assumption the labeled expressions will be $\hat \varepsilon_1$ and $\hat \varepsilon_2$. The only rule which can be used to type $\hat e$ and $e$ is \textsc{$\varepsilon$-OperCall}; then the effect-set for $e$ is $\varepsilon = \{ r.\pi \} \cup \varepsilon_1 \cup \varepsilon_2$ and for $\hat e$ is $\hat \varepsilon = \{ r.\pi \} \cup \hat \varepsilon_1 \cup \hat \varepsilon_2$. $\hat \varepsilon \subseteq \varepsilon$ by inductive assumption on each $\varepsilon_i$.
+}
+}
+}
+
+\noindent
+\\\fbox{Intuition.} This theorem says that labeling a program can only make the effect inference more precise (never less precise).\\
+
+
+
+
+
+
+\thm{Theorem 5.10. (Preservation Under Labeling)}
 {If $\Gamma \vdash e : \tau$ then $\Gamma \vdash \hat e : \tau$. \\\\}
 {By induction on the complexity of the expression $e$ and considering the possible forms of $e$. If $e = r$ or $e = x$ then it holds trivially. Consider the other cases.
 
@@ -915,8 +972,8 @@ Same as above but use \textsc{T-MethCall$_r$}.
 }
 }
 
-\thm{Theorem 5.10. (Small-Step Soundness Of Labeled Programs)}
-{If $e_A \longrightarrow e_B~|~\varepsilon_B$ and $e_A : \tau_A$ then $\hat e_A : \tau~\keyw{with ~\hat \varepsilon}$ where $\varepsilon_B \subseteq \hat \varepsilon$.\\\\}
+\thm{Theorem 5.11. (Small-Step Soundness Of Labeled Programs)}
+{If $e_A \longrightarrow e_B~|~\varepsilon_B$ and $e_A : \tau_A$ then $\hat e_A : \hat \tau~\keyw{with ~\hat \varepsilon}$ where $\varepsilon_B \subseteq \hat \varepsilon$.\\\\}
 {By induction on the evaluation rule used. In all cases, the type of $\hat e_A$ is the same as $e_A$ by the previous theorem so we omit its derivation.
 
 \proofcase{\textsc{E-MethCall1}}
@@ -955,5 +1012,33 @@ By inductive assumption $\hat e_2 : \tau \keyw{with} \hat \varepsilon_2$ where $
 {Then $e_A = r.\pi(v)$. $\hat r = r$ so $\hat e_A = r.\pi(\hat v)$. By application of \textsc{$\varepsilon$-OperCall} we have $\hat e_A : \keyw{Unit~with} \{ r.\pi \} \cup \hat \varepsilon_1 \cup \hat \varepsilon_2$, where $\hat \varepsilon_2$ is the set of effects for $\hat v$ and $\hat \varepsilon_1 = \varnothing$ for $\hat r = r$. By inspection of the rule for $\textsc{E-OperCall3}$, $\varepsilon = r.\pi \subseteq \{ r.\pi \} \cup \hat \varepsilon_2 = \hat \varepsilon_A$.
 }
 }
+
+
+\thm{Theorem 5.12. (Soundness Theoerm)}
+{If $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon$ then $\Gamma \vdash e_B : \tau_B~\keyw{with} \varepsilon_B$ and $\varepsilon \subseteq \varepsilon_A$.\\\\}
+{Induct on the typing judgement for $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$ and then on the evaluation rule used for $e_A \longrightarrow e_B~|~\varepsilon$. First note that the theorem statement has already been proven for typing judgements from the calculus for fully-labeled programs. Therefore we'll only consider the extra typing rules in the calculus that allows unlabeled objects.
+
+\proofcase{\textsc{C-NewObj}}
+{Then $e_A$ is of the form $\keywadj{new}_d$ so it is a value. Then no reduction can be applied; the theorem statement holds vacuously.
+}
+
+\proofcase{\textsc{C-MethCall}}
+{
+Then $e_A = e_1.m(e_2)$ where $e_1 = \keyw{new_d} x \Rightarrow \overline{d = e} : \{ \bar d~\keyw{captures} \varepsilon_c \}~ \keyw{with} \varnothing$, where $\varepsilon_c = \keywadj{effects}(\Gamma_A')$, for $\Gamma_A' \subseteq \Gamma_A$. Consider the extension $\hat e_A = \keywadj{label}(e_A)$. Since $\keywadj{label}$ only changes type-information, the runtime effects of $e_A$ are invariant under the $\keywadj{label}$ function. Furthermore, $e_A$ is a value if and only if $\hat e_A$ is a value.\\
+
+\noindent
+Now, $\hat e_A$ is not a value because $e_A$ is not a value. Therefore we can reduce $\hat e_A$. Then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, the same $\varepsilon$ we get when reducing $e_A$. \\
+
+\noindent
+By small-step soundness of labeled programs, $\varepsilon \subseteq \hat \varepsilon_A$. By refinement, $\hat \varepsilon_A \subseteq \varepsilon_A$. So $\varepsilon \subseteq \varepsilon_A$.
+}
+
+\proofcase{\textsc{C-ConservativeTyping}}
+{
+Then $\varepsilon_A = \keywadj{effects}(\Gamma')$ for some $\Gamma'$. Runtime effects must be captured by the environment; therefore $\varepsilon \subseteq \varepsilon_A$.
+}
+}
+
+
 
 \end{document}
