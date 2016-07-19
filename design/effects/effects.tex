@@ -280,11 +280,11 @@ $\fbox{$\Gamma \vdash e : \tau$}$
 ~~~~~~~~~~
 \infer[\textsc{(T-MethCall$_\sigma$)}]
 	{\Gamma \vdash e_1.m(e_2) : \tau_3}
-	{\Gamma \vdash e_1 : \{ \bar \sigma \},~\keyw{def} m(y : \tau_2) : \tau_3~\keyw{with} \varepsilon_3 \in \{ \bar \sigma \} &  \Gamma \vdash e_2 : \tau_2 }\\[5ex]
+	{\Gamma \vdash e_1 : \{ \bar \sigma \} & \keyw{def} m(y : \tau_2) : \tau_3~\keyw{with} \varepsilon_3 \in \{ \bar \sigma \} &  \Gamma \vdash e_2 : \tau_2 }\\[5ex]
 ~~~~~~~~~~
 \infer[\textsc{(T-MethCall$_d$)}]
 	{\Gamma \vdash e_1.m(e_2) : \tau_3}
-	{\Gamma \vdash e_1 : \{ \bar d\},~\keyw{def} m(y : \tau_2) : \tau_3 \in \{ \bar d \} &  \Gamma \vdash e_2 : \tau_2 }\\[5ex]
+	{\Gamma \vdash e_1 : \{ \bar d\} & \keyw{def} m(y : \tau_2) : \tau_3 \in \{ \bar d \} &  \Gamma \vdash e_2 : \tau_2 }\\[5ex]
 ~~~~~~~~~~
 
 ~~~~~~~~~~
@@ -898,7 +898,7 @@ Using the results of the previous theorem we define a program-transforming funct
 
 
 \thm{Theorem 5.9. (Refinement)}
-{If $e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$ and $\hat e : \hat \tau~\keyw{with} \hat \varepsilon$, then $\hat \varepsilon \subseteq \varepsilon$.\\\\}
+{If $\Gamma \vdash e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$ and $\Gamma \vdash \hat e : \hat \tau~\keyw{with} \hat \varepsilon$, then $\hat \varepsilon \subseteq \varepsilon$.\\\\}
 {We show the property holds for each case of the $\keywadj{label}$ function by inducting on the complexity of $e$.
 
 \proofcase{$\keywadj{label}(r),~\keywadj{label}(x)$}{
@@ -909,26 +909,21 @@ Using the results of the previous theorem we define a program-transforming funct
 Typing judgements for objects only give $\varnothing$ as the set of effects so we're done automatically. Although an object can have capabilities for effects bu those are encoded in its methods (in the case of a labeled object) or in its type (in the case of an unlabeled object having type $\{ \bar d~\keyw{captures} \varepsilon_c\}$).
 }	
 	
-\proofcase{$\keywadj{e_1.m(e_2)}$}{Then $\keywadj{label}(e_1.m(e_2)) = \hat e_1 . m(\hat e_2)$ and the inductive assumption holds for $\hat e_1$ and $\hat e_2$. Since $\hat e_1 . m(\hat e_2)$ is a labeled object we may type it with \textsc{$\varepsilon$-MethCall$_\sigma$}. By inspecting that rule we see the set of effects after labeling is $\hat \varepsilon = \hat \varepsilon_1 \cup \hat \varepsilon_2 \cup \hat \varepsilon_3$. By inductive assumption on subexpressions, each $\hat \varepsilon_i \subseteq \varepsilon_i$. \\
-
-\noindent
-Now what is the form of $e_1.m(e_2)$? If $e_i$ is already labeled then $\hat \varepsilon_i = \varepsilon$. So without loss of generality, let's assume $e_1$ and $e_2$ are both unlabeled. There are two judgments that might have typed $e_1.m(e_2)$ so let's examine them.
-
+\proofcase{$\keywadj{e_1.m(e_2)}$}{Then $\keywadj{label}(e_1.m(e_2)) = \keywadj{label}(e_1).m(\keywadj{label}(e_2) = \hat e_1 . m(\hat e_2)$ and the inductive assumption holds for $\hat e_1$ and $\hat e_2$. Since $\hat e_1 . m(\hat e_2)$ is a labeled object we may type it with \textsc{$\varepsilon$-MethCall$_\sigma$} which gives us the set of effects $\hat \varepsilon = \hat \varepsilon_1 \cup \hat \varepsilon_2 \cup \hat \varepsilon_3$. By inductive assumption on subexpressions, each $\hat \varepsilon_i \subseteq \varepsilon_i$. Without loss of generality we assume $e_1$ and $e_2$ were unlabeled expressions. There are two rules that could have been used to type $e_1$ and $e_2$.\\
 
 
 	\subcase{\textsc{C-ConservativeTyping}
-	Then $\varepsilon = \keywadj{effects}(\Gamma')$. Any effect in $\hat \varepsilon$ must be captured in the environment at large; therefore $\hat \varepsilon \subseteq \varepsilon$.
-	}
+	Then $\varepsilon = \keywadj{effects}(\Gamma')$, for some $\Gamma' \subseteq \Gamma$. By the assumption that $e_1.m(e_2)$ is closed under $\Gamma$, any effect $r.\pi \in \hat \varepsilon$ must be contained in $\Gamma$. Assuming $\Gamma'$ contains $\keywadj{freevars}(e_1.m(e_2))$, then $\hat \varepsilon \subseteq \varepsilon$, then $r \in \keywadj{freevars}(e_1.m(e_2)) \subseteq \Gamma'$, therefore $r.\pi \in \keywadj{effects}(\Gamma')$.	}
 
-	\subcase{\textsc{C-MethCall}. Then $\varepsilon = \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \keywadj{effects}(\Gamma')$ for some sub-context. Since $\hat \varepsilon_i \subseteq \varepsilon_i$, we just need to show that $\hat \varepsilon_3 \subseteq \varepsilon$. \\\\ Note that $\hat \varepsilon_3$ represents the effects captured by executing method $m$. Let $r.\pi \in \hat \varepsilon_3$. If $r.\pi$ is captured then someone must be able to call $r.\pi$ from somewhere as a result of the method call. From the perspective of the method call $e_1.m(e_2)$ there are two ways $r.\pi$ could be invoked:
-\begin{itemize}
-	\item During execution of method $m$ the operation $r.\pi$ is invoked, either directly or indirectly, before control-flow returns to the call-site.
-	\item As a result of executing method $m$ a capability for $r$ is gained at the call-site. $r$ may then be passed back up the call-chain and someone later may invoke $r.\pi$, after $e_1.m(e_2)$ has finished executing.
-\end{itemize}	
+	\subcase{\textsc{C-MethCall}. Then $\varepsilon = \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \varepsilon_c$ for some sub-context. Furthermore, $\varepsilon_c = \keywadj{effects}(\Gamma')$, for some $\Gamma' \subseteq \Gamma$. Since $\hat \varepsilon_i \subseteq \varepsilon_i$, we just need to show that $\hat \varepsilon_3 \subseteq \varepsilon$. \\\\ Note that $\hat \varepsilon_3$ represents the effects captured by executing method $m$. Let $r.\pi \in \hat \varepsilon_3$. Suppose the method body is $e'$. If $r.\pi$ We do a case analysis on where $r$ came from. \\
 	
-~\\In the first case, the resource $r$ must be visible in the current environment, i.e. $r \in \Gamma'$. Then $r.\pi \in \keywadj{effects}(\Gamma') \subseteq \varepsilon$.
-	\\\\
-	In the second case, if $r$ is currently in the environment then $r.\pi \in \keywadj{effects}(\Gamma')$ again. Otherwise $r$ might not be in the environment; the only way for the call-site to gain a capability then is for the method $m$ to have returned it. Therefore $r \in \keywadj{effects}(\tau_2) \subseteq \varepsilon$, where $\tau_2$ is the return type of $m$.
+\noindent
+By assumption, $[y/v_2]e'$ is closed under $\Gamma$. Then either $y$ has a capability for $r$ or something in $freevars(e') \setminus y$ has a capability for $r$ or nothing in $e_1.m(e_2)$ has a capability for $r$.
+	\begin{itemize}
+		\item $y$ has a capability for $r$. Since $y$ is bound to $v_2$, then $v_2$ has a capability for $r$. By assumption, $v_2 : \tau_2 \keyw{with} \varepsilon_2$. Since $\keywadj{effects}(\tau_2)$ captures the set of all effects on all resources for which type $\tau_2$ has a capability, then $r.\pi \in \keywadj{effects}(\tau_2) \subseteq \hat \varepsilon$.
+	\end{itemize}
+	
+	~\\
 }
 \proofcase{$\keywadj{e_1.\pi(e_2)}$}{
 	Then $\hat e = \hat e_1.\pi(\hat e_2)$. By inductive assumption the labeled expressions will be $\hat \varepsilon_1$ and $\hat \varepsilon_2$. The only rule which can be used to type $\hat e$ and $e$ is \textsc{$\varepsilon$-OperCall}; then the effect-set for $e$ is $\varepsilon = \{ r.\pi \} \cup \varepsilon_1 \cup \varepsilon_2$ and for $\hat e$ is $\hat \varepsilon = \{ r.\pi \} \cup \hat \varepsilon_1 \cup \hat \varepsilon_2$. $\hat \varepsilon \subseteq \varepsilon$ by inductive assumption on each $\varepsilon_i$.
