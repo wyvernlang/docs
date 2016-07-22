@@ -1,0 +1,600 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = e}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
+}
+
+
+\begin{document}
+
+
+\section{Grammar}
+
+\[
+\begin{array}{lll}
+
+\begin{array}{lllr}
+
+e & ::= & x & expressions \\
+  		& | & r \\
+		& | & \keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} \\
+ 		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
+ 		& | & e.m(e)\\
+ 		& | & e.\pi\\
+		&&\\
+
+\tau & ::= & \{ \bar \sigma \} & types \\
+		& | & \{ \bar r \} \\
+		& | & \{ \bar d \} \\
+		& | & \{ \bar d ~\keyw{captures} \varepsilon \} \\
+		&&\\
+		
+\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+
+d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
+		&&\\
+
+\end{array}
+& ~~~~~~
+&
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item $\sigma$ denotes a declaration with effect labels; $d$ a declaration without effect labels.
+	\item $\keywadj{new}_\sigma$ is for creating annotated objects; $\keywadj{new}_d$ for unannotated objects.
+	\item $\{ \bar \sigma \}$ is the type of an annotated object. $\{ \bar d \}$ is the type of an unannotated object.
+	\item $\{ \bar d ~\keyw{captures} \varepsilon \}$ is a special kind of type that doesn't appear in source programs but may be assigned by the new rules in this section. Intuitively, $\varepsilon$ is an upper-bound on the effects captured by $\{ \bar d \}$.
+\end{itemize}
+
+\section{Semantics}
+
+\subsection{Static Semantics}
+
+\noindent
+$\fbox{$\Gamma \vdash e : \tau$}$
+
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Var)}]
+	{\Gamma,~x : \tau \vdash x : \tau}
+	{}
+~~~~~~~~~~
+\infer[\textsc{(T-Resource)}]
+	{\Gamma,~r : \{ \bar r \} \vdash r : \{ \bar r \}}
+	{} \\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-OperCall)}]
+	{\Gamma \vdash e_1.\pi : \keywadj{Unit}}
+	{\Gamma \vdash e_1 : \{ \bar r \}} \\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_\sigma$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_3}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \} & \keyw{def} m(y : \tau_2) : \tau_3~\keyw{with} \varepsilon_3 \in \{ \bar \sigma \} &  \Gamma \vdash e_2 : \tau_2 }\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_d$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_3}
+	{\Gamma \vdash e_1 : \{ \bar d\} & \keyw{def} m(y : \tau_2) : \tau_3 \in \{ \bar d \} &  \Gamma \vdash e_2 : \tau_2 }\\[5ex]
+~~~~~~~~~~
+
+~~~~~~~~~~
+\infer[\textsc{(T-New$_\sigma$)}]
+	{\Gamma \vdash~\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}}
+	{\Gamma \vdash \sigma_i = e_i~\keywadj{OK}}
+~~~~~~~~~~
+\infer[\textsc{(T-New$_d$)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{ \bar d \}}
+	{\Gamma \vdash d_i = e_i~\keywadj{OK}}\\[5ex]
+\end{array}
+\]
+
+\noindent
+$\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-ValidImpl$_d$)}]
+	{\Gamma \vdash d = e~\keywadj{OK}}
+	{d = \keyw{def} m(y : \tau_2) : \tau_3 & \Gamma, y : \tau_2 \vdash e : \tau_3}
+	\\[5ex]
+\end{array}
+\]
+
+\noindent
+$\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
+
+\[
+\begin{array}{c}
+\infer[\textsc{($\varepsilon$-ValidImpl$_\sigma$)}]
+	{\Gamma \vdash \sigma = e~\keywadj{OK}}
+	{\Gamma,~y:\tau_2 \vdash e: \tau_3~\keyw{with} \varepsilon_3 & \sigma = \keyw{def} m(y:\tau_2):\tau_3~\keyw{with} \varepsilon_3} \\[5ex]
+\end{array}
+\]
+
+
+\noindent
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+	\infer[\textsc{($\varepsilon$-Var)}]
+  {\Gamma,~x:\tau \vdash x: \type{\tau}{\varnothing} }
+  {} 
+~~~~~~~~~~
+\infer[\textsc{($\varepsilon$-Resource)}]
+  {\Gamma,~r :\{\bar r\} \vdash r: \type{   \{ \bar r \}  }{\varnothing}}
+  {} \\[5ex]
+
+\infer[\textsc{($\varepsilon$-NewObj)}]
+	{\Gamma \vdash \newsig : \{ \bar \sigma \}~\keyw{with} \varnothing}
+	{\Gamma,~x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} ~~~~~~
+
+\infer[\textsc{($\varepsilon$-OperCall)}]
+	{\Gamma \vdash e_1.\pi : \keyw{Unit} \keyw{with} \{ \bar r.\pi \} \cup \varepsilon_1}
+	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1} \\[5ex]
+	
+\infer[\textsc{($\varepsilon$-MethCall)}]
+	{\Gamma \vdash e_1.m_i(e_2):\tau_3~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i = \keyw{def} m_i(y:\tau_2):\tau_3~\keyw{with} \varepsilon_3} \\[5ex]
+	
+\infer[\textsc{(C-NewObj)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{  \bar d~\keyw{captures} \varepsilon_c \} ~\keyw{with} \varnothing }
+	{\varepsilon_c = \keywadj{effects}(\Gamma') & \Gamma' \subseteq \Gamma & \Gamma', x : \{ \bar d~\keyw {captures} \varepsilon_c \} \vdash \overline{d = e}~\keyw{OK}} \\[5ex]
+	
+\infer[\textsc{(C-MethCall)}]
+	{\Gamma \vdash e_1.m_i(e_2) : \tau_3~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_2) \cup \varepsilon_c}
+	{\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon_c \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2&d_i =~\keyw{def} m_i(y:\tau_2):\tau_3 } \\[5ex]
+
+\infer[\textsc{(C-Inference)}]
+	{\Gamma \vdash e : \tau ~\keyw{with} \keywadj{effects}(\Gamma') }
+	{\Gamma' \subseteq \Gamma & \Gamma' \vdash e : \tau } \\[5ex]
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+
+\begin{itemize}
+	\item This system includes all the rules from the fully-annotated system.
+	\item The \textsc{T} rules do standard typing of objects, without any effect analysis. Their sole purpose is so $\varepsilon$-ValidImpl$_d$ can be applied. \textbf{We are assuming the T-rules on their own are sound}.
+	\item In \textsc{C-NewObj}, $\Gamma'$ is intended to be some subcontext of the current $\Gamma$. The object is labelled as capturing the effects in $\Gamma'$ (exact definition in the next section).
+	\item In $\textsc{C-NewObj}$ we must add $\keywadj{effects}(\tau_2)$ to the static effects of the object, because the method body will have access to the resources captured by $\tau_2$ (the type of the argument passed into the method).
+	\item A good choice of $\Gamma'$ would be $\Gamma$ restricted to the free variables in the object definition.
+	\item The purpose of \textsc{C-Inference} is to ascribe static effects to unannotated portions of code (for instance, the body of an unlabeled method).
+	\item As a useful convention we'll often use $\varepsilon_c$ to denote the output of the $\keywadj{effects}$ function.
+\end{itemize}
+
+\subsection{$\keywadj{effects}$ Function}
+
+\noindent
+The $\keywadj{effects}$ function returns the set of effects captured in a particular context.
+
+\begin{itemize}
+	\item $\keywadj{effects}(\varnothing) = \varnothing$
+	\item $\keywadj{effects}(\Gamma, x : \tau) = \keywadj{effects}(\Gamma) \cup \keywadj{effects}(\tau)$
+	\item $\keywadj{effects}(\{\bar r\}) = \{ (r, \pi) \mid r \in \bar r, \pi \in \Pi \}$
+	\item $\keywadj{effects}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\keywadj{effects}(\sigma)$
+	\item $\keywadj{effects}(\{\bar d\}) = \bigcup_{d \in \bar d}~\keywadj{effects}(d)$
+	\item $\keywadj{effects}(d~\keyw{with} \varepsilon) = \varepsilon \cup \keywadj{effects}(d)$
+	\item $\keywadj{effects}(\keywadj{def~m}(x : \tau_1) : \tau_2) = \keywadj{effects}(\tau_2)$
+	\item $\keywadj{effects}(\{\bar d ~\keyw{captures} \varepsilon_c\}) = \varepsilon_c$
+\end{itemize}
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item Since a method can return a capability for a resource $r$ we need to figure out what the return type of a method captures. This requires a recursive crawl through the definitions and types inside it.
+	\item In the last case we don't want to recurse to sub-declarations because the effects have already been captured previously (this is $\varepsilon_c$) by a potentially different context.
+\end{itemize}
+
+\subsection{Dynamic Semantics}
+
+~\\
+\noindent
+\fbox{$e \longrightarrow e~|~\varepsilon$}
+
+\[
+\begin{array}{c}
+
+	\infer[\textsc{(E-MethCall1)}]
+		{e_1.m(e_2) \longrightarrow e_1'.m(e_2)~|~\varepsilon}
+		{e_1 \longrightarrow e_1'~|~\varepsilon} \\[5ex]
+
+	\infer[\textsc{(E-MethCall2$_{\sigma}$)}]
+		{v_1.m(e_2) \longrightarrow v_1.m(e_2')~|~\varepsilon}
+		{v_1 = \newsig & e_2 \longrightarrow e_2'~|~\varepsilon} ~~~~~~
+		
+	\infer[\textsc{(E-MethCall2$_d$)}]
+		{v_1.m(e_2) \longrightarrow v_1.m(e_2')~|~\varepsilon}
+		{v_1 = \newd & e_2 \longrightarrow e_2'~|~\varepsilon}\\[5ex]
+				
+	\infer[\textsc{(E-MethCall3$_{\sigma}$)}]
+		{v_1.m(v_2)
+			\longrightarrow
+		 [v_1/x, v_2/y]e~|~\varnothing}
+  		{v_1 = \newsig & \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon = e \in \overline {\sigma = e}} \\[5ex]
+
+	\infer[\textsc{(E-MethCall3$_d$)}]
+		{v_1.m(v_2)
+			\longrightarrow
+		 [v_1/x, v_2/y]e~|~\varnothing}
+  		{v_1 = \newd & \keywadj{def~m}(y: \tau_1) : \tau_2 = e \in \overline {d = e}} \\[5ex]
+
+	\infer[\textsc{(E-OperCall1)}]
+		{e_1.\pi
+			\longrightarrow
+		 e_1'.\pi~|~\varepsilon}
+		{e_1 \longrightarrow e_1'~|~\varepsilon}
+~~~~~~
+
+			\infer[\textsc{(E-OperCall2)}]
+		{r.\pi
+			\longrightarrow
+		 \keywadj{unit}~|~\{r.\pi\}}
+		{} \\[5ex]
+			
+\end{array}
+\]
+\noindent
+\fbox{$e \longrightarrow_* e~|~\varepsilon$}
+
+\[
+\begin{array}{c}
+
+	\infer[\textsc{(E-MultiStep1)}]
+	{e \longrightarrow_* e~|~\varnothing}
+	{} ~~~~~~~~
+	
+	\infer[\textsc{(E-MultiStep2)}]
+	{e \longrightarrow_* e'~|~\varepsilon}
+	{e \longrightarrow e'~|~\varepsilon} \\[5ex]
+
+	\infer[\textsc{(E-MultiStep3)}]
+	{e \longrightarrow_* e''~|~\varepsilon_1 \cup \varepsilon_2}
+	{e \longrightarrow_* e'~|~\varepsilon_1 & e' \longrightarrow_* e''~|~\varepsilon_2}
+
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item \textsc{E-MethCall2$_d$} and \textsc{E-MethCall2$_\sigma$} are really doing the same thing, but one applies to labeled objects (the $\sigma$ version) and the other on unlabeled objects. Same goes for \textsc{E-MethCall3$_\sigma$} and \textsc{E-MethCall3$_d$}.
+	\item \textsc{E-MethCall1} can be used for both labeled and unlabeled objects.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Substitution Function}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\noindent
+We extend our Substitution function from the previous system in a straightforward way by adding a new case for unlabeled objects.
+
+\begin{itemize}
+	\item $[e'/z]z = e'$
+	\item $[e'/z]y = y$, if $y \neq z$
+	\item $[e'/z]r = r$
+	\item $[e'/z](e_1.m(e_2)) = ([e'/z]e_1).m([e'/z]e_2)$
+	\item $[e'/z](e_1.\pi) = ([e'/z]e_1).\pi$
+	\item $[e'/z](\newd) = \keywadj{new}_\sigma~x \Rightarrow \overline{ \sigma = [e'/z]e }$, if $z \neq x$ and $z \notin \keywadj{freevars}(e_i)$
+	\item $[e'/z](\newsig) = \keywadj{new}_\sigma~x \Rightarrow \overline{ \sigma = [e'/z]e }$, if $z \neq x$ and $z \notin \keywadj{freevars}(e_i)$
+\end{itemize}
+
+
+
+\section{Proofs}
+~
+
+
+\thm{Lemma 3.1. (Canonical Forms)}
+{Suppose $e$ is a value. The following are true:
+	\begin{itemize}
+	\item If $\Gamma \vdash e : \type{ \{ \bar r \} }{\varepsilon} $, then $e = r$ for some resource $r$.
+	\item If $\Gamma \vdash e : \type{ \{ \bar \sigma \}}{\varepsilon}$, then $e = \newsig$.
+	\item If $\Gamma \vdash e : \{ \bar d~\keyw{captures} \varepsilon_c \}~ \keyw{with} \varepsilon$, then $e = \keywadj{new}_{d}~x \Rightarrow \overline{ d = e }$.
+	\end{itemize}
+Furthermore, $\varepsilon = \varnothing$ in each case. \\\\
+}
+{ These typing judgements each appear exactly once in the conclusion of different rules. The result follows by inversion of \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-NewObj}, and \textsc{C-NewObj} respectively. \\
+}
+
+\thm{Lemma 3.2. (Substitution Lemma)}
+{If $\Gamma, z : \tau' \vdash e : \tau~\keyw{with} \varepsilon$, and $\Gamma \vdash e' : \tau'~\keyw{with} \varepsilon'$, then $\Gamma \vdash [e'/z]e : \tau~\keyw{with} \varepsilon$. \\\\
+\fbox{Intuition} If you substitute $z$ for something of the same type, the type of the whole expression stays the same after substitution.
+\\\\}
+{We've already proven the lemma by structural induction on the $\varepsilon$ rules. The new case is defined on a form not in the grammar for the fully-annotated system. So all that remains is to induct on derivations of $\Gamma \vdash e : \type{\tau}{\varepsilon}$ using the new $\textsc{C}$ rules.\\
+
+	\proofcase{\textsc{C-MethCall}}{
+Then $e = e_1.m(e_2)$ and $[e'/z]e = ([e'/z]e_1).m([e'/z]e_2)$ . By inductive assumption we know that $e_1$ and $[e'/z]e_1$ have the same types, and that $e_2$ and $[e'/z]e_2$ have the same types. Since $e$ and $[e'/z]e$ have the same syntactic struture, and their corresponding subexpressions have the same types, then $\Gamma$ can use \textsc{C-MethCall} to type $[e'/z]e$ the same as $e$.\\
+}
+
+	\proofcase{\textsc{C-Inference}}{
+Then $\Gamma \vdash e : \tau~\keyw{with} \keywadj{effects}(\Gamma')$, where $\Gamma' \subseteq \Gamma$. By inversion $\Gamma' \vdash e : \tau$. Applying the inductive hypothesis (and our assumption that the \textsc{T} rules are sonud) $\Gamma' \vdash [e'/z]e : \tau$. Since $\Gamma' \subseteq \Gamma'$ we have $\Gamma' \vdash [e'/z]e : \tau~\keyw{with} \keyw{effects}(\Gamma')$ under \textsc{C-Inference}. Because $\Gamma' \subseteq \Gamma$ then $\Gamma \vdash [e'/z]e : \tau~\keyw{with} \keyw{effects}(\Gamma')$.\\
+
+
+}
+
+	\proofcase{\textsc{C-NewObj}}{
+		Then $e = \newd$. $z$ appears in some method body $e_i$. By inversion we know $\Gamma, x : \{ \bar \sigma \} \vdash \overline {d = e}~\keywadj{OK}$. The only rule with this conclusion is \textsc{$\varepsilon$-ValidImpl$_d$}; by inversion on that we know for each $i$ that:
+		 \begin{itemize}
+		 	\item $d_i = \keyw{def} m_i(y : \tau_1) : \tau_2~\keyw{with} \varepsilon$
+		 	\item $\Gamma, y : \tau_1 \vdash e_i : \tau_2~\keyw{with} \varepsilon$
+		\end{itemize}
+
+\noindent
+If $z$ appears in the body of $e_i$ then $\Gamma, z : \tau \vdash d_i = e_i~\keywadj{OK}$ by inductive assumption. Then we can use \textsc{$\varepsilon$-ValidImpl$_d$} to conclude $\overline{d = [e'/z]e}~\keywadj{OK}$. This tells us that the types and static effects of all the methods are unchanged under substitution. By choosing the same $\Gamma' \subseteq \Gamma$ used in the original application of \textsc{C-NewObj}, we can apply \textsc{C-NewObj} to the expression after substitution. The types and static effects the methods are the same, and the same $\Gamma'$ has been chosen, so $[e'/z]e$ will be ascribed the same type as $e$.
+}
+}
+
+\thm{Lemma 3.3. (Monotonicity of $\keywadj{effects}$)}
+{If $\Gamma_1 \subseteq \Gamma_2$ then $\keywadj{effects}(\Gamma_1) \subseteq \keywadj{effects}(\Gamma_2)$ \\\\}
+{Because $\keywadj{effects}(\Gamma_1)$ is the union of $\keywadj{effects}(\tau)$, for every $(x, \tau) \in \Gamma_1 \subseteq \Gamma_2$. Then $\keywadj{effects}(\Gamma_1) \subseteq \keywadj{effects}(\Gamma_2)$.\\\\}
+
+\thm{Lemma 3.4. (Use Principle)}
+{If $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$, and $e_A \longrightarrow_* e_A'~|~\varepsilon$, then $\forall r.\pi \in \varepsilon \mid (r, \{ r \}) \in \Gamma$.\\\\}
+{The only reduction that can add effects to $\varepsilon$ is $r.\pi$. So at some point, an expression of the form $r.\pi$ must have been evaluated. In the source program it must have had the form $e.\pi$. Since the entire program typechecked under $\Gamma$, $e$ must have been typed to $\{ r \}$ at some point. Since resources cannot be dynamically created, $(r, \{ r \}) \in \Gamma$. \\
+
+\noindent
+\fbox{Intuition.} If you typecheck $e$ with $\Gamma$, if an effect can happen on $r$ when executing $e$ then $r$ must be in $\Gamma$.
+\\\\}
+
+\thm{Lemma 3.5. (Tightening Lemma)}
+{If $\Gamma \vdash e : \type{\tau}{\varepsilon}$ then $\Gamma \cap \keywadj{freevars}(e) \vdash e : \type{\tau}{\varepsilon}$. \\\\
+}{The typing judgements operate on the form of $e$, so don't consider any variables external to $e$.\\
+}
+
+\noindent
+\fbox{Note.} We'll use $\keywadj{freevars}(e) \cap \Gamma$ to mean $\Gamma$, where the pair $(x,\tau)$ is thrown out if $x \notin \keywadj{freevars}(e)$. \\
+
+\noindent
+\fbox{Intuition.} If you can typecheck $e$ in $\Gamma$, you can throw out the parts in $\Gamma$ not relevant to $e$ and still typecheck it.\\\\
+
+\thm{Theorem 3.6. (Extension Lemma)}
+{If the following are true:
+	\begin{itemize}
+		\item $v_1 = \keyw{new} x \Rightarrow d_i = e_i$
+		\item $d_i = \keyw{def} m_i(y: \tau_2) : \tau_3$
+		\item $\Gamma \vdash d_i = e_i~\keywadj{OK}$
+		\item $\Gamma \vdash v_2 : \tau_2~\keyw{with} \varepsilon_2$
+		\item $[v_1/x, v_2/y]e_i \longrightarrow_* e_i'~|~\varepsilon$
+	\end{itemize}
+Then $\exists \varepsilon_i \mid \varepsilon \subseteq \varepsilon_i \subseteq \keywadj{effects}(\Gamma)$. Letting $\sigma_i = d_i~\keyw{with} \varepsilon_i$, then also $\sigma_i = e_i~\keywadj{OK}$.\\
+
+\noindent
+\fbox{Intuition.} This lemma says that we can take an unlabeled object $v_1$ with one method and produce a labeled object with one method, whose static effects contain all of the possible runtime effects. This $\varepsilon_i$ is just going to be everything captured by the method body.\\
+
+\noindent
+\fbox{Note.} In this theorem we only consider objects with a single method $m_i$. Later we generalise the result to objects with any number of methods.\\\\
+}
+{Let $\Gamma' = (\keywadj{freevars}(e_i) \cup \keywadj{freevars}(v_1)) \cap \Gamma$. Our $\varepsilon_i$ will be $\keywadj{effects}(\Gamma')$. \\
+
+\noindent
+By the Tightening Lemma, $\Gamma' \vdash d_i = e_i~\keywadj{OK}$. The only rule with this conclusion is \textsc{$\varepsilon$-ValidImpl$_d$}. By inversion , $\Gamma', y : \tau_2 \vdash e_i : \tau_3$. This lets us apply \textsc{C-Inference}, with the entirety of $\Gamma'$ as our subcontext. Then $\Gamma' \vdash e_i : \tau_3~\keyw{with} \keyw{effects}(\Gamma')$. By the Tightening Lemma again, $\Gamma' \vdash v_2 : \type{\tau_2}{\varepsilon_2}$. By the Substitution Lemma, $\Gamma' \vdash [v_1/x, v_2/y]e_i : \tau_3~\keyw{with} \keyw{effects}(\Gamma')$.\\
+
+\noindent
+Since $[v_1/x, v_2/y]e_i \longrightarrow_* e_i'~|~\varepsilon$ and $\Gamma'$ can typecheck the expression before reduction, then $\varepsilon \subseteq \keywadj{effects}(\Gamma')$. Since $\Gamma' \subseteq \Gamma$, by monotonicity, $\varepsilon \subseteq \keywadj{effects}(\Gamma') \subseteq \keywadj{effects}(\Gamma)$. So $\keywadj{effects}(\Gamma')$ is a witness to the $\varepsilon_i$ in the statement of the lemma.
+
+\noindent
+Finally, $\Gamma' \vdash \sigma_i = e_i$ under $\varepsilon_\sigma$. Since $\Gamma' \subseteq \Gamma$, then $\Gamma \vdash \sigma_i = e_i$ also.
+\\\\
+}
+
+
+\thm{Lemma 3.7. (Extension Theorem)}
+{If  $v_1 = \keyw{new} x \Rightarrow \overline{d = e}$ and $\forall i$ the following are true:
+	\begin{itemize}
+		\item $d_i = \keyw{def} m_i(y: \tau_2) : \tau_3$
+		\item $\Gamma \vdash d_i = e_i~\keywadj{OK}$
+		\item $\Gamma \vdash v_2 : \tau_2~\keyw{with} \varepsilon_2$
+		\item $[v_1/x, v_2/y]e_i \longrightarrow_* v~|~\varepsilon$
+	\end{itemize}
+	Then $\exists \varepsilon_1, ..., \varepsilon_n \mid \varepsilon \subseteq \bigcup\limits_{i=1}^{n} \varepsilon_i \subseteq \keywadj{effects}(\Gamma)$. Letting $\sigma_i = d_i~\keyw{with} \varepsilon_i$ then also $\Gamma \vdash \keyw{new} x \Rightarrow \overline{\sigma = e}~\keyw{with~\varnothing}$ \\
+	
+	
+\noindent
+\fbox{Intuition.} ~Any unlabeled object can be extended to a labeled object, whose labels contain every possible runtime effect.\\\\}
+{From Single-Method Extension we know that  $\forall i \exists \varepsilon_i \mid \varepsilon \subseteq \varepsilon_i \subseteq \keywadj{effects}(\Gamma)$, and that the statement holds for each $i$. Then $\bigcup\limits_{i=1}^{n} \varepsilon_i \subseteq \keywadj{effects}(\Gamma)$. It also tells us that $\sigma_i = e_i~\keywadj{OK}$, so $\overline{\sigma = e}~\keywadj{OK}$. Then by \textsc{$\varepsilon$-NewObj} we have the claimed typing judgement.\\}
+	
+	
+
+
+\begin{large}
+\bf{Definition 3.8. ($\keywadj{label}$)}
+\end{large}
+
+\noindent
+The Extension Theorem essentially says that any unlabeled program can be extended to a fully-labeled one, whose labels give a conservative upper-bound on the possible runtime effects. We define a program-transforming function called $\keywadj{label}$ which does this.
+
+\begin{itemize}
+	\item $\keywadj{label}(r)$ = r
+	\item $\keywadj{label}(x)$ = x
+	\item $\keywadj{label}(e_1.m(e_2)) = \keywadj{label}(e_1).m(\keywadj{label}(e_2))$
+	\item $\keywadj{label}(e_1.\pi(e_2)) = \keywadj{label}(e_1).\pi(\keywadj{label}(e_2))$
+	\item $\keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e})$
+	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}) = \keyw{new_\sigma} x \Rightarrow \keywadj{label \hyphen helper}(\overline{d = e})$
+	\item $\keywadj{label \hyphen helper}(\sigma = e) = \sigma = \keywadj{label}(e)$
+	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \Gamma \cap \keywadj{freevars}(e) = \keywadj{label}(e)$
+\end{itemize}
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+\item The program after labeling will be fully-labeled and contain terms entirely from the grammar for fully-labeled programs. Hence we can appeal to the soundness of that system.
+\item $\keywadj{label}$ is defined on expressions; $\keywadj{label \hyphen helper}$ on declarations. This is just for clarity; everywhere other than this section we'll only use $\keywadj{label}$.
+\item Initially it seems like $\keywadj{label}$ on a $\keywadj{new_\sigma}$ object should just be the identity function; but the body of the methods of such an object may instantiate unlabeled objects and/or call methods on unlabeled objects, so we must recursively label those.
+\item From here on out we will use $\hat e$ to refer to a fully-labeled program. We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to the labeled version of $e$. At least until we've established this transformation preserves types, we'll use $\hat \tau$ and $\hat \varepsilon$ to refer to the types and effects of $\hat e$.
+\end{itemize}
+
+
+
+\thm{Theorem 5.9. (Refinement Theorem)}
+{If $\Gamma \vdash e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$ and $\Gamma \vdash \hat e : \hat \tau~\keyw{with} \hat \varepsilon$, then $\hat \varepsilon \subseteq \varepsilon$ and $\tau = \hat \tau$.\\
+
+\noindent
+\fbox{Intuition.}~~~Labels can only make the static effects more precise; never less precise.
+\\\\
+}
+{By induction on the judgement $\Gamma \vdash e : \type{\tau}{\varepsilon}$.\\
+
+\proofcase{\textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Var}}{
+	If $e$ is a resource or a variable then $e = \hat e$ so the statement is automatically fulfilled.\\
+}
+
+\proofcase{\textsc{$\varepsilon$-OperCall}} {
+Then $e = e_1.\pi$ and we know:
+\begin{itemize}
+	\item $\Gamma \vdash e : \type{\keywadj{Unit}}{ \{ r.\pi \} \cup \varepsilon_1 }$
+	\item $\Gamma \vdash e_1 : \type{ \{ \bar r \} }{\varepsilon_1}$
+\end{itemize}
+Applying definitions, $\hat e = \keywadj{label}(e_1.\pi) = (\keywadj{label}(e_1)).\pi = \hat e_1.\pi$. By inductive assumption, $\Gamma \vdash \hat e_1 : \type{ \{ \bar r \} }{\hat \varepsilon_1}$, where $\hat \varepsilon_1 \subseteq \varepsilon_1$. Then $\Gamma \vdash \hat e : \type{\keywadj{Unit}}{ \{ r.\pi \} \cup \hat \varepsilon_1 }$ by \textsc{$\varepsilon$-OperCall}. Importantly, $\{ r.\pi \} \cup \hat \varepsilon_1 \subseteq \{ r.\pi \} \cup \varepsilon_1$ as claimed.\\
+}
+
+\proofcase{\textsc{$\varepsilon$-MethCall}} {
+Then $e = e_1.m_i(e_2)$ and we know:
+\begin{itemize}
+	\item $\Gamma \vdash e : \type{\tau_3}{\varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}$
+	\item $\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1$
+	\item $\Gamma \vdash e_2 : \type{\tau_2}{\varepsilon_2}$
+	\item $\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau_3~\keyw{with} \varepsilon_3$ 
+\end{itemize}
+Applying definitions, $\hat e = \keywadj{label}(e_1.m_i(e_2)) = (\keywadj{label}(e_1)).m_i(\keywadj{label}(e_2)) = \hat e_1.m_i(\hat e_2)$. By inductive assumption, $\Gamma \vdash \hat e_1 : \{ \bar \sigma \}~\keyw{with} \hat \varepsilon_1$ and $\Gamma \vdash \hat e_2 : \type{\tau_2}{\hat \varepsilon_2}$, where $\hat \varepsilon_1 \subseteq \varepsilon_1$ and $\hat \varepsilon_2 \subseteq \varepsilon_2$. Then $\Gamma \vdash \hat e : \tau_3~\keyw{with} \hat \varepsilon_1 \cup \hat \varepsilon_2 \cup \varepsilon_3$ under \textsc{$\varepsilon$-MethCall}. Importantly, $\hat \varepsilon_1 \cup \hat \varepsilon_2 \cup \varepsilon_3 \subseteq \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$ as claimed.\\
+}
+
+
+\proofcase{\textsc{C-MethCall}} {
+Then $e = e_1.m_i(e_2)$ and we know:
+\begin{itemize}
+	\item $\Gamma \vdash e : \type{\tau_3}{\varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}$
+	\item $\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon_c \}~\keyw{with} \varepsilon_1$
+	\item $\Gamma \vdash e_2 : \type{\tau_2}{\varepsilon_2}$
+	\item $d_i = \keyw{def} m_i(y : \tau_2) : \tau_3$ 
+\end{itemize}
+The reasoning is the same as the above case, but use \textsc{C-MethCall} instead of \textsc{$\varepsilon$-MethCall}.\\
+}
+
+\proofcase{\textsc{C-Inference}}{
+We know:
+\begin{itemize}
+	\item $\Gamma' \subseteq \Gamma$
+	\item $\Gamma' \vdash e : \tau$
+	\item $\Gamma \vdash e : \tau~\keyw{with} \keywadj{effects}(\Gamma')$
+\end{itemize}
+	\textbf{This one's kind of interesting. There aren't any judgements of the form $e : \tau~\keyw{with} \varepsilon$ so we can't use the induction hypothesis, right?\\}
+}
+	
+\proofcase{\textsc{$\varepsilon$-NewObj}}{
+Then $e = e_1.m_i(e_2)$ and we know:
+\begin{itemize}
+	\item $\Gamma \vdash e : \type{\tau_3}{\varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}$
+	\item $\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon_c \}~\keyw{with} \varepsilon_1$
+	\item $\Gamma \vdash e_2 : \type{\tau_2}{\varepsilon_2}$
+	\item $d_i = \keyw{def} m_i(y : \tau_2) : \tau_3$ 
+\end{itemize}
+The reasoning is the same as the above case, but use \textsc{C-MethCall} instead of \textsc{$\varepsilon$-MethCall}.\\
+}
+}
+
+
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
