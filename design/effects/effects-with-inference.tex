@@ -440,92 +440,120 @@ If $z$ appears in the body of $e_i$ then $\Gamma, z : \tau \vdash d_i = e_i~\key
 \noindent
 \fbox{Intuition.} If you can typecheck $e$ in $\Gamma$, you can throw out the parts in $\Gamma$ not relevant to $e$ and still typecheck it.\\\\
 
-\thm{Theorem 3.6. (Extension Lemma)}
-{If the following are true:
-	\begin{itemize}
-		\item $v_1 = \keyw{new} x \Rightarrow d_i = e_i$
-		\item $d_i = \keyw{def} m_i(y: \tau_2) : \tau_3$
-		\item $\Gamma \vdash d_i = e_i~\keywadj{OK}$
-		\item $\Gamma \vdash v_2 : \tau_2~\keyw{with} \varepsilon_2$
-		\item $[v_1/x, v_2/y]e_i \longrightarrow_* e_i'~|~\varepsilon$
-	\end{itemize}
-Then $\exists \varepsilon_i \mid \varepsilon \subseteq \varepsilon_i \subseteq \keywadj{effects}(\Gamma)$. Letting $\sigma_i = d_i~\keyw{with} \varepsilon_i$, then also $\sigma_i = e_i~\keywadj{OK}$.\\
-
-\noindent
-\fbox{Intuition.} This lemma says that we can take an unlabeled object $v_1$ with one method and produce a labeled object with one method, whose static effects contain all of the possible runtime effects. This $\varepsilon_i$ is just going to be everything captured by the method body.\\
-
-\noindent
-\fbox{Note.} In this theorem we only consider objects with a single method $m_i$. Later we generalise the result to objects with any number of methods.\\\\
-}
-{First we need to type $e_i$ in $\Gamma$ with some set $\varepsilon_i$ of static effects satisfying the theorem statement. Proceed by induction on the form of $e_i$.\\
-
-\noindent
-By the Tightening Lemma, $\Gamma' \vdash d_i = e_i~\keywadj{OK}$. The only rule with this conclusion is \textsc{$\varepsilon$-ValidImpl$_d$}. By inversion , $\Gamma', y : \tau_2 \vdash e_i : \tau_3$. Our goal is now to type $e_i$ with an effect $\varepsilon_i$ which satisfies the theorem statement. To do that we shall induct on the forms of $e_i$. \\
-
-\proofcase{$e_i = r$}{
-Since $\Gamma \vdash e_i : \tau_3$, if $e_i$ is a resource the only rule that could have been applied is \textsc{T-Resource}. From that rule we may conclude $r \in \Gamma$. Then by application of \textsc{$\varepsilon$-Resource} we know that $\Gamma \vdash e_i : \tau_3~\keyw{with} \varnothing$. Resources are values and cannot be reduced; the multi-step must be zero small steps, hence $\varepsilon = \varnothing = \varepsilon' \subseteq \keywadj{effects}(\Gamma)$.\\
-}
-
-\proofcase{$e_i = e_1.\pi$}{
-By induction $\Gamma \vdash e_1 : \tau_1~\keyw{with} \varepsilon_1$.\\
-}
-
-This lets us apply \textsc{C-Inference}, with the entirety of $\Gamma'$ as our subcontext. Then $\Gamma' \vdash e_i : \tau_3~\keyw{with} \keyw{effects}(\Gamma')$. By the Tightening Lemma again, $\Gamma' \vdash v_2 : \type{\tau_2}{\varepsilon_2}$. By the Substitution Lemma, $\Gamma' \vdash [v_1/x, v_2/y]e_i : \tau_3~\keyw{with} \keyw{effects}(\Gamma')$.\\
-
-\noindent
-Since $[v_1/x, v_2/y]e_i \longrightarrow_* e_i'~|~\varepsilon$ and $\Gamma'$ can typecheck the expression before reduction, then $\varepsilon \subseteq \keywadj{effects}(\Gamma')$. Since $\Gamma' \subseteq \Gamma$, by monotonicity, $\varepsilon \subseteq \keywadj{effects}(\Gamma') \subseteq \keywadj{effects}(\Gamma)$. So $\keywadj{effects}(\Gamma')$ is a witness to the $\varepsilon_i$ in the statement of the lemma. \\
-
-\noindent
-Finally, $\Gamma' \vdash \sigma_i = e_i$ under $\varepsilon_\sigma$. Since $\Gamma' \subseteq \Gamma$, then $\Gamma \vdash \sigma_i = e_i$ also.
-\\\\
-}
-
-
-\thm{Lemma 3.7. (Extension Theorem)}
-{If  $v_1 = \keyw{new} x \Rightarrow \overline{d = e}$ and $\forall i$ the following are true:
-	\begin{itemize}
-		\item $d_i = \keyw{def} m_i(y: \tau_2) : \tau_3$
-		\item $\Gamma \vdash d_i = e_i~\keywadj{OK}$
-		\item $\Gamma \vdash v_2 : \tau_2~\keyw{with} \varepsilon_2$
-		\item $[v_1/x, v_2/y]e_i \longrightarrow_* e_i'~|~\varepsilon$
-	\end{itemize}
-	Then $\exists \varepsilon_1, ..., \varepsilon_n \mid \varepsilon \subseteq \varepsilon_i \subseteq \keywadj{effects}(\Gamma)$. Letting $\sigma_i = d_i~\keyw{with} \varepsilon_i$ then also $\Gamma \vdash \keyw{new} x \Rightarrow \overline{\sigma = e}~\keyw{with~\varnothing}$ \\
-	
-	
-\noindent
-\fbox{Intuition.} ~Any unlabeled object can be extended to a labeled object, whose labels contain every possible runtime effect.\\\\}
-{From Single-Method Extension we know that  $\forall i \exists \varepsilon_i \mid \varepsilon \subseteq \varepsilon_i \subseteq \keywadj{effects}(\Gamma)$, and that the statement holds for each $i$. It also tells us that $\sigma_i = e_i~\keywadj{OK}$, so $\overline{\sigma = e}~\keywadj{OK}$. Then by \textsc{$\varepsilon$-NewObj} we have the claimed typing judgement.\\}
-	
-	
-
-
 \begin{large}
-\bf{Definition 3.8. ($\keywadj{label}$)}
+\bf{Definition 3.6. ($\keywadj{label}$)}
 \end{large}
 
-\noindent
-The Extension Theorem essentially says that any unlabeled program can be extended to a fully-labeled one, whose labels give a conservative upper-bound on the possible runtime effects. We define a program-transforming function called $\keywadj{label}$ which does this.
+Given a program containing unlabeled parts we can safely label those parts. This process is well-defined if $\Gamma \vdash e:  \tau$; then we say the labeling of $e$ is $\keywadj{label}(\Gamma, e) = \hat e$.
 
 \begin{itemize}
-	\item $\keywadj{label}(r)$ = r
-	\item $\keywadj{label}(x)$ = x
-	\item $\keywadj{label}(e_1.m(e_2)) = \keywadj{label}(e_1).m(\keywadj{label}(e_2))$
-	\item $\keywadj{label}(e_1.\pi(e_2)) = \keywadj{label}(e_1).\pi(\keywadj{label}(e_2))$
-	\item $\keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e})$
-	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}) = \keyw{new_\sigma} x \Rightarrow \keywadj{label \hyphen helper}(\overline{d = e})$
-	\item $\keywadj{label \hyphen helper}(\sigma = e) = \sigma = \keywadj{label}(e)$
-	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \keywadj{effects}(\Gamma \cap \keywadj{freevars}(e)) = \keywadj{label}(e)$
+	\item $\keywadj{label}(\Gamma, r)$ = r
+	\item $\keywadj{label}(\Gamma, x)$ = x
+	\item $\keywadj{label}(\Gamma, e_1.m(e_2)) = \keywadj{label}(e_1).m(\Gamma, \keywadj{label}(e_2))$
+	\item $\keywadj{label}(\Gamma, e_1.\pi(e_2)) = \keywadj{label}(e_1).\pi(\keywadj{label}(e_2))$
+	\item $\keywadj{label}(\Gamma, \keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label \hyphen helper}(\Gamma, \overline{\sigma = e})$
+	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}) = \keyw{new_\sigma} x \Rightarrow \keywadj{label \hyphen helper}(\Gamma, \overline{d = e})$
+	\item $\keywadj{label \hyphen helper}(\sigma = e) = \sigma = \keywadj{label}(\Gamma, e)$
+	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \keywadj{effects}(\Gamma \cap \keywadj{freevars}(e)) = \keywadj{label}(\Gamma, e)$
 \end{itemize}
 
 \noindent \textbf{Notes:}
 \begin{itemize}
+\item Beware of confusing notation: there are two types of equality in the above definitions. One is the equality which defines $\keywadj{label}$, and the other is the equality $\sigma = e$ of declarations in the programming language.
 \item The program after labeling will be fully-labeled and contain terms entirely from the grammar for fully-labeled programs. Hence we can appeal to the soundness of that system.
 \item $\keywadj{label}$ is defined on expressions; $\keywadj{label \hyphen helper}$ on declarations. This is just for clarity; everywhere other than this section we'll only use $\keywadj{label}$.
 \item Initially it seems like $\keywadj{label}$ on a $\keywadj{new_\sigma}$ object should just be the identity function; but the body of the methods of such an object may instantiate unlabeled objects and/or call methods on unlabeled objects, so we must recursively label those.
 \item From here on out we will use $\hat e$ to refer to a fully-labeled program. We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to the labeled version of $e$ as $\hat e$. We'll use $\hat \tau$ and $\hat \varepsilon$ to refer to its type and static effects.
 \end{itemize}
 
+\thm{Lemma 3.7. (Extension Lemma)}
+{If $\Gamma \vdash e: \tau$ and $e$ is a value then $\hat e = \keywadj{label}(e) = e$ and $\Gamma \vdash e : \type{\tau}{\varepsilon}$.\\\\}
+{Consider the different forms of $e$.
 
+\proofcase{$e = x$}{
+	Then by definition 
+}
+
+\proofcase{$e = r$}{
+}
+
+\proofcase{$e = \newsig$}{
+}
+
+\proofcase{$e = \newd$}{
+}
+}
+
+\thm{Theorem 3.7. (Extension Theorem)}
+{If $\Gamma \vdash e : \tau$ and $e \longrightarrow e'~|~\varepsilon$ and $\hat e = \keywadj{label}(\Gamma, e)$, then $\Gamma \vdash \hat e : \type{\hat \tau}{\hat \varepsilon}$, where $\tau = \hat \tau$ and $\varepsilon \subseteq \hat \varepsilon$. \\
+
+\noindent
+\fbox{Intuition.}~~~If $\Gamma$ can type $e$ without an effect, there is a way to label $e$ with a static effect set $\hat \varepsilon$ which contains the possible runtime effects of $e$ (so it is an upper-bound), and no more than what is contained in the environment $\Gamma$. (\textbf{Also, $\keywadj{effects}(\Gamma)$ is an upper bound but we omit this from the proof to keep it as simple as possible.})
+\\\\}
+{Proceed by induction on $\Gamma \vdash e : \tau$ and then on the reduction $e \longrightarrow e'~|~\varepsilon$.\\
+
+\proofcase{\textsc{T-Var}, \textsc{T-Resource}, \textsc{T-New$_\sigma$}, \textsc{T-New$_d$}}{
+Then $e$ is a value and no reduction can be applied to it. Theorem statement holds immediately.\\
+}
+
+
+\proofcase{\textsc{T-OperCall}}{
+Then the following are known:
+\begin{itemize}
+	\item $e = e_1.\pi$
+	\item $\Gamma \vdash e_1 : \{ \bar r \}$
+	\item $\Gamma \vdash e_1.\pi : \keywadj{Unit}$
+\end{itemize}
+There are two reduction rules which could be applied to $e_1.\pi$.\\
+
+	\subcase{\textsc{E-OperCall1}.
+		Then we know $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$, and $e_1 \rightarrow e_1'~|~\varepsilon$. Because $\Gamma \vdash e_1 : \{ \bar r \}$ by assumption of the typing rule, we may apply the inductive assumption. Then $\Gamma \vdash \hat e_1 : \type{\{ \bar r \}}{\hat \varepsilon_1$, where $\varepsilon \subseteq \hat \varepsilon_1$ and $\hat e_1 = \keywadj{label}(\Gamma, e_1)$.\\
+
+\noindent
+By definition $\hat e = \keywadj{label}(\Gamma, e) = \keywadj{label}(\Gamma, e_1.\pi) = (\keywadj{label}(\Gamma, e_1)).\pi = \hat e_1.\pi$. We just established $\Gamma \vdash \hat e_1 : \type{\{ \bar r \}}{\hat \varepsilon}$, so fulfill the requirements of \textsc{$\varepsilon$-OperCall} and can type $\hat e = \hat e_1.\pi$ with the judgement $\Gamma \vdash \hat e_1.\pi : \type{\keywadj{Unit}}{\{ r.\pi \} \cup \hat \varepsilon_1}$. \\
+
+\noindent
+$\varepsilon \subseteq \hat \varepsilon_1$ is an inductive assumption; so $\varepsilon \subseteq \hat \varepsilon_1 \cup \{ r.\pi \} = \hat \varepsilon$. Also, $\hat \tau = \keywadj{Unit} = \tau$.\\
+		}
+	}
+	
+	\subcase{\textsc{E-OperCall2}.
+		Then we know $e = r.\pi$ and $r.\pi \longrightarrow \keywadj{Unit}~|~\{ r.\pi \}$. By definition $\hat e = \keywadj{label}(\Gamma, e) = (\keywadj{label}(\Gamma, r)).\pi = r.\pi = e$, so $\hat e = e$. Then $\hat \tau = \tau$ automatically. We need only show $\varepsilon = r.\pi \in \hat \varepsilon$.\\
+		
+\noindent
+By \textsc{$\varepsilon$-Resource}, $\Gamma \vdash r : \type{ \{ r \} }{\varnothing}$ and by \textsc{$\varepsilon$-OperCall}, $\Gamma \vdash r.\pi : \type{\keywadj{Unit}}{\{ r.\pi \}}$. Since $\hat e = r.\pi$, then $\hat \varepsilon = r.\pi = \varepsilon$.\\
+	}
+}
+
+\proofcase{\textsc{T-MethCall$_\sigma$}}{
+Then the following are known:
+\begin{itemize}
+	\item $e = e_1.m_i(e_2)$
+	\item $\Gamma \vdash e_1 : \{ \bar \sigma \}$
+	\item $\Gamma \vdash e_2 : \tau_2$
+	\item $\Gamma \vdash e_1.m_i(e_2) : \tau_3$
+	\item $\keywadj{def}~m_i(y:\tau_2) : \type{\tau_3}{\varepsilon_3} \in \{ \bar \sigma \}$
+\end{itemize}
+There are three reduction rules which could be applied to $e_1.m_i(e_2)$.
+
+	\subcase{\textsc{E-OperCall1}.
+	Then we know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.m_i(e_2) \longrightarrow e_1'.m_i(e_2)~|~\varepsilon$. Because $\Gamma \vdash e_1 : \{ \bar \sigma \}$ by assumption of the typing rule, we may apply the inductive assumption. Then $\Gamma \vdash \hat e_1 : \type{ \{ \bar \sigma \} }{\hat \varepsilon_1}$, where $\varepsilon \subseteq \hat \varepsilon_1$ and $\hat e_1 = \keywadj{label}(\Gamma, e_1)$.\\
+	
+\noindent
+By definition, $\hat e = \keywadj{label}(e_1.m_i(e_2)) = (\keywadj{label}(e_1)).m_i(\keywadj{label}(e_2)) = \hat e_1.m_i(\hat e_2)$. We just established $\Gamma \vdash \hat e_1 : \type{ \{ \bar \sigma \} }{\hat \varepsilon_1}$.
+
+\noindent
+If $e_2$ is a value then $\hat e_2 = \keywadj{label}(e_2) = e_2$. 
+
+ \textbf{Can we type $\hat e_2$ though?}
+	
+	}
+}
+
+\proofcase{\textsc{T-MethCall$_d$}}{
+Hey
+}
+}
 
 
 \thm{Theorem 3.9. (Refinement Theorem)}
