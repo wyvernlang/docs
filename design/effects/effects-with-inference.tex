@@ -466,25 +466,129 @@ Given a program containing unlabeled parts we can safely label those parts. This
 \item From here on out we will use $\hat e$ to refer to a fully-labeled program. We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to the labeled version of $e$ as $\hat e$. We'll use $\hat \tau$ and $\hat \varepsilon$ to refer to its type and static effects.
 \end{itemize}
 
-\thm{Lemma 3.7. (Extension Lemma)}
-{If $\Gamma \vdash e: \tau$ and $e$ is a value then $\hat e = \keywadj{label}(e) = e$ and $\Gamma \vdash e : \type{\tau}{\varepsilon}$.\\\\}
-{Consider the different forms of $e$.
 
-\proofcase{$e = x$}{
-	Then by definition 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent
+\thm{Lemma 3.7. (Linearity of $\keywadj{label}$ over $\keywadj{substitution}$)}
+{$\keywadj{label}([e'/z]e) = [\keywadj{label}(e')/z](\keywadj{label}(e))$\\\\}
+{Induction on expression $e$.}.
+
+\noindent
+\thm{Lemma 3.8. (Runtime Invariance Under $\keywadj{label}$)}
+{If the following are true:
+	\begin{itemize}
+	\item $\Gamma \vdash e_A : \type{\tau_A}{\varepsilon_A}$
+	\item $e_A \longrightarrow e_B~|~\varepsilon$
+	\item $\hat e_A = \keywadj{label}(e_A, \Gamma)$
+	\end{itemize}
+Then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$ and $\hat e_B = \keywadj{label}(e_B, \Gamma)$.\\\\
+}
+{Induct on the form of $e_A$ and then on the reduction rule $e_A \longrightarrow e_B~|~\varepsilon$.\\
+
+\proofcase{$e=r$, $e=x$, $e=\newsig$, $e=\newd$}{
+	Then $e$ is a value and the theorem statement holds automatically.\\
 }
 
-\proofcase{$e = r$}{
+\proofcase{$e=e_1.\pi$}{
+The only typing rule which applies is \textsc{$\varepsilon$-OperCall}, which tells us:
+	\begin{itemize}
+		\item $\Gamma \vdash e_1 : \type{ \{ r \} }{\varepsilon_1}$
+		\item $\Gamma \vdash e_1.\pi : \type{\keywadj{Unit}}{\varepsilon_1 \cup \{ r.\pi \}}$
+	\end{itemize}
+\noindent
+There are two possible reductions. \\
+
+\subcase{\textsc{E-OperCall1}. We also know $e_1 \longrightarrow e_1'~|~\varepsilon$, and $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. By inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, and $\hat e_1' = \keywadj{label}(e_1', \Gamma)$. Applying definitions, $\hat e_A = \keywadj{label}(e_1.\pi, \Gamma) = (\keywadj{label}(e_1, \Gamma)).\pi = \hat e_1.\pi$. Because $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, we may apply the reduction \textsc{E-OperCall1} to obtain $\hat e_1.\pi \longrightarrow \hat e_1'.\pi~|~\varepsilon$. Lastly, $\hat e_B = \keywadj{label}(e_1'.\pi, \Gamma) = (\keywadj{label}(e_1', \Gamma)).\pi$, which we know to be $\hat e_1'.\pi$ by inductive assumption.\\
 }
 
-\proofcase{$e = \newsig$}{
+\subcase{\textsc{E-OperCall2}. We also know $e_1 = r$ and $r.\pi \longrightarrow \keywadj{Unit}~|~\{ r.\pi \}$. Applying definitions, $\hat e_A = \keywadj{label}(r.\pi) = (\keywadj{label}(r)).\pi = r.\pi = e_A$. The theorem holds immediately.\\
+
+}
+}
+	
+\proofcase{$e=e_1.m_i(e_2)$}{
+\noindent
+There are five possible reductions. \\
+
+\subcase{ \textsc{E-MethCall1}. We also know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.m_i(e_2) \longrightarrow e_1'.m_i(e_2)~|~\varepsilon$. By inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, and $\keywadj{label}(e_1', \Gamma) = \hat e_1'$. Applying definitions $\hat e_A = \keywadj{label}(e_1.m_i(e_2), \Gamma) = (\keywadj{label}(e_1), \Gamma).m_i(\keywadj{label}(e_2), \Gamma) = \hat e_1.m_i(\hat e_2)$. Because $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, we may apply the reduction \textsc{E-MethCall1} to obtain $\hat e_1.m_i(\hat e_2) \longrightarrow \hat e_1'.m_i(\hat e_2)~|~\varepsilon$. Lastly, $\hat e_B = \keywadj{label}(e_1'.m_i(\hat e_2), \Gamma) = \\ (\keywadj{label}(e_1'), \Gamma).m_i(\keywadj{label}(e_2), \Gamma)$, which we know to be $\hat e_1'.m_i(\hat e_2) = \hat e_B$ by assumptions.\\
+
 }
 
-\proofcase{$e = \newd$}{
+\subcase{ \textsc{E-MethCall2$_\sigma$}. We also know $e_1 = v_1 = \newsig$, and $e_2 \longrightarrow e_2'~|~\varepsilon$ and $v_1.m_i(e_2) \longrightarrow v_1.m_i(e_2')~|~\varepsilon$. By inductive assumption, $\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon$, and $\keywadj{label}(e_2', \Gamma) = \hat e_2'$. Applying definitions, $\hat e_A = \keywadj{label}(v_1.m_i(e_2), \Gamma) = (\keywadj{label}(v_1, \Gamma)).m_i(\keywadj{label}(e_2, \Gamma)) = \hat v_1.m_i(\hat e_2)$. Because $\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon$, we may apply the reduction \textsc{E-MethCall$_\sigma$} to obtain $\hat v_1.m_i(\hat e_2) \longrightarrow \hat v_1.m_i(\hat e_2')$. Lastly, $\hat e_B = \keywadj{label(v_1.m_i(e_2')} = (\keywadj{label}(v_1)).m_i(\keywadj{label}(e_2'))$, which we know to be $\hat v_1.m_i(\hat e_2')$ by assumptions. \\
+}
+
+\subcase{ \textsc{E-MethCall2$_d$}. Identical to the above subcase, but $e_1 = v_1 = \newd$, and we apply the reduction rule \textsc{E-MethCall$_d$} instead. 
+\\}
+
+
+\subcase{ \textsc{E-MethCall3$_\sigma$}. We also know the following:
+\begin{itemize}
+	\item $e_1 = v_1 = \newsig$
+	\item $e_2 = v_2$
+	\item $\keywadj{def~} m_i(y : \tau_2) : \type{\tau_3}{\varepsilon_3} = e_{body} \in \{ \bar \sigma \}$
+	\item $v_1.m_i(v_2) \longrightarrow [v_1/x, v_2/y]e_{body}~|~\varnothing$.
+\end{itemize}
+
+}
+
+
+}
+	
+	
+
+\proofcase{\textsc{$\varepsilon$-OperCall}}{
+	Then we know the following:
+	\begin{itemize}
+		\item $e_A = e_1.\pi$
+		\item $\Gamma \vdash e_1 : \type{\{ r \}}{\varepsilon_1}$
+		\item $\Gamma \vdash e_1.\pi : \type{\keywadj{Unit}}{\{ r.\pi \} \cup \varepsilon_1}$
+	\end{itemize}
+\noindent
+There are two reductions which apply. \\
+
+	\subcase{ \textsc{E-OperCall1.} Then you also know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. Applying definitions, $\hat e_A = \keywadj{label}(e_1.\pi) = (\keywadj{label}(e_1)).\pi = \hat e_1.\pi$. Applying inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, where $\hat e_1' = \keywadj{label}(e_1')$. Because of this we may apply \textsc{E-OperCall1}, giving $\hat e_1.\pi \longrightarrow \hat e_1'.\pi$. Lastly, $\keywadj{label}(e_1'.\pi) = (\keywadj{label}(e_1')).\pi = \hat e_1'.\pi$. \\
+	}
+	
+	\subcase{ \textsc{E-OperCall2.} Then you also know $e_1 = r$ and $r.\pi \longrightarrow \keywadj{Unit}~|~\{ r.\pi \}$. Applying definitions, $\hat e_A = \keywadj{label}(r.\pi) = (\keywadj{label}(r)).\pi = r.\pi = e_A$. The result follows immediately.\\
+	}
+
+}
+
+
+
+
+
+\proofcase{\textsc{$\varepsilon$-MethCall}}{
+	Then we know the following:
+	\begin{itemize}
+		\item $e_A = e_1.m_i(e_2)$
+		\item $\Gamma \vdash e_1 : \type{\{ \bar \sigma \}}{\varepsilon_1}$
+		\item $\Gamma \vdash e_2 : \type{\tau_2}{\varepsilon_2}$
+		\item $\sigma_i = \keywadj{def}~m_i(y : \tau_2) : \type{\tau_3}{\varepsilon_3}$
+		\item $\Gamma \vdash e_1.m_i(e_2) : \type{\tau_3}{\varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}$
+	\end{itemize}
+\noindent
+There are three reductions which apply. \\
+
+\subcase{ \textsc{E-MethCall1} Then we also know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.m(e_2) \longrightarrow e_1'.m(e_2)~|~\varepsilon$.
+}
+
 }
 }
 
-\thm{Theorem 3.7. (Extension Theorem)}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\thm{Theorem 3.9. (Extension Theorem)}
 {If $\Gamma \vdash e : \tau$ and $e \longrightarrow e'~|~\varepsilon$ and $\hat e = \keywadj{label}(\Gamma, e)$, then $\Gamma \vdash \hat e : \type{\hat \tau}{\hat \varepsilon}$, where $\tau = \hat \tau$ and $\varepsilon \subseteq \hat \varepsilon$. \\
 
 \noindent
@@ -556,7 +660,7 @@ Hey
 }
 
 
-\thm{Theorem 3.9. (Refinement Theorem)}
+\thm{Theorem 3.10. (Refinement Theorem)}
 {If $\Gamma \vdash e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$, then $\Gamma \vdash \hat e : \hat \tau~\keyw{with} \hat \varepsilon$, where $\hat \varepsilon \subseteq \varepsilon$ and $\tau = \hat \tau$.\\
 
 \noindent
@@ -644,29 +748,12 @@ Then $e = \newd$ and we know:
 }
 }
 
-\thm{Theorem 3.10. (Soundness Theoerm)}
+\thm{Theorem 3.11. (Soundness Theoerm)}
 {If $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon$ then $\Gamma \vdash e_B : \tau_B~\keyw{with} \varepsilon_B$, where $\tau_B = \tau_A$ and $\varepsilon \subseteq \varepsilon_A$.\\\\}
-{Induct on the typing judgement for $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$ and then on the evaluation rule used for $e_A \longrightarrow e_B~|~\varepsilon$. Since we've shown soundness for the rules from the fully-labeled program we only consider the new rules.\\
+{Let $\hat e_A = \keywadj{label}(e_A)$. By Refinement Theorem, $\Gamma \vdash \hat e_A : \type{\hat \tau_A}{\hat \varepsilon_A}$, where $\tau_A = \hat \tau_A$ and $\hat \varepsilon_A \subseteq \varepsilon_A$. By Invariance Of Runtime Under $\keywadj{label}$, we know $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$. Since $\hat e_A$ is a fully-labeled program, by Soundness of $\varepsilon$ rules, we know $\Gamma \vdash \hat e_B : \type{\hat \tau_A}{\hat \varepsilon_B}$ where $\varepsilon \subseteq \hat \varepsilon_A$. By Runtime Invariance Under $\keywadj{label}$, $\keywadj{label}(e_B) = \hat e_B$.  By Refinement Theorem, $\Gamma \vdash \hat e_B : \type{\tau_B}{\hat \varepsilon_B}$. \\
 
-\proofcase{\textsc{C-NewObj}}
-{Then $e_A = \newd$ is a value. It cannot be reduced; the theorem statement holds immediately. \\
-}
-
-\proofcase{\textsc{C-Inference}}
-{Then we know:
-\begin{itemize}
-	\item $\Gamma' \subseteq \Gamma$
-	\item $\varepsilon_A = \keywadj{effects}(\Gamma')$
-	\item $\Gamma' \vdash e_A : \tau_A$
-\end{itemize}
-Considering the context $\Gamma'$ we can apply $\textsc{C-Inference}$ again, picking $\Gamma' \subseteq \Gamma'$ as our sub-subcontext. Then $\Gamma' \vdash e_A : \tau~\keyw{with} \keywadj{effects}(\Gamma')$. By the Use Principle, $\varepsilon \subseteq \keywadj{effects}(\Gamma')$.\\
-}
-
-\proofcase{\textsc{C-MethCall}}
-{
-Let $\keywadj{label}(e_A) = \hat e_A$. $\keywadj{label}$ only changes static type information and doesn't affect the runtime semantics of a program, so the same reduction in the theorem statement can be applied to $\hat e_A$. Therefore $\hat e_A \longrightarrow e_B~|~\varepsilon$. Since $\hat e_A$ is a fully-labeled program we can appeal to the safety of the judgements on those programs. So $\Gamma \vdash e_B : \tau_B~\keyw{with} \varepsilon_B$ and $\varepsilon \subseteq \hat \varepsilon_A$ by soundness. By the Refinement Theorem, $\hat \varepsilon_A \subseteq \varepsilon_A$, so $\varepsilon \subseteq \varepsilon_A$. 
-
-}
+\noindent
+Putting this all together we know $\tau_A = \hat \tau_A = \tau_B$ and $\varepsilon \subseteq \hat \varepsilon_A \subseteq \varepsilon_A$.
 }
 
 \end{document}
