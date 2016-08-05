@@ -447,23 +447,25 @@ If $z$ appears in the body of $e_i$ then $\Gamma, z : \tau \vdash d_i = e_i~\key
 Given a program containing unlabeled parts we can safely label those parts. This process is well-defined if $\Gamma \vdash e:  \tau$; then we say the labeling of $e$ is $\keywadj{label}(\Gamma, e) = \hat e$.
 
 \begin{itemize}
-	\item $\keywadj{label}(\Gamma, r)$ = r
-	\item $\keywadj{label}(\Gamma, x)$ = x
-	\item $\keywadj{label}(\Gamma, e_1.m(e_2)) = \keywadj{label}(e_1).m(\Gamma, \keywadj{label}(e_2))$
-	\item $\keywadj{label}(\Gamma, e_1.\pi(e_2)) = \keywadj{label}(e_1).\pi(\keywadj{label}(e_2))$
-	\item $\keywadj{label}(\Gamma, \keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label \hyphen helper}(\Gamma, \overline{\sigma = e})$
-	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}) = \keyw{new_\sigma} x \Rightarrow \keywadj{label \hyphen helper}(\Gamma, \overline{d = e})$
-	\item $\keywadj{label \hyphen helper}(\sigma = e) = \sigma = \keywadj{label}(\Gamma, e)$
-	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \keywadj{effects}(\Gamma \cap \keywadj{freevars}(e)) = \keywadj{label}(\Gamma, e)$
+	\item $\keywadj{label}(r, \Gamma)$ = r
+	\item $\keywadj{label}(x, \Gamma)$ = x
+	\item $\keywadj{label}(e_1.m(e_2), \Gamma) = \keywadj{label}(e_1, \Gamma).m(\keywadj{label}(e_2), \Gamma)$
+	\item $\keywadj{label}(e_1.\pi(e_2), \Gamma) = \keywadj{label}(e_1, \Gamma).\pi(\keywadj{label}(e_2), \Gamma)$
+	\item $\keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}, \Gamma) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e}, \Gamma)$
+	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}, \Gamma) = \keyw{new_\sigma} x \Rightarrow \keywadj{label \hyphen helper}(\overline{d = e}, \Gamma)$
+	\item $\keywadj{label \hyphen helper}(\sigma = e) = \sigma = \keywadj{label}(e, \Gamma)$
+	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \keywadj{effects}(\Gamma \cap \keywadj{freevars}(e)) = \keywadj{label}(e, \Gamma)$
 \end{itemize}
 
 \noindent \textbf{Notes:}
 \begin{itemize}
+\item $\Gamma \cap \keywadj{freevars}(e)$ is the set of pairs $x : \tau \in \Gamma$, such that $x \in \keywadj{freevars}(e)$.
+\item $\keywadj{label}(e, \Gamma)$ is read as: ``the labeling of $e$ in $\Gamma$''.
 \item Beware of confusing notation: there are two types of equality in the above definitions. One is the equality which defines $\keywadj{label}$, and the other is the equality $\sigma = e$ of declarations in the programming language.
-\item The program after labeling will be fully-labeled and contain terms entirely from the grammar for fully-labeled programs. Hence we can appeal to the soundness of that system.
-\item $\keywadj{label}$ is defined on expressions; $\keywadj{label \hyphen helper}$ on declarations. This is just for clarity; everywhere other than this section we'll only use $\keywadj{label}$.
+\item The program after labeling will be fully-labeled, so typing it will be sound under the $\varepsilon$ rules.
+\item $\keywadj{label}$ is defined on expressions; $\keywadj{label \hyphen helper}$ on declarations. Everywhere other than this section we'll only use $\keywadj{label}$.
 \item Initially it seems like $\keywadj{label}$ on a $\keywadj{new_\sigma}$ object should just be the identity function; but the body of the methods of such an object may instantiate unlabeled objects and/or call methods on unlabeled objects, so we must recursively label those.
-\item From here on out we will use $\hat e$ to refer to a fully-labeled program. We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to the labeled version of $e$ as $\hat e$. We'll use $\hat \tau$ and $\hat \varepsilon$ to refer to its type and static effects.
+\item We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to the labeled version of $e$ as $\hat e$. We'll use $\hat \tau$ and $\hat \varepsilon$ to refer to the type and static effects of the labeled version.
 \end{itemize}
 
 
@@ -474,7 +476,12 @@ Given a program containing unlabeled parts we can safely label those parts. This
 \noindent
 \thm{Lemma 3.7. (Linearity of $\keywadj{label}$ over $\keywadj{substitution}$)}
 {$\keywadj{label}([e'/z]e) = [\keywadj{label}(e')/z](\keywadj{label}(e))$\\\\}
-{Induction on expression $e$.}.
+{Induction on expression $e$.
+
+\proofcase{$e = \newsig$}{
+By definition, $\keywadj{label}([e'/z](\newsig), \Gamma) = \keywadj{label}(\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = [e'/z]e})$, which is $\keywadj{new}_\sigma~x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = [e'/z]e})$. Take any particular $\sigma_i = [e'/z]e_i$. Then $\keywadj{label \hyphen helper}(\sigma_i = [e'/z]e_i)$ is defined as $\sigma_i = \keywadj{label}([e'/z]e_i)$. By inductive assumption, this is the same as $\sigma_i = [\keywadj{label}(e')/z](\keywadj{label}(e_i))$. Therefore, $\keywadj{new}_\sigma~x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = [e'/z]e})$ is the same as $\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = [\keywadj{label}(e')/z]e}$. By ``factoring out'' the substitution, this is the same as $[\keywadj{label}(e')/z](\newsig)$
+}
+}
 
 \noindent
 \thm{Lemma 3.8. (Runtime Invariance Under $\keywadj{label}$)}
@@ -486,7 +493,7 @@ Given a program containing unlabeled parts we can safely label those parts. This
 	\end{itemize}
 Then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$ and $\hat e_B = \keywadj{label}(e_B, \Gamma)$.\\\\
 }
-{Induct on the form of $e_A$ and then on the reduction rule $e_A \longrightarrow e_B~|~\varepsilon$.\\
+{Induct on the form of $e_A$ and then on the reduction rule $e_A \longrightarrow e_B~|~\varepsilon$. Throughout this proof there is only a single context $\Gamma$, so we'll write $\keywadj{label}(e)$ instead of $\keywadj{label}(e, \Gamma)$ as a notational short-hand.\\
 
 \proofcase{$e=r$, $e=x$, $e=\newsig$, $e=\newd$}{
 	Then $e$ is a value and the theorem statement holds automatically.\\
@@ -501,7 +508,7 @@ The only typing rule which applies is \textsc{$\varepsilon$-OperCall}, which tel
 \noindent
 There are two possible reductions. \\
 
-\subcase{\textsc{E-OperCall1}. We also know $e_1 \longrightarrow e_1'~|~\varepsilon$, and $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. By inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, and $\hat e_1' = \keywadj{label}(e_1', \Gamma)$. Applying definitions, $\hat e_A = \keywadj{label}(e_1.\pi, \Gamma) = (\keywadj{label}(e_1, \Gamma)).\pi = \hat e_1.\pi$. Because $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, we may apply the reduction \textsc{E-OperCall1} to obtain $\hat e_1.\pi \longrightarrow \hat e_1'.\pi~|~\varepsilon$. Lastly, $\hat e_B = \keywadj{label}(e_1'.\pi, \Gamma) = (\keywadj{label}(e_1', \Gamma)).\pi$, which we know to be $\hat e_1'.\pi$ by inductive assumption.\\
+\subcase{\textsc{E-OperCall1}. We also know $e_1 \longrightarrow e_1'~|~\varepsilon$, and $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. By inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, and $\hat e_1' = \keywadj{label}(e_1')$. Applying definitions, $\hat e_A = \keywadj{label}(e_1.\pi) = (\keywadj{label}(e_1)).\pi = \hat e_1.\pi$. Because $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, we may apply the reduction \textsc{E-OperCall1} to obtain $\hat e_1.\pi \longrightarrow \hat e_1'.\pi~|~\varepsilon$. Lastly, $\hat e_B = \keywadj{label}(e_1'.\pi) = (\keywadj{label}(e_1')).\pi$, which we know to be $\hat e_1'.\pi$ by inductive assumption.\\
 }
 
 \subcase{\textsc{E-OperCall2}. We also know $e_1 = r$ and $r.\pi \longrightarrow \keywadj{Unit}~|~\{ r.\pi \}$. Applying definitions, $\hat e_A = \keywadj{label}(r.\pi) = (\keywadj{label}(r)).\pi = r.\pi = e_A$. The theorem holds immediately.\\
@@ -513,11 +520,11 @@ There are two possible reductions. \\
 \noindent
 There are five possible reductions. \\
 
-\subcase{ \textsc{E-MethCall1}. We also know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.m_i(e_2) \longrightarrow e_1'.m_i(e_2)~|~\varepsilon$. By inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, and $\keywadj{label}(e_1', \Gamma) = \hat e_1'$. Applying definitions $\hat e_A = \keywadj{label}(e_1.m_i(e_2), \Gamma) = (\keywadj{label}(e_1), \Gamma).m_i(\keywadj{label}(e_2), \Gamma) = \hat e_1.m_i(\hat e_2)$. Because $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, we may apply the reduction \textsc{E-MethCall1} to obtain $\hat e_1.m_i(\hat e_2) \longrightarrow \hat e_1'.m_i(\hat e_2)~|~\varepsilon$. Lastly, $\hat e_B = \keywadj{label}(e_1'.m_i(\hat e_2), \Gamma) = \\ (\keywadj{label}(e_1'), \Gamma).m_i(\keywadj{label}(e_2), \Gamma)$, which we know to be $\hat e_1'.m_i(\hat e_2) = \hat e_B$ by assumptions.\\
+\subcase{ \textsc{E-MethCall1}. We also know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.m_i(e_2) \longrightarrow e_1'.m_i(e_2)~|~\varepsilon$. By inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, and $\keywadj{label}(e_1') = \hat e_1'$. Applying definitions $\hat e_A = \keywadj{label}(e_1.m_i(e_2)) = (\keywadj{label}(e_1)).m_i(\keywadj{label}(e_2)) = \hat e_1.m_i(\hat e_2)$. Because $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, we may apply the reduction \textsc{E-MethCall1} to obtain $\hat e_1.m_i(\hat e_2) \longrightarrow \hat e_1'.m_i(\hat e_2)~|~\varepsilon$. Lastly, $\hat e_B = \keywadj{label}(e_1'.m_i(\hat e_2)) = (\keywadj{label}(e_1')).m_i(\keywadj{label}(e_2))$, which we know to be $\hat e_1'.m_i(\hat e_2) = \hat e_B$ by assumptions.\\
 
 }
 
-\subcase{ \textsc{E-MethCall2$_\sigma$}. We also know $e_1 = v_1 = \newsig$, and $e_2 \longrightarrow e_2'~|~\varepsilon$ and $v_1.m_i(e_2) \longrightarrow v_1.m_i(e_2')~|~\varepsilon$. By inductive assumption, $\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon$, and $\keywadj{label}(e_2', \Gamma) = \hat e_2'$. Applying definitions, $\hat e_A = \keywadj{label}(v_1.m_i(e_2), \Gamma) = (\keywadj{label}(v_1, \Gamma)).m_i(\keywadj{label}(e_2, \Gamma)) = \hat v_1.m_i(\hat e_2)$. Because $\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon$, we may apply the reduction \textsc{E-MethCall$_\sigma$} to obtain $\hat v_1.m_i(\hat e_2) \longrightarrow \hat v_1.m_i(\hat e_2')$. Lastly, $\hat e_B = \keywadj{label(v_1.m_i(e_2')} = (\keywadj{label}(v_1)).m_i(\keywadj{label}(e_2'))$, which we know to be $\hat v_1.m_i(\hat e_2')$ by assumptions. \\
+\subcase{ \textsc{E-MethCall2$_\sigma$}. We also know $e_1 = v_1 = \newsig$, and $e_2 \longrightarrow e_2'~|~\varepsilon$ and $v_1.m_i(e_2) \longrightarrow v_1.m_i(e_2')~|~\varepsilon$. By inductive assumption, $\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon$, and $\keywadj{label}(e_2') = \hat e_2'$. Applying definitions, $\hat e_A = \keywadj{label}(v_1.m_i(e_2)) = (\keywadj{label}(v_1)).m_i(\keywadj{label}(e_2)) = \hat v_1.m_i(\hat e_2)$. Because $\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon$, we may apply the reduction \textsc{E-MethCall$_\sigma$} to obtain $\hat v_1.m_i(\hat e_2) \longrightarrow \hat v_1.m_i(\hat e_2')$. Lastly, $\hat e_B = \keywadj{label}(v_1.m_i(e_2')) = (\keywadj{label}(v_1)).m_i(\keywadj{label}(e_2'))$, which we know to be $\hat v_1.m_i(\hat e_2')$ by assumptions. \\
 }
 
 \subcase{ \textsc{E-MethCall2$_d$}. Identical to the above subcase, but $e_1 = v_1 = \newd$, and we apply the reduction rule \textsc{E-MethCall$_d$} instead. 
@@ -531,49 +538,12 @@ There are five possible reductions. \\
 	\item $\keywadj{def~} m_i(y : \tau_2) : \type{\tau_3}{\varepsilon_3} = e_{body} \in \{ \bar \sigma \}$
 	\item $v_1.m_i(v_2) \longrightarrow [v_1/x, v_2/y]e_{body}~|~\varnothing$.
 \end{itemize}
-
-}
-
-
-}
-	
-	
-
-\proofcase{\textsc{$\varepsilon$-OperCall}}{
-	Then we know the following:
-	\begin{itemize}
-		\item $e_A = e_1.\pi$
-		\item $\Gamma \vdash e_1 : \type{\{ r \}}{\varepsilon_1}$
-		\item $\Gamma \vdash e_1.\pi : \type{\keywadj{Unit}}{\{ r.\pi \} \cup \varepsilon_1}$
-	\end{itemize}
 \noindent
-There are two reductions which apply. \\
-
-	\subcase{ \textsc{E-OperCall1.} Then you also know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. Applying definitions, $\hat e_A = \keywadj{label}(e_1.\pi) = (\keywadj{label}(e_1)).\pi = \hat e_1.\pi$. Applying inductive assumption, $\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon$, where $\hat e_1' = \keywadj{label}(e_1')$. Because of this we may apply \textsc{E-OperCall1}, giving $\hat e_1.\pi \longrightarrow \hat e_1'.\pi$. Lastly, $\keywadj{label}(e_1'.\pi) = (\keywadj{label}(e_1')).\pi = \hat e_1'.\pi$. \\
-	}
-	
-	\subcase{ \textsc{E-OperCall2.} Then you also know $e_1 = r$ and $r.\pi \longrightarrow \keywadj{Unit}~|~\{ r.\pi \}$. Applying definitions, $\hat e_A = \keywadj{label}(r.\pi) = (\keywadj{label}(r)).\pi = r.\pi = e_A$. The result follows immediately.\\
-	}
-
+Applying definitions, $\keywadj{label}(v_1.m_i(v_2)) = (\keywadj{label}(v_1)).m_i(\keywadj{label}(v_2)) = \hat v_1.m_i(\hat v_2)$. Before labeling, the object $v_1$ has method $m_i$ with body $e_{body}$. The labeled version, $\hat v_1$, has method $m_i$ with body $\keywadj{label}(\Gamma, e_{body}) = \hat e_{body}$. Because $\hat v_1$ and $\hat v_2$ are values, we can apply the reduction \textsc{E-MethCall3$_\sigma$} to $\hat v_1.m_i(\hat v_2)$; therefore $\hat v_1.m_i(\hat v_2) \longrightarrow [\hat v_1 / x, \hat v_2 / y]\hat e_{body}~|~\varnothing$. Lastly, because of the linearity of $\keywadj{label}$ over $\keywadj{substitution}$, $\keywadj{label}(e_B) = \keywadj{label}([v_1/x, v_2/y]e_{body}) = [\keywadj{label}(v_1)/x, \keywadj{label}(v_2)/y](\keywadj{label}(e_{body})))$, which is $[\hat v_1/x, \hat v_2/y] \hat e_{body} = \hat e_B$ by assumptions.\\
 }
 
 
-
-
-
-\proofcase{\textsc{$\varepsilon$-MethCall}}{
-	Then we know the following:
-	\begin{itemize}
-		\item $e_A = e_1.m_i(e_2)$
-		\item $\Gamma \vdash e_1 : \type{\{ \bar \sigma \}}{\varepsilon_1}$
-		\item $\Gamma \vdash e_2 : \type{\tau_2}{\varepsilon_2}$
-		\item $\sigma_i = \keywadj{def}~m_i(y : \tau_2) : \type{\tau_3}{\varepsilon_3}$
-		\item $\Gamma \vdash e_1.m_i(e_2) : \type{\tau_3}{\varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}$
-	\end{itemize}
-\noindent
-There are three reductions which apply. \\
-
-\subcase{ \textsc{E-MethCall1} Then we also know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.m(e_2) \longrightarrow e_1'.m(e_2)~|~\varepsilon$.
+\subcase{ \textsc{E-MethCall3$_d$} \textbf{TODO}
 }
 
 }
@@ -647,15 +617,16 @@ There are three reduction rules which could be applied to $e_1.m_i(e_2)$.
 By definition, $\hat e = \keywadj{label}(e_1.m_i(e_2)) = (\keywadj{label}(e_1)).m_i(\keywadj{label}(e_2)) = \hat e_1.m_i(\hat e_2)$. We just established $\Gamma \vdash \hat e_1 : \type{ \{ \bar \sigma \} }{\hat \varepsilon_1}$.
 
 \noindent
-If $e_2$ is a value then $\hat e_2 = \keywadj{label}(e_2) = e_2$. 
+If $e_2$ is a value then $\hat e_2 = \keywadj{label}(e_2) = e_2$. \\
 
- \textbf{Can we type $\hat e_2$ though?}
+\noindent
+ \textbf{Can we type $\hat e_2$ though? Why?\\}
 	
 	}
 }
 
 \proofcase{\textsc{T-MethCall$_d$}}{
-Hey
+\textbf{TODO}
 }
 }
 
@@ -664,7 +635,7 @@ Hey
 {If $\Gamma \vdash e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$, then $\Gamma \vdash \hat e : \hat \tau~\keyw{with} \hat \varepsilon$, where $\hat \varepsilon \subseteq \varepsilon$ and $\tau = \hat \tau$.\\
 
 \noindent
-\fbox{Intuition.}~~~Labels can only make the static effects more precise; never less precise.
+\fbox{Intuition.}~~~Labels can only make the static effects more precise; never less precise. \textbf{Needs to be edited/proofread so it makes sense with the new Extension theorem.}
 \\\\
 }
 {By induction on the judgement $\Gamma \vdash e : \type{\tau}{\varepsilon}$.\\
