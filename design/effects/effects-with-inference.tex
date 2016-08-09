@@ -12,6 +12,7 @@
 \usepackage{calc}
 \usepackage[linewidth=0.5pt]{mdframed}
 \usepackage{changepage}
+\usepackage{tabto}
 \allowdisplaybreaks
 
 \usepackage{fancyhdr}
@@ -25,6 +26,9 @@
 
 \newcommand{\keywadj}[1]{\mathtt{#1}}
 \newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
 \newcommand{\reftt}{\mathtt{ref}~}
 \newcommand{\Reftt}{\mathtt{Ref}~}
 \newcommand{\inttt}{\mathtt{int}~}
@@ -367,7 +371,7 @@ We extend our Substitution function from the previous system in a straightforwar
 	\item $[e'/z]r = r$
 	\item $[e'/z](e_1.m(e_2)) = ([e'/z]e_1).m([e'/z]e_2)$
 	\item $[e'/z](e_1.\pi) = ([e'/z]e_1).\pi$
-	\item $[e'/z](\newd) = \keywadj{new}_\sigma~x \Rightarrow \overline{ \sigma = [e'/z]e }$, if $z \neq x$ and $z \notin \keywadj{freevars}(e_i)$
+	\item $[e'/z](\newd) = \keywadj{new}_d~x \Rightarrow \overline{ \sigma = [e'/z]e }$, if $z \neq x$ and $z \notin \keywadj{freevars}(e_i)$
 	\item $[e'/z](\newsig) = \keywadj{new}_\sigma~x \Rightarrow \overline{ \sigma = [e'/z]e }$, if $z \neq x$ and $z \notin \keywadj{freevars}(e_i)$
 \end{itemize}
 
@@ -451,22 +455,35 @@ Given a program containing unlabeled parts we can safely label those parts. This
 	\item $\keywadj{label}(x, \Gamma)$ = x
 	\item $\keywadj{label}(e_1.m(e_2), \Gamma) = \keywadj{label}(e_1, \Gamma).m(\keywadj{label}(e_2), \Gamma)$
 	\item $\keywadj{label}(e_1.\pi(e_2), \Gamma) = \keywadj{label}(e_1, \Gamma).\pi(\keywadj{label}(e_2), \Gamma)$
-	\item $\keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}, \Gamma) = \keywadj{new}_\sigma x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e}, \Gamma)$
+	\item $\keywadj{label}(\keyw{new_\sigma} x \Rightarrow \overline{\sigma = e}, \Gamma) = \keywadj{new}_\sigma~x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e}, \Gamma)$
 	\item $\keywadj{label}(\keyw{new_d} x \Rightarrow \overline{d = e}, \Gamma) = \keyw{new_\sigma} x \Rightarrow \keywadj{label \hyphen helper}(\overline{d = e}, \Gamma)$
-	\item $\keywadj{label \hyphen helper}(\sigma = e) = \sigma = \keywadj{label}(e, \Gamma)$
-	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \keywadj{effects}(\Gamma \cap \keywadj{freevars}(e)) = \keywadj{label}(e, \Gamma)$
+	\item $\keywadj{label \hyphen helper}(\sigma = e, \Gamma) = \sigma = \keywadj{label}(e, \Gamma)$
+	\item $\keywadj{label \hyphen helper}(\keywadj{def}~m(y : \tau_2) : \tau_3 = e, \Gamma) = \keywadj{def}~m(y : \tau_2) : \tau_3~\keyw{with} \keywadj{effects}(\Gamma \cap \keywadj{freevars}(e)) = \keywadj{label}(e, \Gamma)$
 \end{itemize}
 
 \noindent \textbf{Notes:}
 \begin{itemize}
 \item $\Gamma \cap \keywadj{freevars}(e)$ is the set of pairs $x : \tau \in \Gamma$, such that $x \in \keywadj{freevars}(e)$.
 \item $\keywadj{label}(e, \Gamma)$ is read as: ``the labeling of $e$ in $\Gamma$''.
+\item Often the $\Gamma$ we use is obvious in context; in such cases we write $\kwa{label}(e)$ instead of $\kwa{label}(e, \Gamma)$.
 \item Beware of confusing notation: there are two types of equality in the above definitions. One is the equality which defines $\keywadj{label}$, and the other is the equality $\sigma = e$ of declarations in the programming language.
 \item The program after labeling will be fully-labeled, so typing it will be sound under the $\varepsilon$ rules.
 \item $\keywadj{label}$ is defined on expressions; $\keywadj{label \hyphen helper}$ on declarations. Everywhere other than this section we'll only use $\keywadj{label}$.
 \item Initially it seems like $\keywadj{label}$ on a $\keywadj{new_\sigma}$ object should just be the identity function; but the body of the methods of such an object may instantiate unlabeled objects and/or call methods on unlabeled objects, so we must recursively label those.
-\item We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to the labeled version of $e$ as $\hat e$. We'll use $\hat \tau$ and $\hat \varepsilon$ to refer to the type and static effects of the labeled version.
+\item We may sometimes say $\keywadj{labels}(e) = \hat e$, and from then on refer to the labeled version of $e$ as $\hat e$. We'll use $\hat \tau$ and $\hat \varepsilon$ to refer to the type and static effects of the labeled version.\\
 \end{itemize}
+
+
+
+
+
+
+\noindent
+\thm{Observation 3.7.}
+{$\keywadj{label}(e)$ is a value if and only if $e$ is a value.\\\\}
+{By inspection of the definition of $\keywadj{label}$.\\\\}
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -474,12 +491,134 @@ Given a program containing unlabeled parts we can safely label those parts. This
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \noindent
-\thm{Lemma 3.7. (Linearity of $\keywadj{label}$ over $\keywadj{substitution}$)}
-{$\keywadj{label}([e'/z]e) = [\keywadj{label}(e')/z](\keywadj{label}(e))$\\\\}
-{Induction on expression $e$.
+\thm{Property 3.8. (Commutativity Between $\kwa{label}$ and $\kwa{sub}$)}
+{Fix $\Gamma$ and define $\kwa{label}(e) = \kwa{label}(e, \Gamma)$. Then $\kwa{label}([e'/z]e) = [\kwa{label}(e')/z](\kwa{label}(e))$\\
+
+\noindent
+\fbox{Intuition.} ~~If perform substitution and labeling on an expression, the order in which you do things doesn't matter.\\\\}
+{Induction on the form of $e$. In each case,``left-hand side'' refers to $\kwa{label}([e'/z]e)$ while ``right-hand side'' refers to $[\kwa{label}(e')/z](\kwa{label}(e))$.\\
+
+\proofcase{$e = r$}{
+By definition, $\kwa{label}(r) = r$ and $[e'/z]r = r$, for any $e'$. Both sides are equivalent to $r$ because $\kwa{sub}$ and $\kwa{label}$ act like the identity function.\\
+}
+
+\proofcase{$e = x$}{
+By definition, $\kwa{label}(x) = x$. $[e'/z]x$ has two definitions, depending on if $x = z$; consider each case.\\
+
+\subcase{ $x \neq z$. Then $[e'/z]x = x$. Both sides are equivalent to $x$ because $\kwa{sub}$ and $\kwa{label}$ act like the identity function.\\}
+
+\subcase{ $x = z$. Then $[e'/z]x = z$. On the left-hand side, $\keywadj{label}([e'/z]x) = \keywadj{label}(e')$. On the right-hand side, $[\keywadj{label}(e')/z]x = \keywadj{label}(e')$.\\
+}
+}
+
+\proofcase{$e = e_1.\pi$}{
+\noindent
+On the left-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$\kwa{label}([e'/z](e_1.\pi))$\\
+$= \kwa{label}( ([e'/z]e_1).\pi )$
+\tabto{15em} (definition of $\kwa{sub}$)\\
+$= (\kwa{label}([e'/z]e_1)).\pi$
+\tabto{15em} (definition of $\kwa{label}$)\\
+$= ( [\kwa{label}(e')/z] (\kwa{label}(e_1)) ).\pi$
+\tabto{15em} (inductive assumption on $e_1$)\\
+\end{adjustwidth}
+On the right-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$[\kwa{label}(e')/z](\kwa{label}(e_1.\pi))$ \\
+$= [\kwa{label}(e')/z](\kwa{label}(e_1).\pi)$
+\tabto{15em} (definition of $\kwa{label}$)\\
+$= ([\kwa{label}(e')/z](\kwa{label}(e_1))).\pi$
+\tabto{15em} (definition of $\kwa{sub}$)\\
+\end{adjustwidth}
+}
+
+\proofcase{$e = e_1.m(e_2)$}{
+On the left-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$\kwa{label}([e'/z](e_1.m(e_2)))$ \\
+$= \kwa{label}(([e'/z]e_1).m([e'/z]e_2)) $
+\tabto{26em} (definition of $\kwa{sub}$)\\
+$= (\kwa{label}([e'/z]e_1)).m(\kwa{label}([e'/z]e_2))$
+\tabto{26em} (definition of $\kwa{label}$)\\
+$= ([\kwa{label}(e')/z](\kwa{label}(e_1)).m(\kwa{label}([e'/z]e_2))$
+\tabto{26em} (inductive assumption on $e_1$) \\
+$= ([\kwa{label}(e')/z](\kwa{label}(e_1)).m([\kwa{label}(e')/z](\kwa{label}(e_2)))$
+\tabto{26em} (inductive assumption on $e_2$) \\
+\end{adjustwidth}
+
+\noindent
+On the right-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$[\kwa{label}(e')/z](\kwa{label}(e_1.m(e_2)))$ \\
+$= [\kwa{label}(e')/z]((\kwa{label}(e_1)).m(\kwa{label}(e_2)))$
+\tabto{28em} (definition of $\kwa{label}$)\\
+$= ( [\kwa{label}(e')/z](\kwa{label}(e_1)) ).m( [\kwa{label}(e')/z](\kwa{label}(e_2)) )$
+\tabto{28em} (definition of $\kwa{sub}$)
+\end{adjustwidth}~
+}
 
 \proofcase{$e = \newsig$}{
-By definition, $\keywadj{label}([e'/z](\newsig), \Gamma) = \keywadj{label}(\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = [e'/z]e})$, which is $\keywadj{new}_\sigma~x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = [e'/z]e})$. Take any particular $\sigma_i = [e'/z]e_i$. Then $\keywadj{label \hyphen helper}(\sigma_i = [e'/z]e_i)$ is defined as $\sigma_i = \keywadj{label}([e'/z]e_i)$. By inductive assumption, this is the same as $\sigma_i = [\keywadj{label}(e')/z](\keywadj{label}(e_i))$. Therefore, $\keywadj{new}_\sigma~x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = [e'/z]e})$ is the same as $\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = [\keywadj{label}(e')/z]e}$. By ``factoring out'' the substitution, this is the same as $[\keywadj{label}(e')/z](\newsig)$
+On the left-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$\kwa{label}([e'/z](\kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = e_i})$ \\
+$=\kwa{label}(\kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = [e'/z]e_i})$
+\tabto{20em} (definition of $\kwa{sub}$) \\
+$= \kwa{new}_\sigma~x \Rightarrow \kwa{label \hyphen helper}(\overline{\sigma_i = [e'/z]e_i)}$
+\tabto{20em} (definition of $\kwa{label}$) \\
+$= \kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = \kwa{label}([e'/z]e_i)}$
+\tabto{20em} (definition of $\kwa{label \hyphen helper}$ on each $\sigma_i = [e'/z]e_i$) \\
+\end{adjustwidth}
+
+\noindent
+On the right-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$[\kwa{label}(e')/z](\kwa{label}(\kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = e_i}))$ \\
+$= [\kwa{label}(e')/z](\kwa{new}_\sigma~x \Rightarrow \kwa{label \hyphen helper}(\overline{\sigma_i = e_i}))$
+\tabto{24em} (definition of $\kwa{label}$) \\
+$= [\kwa{label}(e')/z](\kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = \kwa{label}(e_i)})$
+\tabto{24em} (definition of $\kwa{label \hyphen helper}$ on each $\sigma_i = e_i$) \\
+$= \kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = [\kwa{label}(e')/z](\kwa{label}(e_i)}$
+\tabto{24em} (definition of $\kwa{sub}$) \\
+$= \kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = \kwa{label}([e'/z]e_i)}$
+\tabto{24em} (inductive assumption on each $e_i$)
+\end{adjustwidth}~
+}
+
+\proofcase{$e = \newd$}{
+The proof of this is quite similar to previous case for labeled objects. The main difference is that when labeling an unlabeled object, each $d_i = e_i$ turns into a $\sigma_i = e_i$. For clarity we will define $\varepsilon_i = \kwa{effects}(\Gamma \cap \kwa{freevars}(e_i))$, and $\sigma_i = d_i~\kw{with} \varepsilon_i$ (these are from the definition of $\kwa{label \hyphen helper}$).\\
+
+\noindent
+On the left-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$\kwa{label}([e'/z](\kwa{new}_d~x \Rightarrow \overline{d_i = e_i}))$ \\
+$= \kwa{label}( \kwa{new}_d~x \Rightarrow \overline{d_i = [e'/z]e_i} )$
+\tabto{24em} (definition of $\kwa{sub}$) \\
+$= \kwa{new}_d~x \Rightarrow \kwa{label \hyphen helper}(\overline{d_i = [e'/z]e_i})$
+\tabto{24em} (definition of $\kwa{label}$) \\
+$= \kwa{new}_d~x \Rightarrow \overline{d_i~\kw{with} \varepsilon_i = \kwa{label}([e'/z]e_i)}$
+\tabto{24em} (definition of $\kwa{label \hyphen helper}$) \\
+$= \kwa{new}_d~x \Rightarrow \overline{\sigma_i = \kwa{label}([e'/z]e_i)}$
+\tabto{24em} ($\sigma_i = d_i~\kw{with} \varepsilon_i$) 
+
+
+\end{adjustwidth}~
+
+\noindent
+On the right-hand side.
+\begin{adjustwidth}{1.5em}{0em}
+$[\kwa{label}(e')/z](\kwa{label}(\kwa{new}_d~x \Rightarrow \overline{d_i = e_i}))$ \\
+$= [\kwa{label}(e')/z](\kwa{new}_d~x \Rightarrow \kwa{label \hyphen helper}(\overline{d_i = e_i}))$
+\tabto{24em} (definition of $\kwa{label}$) \\
+$= [\kwa{label}(e')/z](\kwa{new}_\sigma~x \Rightarrow \overline{d_i~\kw{with} \varepsilon_i = \kwa{label}(e_i)})$
+\tabto{24em} (definition of $\kwa{label \hyphen helper}$ on each $d_i = e_i$) \\
+$= [\kwa{label}(e')/z](\kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = \kwa{label}(e_i)})$
+\tabto{24em} ($\sigma_i = d_i~\kw{with} \varepsilon_i$) \\
+$= \kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = [\kwa{label}(e')/z](\kwa{label}(e_i)})$
+\tabto{24em} (definition of $\kwa{sub}$) \\
+$= \kwa{new}_\sigma~x \Rightarrow \overline{\sigma_i = \kwa{label}([e'/z]e_i)}$
+\tabto{24em} (inductive assumption on each $e_i$)
+\end{adjustwidth}~
 }
 }
 
