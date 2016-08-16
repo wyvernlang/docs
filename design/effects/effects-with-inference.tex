@@ -177,11 +177,11 @@ $\fbox{$\Gamma \vdash e : \tau$}$
 ~~~~~~~~~~
 \infer[\textsc{(T-New$_\sigma$)}]
 	{\Gamma \vdash~\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}}
-	{\Gamma \vdash \sigma_i = e_i~\keywadj{OK}}
+	{\Gamma, x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}}
 ~~~~~~~~~~
 \infer[\textsc{(T-New$_d$)}]
 	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{ \bar d \}}
-	{\Gamma \vdash d_i = e_i~\keywadj{OK}}\\[5ex]
+	{\Gamma, x : \{ \bar d \} \vdash \overline{d = e}~\keywadj{OK}}\\[5ex]
 \end{array}
 \]
 
@@ -702,7 +702,7 @@ This case is identical to the previous one, except $e_1 = v_1 = \newd$. The same
 {If $\Gamma\vdash e : \tau$ and $\hat e = \kwa{label}(e, \Gamma)$ then one of the following is true:
 \begin{itemize}
 	\item $e$ is a value, and $\Gamma \vdash \hat e : \type{\hat \tau}{\hat \varepsilon}$, where $\tau = \hat \tau$ and $\hat \varepsilon = \varnothing$.
-	\item $e$ is an expression, and $e \longrightarrow e'~|~\varepsilon$, and $\Gamma \vdash \hat e : \type{\hat \tau}{\hat \varepsilon}$, where $\hat tau = \tau$ and $\varepsilon \subseteq \hat \varepsilon$.
+	\item $e$ is an expression, and $e \longrightarrow e'~|~\varepsilon$, and $\Gamma \vdash \hat e : \type{\hat \tau}{\hat \varepsilon}$, where $\hat \tau = \tau$ and $\varepsilon \subseteq \hat \varepsilon$.
 \end{itemize}
 
 \noindent
@@ -720,18 +720,40 @@ $e = r$ is a value, and $\kwa{label}(r) = r$. By assumption that the program is 
 
 
 \proofcase{\textsc{T-New$_\sigma$}}{
-We also know $e = \newsig$ and $\Gamma \vdash \sigma_i = e_i~\kw{OK}$. By applying the definition of $\kwa{label}$, define $\hat e = \kwa{label}(\newsig) = \kwa{new}_\sigma~x \Rightarrow \overline{\sigma = \kwa{label}(e)}$. To type $\hat e$ we want to use \textsc{$\varepsilon$-NewObj}; to do that we need to know $\Gamma, x : \{ \bar \sigma \} \vdash \overline{ \sigma = e }$.\\
+We also know $e = \newsig$ and $\Gamma \vdash \sigma_i = e_i~\kw{OK}$. By applying the definition of $\kwa{label}$, define $\hat e = \kwa{label}(\newsig) = \kwa{new}_\sigma~x \Rightarrow \overline{\sigma = \kwa{label}(e)}$. To type $\hat e$ we want to use \textsc{$\varepsilon$-NewObj}; to do that we need to know $\Gamma, x : \{ \bar \sigma \} \vdash \overline{ \sigma = \kwa{label}(e) }~\kwa{OK}$.\\
 
 \noindent
 Fix some $i$. By assumption, $\Gamma \vdash \sigma_i = e_i~\kw{OK}$. By inversion on \textsc{$\varepsilon$-ValidImpl$_\sigma$}, we know $\Gamma, y : \tau_2 \vdash e_i : \type{\tau_3}{\varepsilon_3}$. Consider $\hat e_i = \kwa{label}(e_i)$. By inductive assumption, $\Gamma, y : \tau_2 \vdash \hat e_i : \type{\tau_3}{\hat \varepsilon}$, and by application of \textsc{$\varepsilon$-ValidImpl$_\sigma$} we know $\Gamma \vdash \sigma_i = \kwa{label}(e_i)~\kwa{OK}$. (\textbf{We're applying inductive assumption to something of the form $\Gamma \vdash e : \type{\tau}{\varepsilon}$, not $\Gamma \vdash e : \tau$ though.)}\\
 
 \noindent
-$i$ was arbitrary; therefore $\Gamma \vdash \overline{\sigma = \kwa{label}(e)}~\kw{OK}$. Therefore $\Gamma \vdash \hat e : \{ \bar \sigma \}~\kw{with} \varnothing$ by \textsc{$\varepsilon$-NewObj$_\sigma$}.
+$i$ was arbitrary; therefore $\Gamma \vdash \overline{\sigma = \kwa{label}(e)}~\kw{OK}$. Therefore $\Gamma \vdash \hat e : \{ \bar \sigma \}~\kw{with} \varnothing$ by \textsc{$\varepsilon$-NewObj$_\sigma$}.\\
 }
 
 
 \proofcase{\textsc{T-New$_d$}}{
-Hey.\\
+We also know $e = \newd$ and $\Gamma \vdash d_i = e_i~\kwa{OK}$. To simplify things, let $\varepsilon_i = \kwa{freevars}(\Gamma) \cap e_i$ (this definition comes from the definition of $\kwa{label \hyphen helper}$) and define $\hat e$ in the following way:
+
+\begin{adjustwidth}{1.5em}{0em}
+$\kwa{label}(e)$ \\
+$= \kwa{label}(\newd)$
+\tabto{18em} (definition of $e$) \\
+$= \kwa{new}_\sigma x \Rightarrow \kwa{label \hyphen helper}(\overline{d_i = e_i})$
+\tabto{18em} (definition of $\kwa{label}$) \\
+$= \kwa{new}_\sigma x \Rightarrow \overline{d_i~\kw{with} \varepsilon_i = e_i}$ 
+\tabto{18em} (definition of $\kwa{label \hyphen helper}$) \\
+$= \kwa{new}_\sigma x \Rightarrow \overline{\sigma_i = e_i}$
+\tabto{18em} (defining $\sigma = d_i~\kw{with} \varepsilon_i$)
+\end{adjustwidth}
+
+\noindent
+To type $\hat e$ we want to use \textsc{$\varepsilon$-NewObj}; to do that we need to know $\Gamma, x : \{ \sigma \} \vdash \overline{\sigma_i = e_i}~\kwa{OK}$, so fix some $i$. By assumption $\Gamma \vdash d_i = e_i~\kwa{OK}$. By inversion on \textsc{$\varepsilon$-ValidImpl$_d$} we know $\Gamma, y : \tau_2 \vdash e_i : \tau_3$. By inductive assumption on this, $\Gamma, y : \tau_2 \vdash \hat e_i : \tau_3~\kwa{with} \hat \varepsilon$. \\
+
+\noindent
+Fix some $i$. By assumption $\Gamma \vdash d_i = e_i~\kwa{OK}$. By inversion on \textsc{$\varepsilon$-ValidImpl$_d$}, we know $\Gamma, y : \tau_2 \vdash e_i : \tau_3$. By inductive assumption, $\Gamma, y : \tau_2 \vdash \hat e_i : \tau_3~\kw{with} \hat \varepsilon$, and by application of \textsc{$\varepsilon$-ValidImpl$_\sigma$} we know $\Gamma \vdash \sigma_i = \kwa{label}(e_i)~\kwa{OK}$. \\
+
+\noindent
+$i$ was arbitrary; therefore $\Gamma \vdash \overline{\sigma = \kwa{label}(e)}~\kwa{OK}$. Therefore $\Gamma \vdash \hat e : \{ \bar \sigma \}~\kwa{with} \varnothing$ by \textsc{$\varepsilon$-NewObj}.
+
 }
 
 
