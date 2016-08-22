@@ -702,9 +702,32 @@ This case is identical to the previous one, except $e_1 = v_1 = \newd$. The same
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+
 \thm{Theorem 3.10. (Extension Lemma)}
-{If $\Gamma \vdash e : \{ \bar d \}$ and $e$ is closed under $\Gamma$ then $\Gamma \vdash \kwa{label}(e) : \{ \bar \sigma \}$, where $\sigma_i = d_i~\kw{with} \kwa{effects}(\Gamma) \cap e_i$.\\\\}
-{By closure, $m_i$ has some method body $e_i$. \\\\}
+{If $\Gamma \vdash e : \tau$, then one of the following is true:
+\begin{itemize}
+	\item $\Gamma \vdash e : \{ \bar d \}~\kw{with} \varepsilon$
+	\item $\tau = \{ \bar d \}$ and $\Gamma \vdash e : \{ \bar d~\kw{captures} \varepsilon_C \}~\kw{with} \varnothing$, for some $\varepsilon_C$.
+\end{itemize}}
+{By induction the typing judgement.
+
+\proofcase{\textsc{T-Var}, \textsc{T-Resource}, \textsc{T-New$_\sigma$}}{
+	Use \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-New$_\sigma$} respectively.
+
+}
+
+\proofcase{\textsc{T-OperCall}}{
+We have $e = e_1.\pi$ and $\Gamma \vdash e_1 : \{ \bar r \}$. By inductive assumption, $\Gamma \vdash e_1 : \{ \bar r \}~\kw{with} \varepsilon$. Applying \textsc{$\varepsilon$-OperCall}, we get $\Gamma \vdash e_1.\pi : \{ \bar r \}~\kw{with} \varepsilon$.
+}
+
+\proofcase{\textsc{T-New$_d$}}{
+Select $\Gamma' = \Gamma$. Then $\Gamma', x : \{ \bar d~\kw{captures} \varepsilon_C \} \vdash \overline{d = e}~\kwa{OK}$, because we know $\Gamma, x : \{ \bar d \} \vdash \overline{d = e}~\kwa{OK}$. By an application of \textsc{C-NewObj}, we get $\Gamma \vdash e : \{ \bar d~\kw{captures} \varepsilon_C \}~\kw{with} \varnothing$, for $\varepsilon_C = \kwa{effects}(\Gamma)$.
+}
+
+\proofcase{\textsc{T-MethCall$_\sigma$}}{
+Then $e = e_1.m_i(e_2)$. From inversion on the rule we know $\Gamma \vdash e_1 : \{ \bar \sigma \}$ and $\Gamma \vdash e_2 : \tau_2$. By inductive assumption we know $\Gamma \vdash e_1 : \{ \bar \sigma \}~\kw{with} \varepsilon_1$. If $\tau_2 = \{ \bar d \}$, then applying the inductive hypothesis gives us $\Gamma \vdash e_2 :  \tau_2~\kw{with} \{ \bar d~\kw{captures} \varepsilon_C \}$. \textbf{However, the types are different and because there's no sub-typing we run into a problem here. If we knew $\{ \bar d~\kw{captures} \varepsilon_C \} <: \{ \bar d \}$ then we'd be fine.}
+}
+}
 
 
 
@@ -858,8 +881,36 @@ Now we can apply \textsc{$\varepsilon$-MethCall}, giving us $\Gamma \vdash \hat 
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 \thm{Theorem 3.12. (Refinement Theorem)}
-{If $\Gamma \vdash e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$, then $\Gamma \vdash \hat e : \hat \tau~\keyw{with} \hat \varepsilon$, where $\hat \varepsilon \subseteq \varepsilon$ and $\tau = \hat \tau$.\\
+{If $\Gamma \vdash e : \tau~\keyw{with} \varepsilon$ and $\keywadj{label}(e) = \hat e$, then one of the following is true:
+\begin{itemize}
+	\item $e$ has the form $\newd$; and $\Gamma \vdash \hat e : \overline{d_i ~\kw{with}\varepsilon_i = e_i}$, where 
+	\item $\Gamma \vdash \hat e : \hat \tau~\keyw{with} \hat \varepsilon$, where $\hat \varepsilon \subseteq \varepsilon$ and $\tau = \hat \tau$
+\end{itemize}
 
 \noindent
 \fbox{Intuition.}~~~Labels can only make the static effects more precise; never less precise. \textbf{Needs to be edited/proofread so it makes sense with the new Extension theorem.}
@@ -892,6 +943,16 @@ Applying definitions, $\hat e = \keywadj{label}(e_1.m_i(e_2)) = (\keywadj{label}
 }
 
 
+\proofcase{\textsc{$\varepsilon$-NewObj}}{
+Then $e = \newsig$ and we know:
+\begin{itemize}
+	\item $\Gamma \vdash e : \type{ \{ \bar \sigma \} }{\varnothing}$
+	\item $\Gamma, x : \{ \bar \sigma \} \vdash \overline{ \sigma = e }~\keyw{OK}$
+\end{itemize}
+For each $i$, $\sigma_i = e_i~\keywadj{OK}$ only matches \textsc{$\varepsilon$-ValidImpl$_\sigma$}. By inversion on that rule, $\Gamma, y : \tau_2 \vdash e_i: \tau_3~\keyw{with} \varepsilon_3$ and $\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau_3~\keyw{with} \varepsilon_3$. Applying definitions, $\hat e = \keywadj{label}(\newsig) = \keywadj{new}_\sigma~x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e})$. Then for each $i$, 
+ $\keywadj{label \hyphen helper}(\sigma_i = e _i) = \sigma_i = \keywadj{label}(e_i)$. Let $\hat e_i = \keywadj{label}(e_i)$. Applying the inductive assumption to method body $e_i$ we get $\Gamma \vdash \hat e_i : \type{\tau_3}{\hat \varepsilon_3}$. Then $\Gamma \vdash \sigma_i = \keywadj{label}(e_i)~\keywadj{OK}$ by \textsc{$\varepsilon$-ValidImpl$_\sigma$}. This was for any $i$, so $\Gamma \vdash \overline{ \sigma_i = \keywadj{label}(e_i) }~\keywadj{OK}$. Finally we can apply \textsc{$\varepsilon$-NewObj} to the labeled object $\kwa{new}_\sigma~x\Rightarrow \overline{ \sigma_i = \keywadj{label}(e_i) }$, which gives the judgement $\Gamma \vdash \hat e : \{ \bar \sigma \}~\keyw{with} \varnothing$.\\
+}
+
 \proofcase{\textsc{C-MethCall}} {
 Then $e = e_1.m_i(e_2)$ and we know:
 \begin{itemize}
@@ -903,20 +964,9 @@ Then $e = e_1.m_i(e_2)$ and we know:
 The reasoning is the same as the above case, but use \textsc{C-MethCall} instead of \textsc{$\varepsilon$-MethCall}.\\
 }
 
-\proofcase{\textsc{$\varepsilon$-NewObj}}{
-Then $e = \newsig$ and we know:
-\begin{itemize}
-	\item $\Gamma \vdash e : \type{ \{ \bar \sigma \} }{\varnothing}$
-	\item $\Gamma, x : \{ \bar \sigma \} \vdash \overline{ \sigma = e }~\keyw{OK}$
-\end{itemize}
-For each $i$, $\sigma_i = e_i~\keywadj{OK}$ only matches \textsc{$\varepsilon$-ValidImpl$_\sigma$}. By inversion on that rule, $\Gamma, y : \tau_2 \vdash e: \tau_3~\keyw{with} \varepsilon_3$ and $\sigma_i = \keyw{def} m_i(y : \tau_2) : \tau_3~\keyw{with} \varepsilon_3$. Applying definitions, $\hat e = \keywadj{label}(\newsig) = \keywadj{new}_\sigma~x \Rightarrow \keywadj{label \hyphen helper}(\overline{\sigma = e})$. Then for each $i$, 
- $\keywadj{label \hyphen helper}(\sigma_i = e _i) = \sigma_i = \keywadj{label}(e_i)$. Let $\hat e_i = \keywadj{label}(e_i)$. Applying the inductive assumption we get $\Gamma \vdash \hat e_i : \type{\tau_3}{\hat \varepsilon_3}$. Then $\Gamma \vdash \sigma_i = \keywadj{label}(e_i)~\keywadj{OK}$ by \textsc{$\varepsilon$-ValidImpl$_\sigma$}. This was for any $i$, so $\Gamma \vdash \overline{ \sigma_i = \keywadj{label}(e_i) }~\keywadj{OK}$. Finally we can apply \textsc{$\varepsilon$-NewObj} to the labeled object $\overline{ \sigma_i = \keywadj{label}(e_i) }$, which gives the judgement $\Gamma \vdash \hat e : \{ \bar \sigma \}~\keyw{with} \varnothing$.\\
-}
-
 \proofcase{\textsc{C-NewObj}}{
 Then $e = \newd$ and we know:
 \begin{itemize}
-	\item $\Gamma \vdash e_1.m_i(e_2) : \type{\tau_3}{\varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}$
 	\item $\Gamma' \subseteq \Gamma$
 	\item $\varepsilon_c = \keywadj{effects}(\Gamma')~\keyw{with} \varnothing$
 	\item $\Gamma', x : \{ \bar d~\keyw{captures} \varepsilon_c \} \vdash \overline{d = e}~\keyw{OK}$
@@ -1002,7 +1052,7 @@ From \textbf{1} we know $\hat e_A$ has type $\hat \tau_A$; from \textbf{7} we kn
 \end{adjustwidth}
 
 \noindent
-By comparing \textbf{2} and \textbf{12} we get type-soundnses.
+By comparing \textbf{2} and \textbf{12} we get type-soundness.
 
 \begin{adjustwidth}{1.5em}{0em}
 \begin{enumerate}
