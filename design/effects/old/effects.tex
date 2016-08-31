@@ -24,11 +24,7 @@
 \lstloadlanguages{Java,VBScript,XML,HTML}
 
 \newcommand{\keywadj}[1]{\mathtt{#1}}
-\newcommand{\kwa}[1]
-{\keywadj{#1}}
 \newcommand{\keyw}[1]{\keywadj{#1}~}
-\newcommand{\kw}[1]
-{\keyw{#1}~}
 \newcommand{\reftt}{\mathtt{ref}~}
 \newcommand{\Reftt}{\mathtt{Ref}~}
 \newcommand{\inttt}{\mathtt{int}~}
@@ -102,39 +98,30 @@
 \begin{document}
 
 \today
-
-\section{Background}
-
-\noindent
-A resource is a language primitive with the authority to perform I/O operations. $\Pi$ is the set of all I/O operations, and $R$ is the set of all resources. In this system, we cannot dynamically create resources or operations on resources. \\
+\section{Effects}
 
 \noindent
-Members of $R$ are denoted by $r$; members of $\Pi$ by $\pi$. $r.\pi$ is syntactic sugar for the pair $(r, \pi)$ (for example, $\kwa{FileIO.append}$ instead of ($\kwa{FileIO}$, $\kwa{append}$)). An effect is a member of the pairs $R \times \Pi$. A set of effects is denoted by $\varepsilon$. \\
+R is a fixed set of resources. We define a resource as a language primitive with the authority to perform I/O operations. $\Pi$ is the set of I/O operations. In this document we cannot dynamically create resources or operations on resources.\\
 
 \noindent
-We say a piece of code $C$ has the runtime effect $r.\pi$ if $r.\pi$ is called during the execution of $C$. $C$ captures $r.\pi$ if it has the authority to call $r.\pi$ at some point during its execution. \\
+Members of $R$ are denoted $r$; members of $\Pi$ are denoted $\pi$. $r.\pi$ is syntactic sugar for $(r,\pi)$ (for example, $\keywadj{FileIO.append}$ instead of $\keywadj{(FileIO, append)}$). An effect is a member of the pairs $R \times \Pi$. A set of effects is denoted by $\varepsilon$. \\
 
 \noindent
-In this document we describe a type system which approximates the runtime effects of a well-typed piece of code $C$. The approximation of $C$'s runtime effects are called the static effects. \\
-
-\noindent 
-Types in our system are either resources or structural. Structural types are distinguished by what method declarations they contain. The type with no methods i called $\kwa{Unit}$, and its single instance $\kwa{unit}$. \\
+We say a piece of code $C$ has the runtime effect $r.\pi$ if $r.\pi$ is called during the execution of $C$. $C$ captures $r.\pi$ if it has the authority to call $r.\pi$ at some point during its execution. The static effects of $C$ is an approximation of the runtime effects by our typing system. Later on we show the static effects of $C$ give a conservative upper-bound on the runtime effects. \\
 
 \noindent
-Although operations and method-calls look similar syntactically, the two are distinct concepts in our system. Methods can only be invoked by objects and operations by resources. \\
+Types in our system are either resources or structural. Structural types are distinguished by what method declarations they have. The type with no methods is called $\keywadj{Unit}$; its unique instance of denoted $\keywadj{unit}$. Although they look similar in form, operations and methods are distinct. Methods can only be invoked by objects; operations can only be invoked by resources. \\
 
 \noindent
-We make a few simplifying assumptions in this system.
+We make some simplifying assumptions about methods and operations. Methods take exactly one argument. If the argument is not specified it is assumed to be $\keywadj{unit}$. Invoking some operation $r.\pi$ returns $\varnothing$. We don't model arguments to operations, so all operations are null-ary.
 
-\begin{enumerate}
-	\item Methods take exactly one argument. If the argument is not specified it is assumed to be $\kwa{unit}$.
-	\item All methods are labelled by what effects they have.
-	\item We assume that any effect labels on a method are correct. 
-	\item Operations are treated as null-ary.
-	\item Invoking an operation $r.\pi$ returns $\kwa{unit}$. The actual I/O performed is opaque in our system.
-\end{enumerate}
 
-\section{Grammar}
+\section{Static Semantics For Fully-Annotated Programs}
+
+\noindent
+In this first system every method in the program is explicitly annotated with its set of effects.
+
+\subsection{Grammar}
 
 \[
 \begin{array}{lll}
@@ -147,7 +134,7 @@ We make a few simplifying assumptions in this system.
   		& | & e.\pi\\
 		&&\\
 
-	\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ r \} & types \\
+	\tau & ::= & \{ \bar \sigma \} ~ | ~ \{ \bar r \} & types \\
 		&&\\
 
 	\sigma & ::= &  \keyw{def} m(x:\tau):\tau~\keyw{with}\varepsilon  & labeled~ decls.\\
@@ -163,17 +150,16 @@ We make a few simplifying assumptions in this system.
 \end{array}
 \]
 
-\subsection{Notes}
+
+\noindent \textbf{Notes:}
 
 \begin{itemize}
 	\item All declarations ($\sigma$-terms) are annotated by what effects they have.
-	\item We can define $\kwa{unit}$ as $\kwa{new}_\sigma~x \Rightarrow \varnothing$.
-	\item Calling a method with no argument is the same as calling it with $\kwa{unit}$: $e_1.m_i()$ is the same as $e_1.m_i(\kwa{unit})$.
+	\item All methods take exactly one argument. If a method specifies no argument the argument is assumed to be of type $\keywadj{Unit}$.
+	\item The type $\{ \bar r \}$ is a set of resources; there will only be one actual resource at run-time, and it will be one of the resources in the set. This covers the case where e.g. a conditional returns a different resource on either branch.
 \end{itemize}
 
-
-\section{Static Semantics}
-
+\subsection{Static Semantics}
 \noindent
 \fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
 
@@ -184,7 +170,7 @@ We make a few simplifying assumptions in this system.
   {} 
 ~~~~~~~~~~
 \infer[\textsc{($\varepsilon$-Resource)}]
-  {\Gamma,~r :\{ r\} \vdash r: \type{   \{ r \}  }{\varnothing}}
+  {\Gamma,~r :\{\bar r\} \vdash r: \type{   \{ \bar r \}  }{\varnothing}}
   {} \\[5ex]
 
 \infer[\textsc{($\varepsilon$-NewObj)}]
@@ -201,8 +187,6 @@ We make a few simplifying assumptions in this system.
 
 \end{array}
 \]
-
-
 \noindent
 $\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
 
@@ -214,84 +198,16 @@ $\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
 \end{array}
 \]
 
-
-\noindent
-$\fbox{$\Gamma \vdash \tau <: \tau$}$
-
-\[
-\begin{array}{c}
-
-\infer[\textsc{(St-Reflexive)}]
-	{\Gamma \vdash \tau <: \tau}
-	{}
-	
-~~~~~~~~~~
-
-	\infer[\textsc{(St-Transitive)}]
-	{\Gamma \vdash \tau_1 <: \tau_3}
-	{\Gamma \vdash \tau_1 <: \tau_2 & \Gamma \vdash \tau_2 <: \tau_3}\\[5ex]
-
-\infer[\textsc{(St-Subsumption)}]
-	{\Gamma \vdash e : \tau_2}
-	{\Gamma \vdash e : \tau_1 & \Gamma \vdash \tau_1 <: \tau_2}
-	
-	~~~~~~~~~~
-
-\infer[\textsc{(St-EffectTypes)}]
-	{ \Gamma \vdash \type{\tau_1}{\varepsilon_1} <: \type{\tau_2}{\varepsilon_2}}
-	{ \Gamma \vdash \tau_1 <: \tau_2 ~~~~~~ \varepsilon_1 \subseteq \varepsilon_2} \\[5ex]
-	
-\infer[\textsc{(St-Permutation)}]
-	{\Gamma \vdash \{ \bar \sigma \}_1 <: \{ \bar \sigma \}_2 }
-	{\Gamma \vdash \{ \bar \sigma \}_1 $ is a permutation of $ \{ \bar \sigma \}_2}
-	\\[5ex]
-	
-	~~~~~~~~~~
-
-\infer[\textsc{(St-Depth)}]
-	{ \Gamma \vdash \{ \sigma_i~^{i \in 1..n} \} <: \{ \sigma_j~^{j \in 1..n} \} }
-	{ \Gamma \vdash \sigma_i <:: \sigma_j }
-	
-	~~~~~~~~~~
-
-\infer[\textsc{(St-Width)}]
-	{ \Gamma \vdash \{ \sigma_i~^{i \in 1..n+k} \} <: \{ \sigma_i~^{i \in 1..n} \} }
-	{n,k \geq 0}
-		\\[5ex]
-	
-~~~~~
-  
-\end{array}
-\]
-
-
-\noindent
-$\fbox{$\Gamma \vdash \sigma <:: \sigma$}$
-
-\[
-\begin{array}{c}
-
-\infer[\textsc{(St-Method)}]
-	{ \Gamma \vdash \sigma_i <:: \sigma_j }
-{{\def\arraystretch{1.6}
-  \begin{array}{c}
-\sigma_i = \kw{def} m_A(y : \tau_1) : \type{\tau_2}{\varepsilon_A}
-~~~~~~\sigma_j = \kw{def} m_B(y : \tau_1') : \type{\tau_2'}{\varepsilon_B} \\
-\Gamma \vdash \tau_1' <: \tau_1 ~~~~~~ \Gamma \vdash \tau_2 <: \tau_2' ~~~~~~ \varepsilon_A \subseteq \varepsilon_B
-  \end{array}}} \\[5ex]
-  	
-\end{array}
-\]
-
 \noindent \textbf{Notes:}
 
 \begin{itemize}
 	\item In \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-NewObj} the consequent has an expression typed with no effect. In these rules we may be gaining an authority for an effect but we must use it in some code for that effect to happen.
 	\item \textsc{$\varepsilon$-ValidImpl} says that the return type and effects of the body of a method must be exactly the same as its declaration.
-	\item The $<::$ relation is like the subtyping relation $<:$, but for method declarations rather than types.
 \end{itemize}
 
-\section{Dynamic Semantics}
+
+
+\subsection{Dynamic Semantics}
 ~\\
 \noindent
 \fbox{$e \longrightarrow e~|~\varepsilon$}
@@ -366,13 +282,12 @@ $\fbox{$\Gamma \vdash \sigma <:: \sigma$}$
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Soundness}
+\subsection{Substitution Function}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ~
-\noindent
 \begin{large}
-	\bf{Definition 5.1. (Substitution)}
+	\bf{Definition 2.4.1. (Substitution)}
 \end{large}
 
 $[e'/z]e$ means 'substitute every free occurrence of $z$ in $e$ for $e'$. Here's a definition over rules in the grammar.
@@ -393,12 +308,23 @@ We use the convention of \textit{alpha-conversion} to make substitution capture-
 Substitution of multiple variables is written $[e_1/z_1, ..., e_n/z_n]e$, which is shorthand for $[e_n/z_n]...[e_1/z_1]e$ \\
 
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Canonical Forms	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Soundness Theorem}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-\thm{Lemma 5.2. (Canonical Forms)}
+\noindent
+In this section we build up to the soundness theorem for our typing system. We do this by proving progress and two preservation theorems about types and static effects. The two preservation theorems directly give us the soundness statement.\\
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+\thm{Lemma 2.5.1. (Canonical Forms)}
 {Suppose $e$ is a value. The following are true:
 	\begin{itemize}
 	\item If $\Gamma \vdash e : \type{ \{ \bar r \} }{\varepsilon} $, then $e = r$ for some $r \in R$.
@@ -412,20 +338,7 @@ Furthermore, $\varepsilon = \varnothing$ in each case. \\\\
 
 
 
-
-
-
-
-
-
-
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Substitution Lemma	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\thm{Lemma 5.3. (Substitution Lemma)}
+\thm{Lemma 2.5.2. (Substitution Lemma)}
 {If $\Gamma, z : \tau'~\keyw{with} \varepsilon' \vdash e : \tau~\keyw{with} \varepsilon$, and $\Gamma \vdash e' : \tau'~\keyw{with} \varepsilon'$, then $\Gamma \vdash [e'/z]e : \tau~\keyw{with} \varepsilon$. \\\\
 \fbox{Intuition} If you substitute $z$ for something of the same type, the type of the whole expression stays the same after substitution.
 \\\\}
@@ -465,20 +378,7 @@ Furthermore, $\varepsilon = \varnothing$ in each case. \\\\
 
 
 
-
-
-
-
-
-
-
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Progress Theorem	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\thm{Theorem 5.4. (Progress Theorem)}
+\thm{Theorem 2.5.3. (Progress Theorem)}
 {If $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$, either $e_A$ is a value or a small-step $e_A \longrightarrow e_B~|~\varepsilon$ can be applied. \\\\}
 {By induction on possible derivations of $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$. Consider the last rule used. \\
 
@@ -526,13 +426,7 @@ We look at the cases for when $e_1$ is a value.
 
 
 
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Preservation Theorem	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\thm{Theorem 5.5. (Preservation Theorem)}
+\thm{Theorem 2.5.4. (Preservation Theorem)}
 {Suppose the following hold:
 	\begin{itemize}
 		\item $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$
@@ -595,5 +489,12 @@ The type to be preserved is $\keywadj{Unit}$. There are two reduction rules appl
 
 
 
-\end{document}
 
+
+
+
+
+
+
+
+\end{document}
