@@ -59,10 +59,10 @@
 %\publicationrights{licensed}     % this is the default
 %\publicationrights{author-pays}
 
-\titlebanner{banner above paper title}        % These are ignored unless
-\preprintfooter{short description of paper}   % 'preprint' option specified.
+%\titlebanner{banner above paper title}        % These are ignored unless
+%\preprintfooter{short description of paper}   % 'preprint' option specified.
 
-\title{Delegation That is Not Like In Self}
+\title{Delegation Revisited}
 % \subtitle{Subtitle Text, if any}
 
 \authorinfo{Jonathan Aldrich}
@@ -76,10 +76,10 @@
 \maketitle
 
 \begin{abstract}
-We discuss different design options for implementing delegation in Wyvern.
+Wyvern is a new secure object-oriented language in sore need of a code reuse functionality. Being object-oriented aficionados we discuss different ways \textit{delegation} can be implemented in Wyvern exploring different possibilities similar to Jones et al. exploring inheritance~\cite{jones:2016:inheritance}.
 \end{abstract}
 
-\category{CR-number}{subcategory}{third-level}
+%\category{CR-number}{subcategory}{third-level}
 
 % general terms are not compulsory anymore,
 % you may leave them out
@@ -89,9 +89,167 @@ We discuss different design options for implementing delegation in Wyvern.
 \keywords
 delegation, inheritance
 
-\section{Introduction}
+\section{Why Objects not Classes?}
 
-Wyvern is a new secure object-oriented language in sore need of a code reuse functionality. Being object-oriented aficionados we discuss different ways \textit{delegation} can be implemented in Wyvern exploring different possibilities similar to Jones et al. exploring inheritance~\cite{jones:2016:inheritance}.
+Objects are not necessary. Consider what classes do:
+
+\begin{itemize}
+\item They are \textit{types} - but we have a separate separate type construct in Wyvern already (we do have types);
+\item They \textit{tag} objects, allowing for case analysis (see our ECOO 2015 tags paper~\cite{DBLP:conf/ecoop/LeeASP15});
+\item They are \textit{generators} - but we have a object-based new statement, and we can abstract over it with functions to produce factories (see our MASPEGHI 2013 paper~\cite{Nistor:2013:WST:2489828.2489830});
+\item They are ways of \textit{reusing} code (via inheritance) - but we have functions for that.
+\end{itemize}
+
+Maybe functions alone are not sufficient for convenient reuse, but it looks like some form of delegation might be.
+
+Inheritance (and Self-style delegation, as contrasted with mere forwarding) build in open recursion.  Is this needed often enough to justify a particular language construct for it?
+
+Evidence that subclasses reuse methods and fields from superclasses, e.g. via super calls [dependence of subclass on superclass]
+
+Evidence that downcalls [the only situation when a superclass depends on its subclasses?] are somewhat common (6-8\% in Java of all classes from which 60\% are extended).
+
+No evidence specifically for open recursion: can the uses of downcalls be refactored so that the superclass C can be divided into C? and C??, where the downcall is in C? and the subclass depends only on C???  In this case, the design can perhaps be simulated using only forwarding.
+In general inheritance (and multiple one is even worse) introduces implicit rules on the code execution that are not obvious to the programmer thus increasing complexity
+
+Everything should be a value, so that you can abstract over it and compute with it.
+
+So could have classes, but they would have to be values.
+
+If we care about reasoning, first-class classes will make that reasoning more challenging.  Of course, with delegation we still have to reason about values statically, but notice that we want to do that anyway, so it comes ?for free? whereas with classes it is more of an added burden.  Combination with types is deadly: Racket is one of the few (only?) systems that has done typed first-class classes with inheritance-like composition, and it was an OOPSLA paper to do it.
+
+Do they have restrictions, e.g. vs. Smalltalk?  Worth looking into
+
+We want to do reasoning (typechecking, but maybe typestate or verification)
+
+Now inheritance seems to add a lot of complexity - relying only on objects is simpler.  See preliminary evidence in FTfJP 2015
+
+We already have forms of abstractions (functions) and composition based on values (records, function bodies).  Adding abstraction and composition over classes introduces more complexity
+
+It?s not just that classes are complex, then you need composition principles and rules too
+
+\begin{figure*}
+\begin{lstlisting}
+type Animal
+	def eat()
+	def swallow()
+
+type AnimalDelegate
+	def eat(self:Animal)
+	def swallow()
+
+type Dog extends Animal
+	def bark():String
+
+def makeAnimal():AnimalDelegate = new animalSelf =>
+	def eat(@Self childSelf:Animal)
+		childSelf.swallow()
+		animalSelf.swallow()
+	def eat() = new LocalStuffToDo()
+	def swallow() = new Unit()
+
+def makeDog(base:AnimalDelegate):Dog = new
+	delegate Animal to base
+	// the ?delegate? declaration above is equivalent to:
+	// def eat() = base.eat(this)
+	def bark():String = "Woof"
+	def swallow():Unit = new Unit()
+
+val base:AnimalDelegate = makeAnimal()
+val a:Animal = makeDog(base)
+a.eat() // calls Dog.swallow(), then Animal.swallow()
+a.bark() // ?Woof?
+\end{lstlisting}
+\caption{Example of Delegation in Wyvern}
+\label{f:example-wyvern}
+\end{figure*}
+
+Figure~\ref{f:example-wyvern} shows delegation in Wyvern~\footnote{@Self is not implemented yet.}
+
+Semantics of ?delegate T to x? construct.  For each method m in T:
+
+If m is defined with the same signature in the current new statement, do nothing
+
+Otherwise, if m is defined with the same signature in the type of x, generate a wrapper that directly calls x.m(...)
+
+Otherwise, if m is defined with the same signature but an extra self parameter of this object?s type at the end of the parameter list in the type of x, generate a wrapper that calls x.m(..., this)
+
+
+Issue (Alex): the infrastructure is showing, and it?s ugly
+
+The extra type: ?AnimalDelegate?
+
+The extra ?self? parameter - one for the current object and one for the original object, and they are of different types!
+
+
+How could we address this ugliness?
+
+Dylan solution: every method takes self, but it defaults to the receiver.  There is a syntax for specifying a replacement though.  So x.m() passes x as self, but something like x.m(self=y) replaces it.  In a typed setting there is still some complexity because the passed-in self parameter has a different type than the (lone) parent object
+Provide a forwarding construct that does not pass ?self?  This is less expressive (forwarding, not delegation) but is semantically clean and gets rid of all the ugliness above.  It can probably handle a lot of examples, including cases where there are downcalls but no upcalls, but certainly not all examples we currently use inheritance for.
+
+Make the parent have a pointer to the child (but potentially awkward due to either recursive initialization, or reusing the same parent with multiple children).  Uniqueness types or a recursive initialization primitive (e.g. placeholder types Servetto et al. ECOOP 2013) could facilitate this, with the latter likely being a better solution to the problem.  There is some space cost in keeping an explicit pointer to the child, and as in other object-delegation systems it becomes harder to merge objects, which imposes space and time costs from chasing pointers.  Now at least we avoid extra types and awkward extra self parameters, though.
+
+Provide something like what?s above, but only as part of a ?class? construct that builds everything above in.  Under the covers, classes are still implemented in terms of delegation.  Note that if it?s possible to access the ?self? variable of the superclass, the weird AnimalDelegate type will still show up; and there will still be two different ?self? variables.  And if it?s not possible to do this, we really are hiding just as much under the covers as inheritance does--but on the bright side an optimized implementation becomes easy.
+
+
+%Tim?s concerns (from paper, see Table 1):
+%
+%Registration. (Reg.) Is the identity of the super-object stored during initialisation, either explicitly or through lexical capture, the same as the final object? This is clearly the intention of the call to register in graphic?s initialisation in their paper.
+%Downcalls. (Down.) Can a method in a super-object call down into a method in a lower object? Can it do so during initialisation? The implementation of the draw method in his paper relies on a downcall to the image method.
+%Action at a Distance. (Dist.) Can operations on an object implicitly affect another object? If the registered graphic object is different to amelia, what is the value of its name field after melia is initialised?
+%Stability. (Stable) Is the implementation of methods in an object the same throughout its lifetime? Which image method will be invoked by the request to draw at the end of graphic? Can the structural type of an object change after it has been constructed?
+%Freshness. (Exist.) Can an object inherit from any other object it has a reference to? Does amelia have to inherit a call to the constructor, or will a preexisting graphic object suffice?
+%Multiplicity. (Mult.)  Can an object inherit from multiple other objects? If amelia also wished to have the behaviour of another object, can a second inherits clause be added? If so, how are multiple methods with the same name resolved, and where are fields located?
+%
+%Tim?s example (to be translated to Wyvern!)
+%
+%method graphic {
+%	object {
+%		method image { abstract }
+%		method draw { canvas.render(image) }
+%		var name := ?A graphic?; displayList.register(self); draw
+%	}
+%}
+%
+%def amelia = object {
+%	inherits graphic
+%	def image = images.amelia; self.name := ?Amelia?
+%}
+
+\begin{figure*}
+\begin{lstlisting}
+// This is per type not per method solution as first try.
+type Animal
+	def eat()
+	def swallow()
+
+type Dog extends Animal
+	def bark():String
+
+// Optional syntax where self is assigned ?mine/this? by default.
+def makeAnimal(self:Animal = mine):Animal = new mine =>
+	def eat()
+		self.swallow()
+		mine.swallow()
+	def swallow() = new Unit()
+
+def makeDog(self:Animal):Dog = new mine =>
+	delegate Animal to self
+	// the ?delegate? declaration above is equivalent to:
+	// def eat() = self.eat()
+	def bark():String = "Woof"
+	def swallow():Unit = new Unit()
+
+val a:Animal = makeAnimal()
+val d:Animal = makeDog(a)
+d.eat() // calls Dog.swallow(), then Animal.swallow()
+d.bark() // ?Woof?
+
+// what about:
+val d:Animal = makeDog() // where will eat come from??? error???
+\end{lstlisting}
+\label{f:dylan-style}
+\caption{Alternative Example of Delegation}
+\end{figure*}
 
 \bibliographystyle{plain}
 \bibliography{alex}
