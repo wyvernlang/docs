@@ -38,7 +38,8 @@
 \newcommand{\cL}{{\cal L}}
 \setcitestyle{numbers}
 \setcitestyle{square}
-\lstset{basicstyle=\ttfamily,
+
+\lstset{basicstyle=\ttfamily\footnotesize,
 	  numberstyle=\tiny,
 	  numbersep=5pt,
 	  xrightmargin=0.2\textwidth}
@@ -65,13 +66,13 @@
 \title{Delegation Revisited}
 % \subtitle{Subtitle Text, if any}
 
-\authorinfo{Jonathan Aldrich}
-           {Carnegie Mellon University}
-           {aldrich@cs.cmu.edu}
-
 \authorinfo{Alex Potanin}
            {Victoria University of Wellington}
            {alex@ecs.vuw.ac.nz}
+
+\authorinfo{Jonathan Aldrich}
+           {Carnegie Mellon University}
+           {aldrich@cs.cmu.edu}
 		   		   
 \maketitle
 
@@ -91,104 +92,87 @@ delegation, inheritance
 
 \section{Why Objects not Classes?}
 
-Objects are not necessary. Consider what classes do:
+Wyvern aims to be a pure object-oriented language~\cite{Aldrich:2013:PIW:2509578.2514738} with value-based semantics. We start with a pure object-oriented core that models objects as records with methods and fields as members following Bruce et al.~\cite{BCP99}. Our model considers classes, modules, and other extensions as simply additional convenient ``sugar'' that can be translated to a pure object-oriented core~\cite{Nistor:2013:WST:2489828.2489830}. A class is thus simply an object that has methods that apply to all ``instances'' of such class that created by a factory method that adds the appropriate common methods and fields to each object representing an ``instance''. Wyvern subtyping is structural and if one is after a case analysis allowed for by nominal types we propose a pure tagged objects extension that does not require or need classes~\cite{DBLP:conf/ecoop/LeeASP15}.
 
-\begin{itemize}
-\item They are \textit{types} - but we have a separate separate type construct in Wyvern already (we do have types);
-\item They \textit{tag} objects, allowing for case analysis (see our ECOO 2015 tags paper~\cite{DBLP:conf/ecoop/LeeASP15});
-\item They are \textit{generators} - but we have a object-based new statement, and we can abstract over it with functions to produce factories (see our MASPEGHI 2013 paper~\cite{Nistor:2013:WST:2489828.2489830});
-\item They are ways of \textit{reusing} code (via inheritance) - but we have functions for that.
-\end{itemize}
+Having taken care of the need for classes as \textit{types}, \textit{case tags}, or \textit{generators}, we now want to provide the last potential use for classes: \textit{code reuse}, which is typically gained by some sort of inheritance in all its gory details and variations~\cite{jones:2016:inheritance}. Our talk will consider different options of avoiding inheritance and classes and why it makes the language more expressive and pure. Our work is inspired by our initial investigation showing that delegation-based formalism captures type state in a simpler and richer fashion than a class-based formalism~\cite{li:2015:ftfjp-typestate}.
 
-Maybe functions alone are not sufficient for convenient reuse, but it looks like some form of delegation might be.
+\section{Wyvern Delegation}
 
-Inheritance (and Self-style delegation, as contrasted with mere forwarding) build in open recursion.  Is this needed often enough to justify a particular language construct for it?
+In our first proposal for delegation support in Wyvern we built on a simple idea that simple function forwarding with a little syntactic sugar can express most inheritance patterns as shown by the example in Figure~\ref{f:wyvern-delegation}. The type of \texttt{Animal} describes instances that can \texttt{eat} and \texttt{swallow} while a \texttt{Dog} can also \texttt{bark}. When we construct an instance of an \texttt{Animal} we distinguish between a current instance being created (\texttt{animalSelf}) and the instance that we might be extending (\texttt{childSelf}) that will be given to us as a parameter to a method that is delegated to a ``prototype''/``super instance'' or whichever you may choose to call it. Thus, an animal can have a local version of eating and a dog that happens to be an animal can have its eating \textit{delegated} to the animal instance.
 
-Evidence that subclasses reuse methods and fields from superclasses, e.g. via super calls [dependence of subclass on superclass]
-
-Evidence that downcalls [the only situation when a superclass depends on its subclasses?] are somewhat common (6-8\% in Java of all classes from which 60\% are extended).
-
-No evidence specifically for open recursion: can the uses of downcalls be refactored so that the superclass C can be divided into C? and C??, where the downcall is in C? and the subclass depends only on C???  In this case, the design can perhaps be simulated using only forwarding.
-In general inheritance (and multiple one is even worse) introduces implicit rules on the code execution that are not obvious to the programmer thus increasing complexity
-
-Everything should be a value, so that you can abstract over it and compute with it.
-
-So could have classes, but they would have to be values.
-
-If we care about reasoning, first-class classes will make that reasoning more challenging.  Of course, with delegation we still have to reason about values statically, but notice that we want to do that anyway, so it comes ?for free? whereas with classes it is more of an added burden.  Combination with types is deadly: Racket is one of the few (only?) systems that has done typed first-class classes with inheritance-like composition, and it was an OOPSLA paper to do it.
-
-Do they have restrictions, e.g. vs. Smalltalk?  Worth looking into
-
-We want to do reasoning (typechecking, but maybe typestate or verification)
-
-Now inheritance seems to add a lot of complexity - relying only on objects is simpler.  See preliminary evidence in FTfJP 2015
-
-We already have forms of abstractions (functions) and composition based on values (records, function bodies).  Adding abstraction and composition over classes introduces more complexity
-
-It?s not just that classes are complex, then you need composition principles and rules too
-
-\begin{figure*}
+\begin{figure}
 \begin{lstlisting}
 type Animal
-	def eat()
-	def swallow()
+  def eat()
+  def swallow()
 
 type AnimalDelegate
-	def eat(self:Animal)
-	def swallow()
+  def eat(self:Animal)
+  def swallow()
 
 type Dog extends Animal
-	def bark():String
+  def bark():String
 
 def makeAnimal():AnimalDelegate = new animalSelf =>
-	def eat(@Self childSelf:Animal)
-		childSelf.swallow()
-		animalSelf.swallow()
-	def eat() = new LocalStuffToDo()
-	def swallow() = new Unit()
+  def eat(@Self childSelf:Animal)
+    childSelf.swallow()
+    animalSelf.swallow()
+  def eat() = new LocalStuffToDo()
+  def swallow() = new Unit()
 
 def makeDog(base:AnimalDelegate):Dog = new
-	delegate Animal to base
-	// the ?delegate? declaration above is equivalent to:
-	// def eat() = base.eat(this)
-	def bark():String = "Woof"
-	def swallow():Unit = new Unit()
+  delegate Animal to base
+  // the ?delegate? declaration above is equiv. to:
+  // def eat() = base.eat(this)
+  def bark():String = ``Woof''
+  def swallow():Unit = new Unit()
 
 val base:AnimalDelegate = makeAnimal()
 val a:Animal = makeDog(base)
 a.eat() // calls Dog.swallow(), then Animal.swallow()
-a.bark() // ?Woof?
+a.bark() // ``Woof''
 \end{lstlisting}
 \caption{Example of Delegation in Wyvern}
-\label{f:example-wyvern}
-\end{figure*}
+\label{f:wyvern-delegation}
+\end{figure}
 
-Figure~\ref{f:example-wyvern} shows delegation in Wyvern~\footnote{@Self is not implemented yet.}
+The support for such downcalls is provided by the \texttt{delegate T to x} construct which looks at whether each method \texttt{m} in \texttt{T} is defined with the same signature in the current new statement (in which case it does nothing) or if it is defined in the type of \texttt{x} (in which case a wrapper is generated that directly calls \texttt{x.m}) or finally if it is defined in the type of \texttt{x} with the same signature and an extra self parameter (in which case a wrapper calls \texttt{x.m(..., this)}).
 
-Semantics of ?delegate T to x? construct.  For each method m in T:
+We believe that making delegation explicit is better than implicitly (and often blindly as in the case of Java's virtual dispatch for all methods) allowing the superclasses to interact with subclasses using downcalls (or breaking ``uniform identity'' as defined by Jones et al.~\cite{jones:2016:inheritance}) which our preliminary investigation of the Qualitas Corpus~\cite{QualitasCorpus:APSEC:2010} shows to be occurring in $8\%$ of the \textit{extended} classes and is a potential source of hidden bugs and unintended functionality. In general, inheritance (and multiple one is even worse at this) introduces implicit rules on the code execution that are not obvious to the programmer and thus we argue it \textit{increases} complexity.
 
-If m is defined with the same signature in the current new statement, do nothing
+We believe everything should be a value so that one can abstract over it and compute with it. Thus, if one is to allow classes, they would have to be values. On the other hand, once first-class classes are allowed, reasoning about typed first-class classes with inheritance-like composition is non-trivial and while some variations of Racket achieve it~\cite{Takikawa:2012:GTF:2384616.2384674} it still remains a challenging type checking problem if one is to have a fully statically type checked language with the expressiveness of Smalltalk.
 
-Otherwise, if m is defined with the same signature in the type of x, generate a wrapper that directly calls x.m(...)
+%Maybe functions alone are not sufficient for convenient reuse, but it looks like some form of delegation might be.
 
-Otherwise, if m is defined with the same signature but an extra self parameter of this object?s type at the end of the parameter list in the type of x, generate a wrapper that calls x.m(..., this)
+%Inheritance (and Self-style delegation, as contrasted with mere forwarding) build in open recursion.  Is this needed often enough to justify a particular language construct for it?
 
+%Evidence that subclasses reuse methods and fields from superclasses, e.g. via super calls [dependence of subclass on superclass]
 
-Issue (Alex): the infrastructure is showing, and it?s ugly
+%No evidence specifically for open recursion: can the uses of downcalls be refactored so that the superclass C can be divided into C? and C??, where the downcall is in C? and the subclass depends only on C???  In this case, the design can perhaps be simulated using only forwarding.
 
-The extra type: ?AnimalDelegate?
+%If we care about reasoning, first-class classes will make that reasoning more challenging.  Of course, with delegation we still have to reason about values statically, but notice that we want to do that anyway, so it comes ?for free? whereas with classes it is more of an added burden.  Combination with types is deadly: Racket is one of the few (only?) systems that has done typed first-class classes with inheritance-like composition, and it was an OOPSLA paper to do it.
 
-The extra ?self? parameter - one for the current object and one for the original object, and they are of different types!
+%Do they have restrictions, e.g. vs. Smalltalk?  Worth looking into
 
+\section{Where To Next?}
 
-How could we address this ugliness?
+%We already have forms of abstractions (functions) and composition based on values (records, function bodies). Adding abstraction and composition over classes introduces more complexity.
 
-Dylan solution: every method takes self, but it defaults to the receiver.  There is a syntax for specifying a replacement though.  So x.m() passes x as self, but something like x.m(self=y) replaces it.  In a typed setting there is still some complexity because the passed-in self parameter has a different type than the (lone) parent object
-Provide a forwarding construct that does not pass ?self?  This is less expressive (forwarding, not delegation) but is semantically clean and gets rid of all the ugliness above.  It can probably handle a lot of examples, including cases where there are downcalls but no upcalls, but certainly not all examples we currently use inheritance for.
+%It?s not just that classes are complex, then you need composition principles and rules too.
 
-Make the parent have a pointer to the child (but potentially awkward due to either recursive initialization, or reusing the same parent with multiple children).  Uniqueness types or a recursive initialization primitive (e.g. placeholder types Servetto et al. ECOOP 2013) could facilitate this, with the latter likely being a better solution to the problem.  There is some space cost in keeping an explicit pointer to the child, and as in other object-delegation systems it becomes harder to merge objects, which imposes space and time costs from chasing pointers.  Now at least we avoid extra types and awkward extra self parameters, though.
+Our Wyvern proposal above is just the first of the ones we intend to discuss in the presentation. One can argue that too much infrastructure is showing and its not pretty as it requires an extra type (\texttt{AnimalDelegate}) and an extra explicit \texttt{self} parameter (one for the current object and one for the original object which are of different types!). How could we address this ugliness?
 
-Provide something like what?s above, but only as part of a ?class? construct that builds everything above in.  Under the covers, classes are still implemented in terms of delegation.  Note that if it?s possible to access the ?self? variable of the superclass, the weird AnimalDelegate type will still show up; and there will still be two different ?self? variables.  And if it?s not possible to do this, we really are hiding just as much under the covers as inheritance does--but on the bright side an optimized implementation becomes easy.
+One option we will discuss is \textit{``The Dylan/CLOS Solution''}: every method takes self as a parameter, but it defaults to the receiver. There is a syntax for specifying a replacement. So \texttt{x.m()} passes \texttt{x} as self, but something like \texttt{x.m(self=y)} replaces it. In a typed setting there is still some complexity because the passed-in self parameter has a different type than the (lone) parent object. A simpler version of such example is shown in Figure~\ref{f:dylan-style}.
+
+A second option to discuss is to provide a \textit{Forwarding Construct} that does not pass ``self''. This is less expressive (forwarding, not delegation) but is semantically clean and gets rid of all the ugliness above. We intend to explore (and push) the limits of the expressiveness of forwarding in our talk.
+
+% It can probably handle a lot of examples, including cases where there are downcalls but no upcalls, but certainly not all examples we currently use inheritance for.
+
+A third option is to make the \textit{Parent have a Pointer to the Child} (but potentially awkward due to either recursive initialisation, or reusing the same parent with multiple children). Uniqueness types or a recursive initialisation primitive (e.g. placeholder types by Servetto et al.~\cite{servetto:2013:billion}) could facilitate this, with the latter likely being a better solution to the problem. While we avoid the extra types and akward self parameters, we will pay the space cost of explicit extra pointers to the child and it would make it harder to merge objects.
+
+A fourth alternative is provide a \textit{CLASS} construct that builds everything above inside it and while ``under the covers'' classes are still implemented in terms of delegation the programmer does not need to deal with the complexity. Effectively, as much as in the usual class based inheritance is now hidden, but due to delegation done explicitly underneath a lot of optimisation become possible.
+
+%Provide something like what?s above, but only as part of a ?class? construct that builds everything above in.  Under the covers, classes are still implemented in terms of delegation.  Note that if it?s possible to access the ?self? variable of the superclass, the weird AnimalDelegate type will still show up; and there will still be two different ?self? variables.  And if it?s not possible to do this, we really are hiding just as much under the covers as inheritance does--but on the bright side an optimized implementation becomes easy.
 
 
 %Tim?s concerns (from paper, see Table 1):
@@ -215,41 +199,42 @@ Provide something like what?s above, but only as part of a ?class? construct tha
 %	def image = images.amelia; self.name := ?Amelia?
 %}
 
-\begin{figure*}
+
+\begin{figure}
 \begin{lstlisting}
 // This is per type not per method solution as first try.
 type Animal
-	def eat()
-	def swallow()
+  def eat()
+  def swallow()
 
 type Dog extends Animal
-	def bark():String
+  def bark():String
 
-// Optional syntax where self is assigned ?mine/this? by default.
+// Self is assigned mine (this) by default.
 def makeAnimal(self:Animal = mine):Animal = new mine =>
-	def eat()
-		self.swallow()
-		mine.swallow()
-	def swallow() = new Unit()
+  def eat()
+    self.swallow()
+    mine.swallow()
+  def swallow() = new Unit()
 
 def makeDog(self:Animal):Dog = new mine =>
-	delegate Animal to self
-	// the ?delegate? declaration above is equivalent to:
-	// def eat() = self.eat()
-	def bark():String = "Woof"
-	def swallow():Unit = new Unit()
+  delegate Animal to self
+  // the ?delegate? declaration above is equivalent to:
+  // def eat() = self.eat()
+  def bark():String = ``Woof''
+  def swallow():Unit = new Unit()
 
 val a:Animal = makeAnimal()
 val d:Animal = makeDog(a)
 d.eat() // calls Dog.swallow(), then Animal.swallow()
-d.bark() // ?Woof?
-
-// what about:
-val d:Animal = makeDog() // where will eat come from??? error???
+d.bark() // ``Woof''
 \end{lstlisting}
 \label{f:dylan-style}
-\caption{Alternative Example of Delegation}
-\end{figure*}
+\caption{Alternative ``Dylan-Style'' Example of Delegation}
+\end{figure}
+
+%// what about:
+%val d:Animal = makeDog() // where will eat come from??? error???
 
 \bibliographystyle{plain}
 \bibliography{alex}
