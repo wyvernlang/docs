@@ -64,7 +64,7 @@
 %\preprintfooter{short description of paper}   % 'preprint' option specified.
 
 \title{Delegation Revisited}
-% \subtitle{Subtitle Text, if any}
+\subtitle{Reuse Mechanisms in a Statically Typed, Expression-Oriented Language}
 
 \authorinfo{Alex Potanin}
            {Victoria University of Wellington}
@@ -77,7 +77,24 @@
 \maketitle
 
 \begin{abstract}
-Wyvern is a new secure object-oriented language in sore need of a code reuse functionality. Being object-oriented aficionados we discuss different ways \textit{delegation} can be implemented in Wyvern exploring different possibilities similar to Jones et al. exploring inheritance~\cite{jones:2016:inheritance}.
+How should medium-scale code reuse be supported in a statically-typed,
+expression-oriented programming language?  Neither function-based
+reuse nor class-based inheritance provides a good solution in this
+setting.  We question the requirements for code reuse, proposing that
+future work evaluate whether open recursion is really needed to support
+cases commonly seen in industry.  In addition, we explore the design
+space of forwarding and delegation mechanisms, finding that there are
+solutions that are surprisingly expressive despite their simplicity.
+
+%Function-based reuse works well
+%at the small scale, but at the medium scale we would like to compose groups
+%of functions and perhaps state (i.e. objects).  Statically-typed
+%inheritance-based reuse works with classes as top-level declarations, but
+%this choice is incompatible with an expression-oriented language design.
+%First-class classes restore expression orientation, but make static typing
+%complex.
+
+%Wyvern is a new secure object-oriented language in sore need of a code reuse functionality. Being object-oriented aficionados we discuss different ways \textit{delegation} can be implemented in Wyvern exploring different possibilities similar to Jones et al. exploring inheritance~\cite{jones:2016:inheritance}.
 \end{abstract}
 
 %\category{CR-number}{subcategory}{third-level}
@@ -88,15 +105,132 @@ Wyvern is a new secure object-oriented language in sore need of a code reuse fun
 %
 
 \keywords
-delegation, inheritance
+delegation, inheritance, reuse
 
-\section{Why Objects not Classes?}
+\section{Reuse in a Statically-Typed, Expression-Oriented Setting}
 
-Wyvern aims to be a pure object-oriented language~\cite{Aldrich:2013:PIW:2509578.2514738} with value-based semantics. We start with a pure object-oriented core that models objects as records with methods and fields as members following Bruce et al.~\cite{BCP99}. Our model considers classes, modules, and other extensions as simply additional convenient ``sugar'' that can be translated to a pure object-oriented core~\cite{Nistor:2013:WST:2489828.2489830}. A class is thus simply an object that has methods that apply to all ``instances'' of such class that created by a factory method that adds the appropriate common methods and fields to each object representing an ``instance''. Wyvern subtyping is structural and if one is after a case analysis allowed for by nominal types we propose a pure tagged objects extension that does not require or need classes~\cite{DBLP:conf/ecoop/LeeASP15}.
+An expression-oriented programming language is built primarily out of
+expressions that reduce to first-class values.  This design provides
+significant expressiveness benefits compared to languages that provide
+some abstractions only as top-level declarations.  Similarly, statically
+typed programming languages offer compelling benefits for understanding
+programs at scale and for building effective tools.  A language that
+combines these characteristics could offer outstanding benefits to
+programmers, but it has been difficult to develop a good design that
+can provides good code reuse at medium- to large scale while keeping
+the type system simple enough to be usable.
 
-Having taken care of the need for classes as \textit{types}, \textit{case tags}, or \textit{generators}, we now want to provide the last potential use for classes: \textit{code reuse}, which is typically gained by some sort of inheritance in all its gory details and variations~\cite{jones:2016:inheritance}. Our talk will consider different options of avoiding inheritance and classes and why it makes the language more expressive and pure. Our work is inspired by our initial investigation showing that delegation-based formalism captures type state in a simpler and richer fashion than a class-based formalism~\cite{li:2015:ftfjp-typestate}.
+Functional languages make up some of the most successful
+expression-oriented languages to date, and good static type systems
+have been developed.  However, while functions provide excellent reuse
+at the small scale, libraries and frameworks benefit greatly from
+medium-scale reuse abstractions that combine multiple functions into
+objects~\cite{Aldrich:2013:PIW:2509578.2514738} and combine object
+descriptions using mechanisms such as inheritance.  Dynamically typed
+object-oriented languages such as Smalltalk provide excellent
+expressiveness, but lack static typing.  Statically-typed
+object-oriented languages, in contrast, have tended to support classes
+as top-level declarations, limiting expressiveness so that classes
+cannot be passed around as first-class objects, but keeping the type
+system relatively simple.  A notable exception is Racket, which
+provides (gradual) static typing and first-class classes, at the cost
+of requiring more complex typing mechanisms such as row
+polymorphism~\cite{TSDTF}.
 
-\section{Wyvern Delegation}
+In the Wyvern project, we are seeking to develop an expression-oriented
+language that supports good reuse facilities with a relatively simple,
+albeit carefully designed, static type system.  We start with a pure
+object-oriented core that models objects as records with methods and
+fields as members, following Bruce et al.~\cite{BCP99}. Our model
+considers classes, modules, and other extensions as simply additional
+convenient ``sugar'' that can be translated to a pure object-oriented
+core~\cite{Nistor:2013:WST:2489828.2489830}.  For example, in Wyvern's
+design a ``class'' is simply an object with a factory method to create
+``instances''.  To promote simplicity and expressiveness, Wyvern's
+subtyping relation is structural; support for nominal types is
+provided thorugh a separate tagging
+mechanism~\cite{DBLP:conf/ecoop/LeeASP15}.
+
+This paper explores whether it is possible to support an expressive
+object-level reuse mechanism in this setting, without sacrificing
+the simplicity of the static type system or the expression-oriented
+nature of the language.  To remain expression-oriented, we seek to
+avoid tying our reuse mechanism to statically-declared classes,
+and so like Jones \textit{et al.} we seek something close in
+expressiveness to object inheritance without
+classes~\cite{jones:2016:inheritance}.
+%Considering mechanisms such
+%as delegation is inspired by our initial 
+%investigation showing that delegation-based formalism captures type state in a simpler and richer fashion than a class-based formalism~\cite{li:2015:ftfjp-typestate}.
+
+The next section explores whether we really need a mechanism for reuse
+that includes open recursion, the source of much of the complexity in
+the semantics of inheritance.  We follow with a section that considers
+new patterns of building open recursion out of simpler primitives in the
+(hopefully rare) cases when it really is needed.
+
+\section{The Need for Open Recursion}
+
+As open recursion is the source of considerable complexity when
+reasoning about inheritance and related delegation
+mechanisms~\cite{li:2015:ftfjp-typestate}, we can hope to keep our
+type systems (and reasoning systems built on top of them) simpler if
+the language does not build open recursion into its reuse mechanism.
+
+How important is it for a reuse mechanism to support Open Recursion?
+A recent empirical study in concluded found that the median program
+in a Java code corpus used downcalls in 34\% of relationships
+between classes--and downcalls indicate a use of open
+recursion~\cite{tempero2013programmers}.
+This data initially makes it appear that open recursion is commonly
+needed.
+
+However, the study did not consider whether designs that use
+downcalls could be written without them.  Consider the design
+of \texttt{java.util.AbstractCollection} in
+Figure~\ref{f:abstract-collection}.  Here the \texttt{isEmpthy()}
+method includes a downcall to the \texttt{size()} method.
+However, this design could perhaps be refactored into a design
+that uses forwarding, without open recursion.  The
+\texttt{AbstractCollection} constructor could take a
+\texttt{BasicCollection} argument that implements \texttt{size()}
+and other basic methods in terms of the appropriate data
+structures, and \texttt{AbstractCollection} would forward calls
+to \texttt{size()} down to the underlying collection.  If a
+programmer wants to override methods such as \texttt{isEmpthy()},
+that can be done by in turn wrapping the \texttt{AbstractCollection}.
+This design has the drawback of possibly requiring two objects to
+support both the basic functionality and the overrides, but it gains
+considerable simplicity by not requiring open recursion.  We
+hypothesize that a language design that provides a forwarding
+composition mechanism, without the open recursion in inheritance
+and delegation, could support many of the designs identified by
+Tempero \textit{et al.}, and we hope that future empirical studies
+could evaluating this hypothesis.
+
+\begin{figure}
+\begin{lstlisting}
+class AbstractCollection {
+    public abstract int size();
+	public int isEmpty() {
+	    return size() == 0;
+	}
+}
+\end{lstlisting}
+\caption{java.util.AbstractCollection code excerpt}
+\label{f:abstract-collection}
+\end{figure}
+
+
+\section{Patterns for Open Recursion When Needed}
+
+Presumably there are some designs that really do require open recursion
+in order to achieve reasonably convenient reuse.  Can these be supported
+using design patterns in a system that builds in only a simpler
+forwarding mechanism?
+
+
+
 
 In our first proposal for delegation support in Wyvern we built on a simple idea that simple function forwarding with a little syntactic sugar can express most inheritance patterns as shown by the example in Figure~\ref{f:wyvern-delegation}. The type of \texttt{Animal} describes instances that can \texttt{eat} and \texttt{swallow} while a \texttt{Dog} can also \texttt{bark}. When we construct an instance of an \texttt{Animal} we distinguish between a current instance being created (\texttt{animalSelf}) and the instance that we might be extending (\texttt{childSelf}) that will be given to us as a parameter to a method that is delegated to a ``prototype''/``super instance'' or whichever you may choose to call it. Thus, an animal can have a local version of eating and a dog that happens to be an animal can have its eating \textit{delegated} to the animal instance.
 
