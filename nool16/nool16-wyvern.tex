@@ -118,24 +118,26 @@ programs at scale and for building effective tools.  A language that
 combines these characteristics could offer outstanding benefits to
 programmers, but it has been difficult to develop a good design that
 can provides good code reuse at medium- to large scale while keeping
-the type system simple enough to be usable.
+the type system simple enough to be usable.  The most notable prior
+design in this space required complex typing mechanisms such as row
+polymorphism to reason about first-class classes~\cite{TSDTF}.
 
-Functional languages make up some of the most successful
-expression-oriented languages to date, and good static type systems
-have been developed.  However, while functions provide excellent reuse
-at the small scale, libraries and frameworks benefit greatly from
-medium-scale reuse abstractions that combine multiple functions into
-objects~\cite{Aldrich:2013:PIW:2509578.2514738} and combine object
-descriptions using mechanisms such as inheritance.  Dynamically typed
-object-oriented languages such as Smalltalk provide excellent
-expressiveness, but lack static typing.  Statically-typed
-object-oriented languages, in contrast, have tended to support classes
-as top-level declarations, limiting expressiveness so that classes
-cannot be passed around as first-class objects, but keeping the type
-system relatively simple.  A notable exception is Racket, which
-provides (gradual) static typing and first-class classes, at the cost
-of requiring more complex typing mechanisms such as row
-polymorphism~\cite{TSDTF}.
+%Functional languages make up some of the most successful
+%expression-oriented languages to date, and good static type systems
+%have been developed.  However, while functions provide excellent reuse
+%at the small scale, libraries and frameworks benefit greatly from
+%medium-scale reuse abstractions that combine multiple functions into
+%objects~\cite{Aldrich:2013:PIW:2509578.2514738} and combine object
+%descriptions using mechanisms such as inheritance.  Dynamically typed
+%object-oriented languages such as Smalltalk provide excellent
+%expressiveness, but lack static typing.  Statically-typed
+%object-oriented languages, in contrast, have tended to support classes
+%as top-level declarations, limiting expressiveness so that classes
+%cannot be passed around as first-class objects, but keeping the type
+%system relatively simple.  A notable exception is Racket, which
+%provides (gradual) static typing and first-class classes, at the cost
+%of requiring more complex typing mechanisms such as row
+%polymorphism~\cite{TSDTF}.
 
 In the Wyvern project, we are seeking to develop an expression-oriented
 language that supports good reuse facilities with a relatively simple,
@@ -159,14 +161,15 @@ avoid tying our reuse mechanism to statically-declared classes,
 and so like Jones \textit{et al.} we seek something close in
 expressiveness to object inheritance without
 classes~\cite{jones:2016:inheritance}.
-%Considering mechanisms such
-%as delegation is inspired by our initial 
-%investigation showing that delegation-based formalism captures type state in a simpler and richer fashion than a class-based formalism~\cite{li:2015:ftfjp-typestate}.
+Considering mechanisms such
+as delegation is inspired by our initial 
+investigation showing that delegation-based formalism captures type state in a simpler and richer fashion than a class-based formalism~\cite{li:2015:ftfjp-typestate}.
 
 The next section explores whether we really need a mechanism for reuse
 that includes open recursion, the source of much of the complexity in
 the semantics of inheritance.  We follow with a section that considers
-new patterns of building open recursion out of simpler primitives in the
+a variety of other mechanisms that could support open recursion in the 
+%new patterns of building open recursion out of simpler primitives in the
 (hopefully rare) cases when it really is needed.
 
 \section{The Need for Open Recursion}
@@ -184,6 +187,20 @@ between classes--and downcalls indicate a use of open
 recursion~\cite{tempero2013programmers}.
 This data initially makes it appear that open recursion is commonly
 needed.
+
+\begin{figure}
+\begin{lstlisting}
+class AbstractCollection {
+    public abstract int size();
+    public int isEmpty() {
+        return size() == 0;
+    }
+}
+\end{lstlisting}
+\caption{java.util.AbstractCollection code excerpt}
+\label{f:abstract-collection}
+\end{figure}
+
 
 However, the study did not consider whether designs that use
 downcalls could be written without them.  Consider the design
@@ -208,31 +225,37 @@ and delegation, could support many of the designs identified by
 Tempero \textit{et al.}, and we hope that future empirical studies
 could evaluating this hypothesis.
 
-\begin{figure}
-\begin{lstlisting}
-class AbstractCollection {
-    public abstract int size();
-	public int isEmpty() {
-	    return size() == 0;
-	}
-}
-\end{lstlisting}
-\caption{java.util.AbstractCollection code excerpt}
-\label{f:abstract-collection}
-\end{figure}
+%\section{Patterns for Open Recursion When Needed}
 
+%Presumably there are some designs that really do require open recursion
+%in order to achieve reasonably convenient reuse.  Can these be supported
+%using design patterns in a system that builds in only a simpler
+%forwarding mechanism?
 
-\section{Patterns for Open Recursion When Needed}
+%\begin{figure}
+%\begin{lstlisting}
+%module abstractCollection
 
-Presumably there are some designs that really do require open recursion
-in order to achieve reasonably convenient reuse.  Can these be supported
-using design patterns in a system that builds in only a simpler
-forwarding mechanism?
+%resource type BasicCollection
+%    def size():Int
+%    // other methods....
 
+%resource type Collection extends BasicCollection
+%    def isEmpty():Bool
+%    // other methods...
 
+%def make(delegator: BasicCollection):Collection
+%    new
+%        forward BasicCollection to delegator
+%        def isEmpty():Bool = (delegator.size() == 0)
+%\end{lstlisting}
+%\caption{An AbstractCollection in Wyvern}
+%\label{f:collection-wyvern}
+%\end{figure}
 
+\section{Exploring Delegation in Wyvern}
 
-In our first proposal for delegation support in Wyvern we built on a simple idea that simple function forwarding with a little syntactic sugar can express most inheritance patterns as shown by the example in Figure~\ref{f:wyvern-delegation}. The type of \texttt{Animal} describes instances that can \texttt{eat} and \texttt{swallow} while a \texttt{Dog} can also \texttt{bark}. When we construct an instance of an \texttt{Animal} we distinguish between a current instance being created (\texttt{animalSelf}) and the instance that we might be extending (\texttt{childSelf}) that will be given to us as a parameter to a method that is delegated to a ``prototype''/``super instance'' or whichever you may choose to call it. Thus, an animal can have a local version of eating and a dog that happens to be an animal can have its eating \textit{delegated} to the animal instance.
+Our first proposal for delegation support in Wyvern builds a little syntactic sugar on simple function forwarding to express most inheritance patterns.  In Figure~\ref{f:wyvern-delegation}, the type of \texttt{Animal} describes instances that can \texttt{eat} and \texttt{swallow} while a \texttt{Dog} can also \texttt{bark}. When we construct an instance of an \texttt{Animal} we distinguish between a current instance being created (\texttt{animalSelf}) and the instance that we might be extending (\texttt{childSelf}) that will be given to us as a parameter to a method that is delegated to the \texttt{Animal}. Thus, an animal can have a local version of eating and a dog that happens to be an animal can have its eating \textit{delegated} to the animal instance.
 
 \begin{figure}
 \begin{lstlisting}
@@ -272,9 +295,11 @@ a.bark() // ``Woof''
 
 The support for such downcalls is provided by the \texttt{delegate T to x} construct which looks at whether each method \texttt{m} in \texttt{T} is defined with the same signature in the current new statement (in which case it does nothing) or if it is defined in the type of \texttt{x} (in which case a wrapper is generated that directly calls \texttt{x.m}) or finally if it is defined in the type of \texttt{x} with the same signature and an extra self parameter (in which case a wrapper calls \texttt{x.m(..., this)}).
 
-We believe that making delegation explicit is better than implicitly (and often blindly as in the case of Java's virtual dispatch for all methods) allowing the superclasses to interact with subclasses using downcalls (or breaking ``uniform identity'' as defined by Jones et al.~\cite{jones:2016:inheritance}) which our preliminary investigation of the Qualitas Corpus~\cite{QualitasCorpus:APSEC:2010} shows to be occurring in $8\%$ of the \textit{extended} classes and is a potential source of hidden bugs and unintended functionality. In general, inheritance (and multiple one is even worse at this) introduces implicit rules on the code execution that are not obvious to the programmer and thus we argue it \textit{increases} complexity.
+We believe that making delegation explicit is better than implicitly
+%(and often blindly as in the case of Java's virtual dispatch for all methods)
+allowing the superclasses to interact with subclasses using downcalls (or breaking ``uniform identity'' as defined by Jones et al.~\cite{jones:2016:inheritance}) which our preliminary investigation of the Qualitas Corpus~\cite{QualitasCorpus:APSEC:2010} shows to be occurring in $8\%$ of the \textit{extended} classes and is a potential source of hidden bugs and unintended functionality. In general, inheritance introduces implicit rules about code execution that are not obvious to the programmer, and thus we argue it \textit{increases} complexity.
 
-We believe everything should be a value so that one can abstract over it and compute with it. Thus, if one is to allow classes, they would have to be values. On the other hand, once first-class classes are allowed, reasoning about typed first-class classes with inheritance-like composition is non-trivial and while some variations of Racket achieve it~\cite{Takikawa:2012:GTF:2384616.2384674} it still remains a challenging type checking problem if one is to have a fully statically type checked language with the expressiveness of Smalltalk.
+%We believe everything should be a value so that one can abstract over it and compute with it. Thus, if one is to allow classes, they would have to be values. On the other hand, once first-class classes are allowed, reasoning about typed first-class classes with inheritance-like composition is non-trivial and while some variations of Racket achieve it~\cite{Takikawa:2012:GTF:2384616.2384674} it still remains a challenging type checking problem if one is to have a fully statically type checked language with the expressiveness of Smalltalk.
 
 %Maybe functions alone are not sufficient for convenient reuse, but it looks like some form of delegation might be.
 
@@ -294,17 +319,17 @@ We believe everything should be a value so that one can abstract over it and com
 
 %It?s not just that classes are complex, then you need composition principles and rules too.
 
-Our Wyvern proposal above is just the first of the ones we intend to discuss in the presentation. One can argue that too much infrastructure is showing and its not pretty as it requires an extra type (\texttt{AnimalDelegate}) and an extra explicit \texttt{self} parameter (one for the current object and one for the original object which are of different types!). How could we address this ugliness?
+Our Wyvern proposal above is just the first of the ones we intend to discuss in the presentation.  Although it solves the technical problem, there is implementation complexity showing in the form of an extra type (\texttt{AnimalDelegate}) and an extra explicit \texttt{self} parameter (one for the current object and one for the original object which are of different types!). Can we do better?
 
-One option we will discuss is \textit{``The Dylan/CLOS Solution''}: every method takes self as a parameter, but it defaults to the receiver. There is a syntax for specifying a replacement. So \texttt{x.m()} passes \texttt{x} as self, but something like \texttt{x.m(self=y)} replaces it. In a typed setting there is still some complexity because the passed-in self parameter has a different type than the (lone) parent object. A simpler version of such example is shown in Figure~\ref{f:dylan-style}.
+One option we will discuss is \textit{``The Dylan/CLOS Solution''}: every method takes self as a parameter, but it defaults to the receiver. There is a syntax for specifying a replacement. So \texttt{x.m()} passes \texttt{x} as self, but something like \texttt{x.m(self=y)} replaces it. In a typed setting there is still some complexity because the passed-in self parameter has a different type than the (lone) parent object. A simple example is shown in Figure~\ref{f:dylan-style}.
 
 A second option to discuss is to provide a \textit{Forwarding Construct} that does not pass ``self''. This is less expressive (forwarding, not delegation) but is semantically clean and gets rid of all the ugliness above. We intend to explore (and push) the limits of the expressiveness of forwarding in our talk.
 
 % It can probably handle a lot of examples, including cases where there are downcalls but no upcalls, but certainly not all examples we currently use inheritance for.
 
-A third option is to make the \textit{Parent have a Pointer to the Child} (but potentially awkward due to either recursive initialisation, or reusing the same parent with multiple children). Uniqueness types or a recursive initialisation primitive (e.g. placeholder types by Servetto et al.~\cite{servetto:2013:billion}) could facilitate this, with the latter likely being a better solution to the problem. While we avoid the extra types and akward self parameters, we will pay the space cost of explicit extra pointers to the child and it would make it harder to merge objects.
+A third option is to make the \textit{Parent have a Pointer to the Child} (but potentially awkward due to either recursive initialisation, or reusing the same parent with multiple children). Uniqueness types or a recursive initialisation primitive (e.g. placeholder types by Servetto et al.~\cite{servetto:2013:billion}) could facilitate this, with the latter likely being a better solution to the problem. While we avoid the extra types and awkward self parameters, we will pay the space cost of explicit extra pointers to the child and it would make it harder to merge objects.
 
-A fourth alternative is provide a \textit{CLASS} construct that builds everything above inside it and while ``under the covers'' classes are still implemented in terms of delegation the programmer does not need to deal with the complexity. Effectively, as much as in the usual class based inheritance is now hidden, but due to delegation done explicitly underneath a lot of optimisation become possible.
+A fourth alternative is provide a \textit{CLASS} construct that builds everything above inside it and while ``under the covers'' classes are still implemented in terms of delegation the programmer does not need to deal with the complexity. This solution hides as much complexity as the usual class based inheritance, but at least it can be explained (and perhaps typed) in terms of expression-oriented primitives.
 
 %Provide something like what?s above, but only as part of a ?class? construct that builds everything above in.  Under the covers, classes are still implemented in terms of delegation.  Note that if it?s possible to access the ?self? variable of the superclass, the weird AnimalDelegate type will still show up; and there will still be two different ?self? variables.  And if it?s not possible to do this, we really are hiding just as much under the covers as inheritance does--but on the bright side an optimized implementation becomes easy.
 
