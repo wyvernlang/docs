@@ -66,13 +66,13 @@
 \title{Delegation Revisited}
 \subtitle{Reuse Mechanisms in a Statically Typed, Expression-Oriented Language}
 
-\authorinfo{Alex Potanin}
-           {Victoria University of Wellington}
-           {alex@ecs.vuw.ac.nz}
-
 \authorinfo{Jonathan Aldrich}
            {Carnegie Mellon University}
            {aldrich@cs.cmu.edu}
+
+\authorinfo{Alex Potanin}
+           {Victoria University of Wellington}
+           {alex@ecs.vuw.ac.nz}
 		   		   
 \maketitle
 
@@ -85,7 +85,7 @@
 %cases commonly seen in industry.  In addition, we explore the design
 %space of forwarding and delegation mechanisms, finding that there are
 %solutions that are surprisingly expressive despite their simplicity.
-
+%
 %Function-based reuse works well
 %at the small scale, but at the medium scale we would like to compose groups
 %of functions and perhaps state (i.e. objects).  Statically-typed
@@ -117,7 +117,7 @@ typed programming languages offer compelling benefits for understanding
 programs at scale and for building effective tools.  A language that
 combines these characteristics could offer outstanding benefits to
 programmers, but it has been difficult to develop a good design that
-can provides good code reuse while keeping
+can provide good code reuse while keeping
 the type system simple enough to be usable.  The most notable prior
 design in this space required complex typing mechanisms such as row
 polymorphism to reason about first-class classes~\cite{TSDTF}.
@@ -181,11 +181,11 @@ investigation showing that delegation-based formalism captures type state in a s
 %the language does not build open recursion into its reuse mechanism.
 
 How important is it for a reuse mechanism to support Open Recursion?
-A recent empirical study in concluded found that the median program
+A recent empirical study found that the median program
 in a Java code corpus used downcalls in 34\% of relationships
-between classes--and downcalls indicate a use of open
+between classes -- and downcalls indicate a use of open
 recursion~\cite{tempero2013programmers}.
-This data initially makes it appear that open recursion is commonly
+This data initially makes it seem that open recursion is commonly
 needed.
 
 %\begin{figure}
@@ -204,7 +204,7 @@ needed.
 
 However, the study did not consider whether designs that use
 downcalls could be written without them.  We will show an example
-of how the open recursion in \texttt{java.util.AbstractCollection}
+of how the open recursion in \texttt{java.util.} \texttt{AbstractCollection}
 could be replaced by simple forwarding by separating core
 functionality from overrides in the forwarding chain.
 
@@ -291,7 +291,7 @@ def makeDog(base:AnimalDelegate):Dog = new
 
 val base:AnimalDelegate = makeAnimal()
 val a:Animal = makeDog(base)
-a.eat() // calls Dog.swallow(), then Animal.swallow()
+a.eat() // Dog.swallow(), then Animal.swallow()
 a.bark() // ``Woof''
 \end{lstlisting}
 \caption{Example of Delegation in Wyvern}
@@ -326,7 +326,8 @@ allowing the superclasses to interact with subclasses using downcalls (or breaki
 
 Our Wyvern proposal above is just the first of the ones we intend to discuss in the presentation.  Although it solves the technical problem, there is implementation complexity showing in the form of an extra type (\texttt{AnimalDelegate}) and an extra explicit \texttt{self} parameter (one for the current object and one for the original object which are of different types!). Can we do better?
 
-One option we will discuss is \textit{``The Dylan/CLOS Solution''}: every method takes self as a parameter, but it defaults to the receiver. There is a syntax for specifying a replacement. So \texttt{x.m()} passes \texttt{x} as self, but something like \texttt{x.m(self=y)} replaces it. In a typed setting there is still some complexity because the passed-in self parameter has a different type than the (lone) parent object. A simple example is shown in Figure~\ref{f:dylan-style}.
+One option we will discuss is \textit{``The Dylan/CLOS Solution''}: every method takes self as a parameter, but it defaults to the receiver. There is a syntax for specifying a replacement. So \texttt{x.m()} passes \texttt{x} as self, but something like \texttt{x.m(self=y)} replaces it. In a typed setting there is still some complexity because the passed-in self parameter has a different type than the (lone) parent object.
+% A simple example is shown in Figure~\ref{f:dylan-style}.
 
 A second option to discuss is to provide a \textit{Forwarding Construct} that does not pass ``self''. This is less expressive (forwarding, not delegation) but is semantically clean and gets rid of all the ugliness above. We intend to explore (and push) the limits of the expressiveness of forwarding in our talk.
 
@@ -363,39 +364,38 @@ A fourth alternative is provide a \textit{CLASS} construct that builds everythin
 %	def image = images.amelia; self.name := ?Amelia?
 %}
 
-
-\begin{figure}
-\begin{lstlisting}
-// This is per type not per method solution as first try.
-type Animal
-  def eat()
-  def swallow()
-
-type Dog extends Animal
-  def bark():String
-
-// Self is assigned mine (this) by default.
-def makeAnimal(self:Animal = mine):Animal = new mine =>
-  def eat()
-    self.swallow()
-    mine.swallow()
-  def swallow() = new Unit()
-
-def makeDog(self:Animal):Dog = new mine =>
-  delegate Animal to self
-  // the ?delegate? declaration above is equivalent to:
-  // def eat() = self.eat()
-  def bark():String = ``Woof''
-  def swallow():Unit = new Unit()
-
-val a:Animal = makeAnimal()
-val d:Animal = makeDog(a)
-d.eat() // calls Dog.swallow(), then Animal.swallow()
-d.bark() // ``Woof''
-\end{lstlisting}
-\label{f:dylan-style}
-\caption{Alternative ``Dylan-Style'' Example of Delegation}
-\end{figure}
+%\begin{figure}
+%\begin{lstlisting}
+%// This is per type not per method solution as first try.
+%type Animal
+%  def eat()
+%  def swallow()
+%
+%type Dog extends Animal
+%  def bark():String
+%
+%// Self is assigned mine (this) by default.
+%def makeAnimal(self:Animal = mine):Animal = new mine =>
+%  def eat()
+%    self.swallow()
+%    mine.swallow()
+%  def swallow() = new Unit()
+%
+%def makeDog(self:Animal):Dog = new mine =>
+%  delegate Animal to self
+%  // the ?delegate? declaration above is equivalent to:
+%  // def eat() = self.eat()
+%  def bark():String = ``Woof''
+%  def swallow():Unit = new Unit()
+%
+%val a:Animal = makeAnimal()
+%val d:Animal = makeDog(a)
+%d.eat() // calls Dog.swallow(), then Animal.swallow()
+%d.bark() // ``Woof''
+%\end{lstlisting}
+%\label{f:dylan-style}
+%\caption{Alternative ``Dylan-Style'' Example of Delegation}
+%\end{figure}
 
 %// what about:
 %val d:Animal = makeDog() // where will eat come from??? error???
