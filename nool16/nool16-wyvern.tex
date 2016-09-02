@@ -20,7 +20,7 @@
 %-----------------------------------------------------------------------------
 
 
-\documentclass[preprint]{sigplanconf}
+\documentclass[preprint,10pt]{sigplanconf}
 
 % The following \documentclass options may be useful:
 
@@ -76,15 +76,15 @@
 		   		   
 \maketitle
 
-\begin{abstract}
-How should medium-scale code reuse be supported in a statically-typed,
-expression-oriented programming language?  Neither function-based
-reuse nor class-based inheritance provides a good solution in this
-setting.  We question the requirements for code reuse, proposing that
-future work evaluate whether open recursion is really needed to support
-cases commonly seen in industry.  In addition, we explore the design
-space of forwarding and delegation mechanisms, finding that there are
-solutions that are surprisingly expressive despite their simplicity.
+%\begin{abstract}
+%How should code reuse be supported in a statically-typed,
+%expression-oriented programming language?  Neither function-based
+%reuse nor class-based inheritance provides a good solution in this
+%setting.  We question the requirements for code reuse, proposing that
+%future work evaluate whether open recursion is really needed to support
+%cases commonly seen in industry.  In addition, we explore the design
+%space of forwarding and delegation mechanisms, finding that there are
+%solutions that are surprisingly expressive despite their simplicity.
 
 %Function-based reuse works well
 %at the small scale, but at the medium scale we would like to compose groups
@@ -95,7 +95,7 @@ solutions that are surprisingly expressive despite their simplicity.
 %complex.
 
 %Wyvern is a new secure object-oriented language in sore need of a code reuse functionality. Being object-oriented aficionados we discuss different ways \textit{delegation} can be implemented in Wyvern exploring different possibilities similar to Jones et al. exploring inheritance~\cite{jones:2016:inheritance}.
-\end{abstract}
+%\end{abstract}
 
 %\category{CR-number}{subcategory}{third-level}
 
@@ -104,8 +104,8 @@ solutions that are surprisingly expressive despite their simplicity.
 % \terms
 %
 
-\keywords
-delegation, inheritance, reuse
+%\keywords
+%delegation, inheritance, reuse
 
 \section{Reuse in a Statically-Typed, Expression-Oriented Setting}
 
@@ -117,7 +117,7 @@ typed programming languages offer compelling benefits for understanding
 programs at scale and for building effective tools.  A language that
 combines these characteristics could offer outstanding benefits to
 programmers, but it has been difficult to develop a good design that
-can provides good code reuse at medium- to large scale while keeping
+can provides good code reuse while keeping
 the type system simple enough to be usable.  The most notable prior
 design in this space required complex typing mechanisms such as row
 polymorphism to reason about first-class classes~\cite{TSDTF}.
@@ -165,20 +165,20 @@ Considering mechanisms such
 as delegation is inspired by our initial 
 investigation showing that delegation-based formalism captures type state in a simpler and richer fashion than a class-based formalism~\cite{li:2015:ftfjp-typestate}.
 
-The next section explores whether we really need a mechanism for reuse
-that includes open recursion, the source of much of the complexity in
-the semantics of inheritance.  We follow with a section that considers
-a variety of other mechanisms that could support open recursion in the 
+%The next section explores whether we really need a mechanism for reuse
+%that includes open recursion, the source of much of the complexity in
+%the semantics of inheritance.  We follow with a section that considers
+%a variety of other mechanisms that could support open recursion in the 
 %new patterns of building open recursion out of simpler primitives in the
-(hopefully rare) cases when it really is needed.
+%(hopefully rare) cases when it really is needed.
 
 \section{The Need for Open Recursion}
 
-As open recursion is the source of considerable complexity when
-reasoning about inheritance and related delegation
-mechanisms~\cite{li:2015:ftfjp-typestate}, we can hope to keep our
-type systems (and reasoning systems built on top of them) simpler if
-the language does not build open recursion into its reuse mechanism.
+%As open recursion is the source of considerable complexity when
+%reasoning about inheritance and related delegation
+%mechanisms~\cite{li:2015:ftfjp-typestate}, we can hope to keep our
+%type systems (and reasoning systems built on top of them) simpler if
+%the language does not build open recursion into its reuse mechanism.
 
 How important is it for a reuse mechanism to support Open Recursion?
 A recent empirical study in concluded found that the median program
@@ -188,42 +188,47 @@ recursion~\cite{tempero2013programmers}.
 This data initially makes it appear that open recursion is commonly
 needed.
 
-\begin{figure}
-\begin{lstlisting}
-class AbstractCollection {
-    public abstract int size();
-    public int isEmpty() {
-        return size() == 0;
-    }
-}
-\end{lstlisting}
-\caption{java.util.AbstractCollection code excerpt}
-\label{f:abstract-collection}
-\end{figure}
+%\begin{figure}
+%\begin{lstlisting}
+%class AbstractCollection {
+%    public abstract int size();
+%    public int isEmpty() {
+%        return size() == 0;
+%    }
+%}
+%\end{lstlisting}
+%\caption{java.util.AbstractCollection code excerpt}
+%\label{f:abstract-collection}
+%\end{figure}
 
 
 However, the study did not consider whether designs that use
-downcalls could be written without them.  Consider the design
-of \texttt{java.util.AbstractCollection} in
-Figure~\ref{f:abstract-collection}.  Here the \texttt{isEmpthy()}
-method includes a downcall to the \texttt{size()} method.
-However, this design could perhaps be refactored into a design
-that uses forwarding, without open recursion.  The
-\texttt{AbstractCollection} constructor could take a
-\texttt{BasicCollection} argument that implements \texttt{size()}
-and other basic methods in terms of the appropriate data
-structures, and \texttt{AbstractCollection} would forward calls
-to \texttt{size()} down to the underlying collection.  If a
-programmer wants to override methods such as \texttt{isEmpthy()},
-that can be done by in turn wrapping the \texttt{AbstractCollection}.
-This design has the drawback of possibly requiring two objects to
-support both the basic functionality and the overrides, but it gains
-considerable simplicity by not requiring open recursion.  We
-hypothesize that a language design that provides a forwarding
-composition mechanism, without the open recursion in inheritance
-and delegation, could support many of the designs identified by
-Tempero \textit{et al.}, and we hope that future empirical studies
-could evaluating this hypothesis.
+downcalls could be written without them.  We will show an example
+of how the open recursion in \texttt{java.util.AbstractCollection}
+could be replaced by simple forwarding by separating core
+functionality from overrides in the forwarding chain.
+
+%Consider the design
+%of \texttt{java.util.AbstractCollection} in
+%Figure~\ref{f:abstract-collection}.  Here the \texttt{isEmpthy()}
+%method includes a downcall to the \texttt{size()} method.
+%However, this design could perhaps be refactored into a design
+%that uses forwarding, without open recursion.  The
+%\texttt{AbstractCollection} constructor could take a
+%\texttt{BasicCollection} argument that implements \texttt{size()}
+%and other basic methods in terms of the appropriate data
+%structures, and \texttt{AbstractCollection} would forward calls
+%to \texttt{size()} down to the underlying collection.  If a
+%programmer wants to override methods such as \texttt{isEmpthy()},
+%that can be done by in turn wrapping the \texttt{AbstractCollection}.
+%This design has the drawback of possibly requiring two objects to
+%support both the basic functionality and the overrides, but it gains
+%considerable simplicity by not requiring open recursion.  We
+%hypothesize that a language design that provides a forwarding
+%composition mechanism, without the open recursion in inheritance
+%and delegation, could support many of the designs identified by
+%Tempero \textit{et al.}, and we hope that future empirical studies
+%could evaluating this hypothesis.
 
 %\section{Patterns for Open Recursion When Needed}
 
