@@ -12,7 +12,6 @@
 \usepackage{calc}
 \usepackage[linewidth=0.5pt]{mdframed}
 \usepackage{changepage}
-\usepackage{tabto}
 \allowdisplaybreaks
 
 \usepackage{fancyhdr}
@@ -125,7 +124,6 @@ d & ::= & \kw{def} m(y:\tau_u):\tau_u & e_u \hyphen prog~decls.\\
 		&&\\
 
 \tau_u & ::= & \{ \overline{ d } \} & e_u \hyphen prog~types \\
-	& | & \{ \overline{ d }~\kw{captures} \varepsilon \} \\
 	& | & \tau_\rho \\
 	&&\\\\\\
 
@@ -178,6 +176,7 @@ e & ::= & \rho & progs. \\
 	\item $e_u$ programs are \textit{deeply unlabeled} programs: no labels appear in the source code (though label inference may be done by the type system).
 	\item $e_l$ programs are \textit{deeply labeled} programs: everything in the source code is labeled.
 	\item $e$ programs are the general form of a syntactically-correct program. They may contain a mixture of labeled and unlabeled parts. Any unlabeled parts must be deeply unlabeled, but labeled parts need not be deeply labeled. This means you can have unlabeled parts appearing inside labeled parts, but not vice versa.
+	\item Any $e_l$ or $e_u$ term is also an $e$ term.
 \end{itemize}
 
 
@@ -244,23 +243,6 @@ $\fbox{$\Gamma \vdash d = e_u~\keyw{OK}$}$
 \infer[\textsc{($e_u$-ValidImpl)}]
 	{\Gamma \vdash d = e_u~\keywadj{OK}}
 	{d = \keyw{def} m(y : \tau_{u, 2}) : \tau_{u, 3} & \Gamma, y : \tau_{u, 2} \vdash e_u : \tau_{u, 3}}
-	\\[5ex]
-\end{array}
-\]
-
-\noindent
-$\fbox{$\Gamma \vdash e_u : \tau_u~\kw{with} \varepsilon$}$
-\[
-\begin{array}{c}
-\infer[\textsc{($e_u$-New$_\varepsilon$)}]
-	{\Gamma \vdash~\kwa{new}_d~x \Rightarrow \overline{ d = e_u } : \{ \overline{d}~\kw{captures} \varepsilon_c \}~ \kw{with} \varnothing }
-	{\varepsilon_c = \keywadj{effects}(\Gamma') &~~~ \Gamma' \subseteq \Gamma &~~~ \Gamma' \vdash~\kwa{new}_d~x \Rightarrow \overline{ d = e_u } : \{ \overline{d} \}}
-	{}
-	\\[5ex]
-	
-	\infer[\textsc{($e_u$-MethCall$_\varepsilon$)}]
-	{\Gamma \vdash e_{u, 1}.m(e_{u, 2}) : \tau_{l, 3}~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \keywadj{effects}(\tau_{u, 2}) \cup \varepsilon_c}
-	{\Gamma \vdash e_{u,1} : \{ \overline{d}~\keyw{captures} \varepsilon_c \}~\keyw{with} \varepsilon_1 &~~~ \Gamma \vdash e_{u,2}:\tau_{u,2}~\keyw{with} \varepsilon_2 &~~~ d =~\keyw{def} m(y:\tau_{u,2}):\tau_{u,3} \in \overline{d} }
 	\\[5ex]
 \end{array}
 \]
@@ -429,7 +411,7 @@ The $\keywadj{effects}$ function returns the set of effects captured in a partic
 \noindent \textbf{Notes:}
 
 \begin{enumerate}
-	\item The function is monotonic; if $\Gamma_1 \subseteq \Gamma_2$, then $\kwa{effects}(\Gamma_1) \subseteq \kwa{effects}(\Gamma_2)$.
+	\item The function is monotonic: if $\Gamma_1 \subseteq \Gamma_2$, then $\kwa{effects}(\Gamma_1) \subseteq \kwa{effects}(\Gamma_2)$.
 \end{enumerate}
 
 
@@ -437,40 +419,30 @@ The $\keywadj{effects}$ function returns the set of effects captured in a partic
 
 ~\\
 \noindent
-\fbox{$e \longrightarrow e~|~\varepsilon$}
+\fbox{$e_u \longrightarrow e_u~|~\varepsilon$}
 
 \[
 \begin{array}{c}
 
 	\infer[\textsc{(E-MethCall1)}]
-		{e_1.m(e_2) \longrightarrow e_1'.m(e_2)~|~\varepsilon}
-		{e_1 \longrightarrow e_1'~|~\varepsilon} \\[5ex]
+		{e_{u, 1}.m(e_{u, 2}) \longrightarrow e_{u, 1}'.m(e_{u, 2})~|~\varepsilon}
+		{e_{u, 1} \longrightarrow e_{u, 1}'~|~\varepsilon} \\[5ex]
 
-	\infer[\textsc{(E-MethCall2$_{\sigma}$)}]
-		{v_1.m(e_2) \longrightarrow v_1.m(e_2')~|~\varepsilon}
-		{v_1 = \newsig & e_2 \longrightarrow e_2'~|~\varepsilon} ~~~~~~
+	\infer[\textsc{(E-MethCall2)}]
+		{v_{u, 1}.m(e_{u, 2}) \longrightarrow v_{u, 1}.m(e_{u, 2}')~|~\varepsilon}
+		{v_{u, 1} = \newsig & e_{u, 2} \longrightarrow e_{u, 2}'~|~\varepsilon} \\[5ex]
 		
-	\infer[\textsc{(E-MethCall2$_d$)}]
-		{v_1.m(e_2) \longrightarrow v_1.m(e_2')~|~\varepsilon}
-		{v_1 = \newd & e_2 \longrightarrow e_2'~|~\varepsilon}\\[5ex]
-				
-	\infer[\textsc{(E-MethCall3$_{\sigma}$)}]
+	\infer[\textsc{(E-MethCall3)}]
 		{v_1.m(v_2)
 			\longrightarrow
-		 [v_1/x, v_2/y]l~|~\varnothing}
-  		{v_1 = \newsig & \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon = l \in \overline {\sigma = l}} \\[5ex]
-
-	\infer[\textsc{(E-MethCall3$_d$)}]
-		{v_1.m(v_2)
-			\longrightarrow
-		 [v_1/x, v_2/y]u~|~\varnothing}
-  		{v_1 = \newd & \keywadj{def~m}(y: \tau_1) : \tau_2 = e \in \overline {d = u}} \\[5ex]
+		 [v_1/x, v_2/y]e_u~|~\varnothing}
+  		{v_1 = \newd & \keywadj{def~m}(y: \tau_1) : \tau_2 = e_u \in \overline {d = e_u}} \\[5ex]
 
 	\infer[\textsc{(E-OperCall1)}]
-		{e_1.\pi
+		{e_{u, 1}.\pi
 			\longrightarrow
-		 e_1'.\pi~|~\varepsilon}
-		{e_1 \longrightarrow e_1'~|~\varepsilon}
+		 e_{u, 1}'.\pi~|~\varepsilon}
+		{e_{u, 1} \longrightarrow e_{u, 1}'~|~\varepsilon}
 ~~~~~~
 
 			\infer[\textsc{(E-OperCall2)}]
@@ -482,36 +454,36 @@ The $\keywadj{effects}$ function returns the set of effects captured in a partic
 \end{array}
 \]
 \noindent
-\fbox{$e \longrightarrow_* e~|~\varepsilon$}
+\fbox{$e_u \longrightarrow_* e_u~|~\varepsilon$}
 
 \[
 \begin{array}{c}
 
 	\infer[\textsc{(E-MultiStep1)}]
-	{e \longrightarrow_* e~|~\varnothing}
+	{e_u \longrightarrow_* e_u~|~\varnothing}
 	{} ~~~~~~~~
 	
 	\infer[\textsc{(E-MultiStep2)}]
-	{e \longrightarrow_* e'~|~\varepsilon}
-	{e \longrightarrow e'~|~\varepsilon} \\[5ex]
+	{e_u \longrightarrow_* e_u'~|~\varepsilon}
+	{e_u \longrightarrow e_u'~|~\varepsilon} \\[5ex]
 
 	\infer[\textsc{(E-MultiStep3)}]
-	{e \longrightarrow_* e''~|~\varepsilon_1 \cup \varepsilon_2}
-	{e \longrightarrow_* e'~|~\varepsilon_1 & e' \longrightarrow_* e''~|~\varepsilon_2}
+	{e_u \longrightarrow_* e_u''~|~\varepsilon_1 \cup \varepsilon_2}
+	{e_u \longrightarrow_* e_u'~|~\varepsilon_1 & e' \longrightarrow_* e''~|~\varepsilon_2}
 
 \end{array}
 \]
 
 \noindent \textbf{Notes:}
 \begin{itemize}
-	\item \textsc{E-MethCall2$_d$} and \textsc{E-MethCall2$_\sigma$} are really doing the same thing, but one applies to labeled objects (the $\sigma$ version) and the other to unlabeled objects. Same goes for \textsc{E-MethCall3$_\sigma$} and \textsc{E-MethCall3$_d$}.
-	\item \textsc{E-MethCall1} can be used for both labeled and unlabeled objects.
+	\item The runtime only operates on (deeply) unlabeled expressions. You may think of a compiler as stripping all the effect labels from a program before execution.
 \end{itemize}
 
 
-\section{Definition ($\keywadj{substitution}$)}
 
-TODO
+
+
+
 
 
 
@@ -524,15 +496,29 @@ TODO
 
 \section{Lemma (Canonical Forms)}
 
-\textbf{Lemma. } If $u$ is a value then $\Gamma \vdash u : \type{\tau}{\varnothing}$, and one of the following is true:
-\begin{enumerate}
-	\item $u = r$ and $\tau = \kwa{Unit}$.
-	\item $u = x$ and $x : \tau \in \Gamma$.
-	\item $u = \newd$ and $\tau = \{ \bar d \}$ 
-\end{enumerate} 
+TODO
 
-\noindent
-\textbf{Proof.} By inspection.
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Definition ($\keywadj{substitution}$)}
+
+TODO
+
+
+
+
+
 
 
 
@@ -566,9 +552,9 @@ A program may be converted into a fully-labeled program. This is a function from
 
 \begin{enumerate}
 	\item $\kwa{label}(\rho) = \rho$
-	\item $\kwa{label}(u_1.\pi) = \kwa{label}(u_1).\pi$
-	\item $\kwa{label}(u_1.m(u_2)) = \kwa{label}(u_1).m(\kwa{label}(u_2))$
-	\item $\kwa{label}(\newd) = \kwa{new}_\sigma~x \Rightarrow \kwa{label \hyphen decl}(\overline{d = u})$
+	\item $\kwa{label}(e_1.\pi) = \kwa{label}(e_1).\pi$
+	\item $\kwa{label}(e_1.m(e_2)) = \kwa{label}(e_1).m(\kwa{label}(e_2))$
+	\item $\kwa{label}(\kwa{new}_d~x \Rightarrow \overline{d = e_u}) = \kwa{new}_\sigma~x \Rightarrow \overline{ \kwa{label \hyphen decl}(d = e_u) }$
 	\item $\kwa{label}(\kwa{new}_\sigma~x \Rightarrow \overline{\sigma = e}) = \kwa{new}_\sigma~x \Rightarrow \overline{\sigma = \kwa{label}(e)}$
 \end{enumerate}
 
@@ -584,14 +570,16 @@ The helper function $\kwa{label \hyphen decl}$ works by labeling each declaratio
 \begin{itemize}
 	\item The image of $\kwa{label}(e_u)$ is an $e_l$-term (proof by induction on definition).
 	\item $e_u$ is a value $\iff \kwa{label}(e_u)$ is a value.
-	\item More rigorously we can define $\varnothing \cap \kwa{freevars}(e)$ as $\varnothing$, and $(\Gamma, x : \tau) \cap \kwa{freevars}(e)$ as $(\{ x \} \cap \kwa{freevars}(e)) \cup (\Gamma \cap \kwa{freevars}(e))$.
+	\item We can define $\varnothing \cap \kwa{freevars}(e)$ as $\varnothing$, and $(\Gamma, x : \tau) \cap \kwa{freevars}(e)$ as $(\Gamma \cap \kwa{freevars}(e)) \cup (\{ x \} \cap \kwa{freevars}(e))$.
 \end{itemize}
 
 
 
 
 
+\section{Definition ($\keywadj{unlabel}$)}
 
+The inverse of $\kwa{label}$. TODO
 
 
 
@@ -607,113 +595,17 @@ TODO
 
 
 
-
-
-
-\section{Theorem (Runtime Invariant Under Labeling)}
-
-If the following are true:
-	\begin{enumerate}
-	\item $\Gamma \vdash e_A : \type{\tau_A}{\varepsilon_A}$
-	\item $e_A \longrightarrow e_B~|~\varepsilon$
-	\item $\hat e_A = \keywadj{label}(e_A, \Gamma)$
-	\end{enumerate}
-Then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$ and $\hat e_B = \keywadj{label}(e_B, \Gamma)$.
-
-
-
-
-
-
-
-
-
-\section{Theorem (Refinement)}
-
-\textbf{Theorem.} Suppose $\Gamma \vdash u : \tau_A~\kwa{with}~\varepsilon_A$. Then $\Gamma \vdash \kwa{label}(u) : \type{\tau_B}{\varepsilon_B}$ and:
-\begin{enumerate}
-	\item $\tau_B <: \tau_A$
-	\item $\varepsilon_B \subseteq \varepsilon_A$
-\end{enumerate}
-
-\noindent
-\textbf{Proof.} By induction on $\Gamma \vdash u : \type{\tau_A}{\varepsilon_A}$.\\
-
-\proofcase{\textsc{T-NewInf}}{
-Then the following are known.
-
-
-\begin{adjustwidth}{1.5em}{0em}
-\begin{enumerate}
-  \setcounter{enumi}{4}
-  \item $u = \newd$
-  \item $\tau_A = \{ \bar d~\kw{captures} \varepsilon_C \}$
-  \item $\varepsilon_A = \varnothing$
-  \item $\Gamma' \subseteq \Gamma$
-  \item $\Gamma', x : \{ \bar d~\kw{captures} \varepsilon_C \} \vdash \overline{d = u}~\kwa{OK}$
-  \item $\varepsilon_C = \kwa{effects}(\Gamma')$
-\end{enumerate}
-\end{adjustwidth}
-
-~\\
-Let $l = \kwa{label}(u)$. Applying the definition of label to (5) we get:
-
-\begin{adjustwidth}{1.5em}{0em}
-$l = \kwa{label}(u) \\
-= \kwa{label}(\newd) \\
-= \kwa{new}_\sigma~x \Rightarrow \kwa{label \hyphen decl}(\overline{d = u}) \\
-= \kwa{new}_\sigma~x \Rightarrow \overline{d~\kw{with} \kwa{effects}(\Gamma \cap \kwa{freevars}(u)) = \kwa{label}(u)}$
-\end{adjustwidth}
-
-\noindent
-\\Fix some method declaration $d_i = u_i$ in the original unlabeled object $u$. From (9) we know $\Gamma', x : \{ \bar d~\kw{captures} \varepsilon_c \} \vdash d_i = u_i~\kwa{OK}$. The only rule with this judgement is \textsc{T-ValidImpl}. By inversion we obtain:
-\begin{adjustwidth}{1.5em}{0em}
-\begin{enumerate}
-  \setcounter{enumi}{10}
-  \item $d_i = \kw{def} m(y : \tau_2) : \tau_3$
-  \item $\Gamma', x : \{ \bar d~\kw{captures} \varepsilon_c \}, y : \tau_2 \vdash e : \tau_3$
-\end{enumerate}
-\end{adjustwidth}
-
-
-}
-
-\proofcase{\textsc{T-MethCallInf}}{
-hi\\
-}
-
-
 \section{Theorem (Soundness)}
 
-\textbf{Theorem.} Suppose $\Gamma \vdash u_A : \type{\tau_A}{\varepsilon_A}$ and $u_A \longrightarrow u_B~|~\varepsilon$. The following are true:
-\begin{enumerate}
-	\item $\Gamma \vdash u_B : \type{\tau_B}{\varepsilon_B}$
+\textbf{Theorem.} Suppose $\Gamma \vdash e_A : \tau_A$ and $e \longrightarrow e_B~|~\varepsilon$. The following are true:
+
+	\begin{enumerate}
+	\item $\Gamma \vdash e_B : \type{\tau_B}{\varepsilon_B}$
 	\item $\tau_B <: \tau_A$
 	\item $\varepsilon_B \cup \varepsilon = \varepsilon_A$
 	\end{enumerate}
 
 \noindent
-\textbf{Proof.} Without loss of generality assume $u_A$ is not a value. Let $l_A = \kwa{label}(u_A)$. By Theorem 11 (Refinement) we learn:
-\begin{enumerate}
-  \setcounter{enumi}{3}
-  \item $\Gamma \vdash l_A : \type{\hat \tau_A}{\hat \varepsilon_A}$
-  \item $\hat \tau_A <: \tau_A$
-  \item $\hat \varepsilon_A \subseteq \varepsilon_A$
-\end{enumerate}
- 
-\noindent
-Because $u_A$ is not a value, neither is $l_A$. By Theorem 10 the runtime is invariant under labeling, so $l_A \longrightarrow l_B~|~\varepsilon$, where $l_B = \kwa{label}(u_B)$. Because the typing rules for $l$-terms are sound, $\Gamma \vdash l_B : \type{\hat \tau_B}{\hat \varepsilon_B}$ where:
-
-\begin{enumerate}
-  \setcounter{enumi}{6}
-	\item $\hat \tau_B <: \hat \tau_A$
-	\item $\hat \varepsilon_B \subseteq \hat \varepsilon_A$
-\end{enumerate}
-
-\noindent
-\textbf{It's at this point we invoked Refinement again to relate $l_B$ and $u_B$. However, the judgement for $l_B$ comes from the soundness theorem. We don't know if this is the same judgement guaranteed by the refinement theorem, so it's not right to equate them.}\\
-
-\noindent
-\textbf{What we need to know: if $\Gamma \vdash \kwa{label}(u_B) : \type{\hat \tau_B}{\hat \varepsilon_B}$, then for *any* judgement $\Gamma \vdash u_B : \type{\tau_B}{\varepsilon_B}$, that $\hat \tau_B <: \tau_B$ and $\hat \varepsilon_B \subseteq \varepsilon_B$ (in general that's not true though, since you can just type $\hat \tau_B$ as $\top$ or some other type which isn't useful). }
+\textbf{Proof.} 
 
 \end{document}
