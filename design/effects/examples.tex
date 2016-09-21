@@ -1,0 +1,326 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = u}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = l}
+}
+
+\begin{document}
+
+\section{Labeling Of Unlabeled Object}
+
+\subsection{Basic Example}
+
+\noindent
+Assume we have a $\kwa{File}$ resource in the global context $\Gamma$. Consider the following program, which takes a logger as input and uses it to record an error message.
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def errmsg(y : { def log : Str }) : Unit =
+        y.log(``runtime exception'')
+}.errmsg(
+    new$_d$ x $\Rightarrow$ {
+        def log(z : Str) : Unit =
+            File.close
+    }
+)
+\end{lstlisting}
+
+\noindent
+Because the input and output types of the provided logger's $\kwa{log}$ method are value-types, then we may do straight-forward inference: the free variables of the body intersect with $\Gamma$ is $\kwa{File}$, so we label the method as having every effect on $\kwa{File}$. The labelled version looks like this:
+
+\begin{lstlisting}
+new$_\sigma$ x $\Rightarrow$ {
+    def log(z:  Str) : Unit with { File.close, File.write, ... } =
+        File.close
+}
+\end{lstlisting}
+
+
+\subsection{Naked Objects}
+ Here's an object literal which records error messages through a given logger, but is deeply unlabelled. Here the type of $\kwa{Logger}$ is something which takes a $\kwa{String}$ and returns $\kwa{Unit}$. After labelling, what should its type be?
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def errmsg(y : { def log : Str }) : Unit =
+        y.log(``runtime exception'')
+}
+\end{lstlisting}
+
+\noindent
+There doesn't seem to be any sensible answer as to what to label $\kwa{log}$. If we know this occurs as a subexpression of a method-call, we may solve this problem by labelling the type of the expression passed into the method-call before labelling the type of the formal argument. \\
+
+\noindent
+If this doesn't appear as a subexpression (i.e. it's a top-level, naked object) then it doesn't matter what the labelling is as $\kwa{errmsg}$ is never called. Therefore we might decide to leave it undefined. However, this means the image of $\kwa{label}$ won't necessarily be an $e_l$ term (which may only contain fully-labelled types). Another idea: give it a ``dummy'' labelling, just so it conforms to the form of $e_l$? \\
+
+\noindent
+If you have to label $\kwa{def}~m(y : \tau_{u, A}) : \tau_{u, B} = e_{body}$ then when you label $\tau_{u, B}$ you need to pass $e_{body}$ with it; and when you label $\tau_{u, A}$ you need to either signify that this happens inside a naked object, or else this is a subexpression in a method-call on your parent object, so you want to pass in the argument to that method-call.\\
+
+\section{Encodings}
+
+\subsection{No Arguments}
+
+\begin{lstlisting}
+def m() : $\tau$ = e
+\end{lstlisting}
+
+$\Downarrow$
+
+\begin{lstlisting}
+def m(y : Unit) : $\tau$ = e
+\end{lstlisting}
+
+\subsection{Let Expressions}
+
+\subsubsection*{Transformation}
+~
+\begin{lstlisting}
+let y = $e_{l, 1}$ : $\tau_{l, 1}$ in $e_{l, 2}$ : $\tau_{l, 2}$
+\end{lstlisting}
+
+$\Downarrow$
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def eval(y : $\tau_{l, 1}$) : $\tau_{l, 2}$ =
+        $e_{l, 2}$
+}.eval($e_{l, 1}$)
+\end{lstlisting}
+
+\subsection{Tuples}
+
+The pair $<e_1: \tau_1, e_2: \tau_2>$ becomes:
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def fst(): $\tau_1$ = $e_1$
+    def snd(): $\tau_2$ = $e_2$
+}
+\end{lstlisting}
+
+\noindent
+Referring to $e_1$ is shorthand for calling $\kwa{fst}$ on this pair; $e_2$ for calling $\kwa{snd}$.
+
+\subsection{Booleans}
+
+(Types in this section are probably wrong! Could do it with a $\kwa{Dyn}$ type, but can you get away without it?) \\
+
+\noindent
+The literal $\kwa{True}$ is:
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def eval(y: <$e_1$:Unit, $e_2$:Unit>): Unit =
+        y.fst()
+}
+\end{lstlisting}
+
+\noindent
+The literal $\kwa{False}$ is:
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def eval(y: <$e_1$:Unit, $e_2$:Unit>): Unit =
+        y.snd()
+}
+\end{lstlisting}
+
+\noindent
+The type $\kwa{Bool}$ is syntactic sugar for the following type:
+
+\begin{lstlisting}
+{ def eval(y: <$e_1$:Unit, $e_2$:Unit>): Unit }
+\end{lstlisting}
+
+\noindent
+$(b_1 : \kwa{Bool}) \land (b_2 : \kwa{Bool})$ is sugar for the following:
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def eval(y: <$b_1$:Bool, $b_2$:Bool>): Unit =
+        $b_1$.eval(<$b_2$.eval(<True, False>), False>)
+}
+\end{lstlisting}
+
+\noindent
+$\neg (b : \kwa{Bool})$ is sugar for the following:
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def eval(y: <$b$:Bool, _:Unit>): Unit =
+        b.eval(<False, True>)
+}
+\end{lstlisting}
+
+\noindent
+Because $\{ \neg, \land \}$ is a functionally complete set of connectives this gives you propositional boolean logic.
+
+\subsection{Conditionals}
+
+\begin{lstlisting}
+if x: Bool then $e_1$: $ \tau$ else $e_2$: $ \tau$
+\end{lstlisting}
+
+$\Downarrow$
+
+\begin{lstlisting}
+x.eval(<e_1, e_2>)
+\end{lstlisting}
+
+\subsection{Encoding $\mathbb{N}$}
+
+Define $0 : \mathbb{N}$ in the following way.
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def isZero(): Bool = True
+    def previous(): $\mathbb{N}$ = x
+}
+\end{lstlisting}
+
+\noindent
+For $n : \mathbb{N}$, define $\kwa{succ}(n): \mathbb{N}$ as follows.
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def isZero(): Bool = False
+    def previous(): $\mathbb{N}$ = n
+}
+\end{lstlisting}
+
+\noindent
+Then the type $\mathbb{N}$ is an alias for an object with two methods, $\kwa{isZero}$ and $\kwa{previous}$ (not actually valid because no recursive types, but eh). Something like $2$ has the following representation:
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def isZero(): Bool = False
+    def previous(): $\mathbb{N}$ =
+        new$_\sigma$ x $\Rightarrow$ {
+            def isZero(): Bool = False
+            def previous(): $\mathbb{N}$ =
+                new$_\sigma$ x $\Rightarrow$ {
+                    def isZero(): Bool = True
+                    def previous(): $\mathbb{N}$ = n
+                }
+        }
+}
+\end{lstlisting}
+
+\subsection{N-Tuples}
+
+With pairs and $\mathbb{N}$ we can define an $n$-tuple in the following way. Given an $n$-tuple $t_n = <e_1: \tau_1, ..., e_n: \tau_n>$, the $(n+1)$-tuple $t_{n+1} = <e_1: \tau_1, ..., e_n: \tau_n, e_{n+1}: \tau_{n+1}>$ is the following:
+
+\begin{lstlisting}
+new$_d$ x $\Rightarrow$ {
+    def nth(index: $\mathbb{N}$): $\tau_{n+1}$ =
+        if index.equals(n+1)
+            then $e_{n+1}$
+            else $\tau_n$.nth(index.previous())
+}
+\end{lstlisting}
+
+\noindent
+With this we may encode an n-ary method as a unary method, which takes a single n-tuple.
+
+\end{document}
+
+
+
+
+
+
+
+
