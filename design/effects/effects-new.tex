@@ -132,15 +132,15 @@ d & ::= & \kw{def} m(y:\tau_u):\tau_u & e_u \hyphen prog~decls.\\
 
 
 e_l & ::= & \rho & deeply~labeled~progs. \\
-	& | & \kwa{new}_\sigma~x \Rightarrow \overline{\sigma = e_l} \\
+	& | & \kwa{new}_\sigma~x \Rightarrow \overline{\sigma_l = e_l} \\
 	& | & l.m(l) \\
 	& | & l.\pi \\
 	&&\\
 
-\sigma & ::= & \kwa{def}~m(y : \tau_l) : \tau_l~\kw{with} \varepsilon & e_l \hyphen prog~decls. \\
+\sigma_l & ::= & \kwa{def}~m(y : \tau_l) : \tau_l~\kw{with} \varepsilon & e_l \hyphen prog~decls. \\
 	&&\\
 
-\tau_l & ::= & \{ \bar \sigma \} & e_l \hyphen prog~types \\
+\tau_l & ::= & \{ \bar \sigma_l \} & e_l \hyphen prog~types \\
 	& | & \tau_\rho \\
 	&&\\\\\\
 	
@@ -159,8 +159,12 @@ e & ::= & \rho & progs. \\
 	& | & \kwa{new}_\sigma~x \Rightarrow \overline{\sigma = e} \\
 	&&\\
 	
+\sigma & ::= & \kwa{def}~m(y : \tau) : \tau~\kw{with} \varepsilon & e_l \hyphen prog~decls. \\
+	&&\\
+	
 \tau & ::= & \tau_l & types \\
 	& | & \tau_u \\
+	& | & \{ \bar \sigma \} \\
 	&&\\
 		
 		
@@ -554,8 +558,9 @@ A program may be converted into a fully-labeled program. This is a function from
 	\item $\kwa{label}(\rho) = \rho$
 	\item $\kwa{label}(e_1.\pi) = \kwa{label}(e_1).\pi$
 	\item $\kwa{label}(e_1.m(e_2)) = \kwa{label}(e_1).m(\kwa{label}(e_2))$
-	\item $\kwa{label}(\kwa{new}_d~x \Rightarrow \overline{d = e_u}) = \kwa{new}_\sigma~x \Rightarrow \overline{ \kwa{label \hyphen decl}(d = e_u) }$
-	\item $\kwa{label}(\kwa{new}_\sigma~x \Rightarrow \overline{\sigma = e}) = \kwa{new}_\sigma~x \Rightarrow \overline{\sigma = \kwa{label}(e)}$
+	\item $\kwa{label}(\kwa{new}_d~x \Rightarrow \overline{d = e_u}) = \kwa{new}_\sigma~x \Rightarrow
+	\overline{ \kwa{label_{decl}}(d) = \kwa{label}(e_u) }$
+	\item $\kwa{label}(\kwa{new}_\sigma~x \Rightarrow \overline{\sigma = e}) ~= \kwa{new}_\sigma~x \Rightarrow \overline{\kwa{label_{decl}}(\sigma) = \kwa{label}(e)}$
 \end{enumerate}
 
 \noindent
@@ -563,7 +568,17 @@ The helper function $\kwa{label \hyphen decl}$ works by labeling each declaratio
 
 \begin{enumerate}
   \setcounter{enumi}{4}
-  \item $\kwa{label \hyphen decl}(d = u) = d~\kw{with} \kwa{effects}(\Gamma \cap \kwa{freevars}(e)) = \kwa{label}(u)$
+  \item $\kwa{label_{decl}}( \kw{def} m(y : \tau_A) : \tau_B,~e_{body}) = \kw{def} m(y : \kwa{label_{type}}(\tau_A)) : \kwa{label_{type}}(\tau_B)~\kw{with} \Gamma \cap \kwa{freevars}(e_{body})$
+\end{enumerate}
+
+\noindent
+If you label a type it should produce the labeled version.
+
+\begin{enumerate}
+	\setcounter{enumi}{5}
+	\item $\kwa{label_{type}}(\{ r \}) = \{ r \}$
+	\item $\kwa{label_{type}}(\{ \bar \sigma \}) = \{ \kwa{label_{decl}}(\sigma) \}$
+	\item $\kwa{label_{type}}(\{ \bar d \}) = \{ \kwa{label_{decl}}(d) \}$
 \end{enumerate}
 
 \noindent \textbf{Notes:}
@@ -591,10 +606,6 @@ The inverse of $\kwa{label}$. TODO
 TODO
 
 
-
-
-
-
 \section{Theorem (Soundness)}
 
 \textbf{Theorem.} Suppose $\Gamma \vdash e_A : \tau_A$ and $e_A \longrightarrow e_B~|~\varepsilon$. The following are true:
@@ -608,6 +619,50 @@ TODO
 	\end{enumerate}
 
 \noindent
-\textbf{Proof.} 
+\textbf{Proof.} \\
+
+\noindent
+From refinement we know $\Gamma \vdash \kwa{label}(e_A) : \type{\hat \tau_A}{\varepsilon_A}$, where $\hat \tau_A <: \tau_A$. Choose $\hat \tau_A = \tau_A$. \\
+
+\noindent 
+Because $\kwa{unlabel}(e_A) = \kwa{unlabel(label(}e_A))$, then $\kwa{label}(e_A) \longrightarrow e_B~|~\varepsilon$. \\
+
+
+\noindent
+By soundness of reduction on the $e_l$-term $\kwa{label}(e_A)$, we know $\Gamma \vdash \kwa{label}(e_B) : \type{\hat \tau_B}{\varepsilon_B}$, where $\kwa{label}(\tau_B) <: \kwa{label}(\tau_A)$. Choose $\hat \tau_B = \hat \tau_A$. Then we know $\hat \tau_B = \hat \tau_A = \tau_A$. 
+\\
+
+\noindent
+\textbf {Stuff below needs formal justification we haven't explored: }
+Because labels only make types more restrictive, the range of possible types for $e_B$ is contained in the range of possible types $\kwa{label}(e_B)$. For example:
+
+\begin{lstlisting}
+def m$_1$(y: $\tau_A$): $\tau_B$ with $\varepsilon$
+\end{lstlisting}
+
+\noindent
+Is a subtype of:
+
+\begin{lstlisting}
+def m$_2$(y: $\tau_A$): $\tau_B$
+\end{lstlisting}
+
+\noindent
+Because $\varepsilon$ is an upper-bound on the effects, $m_1$ is not allowed to have any effect $r.\pi \notin \varepsilon$, but $m_2$ is allowed because it has no upper-bound. Therefore the second can (should be able to) be typed to the first in any situation. \\
+
+\noindent
+Then since we already have a typing judgement for $\kwa{label}(e_B)$ with type $\hat \tau_B$ we know $\Gamma \vdash e_B : \tau_B$ (progress theorem). Then choose $\tau_B = \hat \tau_B$.
+
 
 \end{document}
+
+
+
+
+
+
+
+
+
+
+
