@@ -12,6 +12,7 @@
 \usepackage{calc}
 \usepackage[linewidth=0.5pt]{mdframed}
 \usepackage{changepage}
+\usepackage{tabto}
 \allowdisplaybreaks
 
 \usepackage{fancyhdr}
@@ -24,11 +25,10 @@
 \lstloadlanguages{Java,VBScript,XML,HTML}
 
 \newcommand{\keywadj}[1]{\mathtt{#1}}
-\newcommand{\kwa}[1]
-{\keywadj{#1}}
 \newcommand{\keyw}[1]{\keywadj{#1}~}
-\newcommand{\kw}[1]
-{\keyw{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
 \newcommand{\reftt}{\mathtt{ref}~}
 \newcommand{\Reftt}{\mathtt{Ref}~}
 \newcommand{\inttt}{\mathtt{int}~}
@@ -99,58 +99,887 @@
 	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
 }
 
-\newcommand{\defn}[1]{
-	\textbf{Definition. (#1)~~}
-}
 
 \begin{document}
 
-\today
 
-\section{Stanford Encyclopaedia of Philosophy}
+\section{Grammar}
 
-\subsection{Extensionality}
+\[
+\begin{array}{lll}
+
+\begin{array}{lllr}
+
+e & ::= & x & expressions \\
+  		& | & r \\
+		& | & \keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} \\
+ 		& | & \keywadj{new}_d~x \Rightarrow \overline{d = e} \\
+ 		& | & e.m(e)\\
+ 		& | & e.\pi\\
+		&&\\
+
+\tau & ::= & \{ \bar \sigma \} & types \\
+		& | & \{ \bar r \} \\
+		& | & \{ \bar d \} \\
+		& | & \{ \bar d ~\keyw{captures} \varepsilon \} \\
+		&&\\
+		
+\sigma & ::= & d~\keyw{with}\varepsilon  & labeled~ decls.\\
+		&&\\
+
+d & ::= & \keyw{def} m(x:\tau):\tau & unlabeled~decls.\\
+		&&\\
+
+\end{array}
+& ~~~~~~
+&
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item $\sigma$ denotes a declaration with effect labels; $d$ a declaration without effect labels.
+	\item $\keywadj{new}_\sigma$ is for creating annotated objects; $\keywadj{new}_d$ for unannotated objects.
+	\item $\{ \bar \sigma \}$ is the type of an annotated object. $\{ \bar d \}$ is the type of an unannotated object.
+	\item $\{ \bar d ~\keyw{captures} \varepsilon \}$ is a special kind of type that doesn't appear in source programs but may be assigned by the new rules in this section. Intuitively, $\varepsilon$ is an upper-bound on the effects captured by $\{ \bar d \}$.
+\end{itemize}
+
+\section{Semantics}
+
+\subsection{Static Semantics}
 
 \noindent
-Accessed: 02/09/2016 \\
+$\fbox{$\Gamma \vdash e : \tau$}$
+
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Var)}]
+	{\Gamma,~x : \tau \vdash x : \tau}
+	{}
+~~~~~~~~~~
+\infer[\textsc{(T-Resource)}]
+	{\Gamma,~r : \{ r \} \vdash r : \{ r \}}
+	{}
+~~~~~~~~~~
+\infer[\textsc{(T-OperCall)}]
+	{\Gamma \vdash e_1.\pi : \keywadj{Unit}}
+	{\Gamma \vdash e_1 : \{ r \}} \\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_\sigma$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_3}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \} & \keyw{def} m(y : \tau_2) : \tau_3~\keyw{with} \varepsilon_3 \in \{ \bar \sigma \} &  \Gamma \vdash e_2 : \tau_2 }\\[5ex]
+~~~~~~~~~~
+\infer[\textsc{(T-MethCall$_d$)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau_3}
+	{\Gamma \vdash e_1 : \{ \bar d\} & \keyw{def} m(y : \tau_2) : \tau_3 \in \{ \bar d \} &  \Gamma \vdash e_2 : \tau_2}\\[5ex]
+~~~~~~~~~~
+
+~~~~~~~~~~
+\infer[\textsc{(T-New$_\sigma$)}]
+	{\Gamma \vdash~\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e} : \{ \bar \sigma \}}
+	{\Gamma, x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}}
+~~~~~~~~~~
+\infer[\textsc{(T-New$_d$)}]
+	{\Gamma \vdash~\keywadj{new}_d~x \Rightarrow \overline{d = e} : \{ \bar d \}}
+	{\Gamma, x : \{ \bar d \} \vdash \overline{d = e}~\keywadj{OK}}\\[5ex]
+\end{array}
+\]
 
 \noindent
-\defn{Extension} The thing to which a reference points. For a term, this is exactly the referent; for the predicate $P$, it is the set of things for which $P$ holds; for the sentence, it is the truth-value. \\
+$\fbox{$\Gamma \vdash d = e~\keyw{OK}$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(ValidImpl$_d$)}]
+	{\Gamma \vdash d = e~\keywadj{OK}}
+	{d = \keyw{def} m(y : \tau_2) : \tau_3 & \Gamma, y : \tau_2 \vdash e : \tau_3}
+	\\[5ex]
+\end{array}
+\]
 
 \noindent
-\defn{Intension} The sense or meaning of a reference provided by a semantics; the aspect of the semantics determining its extension. \\
+$\fbox{$\Gamma \vdash \sigma = e~\keyw{OK}$}$
+
+\[
+\begin{array}{c}
+\infer[\textsc{(ValidImpl$_\sigma$)}]
+	{\Gamma \vdash \sigma = e~\keywadj{OK}}
+	{\Gamma,~y:\tau_2 \vdash e: \tau_3~\keyw{with} \varepsilon_3 & \sigma = \keyw{def} m(y:\tau_2):\tau_3~\keyw{with} \varepsilon_3} \\[5ex]
+\end{array}
+\]
+
 
 \noindent
-\defn{Logic} A formal language with a semantics, a semantics being a theory which provides rigorous definitions of truth, validity, and logical consequence inside the language. A logic is \textit{extensional} if the truth-value of every sentence is determined entirely by its form; otherwise it is \textit{intentional}. Extensional logics obey the \textit{substitution principle}, while intensional logics do not (because truth appeals to something higher than form). \\
+\fbox{$\Gamma \vdash e : \tau~\keyw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+	\infer[\textsc{($\varepsilon$-Var)}]
+  {\Gamma,~x:\tau \vdash x: \type{\tau}{\varnothing} }
+  {} 
+~~~~~~~~~~
+\infer[\textsc{($\varepsilon$-Resource)}]
+  {\Gamma,~r :\{\bar r\} \vdash r: \type{   \{ \bar r \}  }{\varnothing}}
+  {} \\[5ex]
+
+\infer[\textsc{($\varepsilon$-NewObj)}]
+	{\Gamma \vdash \newsig : \{ \bar \sigma \}~\keyw{with} \varnothing}
+	{\Gamma,~x : \{ \bar \sigma \} \vdash \overline{\sigma = e}~\keywadj{OK}} ~~~~~~
+
+\infer[\textsc{($\varepsilon$-OperCall)}]
+	{\Gamma \vdash e_1.\pi : \keyw{Unit} \keyw{with} \{ \bar r.\pi \} \cup \varepsilon_1}
+	{\Gamma \vdash e_1 : \{ \bar r \}~ \keyw{with} \varepsilon_1} \\[5ex]
+	
+\infer[\textsc{($\varepsilon$-MethCall)}]
+	{\Gamma \vdash e_1.m_i(e_2):\tau_3~\keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3}
+	{\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1 & \Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 & \sigma_i = \keyw{def} m_i(y:\tau_2):\tau_3~\keyw{with} \varepsilon_3} \\[5ex]
+	
+	
+\infer[\textsc{($\varepsilon$-MethCall)}]
+	{ \Gamma \vdash e_1.m_i(e_2) : \tau_3~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3 }
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\Gamma \vdash e_1 : \{ \bar \sigma \}~\keyw{with} \varepsilon_1
+~~~~~~\Gamma \vdash e_2 : \tau_2~\keyw{with} \varepsilon_2 \\
+\sigma_i = \keyw{def} m_i(y:\tau_2):\tau_3~\keyw{with} \varepsilon_3
+  \end{array}}} \\[5ex]
+ 
+
+\infer[\textsc{(C-NewObj)}]
+	{\Gamma \vdash~e : \{  \bar d~\keyw{captures} \varepsilon_c \} ~\keyw{with} \varnothing }
+	{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\varepsilon_c = \kwa{capture}(\Gamma') ~~~~~~ \Gamma' \subseteq \Gamma ~~~~~~ \Gamma' \vdash e : \{ \bar d \} \\ \tau \in \kwa{higher \hyphen order \hyphen args}(\Gamma') \implies \kwa{capture}(\tau) \supseteq \varepsilon_c
+  \end{array}}} \\[5ex]
+	
+\infer[\textsc{(C-MethCall)}]
+	{ \Gamma \vdash e_1.m_i(e_2) : \tau_3~ \keyw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_c \cup \kwa{capture}(\tau_2) }
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\Gamma \vdash e_1 : \{ \bar d~\keyw{captures} \varepsilon_c \}~\keyw{with} \varepsilon_1
+~~~~~~\Gamma \vdash e_2:\tau_2~\keyw{with} \varepsilon_2 \\
+d_i =~\keyw{def} m_i(y:\tau_2):\tau_3
+  \end{array}}} \\[5ex]
+ 
+\end{array}
+\]
 
 \noindent
-Propositional/predicate logic are extensional. Suppose the following sentences are true:
+$\fbox{$\Gamma \vdash \tau <: \tau$}$
 
-\begin{enumerate}
-	\item ``All John's dogs are mammals'': $\forall x (D x \rightarrow Mx)$.
-	\item ``All John's pets are mammals: $\forall x (P x \rightarrow Mx)$.
-\end{enumerate}
+\[
+\begin{array}{c}
+
+\infer[\textsc{(St-Reflexive)}]
+	{\Gamma \vdash \tau <: \tau}
+	{}
+	
+~~~~~~~~~~
+
+	\infer[\textsc{(St-Transitive)}]
+	{\Gamma \vdash \tau_1 <: \tau_3}
+	{\Gamma \vdash \tau_1 <: \tau_2 & \Gamma \vdash \tau_2 <: \tau_3}\\[5ex]
+
+\infer[\textsc{(St-Subsumption)}]
+	{\Gamma \vdash e : \tau_2}
+	{\Gamma \vdash e : \tau_1 & \Gamma \vdash \tau_1 <: \tau_2} \\[5ex]
+	
+\infer[\textsc{(St-Permutation$_\sigma$)}]
+	{\Gamma \vdash \{ \bar \sigma_1 \} <: \{ \bar \sigma_2 \} }
+	{\Gamma \vdash \{ \bar \sigma_1 \} $ is a permutation of $ \{ \bar \sigma_2 \}}
+	
+	~~~~~~~~~~
+	
+\infer[\textsc{(St-Permutation$_d$)}]
+	{\Gamma \vdash \{ \bar d_1 \} <: \{ \bar d_2 \} }
+	{\Gamma \vdash \{ \bar d_1 \} $ is a permutation of $ \{ \bar d_2 \}}
+	
+	\\[5ex]
+	
+\infer[\textsc{(St-Depth$_\sigma$)}]
+	{ \Gamma \vdash \{ \sigma_i~^{i \in 1..n} \} <: \{ \sigma_j~^{j \in 1..n} \} }
+	{ \Gamma \vdash \sigma_i <:: \sigma_j }
+	
+	~~~~~~~~~~
+	
+\infer[\textsc{(St-Depth$_d$)}]
+	{ \Gamma \vdash \{ d_i~^{i \in 1..n} \} <: \{ d_j~^{j \in 1..n} \} }
+	{ \Gamma \vdash d_i <:: d_j }
+	
+	\\[5ex]
+	
+\infer[\textsc{(St-Width$_\sigma$)}]
+	{ \Gamma \vdash \{ \sigma_i~^{i \in 1..n+k} \} <: \{ \sigma_i~^{i \in 1..n} \} }
+	{n,k \geq 0}
+	
+~~~~~
+  
+\infer[\textsc{(St-Width$_d$)}]
+	{ \Gamma \vdash \{ d_i~^{i \in 1..n+k} \} <: \{ d_i~^{i \in 1..n} \} }
+	{n,k \geq 0}
+	
+		\\[5ex]
+	
+	
+\end{array}
+\]
+
 
 \noindent
-Because both are true, they have the same extension. Therefore, we may replace one with the other inside a third sentence, and truth will be preserved. Once we add modalities, this no longer holds.
+$\fbox{$\Gamma \vdash \sigma <:: \sigma$}$
 
-\begin{enumerate}
-	\item ``Necessarily, all of John's dogs are mammals'': $\Box (\forall x (Dx \rightarrow Mx))$
-	\item ``Necessarily, all of John's pets are mammals'': $\Box (\forall x (Px \rightarrow Mx))$
-\end{enumerate}
+\[
+\begin{array}{c}
+
+\infer[\textsc{(St-Method$_\sigma$)}]
+	{ \Gamma \vdash \sigma_i <:: \sigma_j }
+{{\def\arraystretch{1.6}
+  \begin{array}{c}
+\sigma_i = \kw{def} m_A(y : \tau_1) : \type{\tau_2}{\varepsilon_A}
+~~~~~~\sigma_j = \kw{def} m_B(y : \tau_1') : \type{\tau_2'}{\varepsilon_B} \\
+\Gamma \vdash \tau_1' <: \tau_1 ~~~~~~ \Gamma \vdash \tau_2 <: \tau_2' ~~~~~~ \varepsilon_A \subseteq \varepsilon_B
+  \end{array}}} \\[5ex]
+ 
+\end{array}
+\]
+
 
 \noindent
-The first sentence is true, but the second is not. This shows modal logic is intensional, and that the substitution principle does not hold.
+$\fbox{$\Gamma \vdash d <:: d$}$
 
-\subsection{Possible Worlds}
+\[
+\begin{array}{c}
 
-To regain extensionality, possible world semantics was developed, which describes the semantics of modal sentences in terms of first-order logic (which is extensional). Modal operators are interpreted as quantifiers over possible worlds.
+\infer[\textsc{(St-Method$_d$)}]
+	{ \Gamma \vdash d_i <:: d_j }
+{{\def\arraystretch{1.6}
+  \begin{array}{c}
+d_i = \kw{def} m_A(y : \tau_1) : \tau_2 ~~~~~~ d_j = \kw{def} m_B(y : \tau_1') : \tau_2' \\
+\Gamma \vdash \tau_1' <: \tau_1 ~~~~~~ \Gamma \vdash \tau_2 <: \tau_2'
+  \end{array}}} \\[5ex]
+
+\end{array}
+\]
+
+\noindent
+$\fbox{$\Gamma \vdash \tau~\kw{with} \varepsilon <: \tau~\kw{with} \varepsilon$}$
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(St-Subsumption$_\varepsilon$)}]
+	{ \Gamma \vdash \type{\tau_1}{\varepsilon_1} <: \type{\tau_2}{\varepsilon_2}}
+	{ \Gamma \vdash \tau_1 <: \tau_2 ~~~~~~ \varepsilon_1 \subseteq \varepsilon_2} \\[5ex]
+
+\infer[\textsc{(St-Summary)}]
+	{ \{ \bar d_1~\kw{captures} \varepsilon_A \}~\kw{with} \varepsilon_1 <: \{ \bar d_2~\kw{captures} \varepsilon_B \}~\kw{with} \varepsilon_2 }
+	{ \{ \bar d_1 \} <: \{ \bar d_2 \} & \varepsilon_A \subseteq \varepsilon_B & \varepsilon_1 \subseteq \varepsilon_2 }
+
+\end{array}
+\]
+
+\noindent
+$\fbox{$\Gamma \vdash \tau~\kw{WFT}$}$
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(WFT-Resource)}]
+	{ \Gamma, r : \{ r \} \vdash \{ r \}~\kw{WFT} }
+	{ } 
+	
+	~~~~~~
+	
+	\infer[\textsc{(WFT-Variable)}]
+		{ \Gamma, x : \tau \vdash \tau ~\kw{WFT} }
+		{ }
+	
+\\[5ex]
+
+\infer[\textsc{(WFT-Obj$_d$)}]
+	{ \Gamma \vdash \{ \bar d \}~\kw{WFT} }
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+d_i = \kw{def} m(y : \tau_2): \tau_3 \\
+\Gamma \vdash \tau_2~\kw{WFT} ~~~~ \Gamma \vdash \tau_3~\kw{WFT}
+  \end{array}}}
+ 
+ 
+ ~~~~~~
+  
+\infer[\textsc{(WFT-Obj$_\sigma$)}]
+	{ \Gamma \vdash \{ \bar \sigma \}~\kw{WFT} }
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\sigma_i = \kw{def} m(y : \tau_2): \tau_3 ~\kw{with} \varepsilon \\
+\Gamma \vdash \tau_2~\kw{WFT} ~~~~ \Gamma \vdash \tau_3~\kw{WFT} ~~~~ r.\pi \in \varepsilon \implies \Gamma \vdash r~\kw{WFT}
+  \end{array}}}
+  
+  
+   
+     \\[5ex]
+
+\infer[\textsc{(WFT-Summary)}]
+	{ \Gamma \vdash \{ \bar d ~\kw{captures} \varepsilon_c \}~\kw{WFT} }
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\Gamma \vdash \{ \bar d \} ~\kw{WFT} ~~~~ r.\pi \in \varepsilon_c \implies \Gamma \vdash r ~\kw{WFT}
+  \end{array}}}
+  
+
+\end{array}
+\]
+
+\noindent
+$\fbox{$\Gamma \vdash e~\kw{WFE}$}$
+
+\[
+\begin{array}{c}
+
+
+\infer[\textsc{(WFE-Resource)}]
+	{ \Gamma, r : \{ r \} \vdash r~\kw{WFE} }
+	{ } 
+	
+	~~~~
+	
+\infer[\textsc{(WFE-Variable)}]
+	{ \Gamma, x : \tau \vdash x~\kw{WFE} }
+	{}
+	
+	\\[5ex]
+	
+\infer[\textsc{(WFE-Operation)}]
+	{ \Gamma \vdash e.\pi~\kw{WFE}}
+	{ \Gamma \vdash e ~\kw{WFE}}
+	
+	~~~~
+	
+
+\infer[\textsc{(WFE-MethCall)}]
+	{ \Gamma \vdash e_1.m(e_2) ~\kw{WFE}}
+	{ \Gamma \vdash e_1~\kw{WFE} ~~~~ \Gamma \vdash e_2~\kw{WFE}}
+
+	\\[5ex]
+	
+	
+\infer[\textsc{(WFE-Obj$_d$)}]
+	{ \Gamma \vdash \newd~\kw{WFE}}
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+d_i = \kw{def} m(y: \tau_2): \tau_3 \\ \Gamma \vdash \tau_2 ~\kwa{WFT} ~~~~ \Gamma \vdash \tau_3~\kwa{WFT } ~~~~ \Gamma, y : \tau_2 \vdash e_i ~\kwa{WFE}
+  \end{array}}}
+
+	\\[5ex]
+
+\infer[\textsc{(WFE-Obj$_\sigma$)}]
+	{ \Gamma \vdash \newsig~\kw{WFE}}
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\sigma_i = \kw{def} m(y: \tau_2): \tau_3~\kw{with} \varepsilon ~~~~ r.\pi \in \varepsilon \implies \Gamma \vdash \{ r \} ~ \kwa{WFT} \\  \Gamma \vdash \tau_2 ~\kwa{WFT} ~~~~ \Gamma \vdash \tau_3~\kwa{WFT} ~~~~ \Gamma, y : \tau_2 \vdash e_i ~\kwa{WFE} ~~~~ 
+  \end{array}}}
+
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
 
 \begin{itemize}
-	\item $\Box \phi$ is true if and only if $\phi$ is true in every possible world.
-	\item $\Diamond \phi$ is true if and only if $\phi$ is true in some possible world.
+	\item This system includes all the rules from the fully-annotated system.
+	\item The \textsc{T} rules do standard typing of objects, without any effect analysis. Their sole purpose is so $\varepsilon$-ValidImpl$_d$ can be applied. \textbf{We are assuming the T-rules on their own are sound}.
+	\item \textsc{C-NewObj}: $\Gamma'$ is intended to be some subcontext of the current $\Gamma$. The object is labelled as capturing the effects in $\Gamma'$ (exact definition in the next section).
+		\item A good choice of $\Gamma'$ would be $\Gamma$ restricted to the free variables in the object definition.
+	\item $\textsc{C-NewObj}$: in the premise we need $\kwa{capture}(\tau) \supseteq \varepsilon_c$, for every type of every argument of every visible method. This is to ensure any capabilities passed to that method don't exceed what the type signature says.
+	\item $\textsc{C-MethCall}$: we must add $\keywadj{capture}(\tau_2)$ to the static effects of the object, because the method body will have access to the resources captured by $\tau_2$ (the type of the argument passed into the method).
+	\item By convention we use $\varepsilon_c$ to denote the output of the $\keywadj{capture}$ function.
+		\item If $\Gamma$ can prove that an expression is well-formed (WFE) then that means there are no free variables in any types (all types are WFT) and subexpressions are WFE.
+\end{itemize}
+
+\subsection{$\keywadj{capture}$ Function}
+
+\noindent
+The $\keywadj{capture}$ function returns the set of effects captured in a particular context.
+
+\begin{itemize}
+	\item $\kwa{capture}(\varnothing) = \varnothing$
+	\item $\kwa{capture}(\Gamma, x : \tau) = \kwa{capture}(\Gamma) \cup \kwa{capture}(\tau)$
+	\item $\kwa{capture}(\{r\}) = \{ r.\pi \mid \pi \in \Pi \}$
+	\item $\kwa{capture}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\kwa{capture}(\sigma)$
+	\item $\kwa{capture}(\{\bar d\}) = \bigcup_{d \in \bar d}~\kwa{capture}(d)$
+	\item $\kwa{capture}(d~\keyw{with} \varepsilon) = \varepsilon \cup \kwa{capture}(d)$
+	\item $\kwa{capture}(\keywadj{def~m}(x : \tau_2) : \tau_3) = \kwa{capture}(\tau_2) \cup \kwa{capture}(\tau_3)$
+	\item $\kwa{capture}(\{\bar d ~\keyw{captures} \varepsilon_c\}) = \varepsilon_c$
 \end{itemize}
 
 
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item In the last case we don't want to recurse to sub-declarations because the effects have already been captured previously (this is $\varepsilon_c$) by a potentially different context (will this matter?).
+	\item $\kwa{capture}$ is monotonic: if $\Gamma_1 \subseteq \Gamma_2$ then $\kwa{capture}(\Gamma_1) \subseteq \kwa{capture}(\Gamma_2)$.
+\end{itemize}
+
+\subsection{$\keywadj{arg \hyphen types}$ Function}
+
+This function examines the declaration of every method which could be (directly) invoked inside a particular $\Gamma$. It returns a set of the types of the arguments of those methods.
+
+\begin{itemize}
+	\item $\kwa{arg \hyphen types}(\varnothing) = \varnothing$
+	\item $\kwa{arg \hyphen types}(\Gamma, x : \tau) = \kwa{arg \hyphen types}(\Gamma) \cup \kwa{arg \hyphen types}(\tau)$
+	\item $\kwa{arg \hyphen types}(\{r\}) = \varnothing$
+	\item $\kwa{arg \hyphen types}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\kwa{arg \hyphen types}(\sigma)$
+	\item $\kwa{arg \hyphen types}(\{\bar d\}) = \bigcup_{d \in \bar d}~\kwa{arg \hyphen types}(d)$
+	\item $\kwa{arg \hyphen types}(\{\bar d ~\keyw{captures} \varepsilon_c\}) =
+ \kwa{arg \hyphen types}(\{ \bar d \})$
+ 	\item $\kwa{arg \hyphen types}(d ~\kw{with} \varepsilon) = \kwa{arg \hyphen types}(d)$
+ 	\item $\kwa{arg \hyphen types}(\kw{def} m(y: \tau_2): \tau_3) = \{ \tau_2 \} \cup \kwa{arg \hyphen types}(\tau_3) \cup \kwa{arg \hyphen types}(\tau_2)$ (is $\kwa{arg \hyphen types}(\tau_2)$ necessary?)
+\end{itemize}
+
+\subsection{$\keywadj{higher \hyphen order \hyphen args}$ Function}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(HigherOrderArgs)}]
+	{\tau \in \kwa{higher \hyphen order \hyphen args}(\Gamma)}
+	{\tau \in \kwa{arg \hyphen types}(\Gamma) ~~~~ \kwa{is \hyphen higher \hyphen order}(\tau)}
+
+\end{array}
+\]
+
+\subsection{$\keywadj{is \hyphen obj}$ Predicate}
+
+\noindent
+The $\kwa{is \hyphen obj}$ predicate says whether or not a particular type $\tau$ is an object.
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(IsObj$_d$)}]
+	{\kwa{is \hyphen obj}(\{ \bar d \})}
+	{}
+	
+	~~~~
+	
+	\infer[\textsc{(IsObj$_\sigma$)}]
+	{\kwa{is \hyphen obj}(\{ \bar \sigma \})}
+	{}
+	
+	~~~~
+	
+	\infer[\textsc{(IsObjSummary)}]
+	{\kwa{is \hyphen obj}(\{ \bar d~\kw{captures} \varepsilon_c\})}
+	{}
+
+\end{array}
+\]
+
+\subsection{$\kwa{is \hyphen higher \hyphen order}$ Predicate}
+
+A type is higher-order if it has a method accepting another object as an argument.
+
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(HigherOrder$_d$)}]
+	{\kwa{is \hyphen higher \hyphen order}(\{ \bar d \})}
+	{d_i = \kwa{def}~m(y: \tau_2): \tau_3 ~~~\kwa{is \hyphen obj}(\tau_2)}
+	\\[5ex]
+	\infer[\textsc{(HigherOrder$_\sigma$)}]
+	{\kwa{is \hyphen higher \hyphen order}(\{ \bar \sigma \})}
+	{\sigma_i = \kwa{def}~m(y: \tau_2): \tau_3 ~\kw{with} \varepsilon ~~~~ \kwa{is \hyphen obj}(\tau_2)}
+
+\end{array}
+\]
+
+\subsection{Dynamic Semantics}
+
+~\\
+\noindent
+\fbox{$e \longrightarrow e~|~\varepsilon$}
+
+\[
+\begin{array}{c}
+
+	\infer[\textsc{(E-MethCall1)}]
+		{e_1.m(e_2) \longrightarrow e_1'.m(e_2)~|~\varepsilon}
+		{e_1 \longrightarrow e_1'~|~\varepsilon} \\[5ex]
+
+	\infer[\textsc{(E-MethCall2$_{\sigma}$)}]
+		{v_1.m(e_2) \longrightarrow v_1.m(e_2')~|~\varepsilon}
+		{v_1 = \newsig & e_2 \longrightarrow e_2'~|~\varepsilon} ~~~~~~
+		
+	\infer[\textsc{(E-MethCall2$_d$)}]
+		{v_1.m(e_2) \longrightarrow v_1.m(e_2')~|~\varepsilon}
+		{v_1 = \newd & e_2 \longrightarrow e_2'~|~\varepsilon}\\[5ex]
+				
+	\infer[\textsc{(E-MethCall3$_{\sigma}$)}]
+		{v_1.m(v_2)
+			\longrightarrow
+		 [v_1/x, v_2/y]e~|~\varnothing}
+  		{v_1 = \newsig & \keywadj{def~m}(y: \tau_1) : \tau_2~\keyw{with} \varepsilon = e \in \overline {\sigma = e}} \\[5ex]
+
+	\infer[\textsc{(E-MethCall3$_d$)}]
+		{v_1.m(v_2)
+			\longrightarrow
+		 [v_1/x, v_2/y]e~|~\varnothing}
+  		{v_1 = \newd & \keywadj{def~m}(y: \tau_1) : \tau_2 = e \in \overline {d = e}} \\[5ex]
+
+	\infer[\textsc{(E-OperCall1)}]
+		{e_1.\pi
+			\longrightarrow
+		 e_1'.\pi~|~\varepsilon}
+		{e_1 \longrightarrow e_1'~|~\varepsilon}
+~~~~~~
+
+			\infer[\textsc{(E-OperCall2)}]
+		{r.\pi
+			\longrightarrow
+		 \keywadj{unit}~|~\{r.\pi\}}
+		{} \\[5ex]
+			
+\end{array}
+\]
+\noindent
+\fbox{$e \longrightarrow_* e~|~\varepsilon$}
+
+\[
+\begin{array}{c}
+
+	\infer[\textsc{(E-MultiStep1)}]
+	{e \longrightarrow_* e~|~\varnothing}
+	{} ~~~~~~~~
+	
+	\infer[\textsc{(E-MultiStep2)}]
+	{e \longrightarrow_* e'~|~\varepsilon}
+	{e \longrightarrow e'~|~\varepsilon} \\[5ex]
+
+	\infer[\textsc{(E-MultiStep3)}]
+	{e \longrightarrow_* e''~|~\varepsilon_1 \cup \varepsilon_2}
+	{e \longrightarrow_* e'~|~\varepsilon_1 & e' \longrightarrow_* e''~|~\varepsilon_2}
+
+\end{array}
+\]
+
+\noindent \textbf{Notes:}
+\begin{itemize}
+	\item \textsc{E-MethCall2$_d$} and \textsc{E-MethCall2$_\sigma$} are really doing the same thing, but one applies to labeled objects (the $\sigma$ version) and the other on unlabeled objects. Same goes for \textsc{E-MethCall3$_\sigma$} and \textsc{E-MethCall3$_d$}.
+	\item \textsc{E-MethCall1} can be used for both labeled and unlabeled objects.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Substitution Function}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\noindent
+We extend our Substitution function from the previous system in a straightforward way by adding a new case for unlabeled objects.
+
+\begin{itemize}
+	\item $[e'/z]z = e'$
+	\item $[e'/z]y = y$, if $y \neq z$
+	\item $[e'/z]r = r$
+	\item $[e'/z](e_1.m(e_2)) = ([e'/z]e_1).m([e'/z]e_2)$
+	\item $[e'/z](e_1.\pi) = ([e'/z]e_1).\pi$
+	\item $[e'/z](\newd) = \keywadj{new}_d~x \Rightarrow \overline{ \sigma = [e'/z]e }$, if $z \neq x$ and $z \notin \keywadj{freevars}(e_i)$
+	\item $[e'/z](\newsig) = \keywadj{new}_\sigma~x \Rightarrow \overline{ \sigma = [e'/z]e }$, if $z \neq x$ and $z \notin \keywadj{freevars}(e_i)$
+\end{itemize}
+
+
+\section{Proofs}
+~
+
+
+\thm{Lemma 3.1. (Canonical Forms)}
+{Suppose $e$ is a value. The following are true:
+	\begin{itemize}
+	\item If $\Gamma \vdash e : \type{ \{ \bar r \} }{\varepsilon} $, then $e = r$ for some resource $r$.
+	\item If $\Gamma \vdash e : \type{ \{ \bar \sigma \}}{\varepsilon}$, then $e = \newsig$.
+	\item If $\Gamma \vdash e : \{ \bar d~\keyw{captures} \varepsilon_c \}~ \keyw{with} \varepsilon$, then $e = \keywadj{new}_{d}~x \Rightarrow \overline{ d = e }$.
+	\end{itemize}
+Furthermore, $\varepsilon = \varnothing$ in each case. \\\\
+}
+{ These typing judgements each appear exactly once in the conclusion of different rules. The result follows by inversion of \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-NewObj}, and \textsc{C-NewObj} respectively. \\
+}
+
+\thm{Lemma 3.2. (Substitution Lemma)}
+{If $\Gamma, z : \tau' \vdash e : \tau~\keyw{with} \varepsilon$, and $\Gamma \vdash e' : \tau'~\keyw{with} \varepsilon'$, then $\Gamma \vdash [e'/z]e : \tau~\keyw{with} \varepsilon$. \\\\
+\fbox{Intuition} If you substitute $z$ for something of the same type, the type of the whole expression stays the same after substitution.
+\\\\}
+{We've already proven the lemma by structural induction on the $\varepsilon$ rules. The new case is defined on a form not in the grammar for the fully-annotated system. So all that remains is to induct on derivations of $\Gamma \vdash e : \type{\tau}{\varepsilon}$ using the new $\textsc{C}$ rules.\\
+
+	\proofcase{\textsc{C-MethCall}}{
+Then $e = e_1.m(e_2)$ and $[e'/z]e = ([e'/z]e_1).m([e'/z]e_2)$ . By inductive assumption we know that $e_1$ and $[e'/z]e_1$ have the same types, and that $e_2$ and $[e'/z]e_2$ have the same types. Since $e$ and $[e'/z]e$ have the same syntactic struture, and their corresponding subexpressions have the same types, then $\Gamma$ can use \textsc{C-MethCall} to type $[e'/z]e$ the same as $e$.\\
+}
+
+	\proofcase{\textsc{C-NewObj}}{
+		Then $e = \newd$. $z$ appears in some method body $e_i$. By inversion we know $\Gamma, x : \{ \bar \sigma \} \vdash \overline {d = e}~\keywadj{OK}$. The only rule with this conclusion is \textsc{$\varepsilon$-ValidImpl$_d$}; by inversion on that we know for each $i$ that:
+		 \begin{itemize}
+		 	\item $d_i = \keyw{def} m_i(y : \tau_1) : \tau_2~\keyw{with} \varepsilon$
+		 	\item $\Gamma, y : \tau_1 \vdash e_i : \tau_2~\keyw{with} \varepsilon$
+		\end{itemize}
+
+\noindent
+If $z$ appears in the body of $e_i$ then $\Gamma, z : \tau \vdash d_i = e_i~\keywadj{OK}$ by inductive assumption. Then we can use \textsc{$\varepsilon$-ValidImpl$_d$} to conclude $\overline{d = [e'/z]e}~\keywadj{OK}$. This tells us that the types and static effects of all the methods are unchanged under substitution. By choosing the same $\Gamma' \subseteq \Gamma$ used in the original application of \textsc{C-NewObj}, we can apply \textsc{C-NewObj} to the expression after substitution. The types and static effects the methods are the same, and the same $\Gamma'$ has been chosen, so $[e'/z]e$ will be ascribed the same type as $e$.
+}
+}
+
+
+\thm{Lemma 3.3. (Well-Formedness Principle)}
+{If $\Gamma \vdash \tau~\kwa{WFT}$ then $\kwa{capture}(\tau) \subseteq \kwa{capture}(\Gamma)$\\\\}
+{By induction on the judgement $\Gamma \vdash \tau~\kwa{WFT}$.
+
+\proofcase{\textsc{WFT-Resource}}{ Then $\kwa{capture}(\tau) = \kwa{capture}(\{ r \}) \subseteq \kwa{capture}(\Gamma, r : \{ r \})$.
+~\\
+}
+
+\proofcase{\textsc{WFT-Variable}}{ Then $\kwa{capture}(\tau) \subseteq \kwa{capture}(\Gamma, x : \tau)$}
+
+\proofcase{\textsc{WFT-Obj$_d$}}{ Then for any $\kw{def} m(y: \tau_2): \tau_3 \in \bar d$, we have by inversion $\Gamma \vdash \tau_2~\kwa{WFT}$ and $\Gamma \vdash \tau_3~\kwa{WFT}$. By inductive assumption, $\kwa{capture}(\tau_2) \cup \kwa{capture}(\tau_3) \subseteq \kwa{capture}(\Gamma)$. But this is $\kwa{capture}(d)$, for an arbitrary $d \in \bar d$, so $\kwa{capture}(\{ \bar d \}) \subseteq \kwa{capture}(\Gamma)$.\\
+}
+
+\proofcase{\textsc{WFT-Obj$_\sigma$}}{ Then for any $\kwa{def} m(y: \tau_2): \tau_3~\kw{with} \varepsilon \in \bar \sigma$, we have by inversion $\Gamma \vdash \tau_2~\kwa{WFT}$ and $\Gamma \vdash \tau_\kwa{WFT}$. By inductive assumption, $\kwa{capture}(\tau_2) \cup \kwa{capture}(\tau_3) \subseteq \kwa{capture}(\Gamma)$. Also by inversion we know that $\Gamma \vdash \{ r \} \kwa{WFT}$, for any $r.\pi \in \varepsilon$. By inductive assumption, $\kwa{capture}(\{r\}) \subseteq \kwa{capture}(\Gamma)$. Now $\kwa{capture}(\sigma) = \kwa{capture}(\tau_2) \cup \kwa{capture}(\tau_3) \cup \varepsilon \subseteq \kwa{capture}(\Gamma)$. This is for an arbitrary $\sigma \in \bar \sigma$, so $\kwa{capture}(\{ \bar \sigma \}) \subseteq \kwa{capture}(\Gamma)$. \\
+
+}
+
+\proofcase{\textsc{WFT-Summary}}{ By inversion we know that $\kwa{capture}(\{ r \}) \subseteq \kwa{capture}(\Gamma)$, for any $r.\pi \in \varepsilon_c$. The union of these is exactly $\kwa{capture}(\{ \bar d ~\kwa{captures}~ \varepsilon_c \})$.
+
+}
+}
+
+
+\noindent
+
+\thm{Lemma 3.4. (Use Principle)}
+{If $\Gamma \vdash e~\kw{WF}$ and $\Gamma \vdash e : \tau~\kw{with} \varepsilon$, then $\varepsilon \subseteq \kwa{capture}(\Gamma)$.\\\\}
+{By induction on the typing judgement $\Gamma \vdash e : \tau~\kw{with} \varepsilon$. \\
+
+\proofcase{\textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-NewObj}}{
+Then $e$ is a value. By canonical forms, $\varepsilon = \varnothing \subseteq \kwa{capture}(\Gamma)$.
+
+~
+}
+
+\proofcase{\textsc{C-NewObj}}{
+Then $\Gamma \vdash e : \{ \bar d~\kw{captures} \varepsilon_c \}~\kw{with} \varnothing$, and $\varnothing \subseteq \kwa{capture}(\Gamma)$.\\
+~
+}
+
+\proofcase{\textsc{C-MethCall}} {
+Then $e = e_1.m_i(e_2)$. From inversion on \textsc{C-MethCall} we know $\Gamma \vdash e_1~:~\{ \bar d~\kw{captures} \varepsilon_c\}~\kw{with} \varepsilon_1$ and $\Gamma \vdash e_2 : \tau_2~\kw{with} \varepsilon_2$, where $\varepsilon_c = \kwa{capture}(\Gamma')$ and $\Gamma' \subseteq \Gamma$. The typing rule also gives us $\Gamma \vdash e_1.m_i(e_2) : \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_c$. \\
+
+\noindent
+We know $\varepsilon_1 \subseteq \kwa{capture}(\Gamma)$ and $\varepsilon_2 \subseteq \kwa{capture}(\Gamma)$ by inductive assumption on the subexpressions $e_1$ and $e_2$. Since $\Gamma' \subseteq \Gamma$ then $\varepsilon_c = \kwa{capture}(\Gamma') \subseteq \kwa{capture}(\Gamma)$. \\
+}
+
+
+
+
+
+
+
+
+
+\proofcase{\textsc{$\varepsilon$-OperCall}}{Then $e = e_1.\pi$ and $\Gamma \vdash e : \kw{Unit}~\kw{with} \varepsilon_1 \cup \{ r.\pi \}$, where $\Gamma \vdash e_1 : \{ r \}~\kw{with} \varepsilon_1$. By inductive assumption, $\varepsilon_1 \subseteq \kwa{capture}(\Gamma)$. By well-formedness, $r \in \Gamma$ which implies that $r.\pi \in \kwa{capture}(\Gamma)$.
+
+~
+}
+
+
+
+
+
+
+
+
+
+
+
+
+\proofcase{\textsc{$\varepsilon$-MethCall}}{
+Then $e = e_1.m_i(e_2)$ and $\Gamma \vdash e_1.m_i(e_2) : \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$. By inductive assumption $\varepsilon_1 \cup \varepsilon_2 \subseteq \kwa{capture}(\Gamma)$. To show $\varepsilon_3 \subseteq \kwa{capture}(\Gamma)$ consider inversion on \textsc{$\varepsilon$-NewObj} and then again on \textsc{$\varepsilon$-ValidImpl$_\sigma$}. From this we get the subderivation $\Gamma, x : \{ \bar \sigma \}, y : \tau_2 \vdash e_{body} : \tau_3~\kw{with} \varepsilon_3$. By inductive assumption, $\varepsilon_3 \subseteq \kwa{capture}(\Gamma) \cup \kwa{capture}(\{ \bar \sigma \}) \cup \kwa{capture}(\tau_2)$. \\
+
+\noindent
+By definition, $\kwa{capture}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\kwa{capture}(\sigma)$. For any particular $\sigma_i = \kw{def} m_i(y : \tau_2) : \tau_3~\kw{with} \varepsilon_3$, we have $\kwa{capture}(\sigma_i) = \kwa{capture}(\tau_2) \cup \kwa{capture}(\tau_3)$.  \\
+
+\noindent
+By inversion on $\Gamma \vdash e~\kwa{WFE}$ we know $\Gamma \vdash e_1~\kwa{WFE}$. 
+ By the well-formedness principle, for any $\tau \in e_1$ we have $\kwa{capture}(\tau) \subseteq \kwa{capture}(\Gamma)$. Then $\kwa{capture}(\tau_2) \cup \kwa{capture}(\tau_3) \subseteq \kwa{capture}(\Gamma)$ This was for an arbitrary $\sigma_i$ so $\kwa{capture}(\{ \bar \sigma \}) = \bigcup_{\sigma \in \bar \sigma}~\kwa{capture}(\sigma) \subseteq \kwa{capture}(\Gamma)$.
+}
+
+
+~\\}
+
+\thm{Theorem 3.5. (Inference Lemma)}
+{If the following are true:
+
+\begin{itemize}
+	\item $\Gamma \vdash e~\kwa{WF}$
+	\item $\Gamma \vdash e : \tau$
+	\item $\tau \in \kwa{higher \hyphen order \hyphen args}(\Gamma) \implies \kwa{capture}(\tau) \supseteq \kwa{capture}(\Gamma)$
+\end{itemize}
+
+\noindent
+Then $\Gamma \vdash e : \tau'~\kw{with} \varepsilon$, where $\tau' <: \tau$ and $\varepsilon \subseteq \kwa{effects}(\Gamma)$.\\\\}
+{The proof is by induction on $\Gamma \vdash e$. It suffices to show that $\Gamma \vdash e : \tau'~\kw{with} \varepsilon$ in each case. The relation $\varepsilon \subseteq \kwa{effects}(\Gamma)$ holds by the use principle. Furthermore, in every case except \textsc{T-MethCall$_d$}, $\tau' = \tau$. \textbf{(NOTE: THIS RELIES ON $\{ \bar d~\kw{captures} \varepsilon \} <: \{ \bar d \}$ BEING TRUE)}\\
+
+\proofcase{\textsc{T-Var}}{
+You can directly apply \textsc{$\varepsilon$-Var}. Then $\Gamma \vdash x : \tau~\kw{with} \varnothing$.
+}
+
+\proofcase{\textsc{T-resource}}{
+You can directly apply \textsc{$\varepsilon$-Resource}. Then $\Gamma \vdash r : \{ r \}~\kw{with} \varnothing$.
+}
+
+\proofcase{\textsc{T-OperCall}}{ Then $e = e_1.\pi$.
+By inversion $\Gamma \vdash e_1 : \{ r \}$ and by inductive hypothesis, $\Gamma \vdash e_1 : \{ r \}~\kw{with} \varepsilon_1$. Then by \textsc{$\varepsilon$-OperCall} we know $\Gamma \vdash e_1.\pi : \{ r \}~\kw{with} \varepsilon \cup \{ r.\pi \}$.
+}
+
+\proofcase{\textsc{T-MethCall$_\sigma$}}{
+Then $e = e_1.m(e_2)$, where the method $m$ is $\kw{def} m(y: \tau_2): \tau_3~\kw{with} \varepsilon_3$. By inversion and inductive hypothesis, $\Gamma \vdash e_1 : \{ \bar \sigma \}~\kw{with} \varepsilon_1$ and $\Gamma \vdash e_2 : \tau_2~\kw{with} \varepsilon_2$. By applying \textsc{$\varepsilon$-MethCall} we get $\Gamma \vdash e_1.m(e_2) : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$.
+}
+
+\proofcase{\textsc{T-MethCall$_d$}}{
+Then $e = e_1.m(e_2)$, where the method $m$ is $\kw{def} m(y: \tau_2): \tau_3$. By inversion and inductive hypothesis, $\Gamma \vdash e_1 : \tau_1'~\kw{with} \varepsilon_1$. By inspection, the only rule which could have ascribed this is $\textsc{C-NewObj}$, from which we learn $\tau_1' = \{ \bar d ~ \kw{captures} \varepsilon_c \}$, where $\varepsilon_c = \kwa{capture}(\Gamma')$ and $\Gamma' \subseteq \Gamma$. By inversion and inductive hypothesis again, we have $\Gamma \vdash e_2 : \tau_2~\kw{with} \varepsilon_2$. From an application of \textsc{C-MethCall}, we have $\Gamma \vdash e_1.m(e_2) : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_c \cup \kwa{capture}(\tau_2)$.
+}
+
+\proofcase{T-New$_\sigma$}{
+Then $e = \newsig$. By inversion of \textsc{T-New$_\sigma$}, $\Gamma \vdash \overline{\sigma = e}~\kw{OK}$. This is exactly the premise of \textsc{$\varepsilon$-NewObj}, which gives us the judgement $\Gamma \vdash \newsig : \{ \bar \sigma \}~\kw{with} \varnothing$.
+}
+
+\proofcase{T-New$_d$}{
+Then $e = \newd$ and $\Gamma \vdash e : \{ d \}$. To type $e$ with an effect we shall use $\textsc{C-NewObj}$, selecting $\Gamma' = \Gamma$. We know $\tau \in \kwa{higher \hyphen order \hyphen args}(\Gamma) \implies \kwa{capture}(\tau) \supseteq \kwa{capture}(\Gamma)$ from the theorem statement. Therefore we may apply \textsc{C-NewObj}. The result is that $\Gamma \vdash e : \{ \bar d~\kw{captures} \varepsilon_c \}~\kw{with} \varnothing$, where $\varepsilon_c = \kwa{effects}(\Gamma)$.
+}
+}
+
+
+\thm{Theorem 3.6. (Jump Lemma)}
+{If $\Gamma \vdash e : \{ \bar d~\kw{captures} \varepsilon_c \}~\kw{with} \varepsilon$, then for a particular $d_{body} = e_{body}$, that is, $\kw{def} m(y : \tau_2) : \tau_3 = e_{body}$, the following is true.
+
+	\begin{itemize}
+		\item $\Gamma, x : \{ \bar d \}, y : \tau_2 \vdash e_{body} : \type{\tau_3'}{\varepsilon_{body}}$
+		\item $\tau_3' <: \tau_3$
+		\item $\varepsilon_{body} \subseteq \varepsilon_c \cup \kwa{capture}(\tau_2)$
+	\end{itemize}}
+{From inversion on $\Gamma \vdash e : \{ \bar d~\kw{captures} \varepsilon_c \}~\kw{with} \varepsilon$
+ we know, for some $\Gamma' \subseteq \Gamma$, that $\Gamma', x : \{ \bar d~\kw{captures} \varepsilon_c \} \vdash d = e~\kwa{OK}$. Also $\varepsilon_c = \kwa{capture}(\Gamma')$. Fix some particular method $ \kw{def} m(y : \tau_2) : \tau_3 = e_{body}$. \\
+
+\noindent
+ The theorem assumes a typing judgement $\Gamma \vdash \{ \bar d~\kw{captures} \varepsilon_c \}~\kw{with} \varepsilon$. By inversion on \textsc{C-NewObj} we know $\Gamma \vdash e : \{ \bar d \}$. By inversion on \textsc{T-New$_d$} we know $\Gamma, x : \{ \bar d \} \vdash d = e_{body}~\kwa{OK}$. By inversion on \textsc{ValidImpl$_d$} we know that $\Gamma,x  : \{ \bar d \}, y : \tau_2 \vdash e_{body} : \tau_3$. For concision, define $\hat \Gamma$ as $\Gamma, x : \{ \bar d \}, y : \tau_2$.\\
+ 
+ \noindent
+Note that $\kwa{capture}(\hat \Gamma) = \kwa{capture}(\Gamma') \cup \kwa{capture}(\tau_2) = \varepsilon_c \cup \kwa{capture}(\tau_2)$. This is because $\varepsilon_c = \kwa{capture}(\Gamma') \subseteq \kwa{capture}(\Gamma)$, by monotonicity.  \\
+ 
+\noindent
+By the Inference Lemma, $\hat \Gamma \vdash e_{body} : \tau_3' \kw{with} \varepsilon_3$. By the Use Principle, $\varepsilon_3 \subseteq \kwa{effects}(\hat \Gamma) = \kwa{effects}(\Gamma') \cup \kwa{capture}(\tau_2)$. \\
+}
+ 
+\thm{Theorem 3.7. (Soundness Theorem)}
+{If $\Gamma \vdash e_A : \tau_A~\keyw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon$ then $\Gamma \vdash e_B : \tau_B~\keyw{with} \varepsilon_B$, where $\tau_B <: \tau_A$ and $\varepsilon \cup \varepsilon_B \subseteq \varepsilon_A$.\\\\}
+{By induction on the judgement $\Gamma \vdash e_A : \type{\tau_A}{\varepsilon_A}$.\\
+
+\proofcase{\textsc{C-MethCall}}{ Then $e = e_1.m_i(e_2)$ and we know the following.
+\begin{enumerate}
+	\item $\Gamma \vdash e_1 : \{ \bar d~\kw{captures} \varepsilon_c \}~\kw{with} \varepsilon_1$
+	\item $\Gamma \vdash e_2 : \type{\tau_2}{\varepsilon_2}$
+	\item $d_i = \kw{def} m_i(y : \tau_2) : \tau_3$
+	\item $\Gamma \vdash e_1.m_i(e_2) : \type{\tau_3}{\varepsilon_1 \cup \varepsilon_2 \cup \kw{effects}(\tau_2) \cup \varepsilon_c}$
+	\item $\tau \in \kwa{higher \hyphen order \hyphen args}(\Gamma') \implies \kwa{capture}(\tau) \supseteq \varepsilon_c$
+\end{enumerate}
+
+\noindent
+There are three reduction rules which could be applied to $e_1.m_i(e_2)$, where $e_1$ is a (deeply) unlabelled object.\\
+
+	\subcase{\textsc{E-MethCall1}. Then we know $e_1 \longrightarrow e_1'~|~\varepsilon$ and $e_1.m_i(e_2) \longrightarrow e_1'.m_i(e_2)~|~\varepsilon$. By applying the inductive assumption to $e_1$, we know that $\Gamma \vdash e_1' : \type{\tau_1'}{\varepsilon_1'}$, where $\tau_1' <:  \{ \bar d~\kw{captures} \varepsilon_c \}$ and $\varepsilon_1' \cup \varepsilon = \varepsilon_1$. \\
+	
+	\noindent
+	We can typecheck $e_1'.m_i(e_2)$ with $\textsc{E-MethCall}$. Then $\Gamma \vdash e_1'.m_i(e_2) : \type{\tau_3}{\varepsilon_1' \cup \varepsilon_2 \cup \kwa{capture}(\tau_2) \cup \varepsilon_c }$. $\tau_3 <: \tau_3$ trivially and since $\varepsilon_1' \cup \varepsilon = \varepsilon_1$, we have $\varepsilon \cup \varepsilon_B = \varepsilon \cup \varepsilon_1' \cup \varepsilon_2 \cup \kwa{capture}(\tau_2) \cup \varepsilon_c = \varepsilon_1 \cup \varepsilon_2 \cup \kwa{capture}(\tau_2) \cup \varepsilon_c = \varepsilon_A$.\\	}
+	
+	\subcase{\textsc{E-MethCall2}
+	Then we know $e_1 = v_1 = \newd$ and $v_1.m_i(e_2) \longrightarrow v_1.m_i(e_2')~|~\varepsilon$, where $e_2 \longrightarrow e_2'~|~\varepsilon$. By applying the inductive assumption to $e_2$, we know that $\Gamma \vdash e_2' : \tau_2'~\kw{with} \varepsilon_2'$, where $\tau_2' <: \tau_2$ and $\varepsilon_2' \cup \varepsilon \subseteq \varepsilon_2$. \\
+	
+	\noindent
+	We can typecheck $v_1.m_i(e_2')$ with \textsc{E-MethCall}. Then $\Gamma \vdash v_1.m_i(e_2') : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2' \cup \kwa{capture}(\tau_2) \cup \varepsilon_c$. $\tau_3 <: \tau_3$ trivially and since $\varepsilon_2' \cup \varepsilon \subseteq \varepsilon_2$, we have $\varepsilon \cup \varepsilon_B = \varepsilon \cup \varepsilon_1 \cup \varepsilon_2' \cup \kwa{capture}(\tau_2) \cup \varepsilon_c = \varepsilon_1 \cup \varepsilon_2 \cup \kwa{capture}(\tau_2) \cup \varepsilon_c = \varepsilon_A$. \\
+	}
+	
+	\subcase{\textsc{E-MethCall3}
+ Then we know $e_1 = v_1 = \newd$ and $e_2 = v_2$ and $v_1.m_i(v_2) \longrightarrow [v_1/x, v_2/y]e_{body}~|~\varnothing$. Since $\varepsilon = \varnothing$, it is sufficient to type $[v_1/x, v_2/y]e_{body} : \tau_{body}~\kw{with} \varepsilon_{body}$, where $\tau_{body} <: \tau_A$ and $\varepsilon_{body} \subseteq \varepsilon_A$. \\
+ 
+\noindent
+By inversion on $(1)$ we know $\Gamma' \subseteq \Gamma$ and $\Gamma' \vdash e_1 : \{ \bar d \}$. By inversion on \textsc{ValidImpl$_d$} we know $\Gamma' \vdash \overline{d_{body} = e_{body}~\kwa{OK}}$, for every method defined in $e_1$. Then if method $m_i$ is $d_{body} = e_{body}$, we know $\Gamma', y: \tau_2 \vdash e_{body}: \tau_3$ from inversion on \textsc{ValidImpl$_d$}. By the jump lemma, $\Gamma', y: \tau_2 \vdash e_{body}: \tau_3~\kw{with} \varepsilon_B$. \\
+
+\noindent
+Now in this case, since $e_1$ and $e_2$ are values, then $\varepsilon_1 = \varepsilon_2 = \varnothing$ by canonical forms. Then $\varepsilon_A = \varepsilon_c \cup \kwa{capture}(\tau_2) = \kwa{capture}(\Gamma') \cup \kwa{capture}(\tau_2)$. Since $\varepsilon = \varnothing$, we just have to show that $\varepsilon_B \subseteq \varepsilon_A$. The jump lemma also tells us that $\varepsilon_B \subseteq \kwa{capture}(\Gamma', y: \tau_2) = \kwa{capture}(\Gamma') \cup \kwa{capture}(\tau_2) = \varepsilon_A$.\\
+}
+}
+
+\proofcase{\textsc{$\varepsilon$-MethCall}}{
+
+\noindent
+Then $e = e_1.\pi$ and we know the following:
+
+\begin{enumerate}
+	\item $\Gamma \vdash e_1 : \{ \bar \sigma \}~\kw{with} \varepsilon_1$
+	\item $\Gamma \vdash e_2 : \tau_2~\kw{with} \varepsilon_2$
+	\item $\sigma_i = \kwa{def}~m_i(y : \tau_2): \tau_3~\kw{with} \varepsilon_3$
+	\item $\Gamma \vdash e_1.m_i(e_2) : \tau_3~ \kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$
+\end{enumerate}
+
+\noindent
+There are three reduction rules which could have been applied, depending on which of $e_1$ and $e_2$ are values.\\
+
+\subcase{\textsc{E-MethCall1}. Then we know $e_1 \longrightarrow e_1'~|~\varepsilon$, and the reduction in the theorem statement is $e_1.m(e_2) \longrightarrow e_1'.m(e_2)~|~\varepsilon$. By inductive assumption, $\Gamma \vdash e_1' : \tau_1'~\kw{with} \varepsilon_1'$, where $\tau_1' <: \tau_1$ and $\varepsilon_1' \cup \varepsilon = \varepsilon_1$. We may type $e_1'.m_i(e_2)$ using the rule \textsc{$\varepsilon$-MethCall}, from which we get $\Gamma \vdash e_1'.m_i(e_2) : \tau_3'~\kw{with} \varepsilon_1' \cup \varepsilon_2 \cup \varepsilon_3$, where $\tau_3' <: \tau_3$. Furthermore, $\varepsilon \cup \varepsilon_B = \varepsilon \cup \varepsilon_1' \cup \varepsilon_2 \cup \varepsilon_3 = \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3 = \varepsilon_A$.\\
+
+}
+
+\subcase{\textsc{E-MethCall2}. Then we know $e_1 = v_1$ is a value, and $e_2 \longrightarrow e_2'~|~\varepsilon$, and the reduction in the theorem statement is $v_1.m(e_2) \longrightarrow v_1.m(e_2')~|~\varepsilon$. By inductive assumption, $\Gamma \vdash e_2' : \tau_2'~\kw{with} \varepsilon_2'$, where $\tau_2' <: \tau_2$ and $\varepsilon_2' \cup \varepsilon = \varepsilon_2$. We may type $v_1.m_i(e_2')$ using the rule \textsc{$\varepsilon$-MethCall}, from which we get $\Gamma \vdash v_1.m_i(e_2') : \tau_3'~|~\varepsilon_1 \cup \varepsilon_2' \cup \varepsilon_3$. By canonical forms, since $e_1 = v_1$ is a value, $\varepsilon_1 = \varnothing$. Then $\varepsilon \cup \varepsilon_B = \varepsilon \cup \varepsilon_2' \cup \varepsilon_3 = \varepsilon_2 \cup \varepsilon_3 = \varepsilon_A$.\\
+
+
+}
+
+\subcase{\textsc{E-MethCall3}. Then we know $e_1 = v_1$ and $e_2 = v_2$ are both values and the reduction in the theorem statement is $v_1.m_i(v_2) \longrightarrow [v_1 / x, v_2 / y]e_{body}~|~\varnothing$. Because $\Gamma \vdash v_1 : \{ \bar \sigma \}~\kw{with} \varnothing$, by inversion on the rule \textsc{$\varepsilon$-NewObj} and then by inversion on the rule \textsc{$\varepsilon$-ValidImpl$_\sigma$}, we know $\Gamma, y: \tau_2 \vdash e_{body} : \tau_3~\kw{with} \varepsilon_3$. From the substitution lemma, we have $\Gamma, y : \tau_2 \vdash [v_1/x, v_2/y]e_{body} : \tau_3~\kw{with} \varepsilon_3$, so $\tau_A = \tau_B$.\\
+
+\noindent
+Since $v_1$ and $v_2$ are values, by canonical forms $\varepsilon_1 = \varepsilon_2 = \varnothing$, so $\varepsilon_A = \varepsilon_3 = \varnothing \cup \varepsilon_B = \varepsilon \cup \varepsilon_B$.\\
+
+}
+
+}
+
+\proofcase{\textsc{$\varepsilon$-OperCall}}{
+
+\noindent
+Then $e = e_1.\pi$ and we know the following:
+
+\begin{enumerate}
+	\item $\Gamma \vdash e_1 : \{ r \}~\kw{with} \varepsilon_1$
+	\item $\Gamma \vdash e_1.\pi : \kwa{Unit}~\kw{with} \{ r.\pi \} \cup \varepsilon_1$
+\end{enumerate}
+
+\noindent
+There are two reduction rules which could have been applied, depending on whether $e_1$ is a value or not.\\
+
+	\subcase{\textsc{E-OperCall1}. Then we know $e_1 \longrightarrow e_1'~|~\varepsilon$, and the reduction in the theorem statement is $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. By induction assumption, $\Gamma \vdash e_1' : \tau_1'~\kw{with} \varepsilon_1'$, where $\tau_1' <: \tau_1$ and $\varepsilon_1 \cup \varepsilon = \varepsilon_1'$. We can type $e_1'.\pi$ with the rule \textsc{$\varepsilon$-OperCall}. We get $\Gamma \vdash e_1'.\pi : \kwa{Unit}~\kw{with} \varepsilon_1' \cup \{ r.\pi \}$. Then $\tau_A = \tau_B = \kwa{Unit}$ and $\varepsilon_1' \cup \{ r.pi \} \cup \varepsilon \subseteq \varepsilon_1 \cup \{ r.\pi \}$, from inductive assumption.\\
+}
+	
+	\subcase{\textsc{E-OperCall2} Then we know $e_1 = v_1 = r$ is a resource, and the reduction in the theorem statement is $r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$. By a trivial application of $\varepsilon-NewObj$, we have $\Gamma \vdash \kwa{unit} : \kwa{Unit}~\kw{with} \varnothing$. Since $r$ is an object, by canonical forms we know $\varepsilon_A = \varnothing \cup \{ r.\pi \}$, and $\varepsilon_B \cup \varepsilon = \varnothing \cup \{ r.\pi \}$.\\
+	}
+}
+
+
+\proofcase{\textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-NewObj}, \textsc{C-NewObj}}{
+	Then $e_A$ is a value and cannot be reduced. Soundness holds trivially.
+}
+}
+
 \end{document}
+
+
+
+
+
+
+
+
+
 

@@ -1,0 +1,238 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\usepackage{tabto}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = e}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
+}
+
+
+\begin{document}
+
+\section{Conservative Example}
+
+\subsection{Sugared}
+
+In this example, calls to a particular class of functions are first routed through a logging function $\kwa{loggerProxy}$ which records their use. For simplicity we just assume that the user wants to apply $0$ to every function (practically you'd want to have $\kwa{loggerProxy}$ take an extra argument for the input to $\kwa{f}$, but this complicates desugaring and isn't essential to the point being made).
+
+Note that although $\kwa{id}$ does not have a capability for $\kwa{File.log}$, and $\kwa{loggerProxy}$ does, the implementation of $\kwa{loggerProxy}$ is being sensible (so it is type-and-effect safe).
+
+\begin{lstlisting}
+def id(a: Int): Int with $\varnothing$ =
+    a
+
+def loggerProxy(f: Int $\rightarrow$ Int with $\varnothing$): Unit with File.log =
+    File.log(``Log: called function '' + f)
+    id(0)
+    
+def main(): Unit =
+	proxy(id)
+
+\end{lstlisting}
+
+\subsection{Desugared}
+
+A multi-variable function is desugared into an object with a method which returns an object with a method.
+
+\begin{lstlisting}
+let $x_1$ = new$_\sigma$x $\Rightarrow$ {
+    def id(a: Int): Int with $\varnothing$ =
+       a
+} in
+
+let $x_2$ = new$_\sigma$x $\Rightarrow$ {
+    def fix(obj: {id: Int $\rightarrow$ Int with $\varnothing$}): Unit with Sock.read =
+        new$_\sigma$x $\Rightarrow$ {
+            def m(): Unit with $\varnothing$ =
+               obj.id(0)
+        }.m(File.log)
+} in
+
+let $x_3$ = new$_d$x $\Rightarrow$ {
+    def main(): Unit =
+       $x_2$.fix($x_1$)
+} in
+
+$x_3$.main()
+
+\end{lstlisting}
+
+\subsection{Typing}
+
+To type $x_3$ using \textsc{C-NewObj} you need a $\Gamma'$ containing $x_2$ and $x_1$. $\kwa{capture}(x_2) = File.log$ and $\kwa{capture}(x_1) = \varnothing$. So $\varepsilon_c = \kwa{capture}(\Gamma') = \kwa{File.log}$. To meet the premises of \textsc{C-NewObj} we need $\kwa{capture}(\tau) \supset File.log$, for every $\tau$ which is the argument of a higher-order function in scope. \\
+
+\noindent
+The only higher-order function in scope is $\kwa{x_2.fix}$. Its formal parameter has the type $\kwa{id:~Int \rightarrow Int~with~\varnothing}$. The capture of this type is $\varnothing$ and $\varnothing \not\supset \kwa{File.log}$, so this program is rejected.
+
+\section{$\kwa{arg \hyphen types}$}
+
+\subsection{$\keywadj{arg \hyphen types}$ Function}
+
+This function examines the declaration of every method which could be (directly) invoked inside a particular $\Gamma$. It returns a set of the types of the arguments of those methods.
+
+\begin{itemize}
+	\item $\kwa{arg \hyphen types}(\varnothing) = \varnothing$
+	\item $\kwa{arg \hyphen types}(\Gamma, x : \tau) = \kwa{arg \hyphen types}(\Gamma) \cup \kwa{arg \hyphen types}(\tau)$
+	\item $\kwa{arg \hyphen types}(\{r\}) = \varnothing$
+	\item $\kwa{arg \hyphen types}(\{\bar \sigma\}) = \bigcup_{\sigma \in \bar \sigma}~\kwa{arg \hyphen types}(\sigma)$
+	\item $\kwa{arg \hyphen types}(\{\bar d\}) = \bigcup_{d \in \bar d}~\kwa{arg \hyphen types}(d)$
+	\item $\kwa{arg \hyphen types}(\{\bar d ~\keyw{captures} \varepsilon_c\}) =
+ \kwa{arg \hyphen types}(\{ \bar d \})$
+ 	\item $\kwa{arg \hyphen types}(d ~\kw{with} \varepsilon) = \kwa{arg \hyphen types}(d)$
+ 	\item $\kwa{arg \hyphen types}(\kw{def} m(y: \tau_2): \tau_3) = \{ \tau_2 \} \cup \kwa{arg \hyphen types}(\tau_3) \cup \kwa{arg \hyphen types}(\tau_2)$ (is $\kwa{arg \hyphen types}(\tau_2)$ necessary?)
+\end{itemize}
+
+\subsection{$\keywadj{higher \hyphen order \hyphen args}$ Function}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(HigherOrderArgs)}]
+	{\tau \in \kwa{higher \hyphen order \hyphen args}(\Gamma)}
+	{\tau \in \kwa{arg \hyphen types}(\Gamma) ~~~~ \kwa{is \hyphen higher \hyphen order}(\tau)}
+
+\end{array}
+\]
+
+\subsection{$\keywadj{is \hyphen obj}$ Predicate}
+
+\noindent
+The $\kwa{is \hyphen obj}$ predicate says whether or not a particular type $\tau$ is an object.
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(IsObj$_d$)}]
+	{\kwa{is \hyphen obj}(\{ \bar d \})}
+	{}
+	
+	~~~~
+	
+	\infer[\textsc{(IsObj$_\sigma$)}]
+	{\kwa{is \hyphen obj}(\{ \bar \sigma \})}
+	{}
+	
+	~~~~
+	
+	\infer[\textsc{(IsObjSummary)}]
+	{\kwa{is \hyphen obj}(\{ \bar d~\kw{captures} \varepsilon_c\})}
+	{}
+
+\end{array}
+\]
+
+\subsection{$\kwa{is \hyphen higher \hyphen order}$ Predicate}
+
+A type is higher-order if it has a method accepting another object as an argument.
+
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(HigherOrder$_d$)}]
+	{\kwa{is \hyphen higher \hyphen order}(\{ \bar d \})}
+	{d_i = \kwa{def}~m(y: \tau_2): \tau_3 ~~~\kwa{is \hyphen obj}(\tau_2)}
+	\\[5ex]
+	\infer[\textsc{(HigherOrder$_\sigma$)}]
+	{\kwa{is \hyphen higher \hyphen order}(\{ \bar \sigma \})}
+	{\sigma_i = \kwa{def}~m(y: \tau_2): \tau_3 ~\kw{with} \varepsilon ~~~~ \kwa{is \hyphen obj}(\tau_2)}
+
+\end{array}
+\]
+
+
+
+\end{document}
