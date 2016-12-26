@@ -1,0 +1,281 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\usepackage{tabto}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\unit}[0]{ \kwa{unit} }
+
+\newcommand{\Unit}[0]{ \kwa{Unit} }
+
+\newcommand{\arr}[3]{
+	#1 \rightarrow_{#3} #2
+}
+
+\newcommand{\module}[0]{
+\kwa{import}(\varepsilon)~x = \hat e~\kwa{in}~e
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = e}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
+}
+
+
+\begin{document}
+
+\section{Examples}
+
+
+
+\subsection{Safe Logger}
+\begin{lstlisting}
+import(File.append)
+   log = $\lambda$x:Unit . File.append
+   in log unit
+\end{lstlisting}
+
+\noindent
+Firstly $\vdash \lambda x:\kwa{Unit~.~File.append : Unit \rightarrow_{File.append} Unit~\kw{with} \varnothing}$ by \textsc{$\varepsilon$-Abs}. Call this type $\hat \tau$. $\kwa{effects}(\hat \tau) = \{ \kwa{File.append} \}$ and its erasure is $\Unit \rightarrow \Unit$. Now $\kwa{log} : \Unit \rightarrow \Unit \vdash \kwa{log}~\unit : \Unit$ by \textsc{T-Abs}. \\
+
+\noindent
+By definition $\kwa{ho \hyphen safe(Unit \rightarrow_{File.append} Unit, \{ \kwa{File.append} \})}$  iff $\kwa{safe}(\Unit, \{ \kwa{File.append} \})$ and \\ $\kwa{ho \hyphen safe}(\Unit, \{ \kwa{File.append} \})$. The two conjuncts are true by \textsc{Safe-Unit} and \textsc{HOSafe-unit}.\\
+
+\subsection{Logger Uses Undefined Capability}
+\begin{lstlisting}
+import(File.append)
+   log = $\lambda$x:Unit . File.write
+   in log unit
+\end{lstlisting}
+
+\noindent
+Firstly $\kwa{\vdash \lambda x:Unit.~File.write: Unit \rightarrow_{File.write} Unit~with~\varnothing}$ by \textsc{$\varepsilon$-Abs}. Now: \\
+
+\noindent
+$\kwa{effects}(\kwa{Unit \rightarrow_{File.write} Unit})$ \\
+$= \{ \kwa{File.write} \} \cup \kwa{effects}(\Unit) \cup \kwa{ho \hyphen effects}(\Unit)$ \\
+$= \{ \kwa{File.write} \}$ \\
+
+\noindent
+But $\{ \kwa{File.write} \} \neq \{ \kwa{File.append} \}$, the set of capabilities declared by the module. Hence this program doesn't typecheck. \\
+
+\subsection{Higher-Order Safe}
+\begin{lstlisting}
+import(File.append)
+   getLogger = $\lambda$x:Unit. ($\lambda$y:Unit. File.append)
+in (getLogger unit) unit
+\end{lstlisting}
+
+\noindent
+Firstly, $\kwa{x:Unit \vdash \lambda y:Unit .~File.append : \Unit \rightarrow_{File.append} \Unit ~with ~ \varnothing} $ by \textsc{$\varepsilon$-Abs}. Then by \textsc{$\varepsilon$-Abs} again, $\kwa{\vdash \lambda x:Unit.~(\lambda y:Unit.~File.append): Unit \rightarrow_{\varnothing} Unit \rightarrow_{File.append} Unit}~\kw{with} \varnothing$. This is our $\hat \tau$. \\
+
+\noindent
+The set of effects declared by the module is $\varepsilon = \{ \kwa{File.append} \}$. This needs to be the same as $\kwa{effects}(\hat \tau)$. \\
+
+\noindent
+$\kwa{effects}(\hat \tau)$ \\
+$= \kwa{effects}(\kwa{Unit \rightarrow_{\varnothing} Unit \rightarrow_{File.append} Unit})$ \\
+$ = \kwa{ho \hyphen effects(Unit) \cup \varnothing \cup \kwa{effects}(Unit \rightarrow_{File.append} Unit)}$ \\
+$ = \kwa{effects(Unit \rightarrow_{File.append} Unit)}$ \\
+$ = \kwa{ho \hyphen effects(Unit) \cup \{ File.append \} \cup effects(Unit)}$ \\
+$ = \{ \kwa{File.append} \}$\\
+
+\noindent
+We also need higher-order safety.\\\\
+$\kwa{ho \hyphen safe(Unit \rightarrow_{\varnothing} Unit \rightarrow_{File.append} Unit, \{ File.append \})}$\\
+$\kwa{\equiv safe(Unit, \{ File.append \}) \land ho \hyphen safe(Unit \rightarrow_{File.append} Unit, \{ File.append \})}$ \\
+$\kwa{\equiv ho \hyphen safe(Unit \rightarrow_{File.append} Unit, \{ File.append \})}$ \\
+$\equiv \kwa{safe(Unit, \{ File.append \}) \land ho \hyphen safe(Unit, \{ File.append \})}$ \\
+$\equiv \kwa{True}$\\
+
+\noindent
+Lastly, $\kwa{erase(Unit \rightarrow_{\varnothing} Unit \rightarrow_{File.append} Unit) = Unit \rightarrow Unit \rightarrow Unit}$. By using \text{T-App} twice we have \\ $\kwa{getLogger: Unit \rightarrow Unit \rightarrow Unit \vdash (getLogger~unit)~unit: Unit}$.\\
+
+\subsection{Higher-Order Unsafe}
+
+In this example the module leaks a capability for appending to a file, violating its signature.
+
+\begin{lstlisting}
+import($\varnothing$)
+   getLogger = $\lambda$x:Unit . ($\lambda$y:Unit . File.append)
+in (getLogger unit) unit
+\end{lstlisting}
+
+\noindent
+By \textsc{$\varepsilon$-Abs}, $\kwa{\vdash \lambda x:Unit.~(\lambda y:Unit.~File.append): Unit \rightarrow_{\varnothing} Unit \rightarrow_{File.append} Unit}~\kw{with} \varnothing$. This is our $\hat \tau$. The set of effects declared by the module is $\varnothing$. This needs to be the same as $\kwa{effects}(\hat \tau)$. \\
+
+\noindent
+$\kwa{effects}(\hat \tau)$ \\
+$= \kwa{effects}(\kwa{Unit \rightarrow_{\varnothing} Unit \rightarrow_{File.append} Unit})$ \\
+$ = \kwa{ho \hyphen effects(Unit) \cup \varnothing \cup \kwa{effects}(Unit \rightarrow_{File.append} Unit)}$ \\
+$ = \kwa{effects(Unit \rightarrow_{File.append} Unit)}$ \\
+$ = \kwa{ho \hyphen effects(Unit) \cup \{ File.append \} \cup effects(Unit)}$ \\
+$ = \{ \kwa{File.append} \} \neq \varnothing$\\
+
+\noindent
+So the example fails to typecheck.
+
+
+\subsection{Higher-Order Unsafe 2}
+
+In this example we pass in a function which writes and appends to a file. However, the signature expects it to only be appending.
+
+\begin{lstlisting}
+import(File.append)
+    logger = $\lambda$f:Unit $\rightarrow_{\kwa{File.append}}$ Unit. f unit
+in logger ($\lambda$x:Unit. let y = File.append in File.write)
+\end{lstlisting}
+
+\noindent
+It desugars into this program.
+
+\begin{lstlisting}
+import(File.append)
+    logger = $\lambda$f:Unit $\rightarrow_{\kwa{File.append}}$ Unit. f unit
+in logger ($\lambda$x:Unit. ($\lambda$y:Unit. File.append) File.write)
+\end{lstlisting}
+
+\noindent
+By \textsc{$\varepsilon$-App} we have $\kwa{f : Unit \rightarrow_{File.append} Unit \vdash f~unit: Unit~\kw{with} \{ File.append \}}$. Then by \textsc{$\varepsilon$-Abs} we have $\kwa{\vdash logger: (Unit \rightarrow_{File.append} Unit) \rightarrow_{varnothing} Unit~\kw{with} \varnothing }$. This is our $\hat \tau$. \\
+
+\noindent
+The set of effects declared by this module is $\kwa{\{ File.append \}}$. We need this to be the same as $\kwa{effects}(\hat \tau)$. By definition, \\
+
+\noindent
+$\kw{effects((Unit \rightarrow_{File.append} Unit) \rightarrow_{varnothing} Unit)}$\\
+$\kw{= ho \hyphen effects(Unit \rightarrow_{File.append} Unit) \cup \varnothing \cup effects(Unit)}$ \\
+$\kw{= ho \hyphen effects(Unit \rightarrow_{File.append} Unit)}$ \\
+$\kw{= effects(Unit) \cup ho \hyphen effects(Unit)}$ \\
+$\kw{= \varnothing \subseteq \{File.append\}}$ \\
+
+\noindent
+Here is the derivation of higher-order safety. \\
+$\kw{ho \hyphen safe((Unit \rightarrow_{File.append} Unit) \rightarrow_{varnothing} Unit, \{File.append\})}$ \\
+$\kw{\equiv safe(Unit \rightarrow_{File.append} Unit, \{File.append\}) \land ho \hyphen safe(Unit, \{File.append\})}$ \\
+$\kw{\equiv safe(Unit \rightarrow_{File.append} Unit, \{File.append\})}$ \\
+$\kw{\equiv \{File.write\} \subseteq \{File.write\} \land safe(Unit, \{ File.write \}) \land ho \hyphen safe(Unit , \{ File.write \})}$ \\
+$\equiv \kw{True}$\\
+
+\noindent
+Now by \textsc{T-Abs} we have $\kwa{logger: Unit \rightarrow Unit, x: Unit \vdash \lambda y: Unit.~File.append: Unit \rightarrow Unit}$. By \textsc{T-Abs} again we have $\kwa{logger: Unit \rightarrow Unit \vdash \lambda x:Unit.(\lambda y:Unit.~File.write): Unit \rightarrow Unit \rightarrow Unit}$. \\
+
+\noindent
+\textbf{So this example typechecks (but it shouldn't)}
+
+\subsection{Higher-Order Unsafe 3}
+
+In this example we pass in a function which returns a function which writes to a file (not allowed).
+
+\begin{lstlisting}
+import($\varnothing$)
+    logger = $\lambda$f:Unit $\rightarrow_{\varnothing}$ Unit  $\rightarrow_{\varnothing}$ Unit. f unit unit
+in logger ($\lambda$x:Unit. ($\lambda$y:Unit. File.write))
+\end{lstlisting}
+
+\noindent
+Firstly by \textsc{$\varepsilon$-App} we have $\kwa{f:Unit \rightarrow_{\varnothing} Unit  \rightarrow_{\varnothing} Unit \vdash f~unit~unit: Unit~\kw{with} \varnothing}$. Then by \textsc{$\varepsilon$-Abs} we have $\kwa{\vdash logger: Unit \rightarrow_{\varnothing} Unit \rightarrow_{\varnothing} Unit \rightarrow_{\varnothing} Unit}$. This is our $\hat \tau$.\\
+
+\noindent
+Secondly $\kwa{effects}(\hat \tau) = \varnothing$ which is the same as the set of effects declared by this module. This is also trivially higher-order safe. \\
+
+\noindent
+Now $\kwa{erase(Unit \rightarrow_{\varnothing} Unit  \rightarrow_{\varnothing} Unit) = Unit \rightarrow Unit \rightarrow Unit}$ and by using \textsc{T-App} and \textsc{T-Abs} we have \\ $\kwa{logger: Unit \rightarrow Unit \rightarrow Unit \vdash logger (\lambda x:Unit. (\lambda y:Unit. File.write)): Unit }$. \\
+
+\noindent
+\textbf{So this example typechecks (but it shouldn't)}
+
+\end{document}
+
+
+
+
