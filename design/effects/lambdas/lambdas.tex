@@ -126,7 +126,6 @@ e & ::= & x & exprs. \\
 	& | & \lambda x: \tau.e \\
 	& | & e ~ e \\
 	& | & e.\pi \\
-	& | & \kwa{unit} \\
 	&&\\
 
 \hat e & ::= & x & labelled~exprs. \\
@@ -134,18 +133,15 @@ e & ::= & x & exprs. \\
 	& | & \lambda x: \hat \tau.\hat e \\
 	& | & \hat e ~ \hat e \\
 	& | & \hat e.\pi \\
-	& | & \kwa{unit} \\
 	& | & \kwa{import}(\varepsilon)~x = \hat e~\kwa{in}~e \\
 	&&\\
 
 v & ::= & r & values. \\
 	& | & \lambda x: \tau.e \\
-	& | & \kwa{unit} \\
 	&&\\
 	
 \hat v & ::= & r & labelled~values \\
 	& | & \lambda x: \hat \tau.\hat e\\
-	& | & \kwa{unit} \\
 	&&\\
 
 \end{array}
@@ -159,12 +155,10 @@ v & ::= & r & values. \\
 
 \tau & ::= & \{ \bar r \} & types \\
 		& | & \tau \rightarrow \tau \\ 
-		& | & \kwa{Unit} \\
 		&&\\
 
 \hat \tau & ::= & \{ \bar r \} & labelled ~types \\
 		& | & \hat \tau \rightarrow_{\varepsilon} \hat \tau \\
-		& | & \kwa{Unit} \\
 		&&\\
 
 \Gamma & ::= & \varnothing & type~ctx. \\
@@ -186,7 +180,6 @@ v & ::= & r & values. \\
 
 \begin{enumerate}
 	\item $\kwa{annot}(\{ \bar r \}, \_) = \{ \bar r \}$
-	\item $\kwa{annot}(\kwa{Unit}, \_) = \kwa{Unit}$
 	\item $\kwa{annot}(\tau_1 \rightarrow \tau_2, \varepsilon) = \kwa{annot}(\tau_1, \varepsilon) \rightarrow_{\varepsilon} \kwa{annot}(\tau_2, \varepsilon)$
 \end{enumerate}
 
@@ -196,7 +189,6 @@ v & ::= & r & values. \\
 \begin{enumerate}
 	\item $\kwa{annot}(x, \_) = e$
 	\item $\kwa{annot}(r, \_) = r$
-	\item $\kwa{annot}(\kwa{unit}, \_) = \kwa{unit}$
 	\item $\kwa{annot}(e_1 e_2, \varepsilon) = \kwa{annot}(e_1) \kwa{annot}(e_2)$
 	\item $\kwa{annot}(e.\pi, \varepsilon) = \kwa{annot}(e).\pi$
 	\item $\kwa{annot}(\lambda x: \tau.e, \varepsilon) = \lambda x: \kwa{annot}(\tau, \varepsilon) . \kwa{annot}(e, \varepsilon)$
@@ -213,7 +205,6 @@ v & ::= & r & values. \\
 
 \begin{enumerate}
 	\item $\kwa{erase}(\{ \bar r \}, \_) = \{ \bar r \}$
-	\item $\kwa{erase}(\kwa{Unit}, \_) = \kwa{Unit}$
 	\item $\kwa{erase}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{erase}(\hat \tau_1) \rightarrow \kwa{erase}(\hat \tau_2)$
 \end{enumerate}
 
@@ -222,7 +213,6 @@ v & ::= & r & values. \\
 \begin{enumerate}
 	\item $\kwa{erase}(x) = x$
 	\item $\kwa{erase}(r) = r$
-	\item $\kwa{erase}(\kwa{unit}) = \kwa{unit}$
 	\item $\kwa{erase}(e_1 e_2) = \kwa{erase}(e_1) \kwa{erase}(e_2)$
 	\item $\kwa{erase}(e.\pi) = \kwa{erase}(e).\pi$
 	\item $\kwa{erase}(\lambda x: \hat \tau.\hat e) = \lambda x: \kwa{erase}(\hat \tau).\kwa{erase}(\hat e)$
@@ -231,18 +221,47 @@ v & ::= & r & values. \\
 \subsection*{Definition ($\kwa{effects :: \tau \rightarrow \varepsilon}$)}
 
 \begin{enumerate}
-	\item $\kwa{effects}(\kwa{Unit}) = \varnothing$
 	\item $\kwa{effects}(\{ \bar r \}) = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
 	\item $\kwa{effects}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{ho \hyphen effects}(\hat \tau_1) \cup \varepsilon \cup \kwa{effects}(\hat \tau_2)$
 \end{enumerate}
 
+\noindent
+This function computes those effects:
+\begin{itemize}
+	\item Directly invoked by a function of type $\hat \tau$.
+	\item Captured by functions created/returned by $\hat \tau$.
+\end{itemize}
+
 \subsection*{Definition ($\kwa{ho \hyphen effects :: \tau \rightarrow \varepsilon}$)}
 
 \begin{enumerate}
-	\item $\kwa{ho \hyphen effects}(\kwa{Unit}) = \varnothing$
 	\item $\kwa{ho \hyphen effects}(\{ \bar r \}) = \varnothing$
-	\item $\kwa{ho \hyphen effects}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{effects}(\tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
+	\item $\kwa{ho \hyphen effects}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
 \end{enumerate}
+
+\noindent
+This function computes those effects:
+\begin{itemize}
+	\item Captured by functions passed into $\hat \tau$.
+\end{itemize}
+
+\subsection*{Examples}
+
+Suppose $a$ is a base type that captures no effects. \\
+
+\noindent
+Consider $\hat \tau = (a \rightarrow_b (a \rightarrow_c a)) \rightarrow_d (a \rightarrow_e a)$.
+
+$\kwa{effects}(\hat \tau) = \{ d, e \}$
+
+$\kwa{ho \hyphen effects}(\hat \tau) = \{ b, c \}$ \\
+
+\noindent
+Consider $\hat \tau = ((a \rightarrow_b a) \rightarrow_c (a \rightarrow_d a)) \rightarrow_e ((a \rightarrow_f a) \rightarrow_g (a \rightarrow_h a))$
+
+$\kwa{effects}(\hat \tau) = \{ e, b, g, h \}$
+
+$\kwa{ho \hyphen effects}(\hat \tau) = \{ c, d, f \}$
 
 \section{Static Rules}
 
@@ -258,11 +277,8 @@ v & ::= & r & values. \\
 ~~~~~~
 \infer[\textsc{(T-Resource)}]
 	{\Gamma, r: \{ r \} \vdash r : \{ r \}}
-	{} \\[4ex]
-
-\infer[\textsc{(T-Unit)}]
-	{\Gamma \vdash \kwa{unit} : \kwa{Unit}}
 	{}
+
 ~~~~~~
 \infer[\textsc{(T-Abs)}]
 	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
@@ -286,30 +302,27 @@ v & ::= & r & values. \\
 \begin{array}{c}
 
 \infer[\textsc{($\varepsilon$-Var)}]
-	{ \Gamma, x:\tau \vdash x: \tau~\kw{with} \varnothing }
+	{ \hat \Gamma, x:\tau \vdash x: \tau~\kw{with} \varnothing }
 	{}
 ~~~~~~
 \infer[\textsc{($\varepsilon$-Resource)}]
- 	{ \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
+ 	{ \hat \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
  	{}\\[4ex]
  	
-\infer[\textsc{($\varepsilon$-Unit)}]
-	{\Gamma \vdash \kwa{unit} : \kwa{Unit}~\kw{with} \varnothing}
-	{}
 ~~~~~~
 	\infer[\textsc{($\varepsilon$-Abs)}]
-	{ \Gamma \vdash \lambda x:\tau_2 . \hat e : \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varnothing }
-	{ \Gamma, x: \tau_2 \vdash \hat e: \tau_3~\kw{with} \varepsilon } \\[4ex]
+	{ \hat \Gamma \vdash \lambda x:\tau_2 . \hat e : \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varnothing }
+	{ \hat \Gamma, x: \hat \tau_2 \vdash \hat e: \hat \tau_3~\kw{with} \varepsilon_3 }
 	
 	
 \infer[\textsc{($\varepsilon$-App)}]
-	{ \Gamma \vdash \hat e_1 \hat e_2 : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
-	{ \Gamma \vdash \hat e_1: \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1 & \Gamma \vdash \hat e_2: \tau_2~\kw{with} \varepsilon_2 }
+	{ \hat \Gamma \vdash \hat e_1 \hat e_2 : \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
+	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[4ex]
 	~~~~~~
 	
 \infer[\textsc{($\varepsilon$-OperCall)}]
-	{ \Gamma \vdash \hat e.\pi: \kw{Unit} \kw{with} \{ \bar r.\pi \} }
-	{ \Gamma \vdash \hat e: \{ \bar r \} & \forall r \in \bar r \mid r \in R & \pi \in \Pi }\\[4ex]
+	{ \hat \Gamma \vdash \hat e.\pi: \kw{Unit} \kw{with} \{ \bar r.\pi \} }
+	{ \hat \Gamma \vdash \hat e: \{ \bar r \} & \forall r \in \bar r \mid r \in R & \pi \in \Pi }\\[4ex]
 
 \infer[\textsc{($\varepsilon$-Module)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
@@ -396,7 +409,7 @@ $\fbox{$\hat \tau <: \hat \tau$}$
 	{\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon}
 ~~~~~~
 \infer[\textsc{(E-App3)}]
-	{ (\lambda x: \tau.\hat e) \hat v_2 \longrightarrow [\hat v_2/x]\hat e~|~\varnothing }
+	{ (\lambda x: \hat \tau.\hat e) \hat v_2 \longrightarrow [\hat v_2/x]\hat e~|~\varnothing }
 	{}\\[4ex]
 	
 \infer[\textsc{(E-OperCall1)}]
@@ -410,9 +423,9 @@ $\fbox{$\hat \tau <: \hat \tau$}$
 	{r \in R & \pi \in \Pi}
 	 \\[4ex]
 	 
-%	\infer[\textsc{(E-Module1)}]
-%	{\kwa{import}(\varepsilon)~x = \hat e~\kw{in} e \longrightarrow \kwa{import}(\varepsilon)~x = \hat e'~\kw{in} e~|~\varepsilon'}
-%	{\hat e \longrightarrow \hat e'~|~\varepsilon'}\\[4ex]
+\infer[\textsc{(E-Module1)}]
+	{\kwa{import}(\varepsilon)~x = \hat e~\kw{in} e \longrightarrow \kwa{import}(\varepsilon)~x = \hat e'~\kw{in} e~|~\varepsilon'}
+	{\hat e \longrightarrow \hat e'~|~\varepsilon'}\\[4ex]
 
 \infer[\textsc{(E-Module2)}]
 	{\kwa{import}(\varepsilon)~x = \hat v~\kw{in} e \longrightarrow [\hat v/x]\kwa{annot}(e, \varepsilon)~|~\varnothing}
@@ -421,26 +434,34 @@ $\fbox{$\hat \tau <: \hat \tau$}$
 \end{array}
 \]
 
+
+\section{Encodings}
+
+\subsection{$\bot$}
+We can define the bottom type as $\kwa{\bot = \{\}}$, because there is no empty-set literal.
+
+\subsection{$\unit,~\Unit$}
+
+\noindent
+Define $\kwa{unit = \lambda x: \{\}.x}$, i.e. the function which takes an empty set of resources and returns it. We shall refer to its type, which is $\kwa{\{\} \rightarrow_{\varnothing} \{\}}$, as $\Unit$. It has various properties befitting $\unit$.
+
+\begin{enumerate}
+	\item $\unit$ cannot be invoked, as $\{\}$ is uninhabited.
+	\item $\unit$ is a value.
+	\item The only term with type $\Unit$ is $\unit$.
+	\item $\vdash \unit : \Unit$, by using \textsc{$\varepsilon$-Abs} and \textsc{$\varepsilon$-Var}.
+	\item $\kwa{effects}(\Unit) = \kwa{ho \hyphen effects}(\Unit) = \varnothing$
+	\item $\kwa{safe}(\Unit, \varepsilon)$ and $\kwa{ho \hyphen safe}(\Unit, \varepsilon)$
+\end{enumerate}
+
 \section{Proofs}
 
-\begin{lemma}
-If $\varepsilon \subseteq \kwa{effects}(\hat \tau)$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\hat \tau <: \kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
-\end{lemma}
-
-\begin{lemma}
-If $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau)$ and $\kwa{safe}(\hat \tau, \varepsilon)$ then $\kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon) <: \hat \tau$.
-\end{lemma}
-
-\begin{theorem}
-If $\Gamma, x: \kwa{erase}(\hat \tau) \vdash e: \tau$ and $\varepsilon = \kwa{effects}(\hat \tau)$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\kwa{annot}(\Gamma), x: \hat \tau \vdash \kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$.
-\end{theorem}
-
 \begin{theorem}[Progress]
-If $\Gamma \vdash \hat e_A: \tau_A~\kw{with} \varepsilon_A$ then $\hat e_A$ is a value or $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$.
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ then $\hat e_A$ is a value or $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$.
 \end{theorem}
 
 \begin{proof}
-By induction on $\Gamma \vdash \hat e_A: \tau_A~\kw{with} \varepsilon_A$.\\
+By induction on $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$.\\
 
 \noindent
 \fbox{Case: \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Unit}, \textsc{$\varepsilon$-Abs}}
@@ -465,9 +486,117 @@ If $\hat e_1$ is a value then $\hat e_1 = r$ by canonical forms. By the assumpti
 
 \noindent
 \fbox{Case: \textsc{$\varepsilon$-Module}}
-Then $e_A = \module$ which reduces by the rule \textsc{E-Module}, giving $\module \longrightarrow [\hat v/x]\kwa{annot}(e, \varepsilon)~|~\varnothing$.
+Then $e_A = \module$. If $\hat e$ is an expression then it can be reduced, so $\hat e \longrightarrow \hat e' ~|~\varepsilon'$, and so by \textsc{E-Module1} we get $\module \longrightarrow \kwa{import}(\varepsilon)~x = \hat e'~\kw{in} e ~|~\varepsilon'$. Otherwise $\hat e = \hat v$ is a value. Then by \textsc{E-Module2} we get $\kwa{import}(\varepsilon)~x = \hat v \longrightarrow [\hat v/x]\kwa{annot}(e, \varepsilon)~|~\varnothing$.
+\end{proof}
+
+\hrulefill
+
+\begin{lemma}[Substitution]
+If $\hat \Gamma, x: \hat \tau' \vdash e: \hat \tau~\kw{with} \varepsilon$ and $\hat \Gamma \vdash v: \hat \tau'~\kw{with} \varnothing$ then $\hat \Gamma \vdash [v/x]e: \hat \tau~\kw{with} \varepsilon$.
+\end{lemma}
+
+\hrulefill
+
+\begin{lemma}
+If $\varepsilon' \subseteq \varepsilon$ then $\kwa{safe}(\hat \tau, \varepsilon) \implies \kwa{safe}(\hat \tau, \varepsilon')$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon) \implies \kwa{ho \hyphen safe}(\hat \tau, \varepsilon')$.
+\end{lemma}
+
+\begin{proof}
+If $\hat \tau = \{ \bar r \}$ then the result holds immediately. Otherwise $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2$. We proceed by simultaneous induction on derivations of $\kwa{safe}(\hat \tau, \varepsilon)$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$.\\
+
+\noindent
+\fbox{$\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon)$} By definition this means $\varepsilon \subseteq \varepsilon_2$ and $\kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon)$ and $\kwa{safe}(\hat \tau_2, \varepsilon)$. By inductive assumption, $\kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon')$ and $\kwa{safe}(\hat \tau_2, \varepsilon')$. Also $\varepsilon' \subseteq \varepsilon \subseteq \varepsilon_2$. Therefore $\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon')$. \\
+
+\noindent
+\fbox{$\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon)$} By definition this means $\kwa{safe}(\hat \tau_1, \varepsilon)$ and $\kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon)$. By inductive assumption, $\kwa{safe}(\hat \tau_1, \varepsilon')$ and $\kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon')$. Therefore $\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon')$.
 
 \end{proof}
+
+\hrulefill
+
+\begin{lemma}
+If $\varepsilon \subseteq \kwa{effects}(\hat \tau)$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\hat \tau <: \kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
+\end{lemma}
+
+\begin{lemma}
+If $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau)$ and $\kwa{safe}(\hat \tau, \varepsilon)$ then $\kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon) <: \hat \tau$.
+\end{lemma}
+
+\begin{proof}
+
+By simultaneous induction on derivations.\\
+
+\noindent
+\fbox{Case: $\kwa{Unit}$, $\{ \bar r \}$}
+Then $\kwa{annot(erase(\hat \tau), \varepsilon)} = \hat \tau$.\\
+
+\noindent
+\fbox{Case: $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2$, $\varepsilon \subseteq \kwa{effects}(\hat \tau)$, $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$}
+
+\noindent
+$\kwa{effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2) = \kwa{ho \hyphen effects}(\hat \tau_1)~\cup~\varepsilon~\cup~\kwa{effects}(\hat \tau_2)$.
+
+\noindent
+$\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon) = \kwa{safe}(\hat \tau_1, \varepsilon) \land \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon)$. \\
+
+\noindent
+\fbox{Case: $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2$, $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau)$, $\kwa{safe}(\hat \tau, \varepsilon)$}
+
+\noindent
+$\kwa{ho \hyphen effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2) = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
+
+\noindent
+$\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2) =
+\varepsilon \subseteq \varepsilon' \land \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) \land \kwa{safe}(\hat \tau_2, \varepsilon)$
+
+\end{proof}
+
+\hrulefill
+
+\begin{theorem}[Preservation]
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon$, then $\hat \Gamma \vdash e_B: \tau_B~\kw{with} \varepsilon_B$, where $e_B <: e_B$ and $\varepsilon \cup \varepsilon_B \subseteq \varepsilon_A$.
+\end{theorem}
+
+\begin{proof}
+By induction on $\hat \Gamma \vdash \hat e_A: \tau_A~\kw{with }\varepsilon_A$, and then on $e_A \longrightarrow e_B~|~\varepsilon$. \\
+
+\noindent
+\fbox{\textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Unit}, \textsc{$\varepsilon$-Abs}} Then $e_A$ cannot be reduced and so the theorem statement vacuously holds. \\
+
+\noindent
+\fbox{\textsc{$\varepsilon$-App}}
+Then $e_A = \hat e_1 \hat e_2$ and $\hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1$ and $\hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$. If the reduction rule used was \textsc{E-App1} or \textsc{E-App2}, then the result follows by applying the inductive hypothesis to $\hat e_1$ and $\hat e_2$ respectively.
+
+Otherwise the rule used was \textsc{E-App3}. Then $(\lambda x: \hat \tau_2.\hat e)\hat v_2 \longrightarrow [\hat v_2/x]\hat e~|~\varnothing$. By inversion on the typing rule for $\lambda x: \hat \tau_2.\hat e$ we know $\Gamma, x: \hat \tau_2 \vdash \hat e: \hat \tau_3~\kw{with} \varepsilon_3$. By canonical forms, $\varepsilon_2 = \varnothing$ because $\hat e_2 = \hat v_2$ is a value. Then by the substitution lemma, $\hat \Gamma \vdash [\hat v_2/x]\hat e : \hat \tau_3~\kw{with} \varepsilon_3$. By canonical forms, $\varepsilon_1 = \varepsilon_2 = \varnothing = \varepsilon$. Therefore $\varepsilon_A = \varepsilon_3 = \varepsilon_B \cup \varepsilon$.\\
+
+\noindent
+\fbox{$\varepsilon$-OperCall}
+Then $e_A = e_1.\pi$ and $\hat \Gamma \vdash e_1 : \{ \bar r \}~\kw{with} \varepsilon_1$. If the reduction rule used was \textsc{E-OperCall1} then the result follows by applying the inductive hypothesis to $\hat e_1$.
+
+Otherwise the reduction rule used was \textsc{E-OperCall2} and $v_1.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$. By canonical forms, $\hat \Gamma \vdash v_1: \kwa{unit}~\kw{with} \{ r.\pi \}$. Also, $\hat \Gamma \vdash \kwa{unit}: \kwa{Unit}~\kw{with} \varnothing$. Then $\tau_B = \tau_A$. Also, $\varepsilon \cup \varepsilon_B = \{ r.\pi \} = \varepsilon_A$.\\
+
+\noindent
+\fbox{$\varepsilon$-Module}
+Then $e_A = \module$. If the reduction rule used was \textsc{E-ModuleCall1} then the result follows by applying the inductive hypothesis to $\hat e$.
+
+Otherwise the following are true:
+\begin{enumerate}
+	\item $e_A = \kwa{import}(\varepsilon)~x = \hat v~\kw{in} e$
+	\item $\hat \Gamma \vdash e_A: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1$
+	\item $\kwa{import}(\varepsilon)~x = \hat v~\kw{in} e \longrightarrow [\hat v/x]\kwa{annot}(e, \varepsilon)~|~\varnothing$
+	\item $\hat \Gamma \vdash \hat v: \hat \tau~\kw{with} \varnothing$
+	\item $\varepsilon = \kwa{effects}(\hat \tau)$
+	\item $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$
+	\item $x: \kwa{erase}(\hat \tau) \vdash e: \tau$
+\end{enumerate}
+
+\end{proof}
+
+\noindent
+Show that $\hat \Gamma, x: \hat \tau \vdash \kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$. \\
+
+\noindent
+Then by substitution lemma, $\hat \Gamma \vdash [\hat v/x]\kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$.
 
 \end{document}
 

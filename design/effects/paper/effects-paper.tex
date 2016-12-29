@@ -8,7 +8,6 @@
 \usepackage{microtype} %if unwanted, comment out or use option "draft"
 \usepackage{proof}
 
-\bibliographystyle{plainurl}% the recommended bibstyle
 
 % For keywords in math-mode.
 \newcommand{\kw}[1]{\mathtt{ #1 }~}
@@ -70,17 +69,65 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent convallis orci
 
 \section{Introduction}
 
-Modern software is developed according to principles of encapsulation and re-use \textbf{[PRINCIPLE OF LEAST AUTHORITY; SALTZER `74]}, in which all code relating to one piece of functionality is grouped into a logically coherent module or component. In order to work these components must often manipulate certain resources passed around the system, such as files or sockets. Malicious code can leverage insecurities in these components to gain unintended access to resources. For example, if a logging component exposes the file to which it is writing, then any client of that component gains unrestricted access to the file. In the presence of software components of external origin, it can be a real challenge for developers to guarantee internal restrictions about which resources are to be used, by whom, and how.
+The division of software into modules has long been recognised as a technique for achieving code re-use and seperation of concerns \textbf{[1968 modular programming conference]}; but not all modules are safe to use. When one part of a system is developed with a particular set of assumptions, the inclusion of modules external to that part can violate these assumptions. There are several reasons why developers may choose to use modules that fundamentally cannot be trusted. A developer may import a library to perform some task, to save the cost of having to re-implement it. The concept of code ownership may come into play \textbf{[paper]}, whereby different teams and individuals exercise responsibility and maintenance for different sections of code. Each section may come with its own local assumptions and invariants. At a sufficient scale, no one person can be expected to function as an expert over every section of code. The point of interaction between two code sections, owing to mismatched assumptions, is a source of errors. \textbf{Is code section the right terminology? Any empirical studies on this?}
 
-Effect systems extend type systems with the notion of an $\textit{effect}$. Effects describe intensional information about what happens during the execution of a program \textbf{[Nielson and Nielson, Type and Effect systems]}. For example, if a program $e$ opens a specific file $\kwa{File}$ during execution, we can say it has the effect $\kwa{File.write}$. We call $\kwa{File}$ the resource and $\kwa{write}$ the operation. In an effect system, code typechecks with both a type and an effect-set. Effects are often taken to represent imperative or stateful updates, or I/O operations. The effect-set of a program gives us an approximate description of any impure behaviour.
+Several development heuristics help to achieve safe design, such as the principle of least authority (POLA), which mandates that we limit the components of a system to only the information and resources it needs to perform its task \cite{saltzer74}. Ensuring that a component satisfies POLA is a difficult task in languages permitting \textit{ambient authority}. In such a language, modules may exercise authority beyond that explicitly declared \cite{miller03}.
 
-\textbf{[CAPABILITIES; MILLER PHD THESIS; 65 PAPER]}
+In Java, the ability to import any public module without restriction is an example of ambient authority. If we wish to track the resources used by class $C_1$, we might start by looking at those resources used directly in the body of $C_1$, or those directly imported by $C_1$. However, if $C_1$ imports $C_2$, and $C_2$ makes use of a resource in its implementation, then $C_1$ will also exercise authority over that resource. Figure 1 demonstrates such an example. As a consequence of ambient authority, one cannot statically determine the set of resources used by $C_1$ without potentially inspecting every part of the program--a demand at odds with the concept of code ownership.
 
-The contribution of this paper is to develop an effect-system for a simple, pure object calculus. The design of the calculus is based on Wyvern, a safe-by-default, pure object-oriented programming language, designed for web and mobile development. Importantly, Wyvern is \textit{capability-safe}, meaning that components cannot obtain capabilities for resources and objects they haven't been explicitly given. Modules in Wyvern are first-class, meaning they are equivalent to regular objects.
+\begin{figure}[h]
+\vspace{-5pt}
+\begin{lstlisting}[mathescape]
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 
-This gives developers a means to quickly and easily reason about the ways in which a component is usnig its resources. At a coarse-grained level it can signify that a component lacks encapsulation: for example, that the logger module also requires access to networking capabilities, and thus might be doing more than just logging. At a fine-grained level it can tell us the way in which certain resources are used: that the logger only appends to files, and never opens or closes them. A practical effect system makes use of both where appropriate.
+class MyList<T> extends ArrayList<T> {
+  @Override
+  public boolean add(T elem) {
+  try {
+      Path file = Paths.get(``etc'', ``passwds'');
+      Filse.write(file, Charset.forName(``UTF-8''));
+  } catch(IOException e) {}
+  return super.add(elem);
+}
+\end{lstlisting}
 
-We first develop the epsilon calculus, in which all sub-components of a program are labelled with their effects to show the basic idea of how effect-labels propagate information throughout the system. This is then extended to the epsilon* calculus, where a programmer may freely mix labelled and unlabelled code. The benefit of this is to allow the developer to (safely) omit labelling in parts of the system which do not require fine-grained reasoning, giving a more usable system. Overall, our system illustrates a novel way in which capability and effect-based reasoning combined yield a practical means of reasoning about the safe manipulation of resources in complex systems.
+\begin{lstlisting}
+import MyList;
+
+class Main {
+  public static void main(String[] args) {
+    MyList<Integer> list = new MyList<>();
+    list.add(3);
+  }
+}
+\end{lstlisting}
+
+\vspace{-7pt}
+\caption{Executing Main.java will result in an attempt at reading the contents of  \slash etc\slash passwds. Because of ambient authority, we cannot determine that a file system is even at play inspecting every class.}
+\label{f-resource-modules}
+\end{figure}
+
+\noindent
+One solution is to only permit the use of resources via \textit{capabilities}. A capability is a unique, unforgeable reference, giving its bearer permission to perform some operation \cite{saltzer74}. If you possess a capability $C$, you have \textit{authority} over it. In \textit{capability-safe} languages, the only way to use a resource is by using the operations provided to you by some capability $C$ over which you exercise authority. Capability safe languages come with restrictions on how authority over a capability may be gained:
+
+\begin{enumerate}
+	\item There is an initial set of capabilities passed into the program (initial conditions).
+	\item If a method or function is instantiated by a parent, the parent gains a capability for its child (parenthood).
+	\item If a method or function is instantiated by a parent, the parent may endow its child with any capabilities it possesses (endowment).
+	\item A capability may be transferred via method-calls or function applications (introduction).
+\end{enumerate}
+
+These four principles may be summarised as ``no authority amplification'' \textbf{Miller doesn't use this term}. The only authority in a program must come from these rules, and be derived from previous access; this is known as ``only connectivity begets connectivity'' \cite{miller06}. These two properties characterise what it means to be capability-safe. \\
+
+\noindent
+On the other hand, some languages track the use of resources with the notion of an $\textit{effect system}$. Effects describe intensional information about what happens during the execution of a program \cite{nielson99}. They may be taken to represent imperative commands, stateful updates, or I/O operations. An effect-system extends the notion of a type-system, by ascribing to a piece of code the set of effects that may be incurred when it executes. The type signatures of a module's interface then explicitly states to a developer what effects are at play, allowing them to make an informed decision about whether or not it it safe to use. Some have expressed concerns over the practical use of these effect systems because of their heavyweight nature \textbf{CITATION NEEDED}: every piece of code, pure or impure, must be labelled as such. If a refactoring requires module $M$ to make use of a new effect, then every module transitively using $M$ may now also incur the new effect, requiring potentially every part of the system's interface to change. This is again at odds with the notions of code ownership and modularity.
+
+We believe the marriage of effect-systems and capability-safety can provide quick, module-level reasoning, with minimal overhead to developers. Key to this idea is the restriction of ``only connectivity begets connectivity'', meaning a module $M$ can only use a resource under certain circumstances \textbf{ELABORATE, RELATE TO B}. Therefore, we can guarantee the resources used by a module by inspecting the type signatures of those modules it directly imports, without having to inspect the source-code of every module transitively. Then only those modules directly using the privileges granted by a capability are required to declare their effects, reducing the programmer overhead.
+
+Our contribution is to develop an effect-system for a simple, pure, capability-safe object calculus. We develop this idea in two stages. First we describe the epsilon calculus, in which all parts of a program are labelled, as in traditional effect-systems. This requirement is relaxed, and we secondly generalise it to describe programs that may freely mix labelled and unlabelled parts. We show that this type-and-effect system is sound, and give examples to demonstrate that this system is able to map to more complex capability-safe languages, such as Wyvern.
 
 \section{Capabilities \& Modules}
 
@@ -837,7 +884,10 @@ Otherwise there are $n > 1$ small-steps then consider a multi-step reduction $\r
 
 %% Either use bibtex (recommended), 
 
-\bibliography{lipics-v2016-sample-article}
+\section{Bibliography}
+
+\bibliographystyle{plainurl}
+\bibliography{biblio}
 
 %% .. or use the thebibliography environment explicitely
 
