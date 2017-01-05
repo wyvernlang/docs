@@ -311,18 +311,23 @@ $\kwa{ho \hyphen effects}(\hat \tau) = \{ c, d, f \}$
  	
 ~~~~~~
 	\infer[\textsc{($\varepsilon$-Abs)}]
-	{ \hat \Gamma \vdash \lambda x:\tau_2 . \hat e : \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varnothing }
+	{ \hat \Gamma \vdash \lambda x:\tau_2 . \hat e : \hat \tau_2 \rightarrow_{\varepsilon_3} \hat \tau_3~\kw{with} \varnothing }
 	{ \hat \Gamma, x: \hat \tau_2 \vdash \hat e: \hat \tau_3~\kw{with} \varepsilon_3 }
 	
+	~~~~~~
 	
 \infer[\textsc{($\varepsilon$-App)}]
 	{ \hat \Gamma \vdash \hat e_1 \hat e_2 : \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
 	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[4ex]
-	~~~~~~
 	
 \infer[\textsc{($\varepsilon$-OperCall)}]
 	{ \hat \Gamma \vdash \hat e.\pi: \kw{Unit} \kw{with} \{ \bar r.\pi \} }
-	{ \hat \Gamma \vdash \hat e: \{ \bar r \} & \forall r \in \bar r \mid r \in R & \pi \in \Pi }\\[4ex]
+	{ \hat \Gamma \vdash \hat e: \{ \bar r \} & \forall r \in \bar r \mid r: \{ r \} \in \Gamma & \pi \in \Pi }
+	~~~~~~
+
+\infer[\textsc{($\varepsilon$-Subsume)}]
+	{ \hat \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
+	{ \hat \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau' <: \tau & \varepsilon' \subseteq \varepsilon}\\[4ex]
 
 \infer[\textsc{($\varepsilon$-Module)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
@@ -352,8 +357,8 @@ $\fbox{$\kwa{safe(\tau, \varepsilon)}$}$
 	{} \\[3ex]
 
 \infer[\textsc{(Safe-Arrow)}]
-	{\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon)}
-	{\varepsilon \subseteq \varepsilon_2 & \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) & \kwa{safe}(\hat \tau_2, \varepsilon)} \\[3ex]
+	{\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon)}
+	{\varepsilon \subseteq \varepsilon' & \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) & \kwa{safe}(\hat \tau_2, \varepsilon)} \\[3ex]
 
 \end{array}
 \]
@@ -373,7 +378,7 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 	{}\\[3ex]
 
 \infer[\textsc{(HOSafe-Arrow)}]
-	{ \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon ) }
+	{ \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon ) }
 	{ \kwa{safe}(\hat \tau_1, \varepsilon)  & \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon) }\\[3ex]
 
 \end{array}
@@ -468,6 +473,10 @@ By induction on $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_
 Then $\hat e_A$ is a value. \\
 
 \noindent
+\fbox{Case: \textsc{$\varepsilon$-Subsume}}
+Then $\hat \Gamma \vdash e: \tau'~\kw{with} \varepsilon'$, and $\hat \Gamma \vdash e: \tau~\kw{with} \varepsilon$, where $\tau' <: \tau$ and $\varepsilon' \subseteq \varepsilon$ are subderivations. The theorem conclusion holds by inductive assumption applied to $\hat \Gamma \vdash e: \tau~\kw{with} \varepsilon$.\\
+
+\noindent
 \fbox{Case: \textsc{$\varepsilon$-App}}
 Then $\hat e_A = \hat e_1~\hat e_2$. We consider the cases in which $\hat e_1$ and $\hat e_2$ are values.
 
@@ -498,18 +507,21 @@ If $\hat \Gamma, x: \hat \tau' \vdash e: \hat \tau~\kw{with} \varepsilon$ and $\
 \hrulefill
 
 \begin{lemma}
-If $\varepsilon' \subseteq \varepsilon$ then $\kwa{safe}(\hat \tau, \varepsilon) \implies \kwa{safe}(\hat \tau, \varepsilon')$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon) \implies \kwa{ho \hyphen safe}(\hat \tau, \varepsilon')$.
+$\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon) \implies \varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2)$
+\end{lemma}
+
+\begin{lemma}
+$\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon) \implies \varepsilon \subseteq \kwa{effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2)$
 \end{lemma}
 
 \begin{proof}
-If $\hat \tau = \{ \bar r \}$ then the result holds immediately. Otherwise $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2$. We proceed by simultaneous induction on derivations of $\kwa{safe}(\hat \tau, \varepsilon)$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$.\\
+By simultaneous induction on derivations. \\
 
 \noindent
-\fbox{$\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon)$} By definition this means $\varepsilon \subseteq \varepsilon_2$ and $\kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon)$ and $\kwa{safe}(\hat \tau_2, \varepsilon)$. By inductive assumption, $\kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon')$ and $\kwa{safe}(\hat \tau_2, \varepsilon')$. Also $\varepsilon' \subseteq \varepsilon \subseteq \varepsilon_2$. Therefore $\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon')$. \\
+\fbox{$\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon)$} By definition, $\kwa{safe}(\hat \tau_1, \varepsilon)$ and $\kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon)$. By applying inductive assumptions, $\varepsilon \subseteq \kwa{effects}(\hat \tau_1)$ and $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau_2)$. Then $\varepsilon \subseteq \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2) = \kwa{ho \hyphen effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2)$. \\
 
 \noindent
-\fbox{$\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon)$} By definition this means $\kwa{safe}(\hat \tau_1, \varepsilon)$ and $\kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon)$. By inductive assumption, $\kwa{safe}(\hat \tau_1, \varepsilon')$ and $\kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon')$. Therefore $\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2, \varepsilon')$.
-
+\fbox{$\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon)$} By definition, $\varepsilon \subseteq \varepsilon'$ and $\kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon)$ and $\kwa{safe}(\hat \tau_2, \varepsilon)$. By applying inductive assumptions, $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau_1)$ and $\varepsilon \subseteq \kwa{effects}(\hat \tau_2)$. Then $\varepsilon \subseteq \varepsilon' \cup \kwa{ho \hyphen effects}(\hat \tau_1) \cup \kwa{effects}(\hat \tau_2) = \kwa{effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2)$.
 \end{proof}
 
 \hrulefill
@@ -527,17 +539,25 @@ If $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau)$ and $\kwa{safe}(\
 By simultaneous induction on derivations.\\
 
 \noindent
-\fbox{Case: $\kwa{Unit}$, $\{ \bar r \}$}
+\fbox{Case: $\hat \tau = \{ \bar r \}$}
 Then $\kwa{annot(erase(\hat \tau), \varepsilon)} = \hat \tau$.\\
 
 \noindent
-\fbox{Case: $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2$, $\varepsilon \subseteq \kwa{effects}(\hat \tau)$, $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$}
+\fbox{Case: $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2$, $\varepsilon \subseteq \kwa{effects}(\hat \tau)$, $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$} By definition of $\kwa{annot}$ and $\kwa{erase}$ we know: 
 
 \noindent
-$\kwa{effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2) = \kwa{ho \hyphen effects}(\hat \tau_1)~\cup~\varepsilon~\cup~\kwa{effects}(\hat \tau_2)$.
+ $\kwa{annot(erase(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2), \varepsilon = annot(erase(\hat \tau_1), \varepsilon) \rightarrow_{\varepsilon} annot(erase(\hat \tau_2), \varepsilon)}$ \\
 
 \noindent
-$\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon) = \kwa{safe}(\hat \tau_1, \varepsilon) \land \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon)$. \\
+By definition we have the following subderivations.
+\begin{enumerate}
+	\item $\kwa{effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2) = \kwa{ho \hyphen effects}(\hat \tau_1)~\cup~\varepsilon'~\cup~\kwa{effects}(\hat \tau_2)$
+	\item  $\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon) = \kwa{safe}(\hat \tau_1, \varepsilon) \land \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon)$
+\end{enumerate}
+
+\noindent
+$\kwa{safe}(\hat \tau_1, \varepsilon)$ is a subderivation of $\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2)$. By \textbf{Lemma 2}, $\kwa{ho \hyphen safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2)$ implies $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2) = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$.
+
 
 \noindent
 \fbox{Case: $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2$, $\varepsilon \subseteq \kwa{ho \hyphen effects}(\hat \tau)$, $\kwa{safe}(\hat \tau, \varepsilon)$}
@@ -550,6 +570,7 @@ $\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2) =
 \varepsilon \subseteq \varepsilon' \land \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) \land \kwa{safe}(\hat \tau_2, \varepsilon)$
 
 \end{proof}
+
 
 \hrulefill
 
@@ -593,10 +614,99 @@ Otherwise the following are true:
 \end{proof}
 
 \noindent
-Show that $\hat \Gamma, x: \hat \tau \vdash \kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$. \\
+Use the \textbf{annotation lemma} to get $\hat \Gamma, x: \hat \tau \vdash \kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$. \\
 
 \noindent
-Then by substitution lemma, $\hat \Gamma \vdash [\hat v/x]\kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$.
+By \textbf{3} we have $\hat \Gamma \vdash \hat v: \hat \tau~\kw{with} \varnothing$. \\
+
+\noindent
+By \textbf{substitution lemma}, $\hat \Gamma \vdash [\hat v/x]\kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$.
+
+\hrulefill
+
+\begin{lemma}[Annotation]
+If the following are true for every $\Gamma$:
+
+\begin{itemize}
+	\item $\hat \Gamma \vdash \hat v : \hat \tau~\kw{with} \varnothing$
+	\item $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$
+	\item $\varepsilon = \kwa{effects}(\hat \tau)$
+	\item $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$
+\end{itemize}
+
+\noindent
+Then $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash \kwa{annot}(e, \varepsilon) : \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \kwa{effects}(\kwa{annot}(\Gamma, \varepsilon))$.
+\end{lemma}
+
+\begin{proof}
+By induction on $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$.\\
+
+\noindent
+\fbox{Case: \textsc{T-Var}} Then $e=x$ and $\Gamma, y: \kwa{erase}(\hat \tau) \vdash x: \tau$. There are two cases: either $x=y$ or $x \neq y$. \\
+
+\noindent
+\textbf{Subcase 1: $x = y$}. Then by \textsc{$\varepsilon$-Var} we get $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash x: \hat \tau~\kw{with} \varnothing$. \textbf{Need to justify why $\kwa{annot}(\tau, \varepsilon) = \hat \tau$. Note that $\varepsilon = \kwa{effects}(\hat \tau)$. Maybe show that $\kwa{annot}(\tau, \kwa{effects}(\tau)) <: \tau$. Can you use the lemma here?}\\
+
+\noindent
+\textbf{Subcase 2: $x \neq y$}. Then $x: \tau \in \Gamma$. \\
+
+\noindent
+\fbox{Case: \textsc{T-Resource}} Then $\Gamma, y: \kwa{erase}(\hat \tau) \vdash r : \{ r \}$. By definition, $\kwa{annot}(r, \varepsilon) = r$ and $\kwa{annot}(\{ r \}, \varepsilon$). By \textsc{$\varepsilon$-Resource}  $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash r: \{ r \}~\kw{with} \varnothing$. By \textsc{$\varepsilon$-Subsume}, $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash r: \{ r \}~\kw{with} \varepsilon \cup \kwa{effects}(\kwa{annot}(\Gamma, \varepsilon))$. \\
+
+\noindent
+\fbox{Case: \textsc{T-Abs}} Then $\Gamma, y: \kwa{erase}(\hat \tau) \vdash \lambda x: \tau_1.e_{body} : \tau_1 \rightarrow \tau_2$. \\
+
+\noindent
+By inversion, we get the sub-derivation $\Gamma, y: \kwa{erase}(\hat \tau), x:\tau_1  \vdash e_2: \tau_2$. \\
+
+\noindent
+By definition, $\kwa{annot}(e, \varepsilon) = \kwa{annot}(\lambda x: \tau_1.e_2, \varepsilon) = \lambda x: \kwa{annot}(\tau_1, \varepsilon).\kwa{annot}(e_2, \varepsilon)$. \\
+
+\noindent
+By definition, $\kwa{annot}(\tau, \varepsilon) = \kwa{annot}(\tau_1 \rightarrow \tau_2, \varepsilon) = \kwa{annot}(\tau_1, \varepsilon) \rightarrow_{\varepsilon} \kwa{annot}(\tau_2, \varepsilon)$. \\
+
+\noindent
+To apply the inductive assumption to $e_2$ we use the unlabelled context $\Gamma, x: \tau_1$. The inductive assumption tells us $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau, x: \kwa{annot}(\tau_1, \varepsilon) \vdash \kwa{annot}(e_2, \varepsilon): \kwa{annot}(\tau_2, \varepsilon)~\kw{with} \varepsilon \cup \kwa{effects}(\kwa{annot}(\Gamma, \varepsilon)) \cup \kwa{effects}(\kwa{annot}(\tau_1, \varepsilon))$. Call this last effect-set $\varepsilon'$. \\
+
+\noindent
+By \textsc{$\varepsilon$-Abs}, we get $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash \lambda x: \kwa{annot}(\tau_1, \varepsilon) . \kwa{annot}(e_2, \varepsilon) : \kwa{annot}(\hat \tau_1) \rightarrow_{\varepsilon'} \kwa{annot}(\hat \tau_2)~\kw{with} \varnothing$. \\
+
+\noindent
+By \textsc{$\varepsilon$-Subsume}, we get $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash \kwa{annot}(e, \varepsilon) : \kwa{annot}(\hat \tau_1) \rightarrow_{\varepsilon} \kwa{annot}(\hat \tau_2)~\kw{with} \varepsilon \cup \kwa{effects}(\kwa{annot}(\Gamma), \varepsilon) $. \\
+
+\noindent
+\fbox{Case: \textsc{T-App}} TODO\\
+
+\noindent
+\fbox{Case: \textsc{T-OperCall}} Then $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e_1.\pi : \Unit$. \\
+
+\noindent
+By inversion we get the sub-derivation $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e_1: \{ \bar r \}$. \\
+
+\noindent
+By definition, $\kwa{annot}(\{ \bar r \}, \varepsilon) = \{ \bar r \}$. \\
+
+\noindent
+By inductive assumption, $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash e_1: \{ \bar r \} ~\kw{with} \varepsilon \cup \kwa{effects}(\kwa{annot}(\Gamma, \varepsilon))$. \\
+
+\noindent
+By \textsc{$\varepsilon$-OperCall}, $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau \vdash e_1.\pi: \{ \bar r \} ~\kw{with} \varepsilon \cup \{ \bar r.\pi \}$. \\
+
+\noindent
+It remains to show $\{ \bar r.\pi \} \subseteq \varepsilon$. We shall do this by considering where $r$ must have come from (which subcontext left of the turnstile). \\
+
+\noindent
+\textbf{Subcase 1.} $r = \hat \tau$. As $\varepsilon = \kwa{effects}(\hat \tau)$, then $r.\pi \in \kwa{effects}(\hat \tau)$. \\
+
+\noindent
+\textbf{Subcase 2.} $r: \{ r \} \in \Gamma$. As $\kwa{annot}(r, \varepsilon) = r$, then $r.\pi \in \kwa{annot}(\Gamma, \varepsilon)$. \\
+
+\noindent
+\textbf{Subcase 3.} $r: \{ r \} \in \hat \Gamma$. Then because $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e_1: \{ \bar r \}$, then $r \in \Gamma$ or $r = \kwa{erase}(\hat \tau) = \hat \tau$ and one of the above subcases must also hold. \\
+
+
+\end{proof}
+
 
 \end{document}
 
