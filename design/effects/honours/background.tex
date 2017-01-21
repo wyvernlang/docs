@@ -1,0 +1,171 @@
+\chapter{Background}\label{C:background}
+
+In this section we briefly cover some of the necsesary prerequisites and existing work. No prior knowledge is assumed.
+
+\section{Formal Semantics}
+
+\noindent
+We will consider a programming language as three sets of rules.
+
+The grammar specifies what strings are legal terms within the language. A grammar is specified by giving the different categories of terms, and specifying all the possible forms which instantiate that category. Metavariables range over the terms of the category for which they are named. The conventions for specifying a grammar are based on standard Backur-Naur form \cite{bnf}. Figure 2.1. shows a simple grammar describing integer literals and arithmetic expressions on them.
+
+\begin{figure}[h]
+
+\[
+\begin{array}{c}
+
+\begin{array}{lllr}
+
+e & ::= & ~ & exprs: \\
+	& | & x & variable \\
+	& | & e + e & addition \\
+	& | & l & integer~constant \\
+	&&\\
+
+\end{array}
+
+\begin{array}{lllr}
+
+\tau & ::= & ~ & types: \\
+	& | & \kwa{Int} \\
+	&&\\
+	
+\Gamma & ::= & ~ & contexts: \\
+	& | & \varnothing \\
+	& | & \Gamma, x: \tau \\
+	&&\\
+
+\end{array}
+
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{Grammar for arithmetic expressions.}
+\label{A sample. }
+\end{figure}
+
+The static rules specify the type system and other constraints on terms with certain \textit{well-behavedness} properties. In our case, we're interested in what makes a program \textit{well-typed}, which is to say that execution of the program never gets \textit{stuck} due to type-errors. For example, a well-typed program will never try to add two booleans. Static rules are specified with a set of \textit{inference rules}. An inference rule is given as a set of premises above a diving line which, if they hold, imply the result below the line. An application of an inference rule is called a \textit{judgement}. Judgements take place in typing contexts, which map variables to types. A basic judgement, like ``$e$ has type $\tau$'', would be written $\Gamma \vdash e: \tau$. When the context is empty it is customary to write $\vdash e: \tau$.
+
+Most languages have some form of subtyping. This judgement is written $\tau_1 <: \tau_2$, and it means that values of $\tau_1$ may be provided anywhere instances of $\tau_2$ are expected.
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$\Gamma \vdash e: \tau$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Var)}]
+	{\Gamma, x: \kwa{Int} \vdash x: \kwa{Int}}
+	{}
+~~~
+\infer[\textsc{(T-Add)}]
+	{\Gamma \vdash e_1: \kwa{Int} + e_2 : \kwa{Int}}
+	{\Gamma \vdash e_1 & \Gamma \vdash e_2}
+	
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{Inference rules for typing arithmetic expressions.}
+\label{A sample. }
+\end{figure}
+
+The dynamic semantics specifies what the meaning of a legal term is. There are different approaches, but the one we take is to give a small-step semantics. This is a set of inference rules specifying how a program is executed. A single application of one of these rules is called a \textit{reduction}.
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$e \longrightarrow e$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-Add1)}]
+	{e_1 + e_2 \longrightarrow e_1' + e_2}
+	{e_1 \longrightarrow e_1'}
+~~
+\infer[\textsc{(E-Add2)}]
+	{l_1 + e_2 \longrightarrow l_1 + e_2'}
+	{e_2 \longrightarrow e_2'}
+~~
+\infer[\textsc{(E-Add3)}]
+	{l_1 + l_2 \longrightarrow l_3}
+	{l_1 + l_2 = l_3}
+
+\end{array}
+\]
+
+
+\vspace{-7pt}
+\caption{Inference rules for reducing arithmetic expressions.}
+\label{A sample. }
+\end{figure}
+
+Almost all type systems in which we are interested are \textit{sound}. Soundness of a language is a property between its static and dynamic rules, which essentially says that if a program $e$ is considered well-typed by the static rules, then its reduction under the dynamic rules will never get stuck. Soundness is often split into two parts: progress and preservation. The progress theorem is that every term, except those of a particular category called values, can always be reduced by applying some dynamic rule. The preservation theorem is that programs remain well-typed under reduction. Adequate formulations of these two theorems for the language under consideration gives us soundness. 
+
+\section{Module Systems}
+
+The division of a codebase into logical modules is a technique in many languages to help developers write code that is re-usable, easy to test and debug, and safer. 
+
+\section{Capability Safety}
+
+A capability is a unique, unforgeable reference, giving its bearer permission to perform some operation \cite{saltzer74}. A piece of code $S$ has \textit{authority} over a capability if it can directly invoke the operations endowed by a capability $C$; it has \textit{transitive authority} if it can indirectly invoke the operations endowed by a capability $C$ (for example, by deferring to another piece of code with access to $C$).
+
+Authority may only proliferate in the following ways \cite{miller06}:
+
+\begin{enumerate}
+	\item By the initial set of capabilities passed into the program (initial conditions).
+	\item If a function or object is instantiated by its parent, the parent gains a capability for its child (parenthood).
+	\item If a function or object is instantiated by a parent, the parent may endow its child with any capabilities it possesses (endowment).
+	\item A capability may be transferred via method-calls or function applications (introduction).
+\end{enumerate}
+
+The rules of authority proliferation are summarised as: ``only connectivity begets connectivity''.
+
+Atomic capabilities are \textit{resources}. A capability is any object or function with authority over a resource, or over another capability. An example of a resource might be a particular file. A function which manipulates that file (for example, a logger) would also be a capability, but not a resource. Any piece of code which uses a capability, directly or indirectly, is called \textit{impure}. For example, $\kwa{\lambda x: \kwa{Int} .~x}$ is pure, while $\kwa{\lambda f: File .~f.log(``error~message'')}$ is impure.
+
+A relevant concept in the design of capability-based programming languages is \textit{ambient authority}. This is a kind of exercise of authority of $S$ over $C$ where $S$ has not explicitly declared its authority \cite{miller03}. Figure 2.4. gives an example in Java, where a malicious implementation of $\kwa{List.add}$ attempts to overwrite the user's $\kwa{.bashrc}$ file. From the persective of $\kwa{Main}$, inspecting the signatures of all imports is not sufficient to determine what authority is being exercised. Determining this would require one to look at source code outside of $\kwa{Main}$, which contravenes code ownership.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+
+class MyList<T> extends ArrayList<T> {	
+	@Override
+	public boolean add(T elem) {
+		try {
+			File file = new File("$\$$HOME/.bashrc");
+			file.createNewFile();
+		} catch (IOException e) {}
+		return super.add(elem);
+	}	
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+import java.util.List;
+
+class Main {
+	public static void main(String[] args) {
+		List<String> list = new MyList<String>();
+		list.add(``doIt'');
+	}
+}
+\end{lstlisting}
+
+\vspace{-7pt}
+\caption{$\kwa{Main}$ exercises ambient authority over a $\kwa{File}$.}
+\label{A sample. }
+\end{figure}
+
+A language is \textit{capability-safe} if it satisfies this capability model and disallows ambient authority. Some examples include E, Js, and Wyvern. \textbf{Get citations.}
+
+\section{Effect Systems}
+
+Some languages extend the notion of a type system to a \textit{type-and-effect system}. Effects describe intensional information about the way in which a program executes \cite{nielson99}. A judgement like $\kwa{\Gamma \vdash e: \tau~!~\{ File.write \}}$ can be interpreted as meaning that execution of $e$ will result in a value of type $\tau$ (if it halts), and during execution might perform the $\kwa{write}$ effect on a $\kwa{File}$. In the effects literature, $\kwa{File}$ would be called the region and $\kwa{write}$ the kind of effect. We instead called them \textit{resource} and \textit{operation}, befitting the capability focus.
