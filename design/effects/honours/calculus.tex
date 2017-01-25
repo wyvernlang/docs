@@ -76,21 +76,23 @@ v & ::= & ~ & values: \\
 \label{This is the label.}
 \end{figure}
 
-The effect calculus is based on the simply-typed lambda calculus $\lambda^{\rightarrow}$. There is one type constructor, $\rightarrow$. The base types are sets of resources, denoted by $\{ \bar r \}$. Resources are drawn from a fixed set $R$ of variables. They describe those initial capabilites from which all others are derived. They cannot be created at runtime. When a resource type is ascribed to a program, as in the judgement $\Gamma \vdash e: \{ \bar r \}$, it means that if $e$ terminates it will result in a resource literal $r \in \bar r$.
+The effect calculus is based on the simply-typed lambda calculus $\lambda^{\rightarrow}$. There is one type constructor, $\rightarrow$. The base types are sets of resources, denoted by $\{ \bar r \}$. Although the calculus has no primitive notions of integers or booleans, we shall assume these may be encoded as they are in the usual way (e.g. as Church numerals) and make free use of them in examples as though they were standard, for the sake of readability.
+
+Resources are drawn from a fixed set $R$ of variables, and model those initial capabilities passed in from the system environment. Resources cannot be created at runtime. When a resource type is ascribed to a program, as in the judgement $\Gamma \vdash e: \{ \bar r \}$, it means that if $e$ terminates it will result in a resource literal $r \in \bar r$.
 
 A value $v$ is either a resource literal $r$ or a lambda abstraction $\lambda x: \tau.e$. The other forms of an expression are lambda application $e~e$, variable $x$, and operation $e.\pi$. An operation is an action invoked on a resource. For example, we might invoke the $\kwa{open}$ operation on a $\kwa{File}$ resource. Operations are drawn from a fixed-set $\Pi$ of variables. They cannot be created at runtime.
 
-An effect is an operation performed on a resource. Formally, they are members of $R \times \Pi$, but for readability we write $\kwa{File.write}$ over $\kwa{(File, write)}$. A set of effects is denoted by $\varepsilon$. Effects and operations look the same, but should be distinguished. An effect is some intensional property describing the way in which a computation occurs; an operation is the runtime invocation of an effect.
+An effect is an operation performed on a resource. Formally, they are members of $R \times \Pi$, but for readability we write $\kwa{File.write}$ over $\kwa{(File, write)}$. A set of effects is denoted by $\varepsilon$. Effects and operations notationally look the same, but should be distinguished: an effect is some action upon a resource which may happen during runtime; an operation is the actual invocation of an effect at runtime.
 
-In a practical language, operations should take arguments. For example, when writing to a file, we want to specify \textit{what} is being written to the file, ala $\kwa{File.write(``my msg'')}$. Because our theory is only concerned with the use and propagation of effects, and not their particular semantics, we make the simplifying assumption that all operations are null-ary.
+In a practical language, operations should take arguments. For example, when writing to a file, we want to specify \textit{what} is being written to the file, ala $\kwa{File.write(``my msg'')}$. Because $\epscalc$ is only concerned with the use and propagation of effects, and not the semantics of particular effects, we make the simplifying assumption that all operations are null-ary.
 
 Expressions may be labelled with the set of effects they might incur during execution. This is achieved by annotating all arrow types inside the expression. If a metavariable represents a labelled expression, it will be written with a hat; if it represents an unlabelled expression, it will have no hat. Compare $e$ and $\hat e$.
 
-A labelled term $\hat e$ is \textit{deeply} labelled. This means every subterm is also labelled. An unlabelled term $e$ is deeply unlabelled. The only exception to this rule is the $\kwa{import}$ expression, which is the only way to compose labelled and unlabelled code. $\kwa{import}$ nests unlabelled code inside labelled code.
+Labelling of an expression is \textit{deep}. That is, every subterm of a labelled term is also labelled. Unlabelled terms are also deeply unlabelled. The only exception is the $\kwa{import}$ expression, which is the only way to compose labelled and unlabelled code. $\kwa{import}$ nests unlabelled code inside labelled code, and selects those capabilities $\varepsilon$ over which the unlabelled code has authority. It is not possible to nest labelled code inside unlabelled code.
 
-It is not possible to nest labelled code inside unlabelled code. Intuitively, this restriction is made because of \textbf{reasons...}
+The distinction between labelled and unlabelled types and expressions requires us to have the notion of labelled and unlabelled contexts. Labelled contexts only bind variables to labelled types, whereas unlabelled contexts only bind variables to unlabelled types. There is no valid context which mixes labelled and unlabelled types.
 
-The distinction between labelled and unlabelled types and expressions requires us to have the notion of labelled and unlabelled contexts. Labelled contexts only bind variables to labelled types, whereas unlabelled contexts only bind variables to unlabelled types. There is no valid context which mixes labelled and unlabelled types. \\
+A construct's labelled version is always denoted with a hat. \\
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -147,6 +149,8 @@ $\bm{\kwa{erase :: \hat e \rightarrow e}}$
 \noindent
 Given a piece of unlabelled code $e$ and static effects $\varepsilon$ we can produce a labelled piece of code $\kwa{annot}(e, \varepsilon) = \hat e$ by annotating every function with $\varepsilon$. In the reverse direction, given some labelled code $\hat e$ we can produce an unlabelled piece of code $\kwa{erase}(\hat e) = e$ by removing the labels on functions. Full definitions for these functions on expressions, types, and contexts are given in Figure 3.2. Note that $\kwa{erase}$ is undefined on $\kwa{import}$ expressions. We won't ever need to erase import expressions, but it means the function is partial, so we need to be careful when we use it.
 
+Annotation is not always safe. For instance, $\kwa{annot}(\lambda l: \kwa{Int} \rightarrow_{File.read} \kwa{Int} . ~l~1, \varnothing)$ would overwrite the $\kwa{File.read}$ effect permitted by $l$. $\kwa{annot}$ is used in one place, in the dynamic rules, and for that limited use we will have to prove its safety. \\
+
 
 
 
@@ -179,7 +183,7 @@ $\bm{\kwa{ho \hyphen effects} :: \hat \tau \rightarrow \varepsilon}$ \begin{item
 \end{figure}
 
 \noindent
-We may wish to know what effects are encapsulated by a piece of labelled code. This is achieved by two functions, $\kwa{effects}(\hat e)$ and $\kwa{ho \hyphen effects}(\hat e)$, which collectively compute the set of effects captured by $\hat e$. These are effects which may, directly or indirectly, be invoked by $\hat e$. The difference between the two functions is in who supplies the effect. $\kwa{effect}(\hat e)$ is the set of effects for which $\hat e$ is responsible: those which it has direct authority to use, or those which it returns from a function. $\kwa{ho \hyphen effects}$ returns the set of effects that $\hat e$ may use, but which have been supplied by some external environment.
+We may wish to know what effects are encapsulated by a piece of labelled code. This is achieved by two functions, $\kwa{effects}(\hat e)$ and $\kwa{ho \hyphen effects}(\hat e)$, which collectively compute the set of effects captured by $\hat e$. These are effects which may, directly or indirectly, be invoked by $\hat e$. The difference between the two functions is in who supplies the effect. $\kwa{effect}(\hat e)$ is the set of effects for which $\hat e$ has direct authority, while $\kwa{ho \hyphen effects}$ is the set of effects for which $\hat e$ has (strictly) transitive authority. These higher-order effects are always supplied by some external environment.
 
 For example, take the function which, given a file, reads and returns its contents (which are perhaps encoded as an integer). Its signature would be $\kwa{f : \{ File \} \rightarrow_{File.read} Int}$. The $\kwa{\fx{f} = \{File.read\} \cup \fx{Int}}$, because any client using $\kwa{f}$ will directly invoke the $\kwa{File.read}$ operation and may use any resource encapsulated by the $\kwa{Int}$ type. The $\kwa{\hofx{f} = \{ File.\pi \mid \pi \in \Pi \} }$, because to use $\kwa{f}$ it must be supplied with a $\kwa{File}$ literal from some outside source. Therefore, every possible effect on $\kwa{File}$ is a higher-order effect.\\
 
@@ -206,7 +210,7 @@ For example, take the function which, given a file, reads and returns its conten
 \noindent
 The substitution function $\kwa{substitution}(\hat e, \hat v, x)$ replaces all free occurrences of $x$ with $\hat v$ in $\hat e$. The short-hand is $[\hat v/x]\hat e$. When performing multiple substitutions we use the notation $[\hat v_1/x_1, \hat v_2/x_2]\hat e$ as shorthand for $[\hat v_2/x_2]([\hat v_1/x_1]\hat e)$. Note how the order of the variables has been flipped; the substitutions occur as they are written, left-to-right.
 
-Note that substitution is partial, because it is only defined when a free-variable is being replaced with a value. This is important for proving preservation, because if we replace variables with arbitrary expressions, then we might also introduce arbitrary effects into a piece of code as the result of substitition.
+Note that substitution is partial, because it is only defined when a free-variable is being replaced with a value. This is important for proving preservation, because if we replace variables with arbitrary expressions, then we might also be introducing arbitrary effects.
 
 To avoid accidental variable capture we adopt the convention of $\alpha$-conversion, whereby we freely and implicitly interchange expressions which are equivalent up to the naming of bound variables \cite[p. 71]{tapl}. This elides some tedious bookkeeping. Consequently, we shall assume variables are (re-)named in this way to avoid accidental capture.
 
@@ -254,7 +258,7 @@ To avoid accidental variable capture we adopt the convention of $\alpha$-convers
 \noindent
 
 \noindent
-The first sort of static judgement ascribes a type to a piece of unlabelled code. \textsc{T-Var}, \textsc{T-App}, and \textsc{T-OperCall} are the same as they are in $\lambda^{\rightarrow}$. \textsc{T-Resource} is essentially the same as \textsc{T-Var}. \textsc{T-OperCall} is the rule for typing expressions of the form $e_1.\pi$. Such an expression is well-typed if $e_1$ types to some valid resource, and $\pi$ is a valid operation.
+The first sort of static judgement ascribes a type to a piece of unlabelled code. \textsc{T-Var}, \textsc{T-App}, and \textsc{T-OperCall} are the same as they are in $\lambda^{\rightarrow}$. \textsc{T-Resource} is the same as \textsc{T-Var}, but for variables representing primitive capabilities. \textsc{T-OperCall} is the rule for typing an operation call $e_1.\pi$. Such an expression is well-typed if $e_1$ types to some valid resource, and $\pi$ is a known operation.
 
 
 \begin{figure}[h]
@@ -307,7 +311,7 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 \end{figure}
 
 \noindent 
-Before presenting the type-with-effect rules for labelled expressions, we first define a few safety predicates. Intuitively, the type $\hat \tau$ is $\kwa{safe}$ for $\varepsilon$ if it has declared every (non higher-order) effect $r.\pi \in \varepsilon$ in its signature. $\hat \tau$ is $\kwa{ho \hyphen safe}$ for $\varepsilon$ if $\hat \tau$ has declared every higher-order effect $r.\pi \in \varepsilon$ in its signature. One way to think about these predicates is as a contract between caller and callee. If the caller supplies a set of capabilities $\varepsilon$ to a piece of code typing to $\hat \tau$, it would violate the restriction on \textit{ambient authority} if a capability was supplied that $\hat \tau$ was not expecting. Therefore, $\safe{\hat \tau}{\varepsilon}$ holds when the (non higher-order) effects selected by $\hat \tau$ include $\varepsilon$. $\hosafe{\hat \tau}{\varepsilon}$ holds when the higher-order effects selected by $\hat  \tau$ include $\varepsilon$.
+Before presenting the type-with-effect rules for labelled expressions, we first define a few safety predicates. Intuitively, the type $\hat \tau$ is $\kwa{safe}$ for $\varepsilon$ if it has declared every (non higher-order) effect $r.\pi \in \varepsilon$ in its signature. $\hat \tau$ is $\kwa{ho \hyphen safe}$ for $\varepsilon$ if $\hat \tau$ has declared every higher-order effect $r.\pi \in \varepsilon$ in its signature. One way to think about these predicates is as a contract between caller and callee. If the caller supplies a set of capabilities $\varepsilon$ to a piece of code typing to $\hat \tau$, it would violate the restriction on \textit{ambient authority} if a capability was supplied that $\hat \tau$ had not explicitly asked for. Therefore, $\safe{\hat \tau}{\varepsilon}$ holds when the (non higher-order) effects selected by $\hat \tau$ include $\varepsilon$. $\hosafe{\hat \tau}{\varepsilon}$ holds when the higher-order effects selected by $\hat  \tau$ include $\varepsilon$.
 
 Because the implementation of $\hat \tau$ might internally propagate capabilities, the definitions of safety and higher-order safety need to be transitive. \textbf{Give an example of why this is so.}
 
@@ -351,7 +355,7 @@ Because the implementation of $\hat \tau$ might internally propagate capabilitie
 	{ \hat \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
 	{ \hat \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}  \\[3ex]
 
-\infer[\textsc{($\varepsilon$-Module)}]
+\infer[\textsc{($\varepsilon$-Import)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
 {{\def\arraystretch{1.4}
   \begin{array}{c}
@@ -371,11 +375,11 @@ Because the implementation of $\hat \tau$ might internally propagate capabilitie
 \end{figure}
 
 \noindent
-The epsilon calculus has a new kind of judgement: $\Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ can be read as saying that $\hat e$, if it halts, will produce an expression of type $\hat \tau$ and incur at most the set of effects $\varepsilon$. This judgement gives a conservative approximation as to what will happen; it is not necessarily tight.
+$\epscalc$ has a new kind of judgement. $\Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ can be read as saying that $\hat e$, if it halts, will produce a value of type $\hat \tau$ and incur at most the set of effects $\varepsilon$. This judgement gives a conservative approximation as to what will happen; some of the effects in the typing judgement may not actually happen at runtime.
 
-The simple rules are those which operate on values. They type as having no effect. This is because, although a function and a resource literal both capture capabilities, you must do something with them (apply the function, or operate on the resource) in order to produce an effect at runtime.
+The simplest rules are those which type values as having no effect. Although a function and a resource literal can both capture capabilities, you must do something with them (apply the function, operate on the resource) to incur a runtime effect.
 
-The effects of a lambda application are: the effects of evaluating its subexpressions, and the effects incurred by executing the body of the lambda to which the left-hand side evaluated. This is the set with which the lambda's arrow-type is annotated.
+The effects of a lambda application are: the effects of evaluating its subexpressions, and the effects incurred by executing the body of the lambda to which the left-hand side evaluates. Those last effects are pulled from the label on the lambda's arrow-type.
 
 The effects of an operation call are: the effects of evaluating the subexpression, and the single effect incurred when the subexpression is reduced to a resource literal $r$, and operation $\pi$ is invoked on it. It is not always possible to know statically which exact resource literal the subexpression reduces to (if it halts at all). Figure 3.8. shows such an example. The safe approximation is to say that the operation call $\hat e.\pi$ incurs $\pi$ on every possible resource to which $\hat e$ might evaluate. In the case of Figure 3.8., this would be $\kwa{\{ File.write, Socket.write \}}$.
 
@@ -397,11 +401,11 @@ getResource(boolVal).write
 \end{figure}
 
 \noindent
-The most interesting rule is $\varepsilon$-Module. This rule is set up to ensure the interaction between labelled and unlabelled code is capability-safe. We type $e$ with $x: \kwa{erase}(\hat \tau)$. This elimiantes the problem of ambient authority, because the only authority exercised in $e$ is that which is explicitly selected by the interface $\hat \tau$ of the module. If we allowed it to type with any extra information in context, we might not know that the unlabelled code isn't widening the effects captured by the labelled code it imports.
+The most interesting rule is $\varepsilon$-Import. This rule is set up to ensure the interaction between labelled and unlabelled code is capability-safe. We type $e$ with $x: \kwa{erase}(\hat \tau)$. This eliminates ambient authority, because the only free variables in $e$ will be those selected by the interface $\hat \tau$.
 
-For our rule to be capability-safe, we need to ensure that any higher-order function in scope is expecting the set of capabilities in $\hat \tau$. If not, we could exercise ambient authority by passing that higher-order function a capability from $\hat \tau$ which it hadn't selected. This is the purpose of $\hosafe{\hat \tau}{\varepsilon}$: all higher-order functions in scope need to be expecting the capabilities to which they have access.
+For our rule to be capability-safe, we need to ensure that any higher-order function in scope is expecting the set of capabilities in $\hat \tau$. If not, we could exercise ambient authority by passing that higher-order function a capability from $\hat \tau$ which it hadn't selected. This is the purpose of $\hosafe{\hat \tau}{\varepsilon}$: all higher-order functions in scope need to be expecting any capability they might be passed.
 
-In the conclusion of the rule we annotate the unlabelled code's effects as $\kwa{effects}(\hat \tau)$. Because this is the full set of capabilities over which $e$ has access, and because this set is higher-order safe, we shall see it is a sound approximation. 
+In the conclusion of the rule we annotate the unlabelled code's effects as $\kwa{effects}(\hat \tau)$. Because this is the full set of capabilities over which $e$ has access, and because this set is higher-order safe, we shall see this annotation is sound.
 
 
 
@@ -430,7 +434,7 @@ $\fbox{$\hat \tau <: \hat \tau$}$
 \noindent
 In addition to the usual subtyping rules from $\lambda^{\rightarrow}$ between $\tau$ terms, we introduce two more for $\hat \tau$ terms. 
 
-The rule for functions is contravariant in the input-type and covariant in the output-type (as in $\lambda^{\rightarrow}$), and requires the effects of the super-type to be an upper-bound of the effects of the sub-type. We can think of this in terms of Liskov's substitution principle: if the subtype incurred an effect the supertype didn't, it would violate the supertype's interface.
+The rule for functions is contravariant in the input-type and covariant in the output-type (as in $\lambda^{\rightarrow}$), and requires the effects of the super-type to be an upper-bound of the effects of the sub-type. We can think of this in terms of Liskov's substitution principle: if the subtype incurred an effect the supertype hadn't declared, it would violate the supertype's interface.
 
 The rule for resources says that a superset of resources is a subtype.
 
@@ -479,11 +483,11 @@ The rule for resources says that a superset of resources is a subtype.
 	{r \in R & \pi \in \Pi}
 	 \\[4ex]
 	 
-\infer[\textsc{(E-Module1)}]
+\infer[\textsc{(E-Import1)}]
 	{\kwa{import}(\varepsilon)~x = \hat e~\kw{in} e \longrightarrow \kwa{import}(\varepsilon)~x = \hat e'~\kw{in} e~|~\varepsilon'}
 	{\hat e \longrightarrow \hat e'~|~\varepsilon'}\\[4ex]
 
-\infer[\textsc{(E-Module2)}]
+\infer[\textsc{(E-Import2)}]
 	{\kwa{import}(\varepsilon)~x = \hat v~\kw{in} e \longrightarrow [\hat v/x]\kwa{annot}(e, \varepsilon)~|~\varnothing}
 	{}
 
@@ -497,13 +501,13 @@ The rule for resources says that a superset of resources is a subtype.
 \end{figure}
 
 \noindent
-A single-step reduction takes an expression to a pair consisting of an expression and a set of runtime effects. The rules $\textsc{E-App1}$, $\textsc{E-App2}$, $\textsc{E-OperCall1}$, $\textsc{Emodule1}$ all reduce a single subexpression.
+A single-step reduction takes an expression to a pair consisting of an expression and a set of runtime effects. The rules $\textsc{E-App1}$, $\textsc{E-App2}$, $\textsc{E-OperCall1}$, $\textsc{E-Import1}$ all reduce a single subexpression.
 
-$\textsc{E-App3}$ is the standard $\lambda^{\rightarrow}$ rule for applying a value to a function, which performs substitution on the function body.
+$\textsc{E-App3}$ is the standard $\lambda^{\rightarrow}$ rule for applying a value to a lambda, by performing substitution on the lambda body.
 
-$\textsc{E-OperCall2}$ performs an operation on a resource literal. In this case it reduces to $\kwa{unit}$ (which is a derived form in our calculus; see 3.4. Encodings). This choice reflects the fact that the effect calculus doesn't model the potentially varied return types of functions. Though we haven't defined $\kwa{unit}$, it can be encoded into the existing rules; see Section 4.1.1.
+$\textsc{E-OperCall2}$ performs an operation on a resource literal. In this case it reduces to $\kwa{unit}$ (which is a derived form in our calculus; see 3.4. Encodings). This choice reflects the fact that $\epscalc$ doesn't model the potentially varied return types of functions. 
 
-$\textsc{E-Module2}$ performs module resolution. The (unlabelled) body of code is annotated with the set of effects selected by the module, and then the value being imported is substituted into the body of code.
+$\textsc{E-Import2}$ performs module resolution. The (unlabelled) body of code is annotated with the set of effects captured by the interface, and then the value being imported is substituted into the body of code.
 
 
 \begin{figure}[h]
@@ -539,16 +543,16 @@ A multi-step reduction consists of zero\footnote{We permit multi-step reductions
 \section{Soundness}
 
 \noindent
-Our goal is to show the epsilon calculus is sound. Because the effect-system is orthogonal to the type-system, we must develop an appropriate notion of \textit{effect-soundness}.
+Our goal is to show $\epscalc$ is sound. This requires an appropriate notion of \textit{effect-soundness}.
 
 \begin{theorem}[Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
 \end{theorem}
 
 \noindent
-This definition of soundness is the same as in $\lambda^{\rightarrow}$ but for an extra conclusion: $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$. Intuitively, $\varepsilon_A$ is the approximation of what runtime effects the reduction of $\hat e_A$ will incur, $\varepsilon$ is the actual set of effects $\hat e_A$ incurred (at most a singleton because we are working with single-step reduction), and $\varepsilon_B$ is the approximation of what runtime effects the reduction of $\hat e_B$ will incur. Evidently we want $\varepsilon \subseteq \varepsilon_A$; an approximation which accounts for every runtime effect is a sound one. We also want $\varepsilon_B \subseteq \varepsilon_A$, so the approximation can only get better as the approximation is successively reduced.
+This definition of soundness is the same as in $\lambda^{\rightarrow}$ but for an extra conclusion: $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$. Intuitively, $\varepsilon_A$ is the approximation of what runtime effects the reduction of $\hat e_A$ will incur, $\varepsilon$ is the actual set of effects $\hat e_A$ incurred (at most a singleton because we are working with single-step reduction), and $\varepsilon_B$ is the approximation of what runtime effects the reduction of $\hat e_B$ will incur. Evidently we want $\varepsilon \subseteq \varepsilon_A$; an approximation which accounts for every runtime effect is a sound one. We also want $\varepsilon_B \subseteq \varepsilon_A$, so successive approximations only get better.
 
-The soundness proof takes the standard approach of showing that progress and preservation hold of the calculus. We begin with a few observations that follow immediately from the typing rules.
+The soundness proof takes the standard approach of showing that progress and preservation hold of the calculus. This can be done immediately by observing some properties that follow immediately from the typing rules.
 
 \begin{lemma}[Canonical Forms]
 The following are true:
@@ -564,11 +568,11 @@ The following are true:
 If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$.
 \end{theorem}
 
-\begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$, for $\hat e$ not a value. If the rule is \textsc{$\varepsilon$-Subsumption} it follows by inductive hypothesis. If $\hat e$ has a reducible subexpression then reduce it. Otherwise use one of \textsc{$\varepsilon$-App3}, \textsc{$\varepsilon$-OperCall2}, or \textsc{$\varepsilon$-Module2}.
+\begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$, for $\hat e$ not a value. If the rule is \textsc{$\varepsilon$-Subsumption} it follows by inductive hypothesis. If $\hat e$ has a reducible subexpression then reduce it. Otherwise use one of \textsc{$\varepsilon$-App3}, \textsc{$\varepsilon$-OperCall2}, or \textsc{$\varepsilon$-Import2}.
 \end{proof}
 
 \noindent
-To prove preservation, we need to know types and effects are preserved under substitution. The substitution lemma gives us this result. It says that if $x$ is bound to a type, and a value $\hat v$ of that type is substituted into $\hat e$, then the type and effect of $\hat e$ remain unchanged. Key to this property is that $\hat v$ is a value, so by canonical forms it cannot introduce effects that weren't already $\hat e$. Beyond this observation, the proof is routine.
+To prove preservation, we need to know types and effects are preserved under substitution. The substitution lemma gives us this result. It says that if $x$ is bound to a type, and a value $\hat v$ of that type is substituted into $\hat e$, then the type and effect of $\hat e$ remain unchanged. Key to this property is that $\hat v$ is a value, so by canonical forms it cannot introduce effects that weren't already in $\hat e$. Beyond this observation, the proof is routine.
 
 \begin{lemma}[Substitution]
 If $\hat \Gamma, x: \hat \tau' \vdash e: \hat \tau~\kw{with} \varepsilon$ and $\hat \Gamma \vdash \hat v: \hat \tau'~\kw{with} \varnothing$ then $\hat \Gamma \vdash [\hat v/x]e: \hat \tau~\kw{with} \varepsilon$.
@@ -600,9 +604,9 @@ By induction on $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$.
 \end{proof}
 
 \noindent
-The exact formulation of the Annotation lemma is very specific to the premises of \textsc{$\varepsilon$-Module2}, but generalised slightly to accommodate a proof by induction. The generalisation is to allow $e$ to be typed in any context $\Gamma$ with a binding for $y$. We can think of $\Gamma$ as encapsulating the ambient authority exercised by $e$. At the top-level of any program, we will always have $\Gamma = \varnothing$, because the typing judgement \textsc{$\varepsilon$-Module} always types $\kwa{import}$ expressions with just the authority being selected. However, inductively-speaking, there may be ambient capabilities. Consider $(\lambda x: \{ \kwa{File} \}.~\kwa{x.write})~\kwa{File}$. From the perspcetive of $\kwa{x.write}$, $\kwa{File}$ is an ambient capability, and so if we were to inductively apply the Annotation lemma, at this point, $\kwa{File} \in \Gamma$. However, because the code encapsulating $\kwa{x.write}$ selects $\kwa{File}$ (by binding it to $x$), this code is capability-safe.
+The exact formulation of the Annotation lemma is very specific to the premises of \textsc{$\varepsilon$-Import2}, but generalised slightly to accommodate a proof by induction. The generalisation is to allow $e$ to be typed in any context $\Gamma$ with a binding for $y$. We can think of $\Gamma$ as encapsulating the ambient authority exercised by $e$. At the top-level of any program, we will always have $\Gamma = \varnothing$, because the typing judgement \textsc{$\varepsilon$-Import} always types $\kwa{import}$ expressions with just the authority being selected. However, inductively-speaking, there may be ambient capabilities. Consider $(\lambda x: \{ \kwa{File} \}.~\kwa{x.write})~\kwa{File}$. From the perspcetive of $\kwa{x.write}$, $\kwa{File}$ is an ambient capability, and so if we were to inductively apply the Annotation lemma, at this point, $\kwa{File} \in \Gamma$. However, because the code encapsulating $\kwa{x.write}$ selects $\kwa{File}$ by binding it to $x$ in the function declaration, this code is capability-safe.
 
-The last thing we need is to show that $\tau <: \kwa{annot}(\tau, \varepsilon)$. If we know this, then $\tau <: [\hat v/x]\kwa{annot}(\tau, \varepsilon)$ by the substitition lemma. The subtyping judgement comes by way of the following pair of lemmas.
+Proving the annotation lemma requires an additional pair of lemmas, to relate $\hat \tau$ and $\kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
 
 \begin{lemma}
 If $\kwa{effects}(\hat \tau) \subseteq \varepsilon$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\hat \tau <: \kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
@@ -613,13 +617,13 @@ If $\kwa{ho \hyphen effects}(\hat \tau) \subseteq \varepsilon$ and $\safe{\hat \
 \end{lemma}
 
 \begin{proof}
-By simultaneous induction on $\kwa{ho \hyphen safe}$ and $\kwa{safe}$. The result is obtained by applying the inductive assumptions to the definitions of these judgements.
+By simultaneous induction on $\kwa{ho \hyphen safe}$ and $\kwa{safe}$.
 \end{proof}
 
 \noindent
 There is a close relation between these lemmas and the subtyping rule for functions. In a subtyping relation between functions, the input type is contravariant. Therefore, if $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \tau_2$ and we have $\hat \tau <: \kwa{annot}(\tau, \varepsilon)$, then we need to know $\kwa{annot}(\tau_1) <: \hat \tau_1$. This is why there are two lemmas, one for each direction.
 
-We now have all we need to show the preservation theorem.
+Armed with the annotation lemma, we are now ready to prove the preservation theorem.
 
 \begin{theorem}[Preservation]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, then $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
@@ -635,9 +639,9 @@ Otherwise the rule used was \textsc{E-App3}. Then $(\lambda x: \hat \tau_2.\hat 
 
 Otherwise the reduction rule used was \textsc{E-OperCall2} and $v_1.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$. By canonical forms, $\hat \Gamma \vdash v_1: \kwa{unit}~\kw{with} \{ r.\pi \}$. Also, $\hat \Gamma \vdash \kwa{unit}: \kwa{Unit}~\kw{with} \varnothing$. Then $\tau_B = \tau_A$. Also, $\varepsilon_C \cup \varepsilon_B = \{ r.\pi \} = \varepsilon_A$.\\
 
-\textit{Case:} \textsc{$\varepsilon$-Module}. Then $e_A = \import{\varepsilon}{x}{\hat e}{e}$. If the reduction rule used was \textsc{E-ModuleCall1} then the result follows by applying the inductive hypothesis to $\hat e$.
+\textit{Case:} \textsc{$\varepsilon$-Import}. Then $e_A = \import{\varepsilon}{x}{\hat e}{e}$. If the reduction rule used was \textsc{E-Import1} then the result follows by applying the inductive hypothesis to $\hat e$.
 
-Otherwise $\hat e$ is a value and the reduction used was \textsc{E-ModuleCall2}. The following are true:
+Otherwise $\hat e$ is a value and the reduction used was \textsc{E-Import2}. The following are true:
 \begin{enumerate}
 	\setlength\itemsep{-0.7em}
 	\item $e_A = \kwa{import}(\varepsilon)~x = \hat v~\kw{in} e$
@@ -654,7 +658,7 @@ Apply the annotation lemma with $\Gamma = \varnothing$ to get $\hat \Gamma, x: \
 \end{proof}
 
 \noindent
-Our statement of soundness essentially combines the progress and preservation theorems, and so the proof is a straight-forward application of them. Knowing that single-step reductions are sound, multi-step reductions can straight-forwardly be be shown to also be sound. This is done by inductively applying single-step soundness to the length of the multi-step reduction.
+Our statement of soundness combines the progress and preservation theorems into one.
 
 \begin{theorem}[Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
@@ -662,6 +666,8 @@ If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat 
 \begin{proof}
 If $\hat e_A$ is not a value then the reduction exists by the progress theorem. The rest follows by the preservation theorem.
 \end{proof}
+
+Knowing that single-step reductions are sound, multi-step reductions can straight-forwardly be be shown to also be sound. This is done by inductively applying single-step soundness to the length of the multi-step reduction.
 
 \begin{theorem}[Multi-step Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow^{*} e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
