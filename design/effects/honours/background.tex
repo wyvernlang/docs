@@ -122,6 +122,173 @@ These theorems can be proven by structural induction on the typing judgement $\G
 
 Some languages extend the notion of a type system to a \textit{type-and-effect system}. Effects describe intensional information about the way in which a program executes \cite{nielson99}. A judgement like $\kwa{\Gamma \vdash e: \tau~\kw{with} \{ File.write \}}$ can be interpreted as meaning that execution of $e$ will result in a value of type $\tau$ (if it halts), and during execution might perform the $\kwa{write}$ effect on a $\kwa{File}$. This judgement is an upper-bound: it says that the only effects $e$ might have when executed are in the set $\{ \kwa{File.write} \}$. The upper-bound is not tight: if $e$ executes, it may not incur every effect ascribed to it.
 
+\section{ $\stlc$ --- Simply-Typed $\lambda$-Calculus}
+
+
+
+The simply-typed $\lambda$-calculus $\stlc$ is a model of computation which incorporates a basic theory of types. It was first described by Alonzo Church \cite{church40}. In this section we will cover the rules of a version of $\stlc$ with subtyping, and summarise its basic properties.
+
+
+\begin{figure}[h]
+\vspace{-5pt}
+
+\[
+\begin{array}{lll}
+
+\begin{array}{lllr}
+
+e & ::= & ~ & exprs: \\
+	& | & x & variable \\
+	& | & e~e & application \\
+	& | & v & value \\
+	&&\\
+	
+v & ::= & ~ & values: \\
+	& | & \lambda x: \tau . e & abstraction \\
+	&&\\
+	
+\end{array}
+
+& ~~~~~~ &
+
+\begin{array}{lllr}
+
+\tau & ::= & ~ & types: \\
+	& | & B & base~type \\
+	& | & \tau \rightarrow \tau & arrow~type \\
+	&&\\
+	
+\Gamma & ::= & ~ & contexts: \\
+	& | & \varnothing & empty~ctx. \\
+	& | & \Gamma, x: \tau & var.~binding \\
+	&&\\
+	
+\end{array}
+
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{Grammar for $\stlc$.}
+\label{This is the label.}
+\end{figure}
+
+
+Terms in $\stlc$ is based on function abstraction and function application. Types are either drawn from a set of base types B, or constructed using $\rightarrow$ (``arrow''). Given types $\tau_1$ and $\tau_2$, $\rightarrow$ can be used to compose a new type, $\tau_1 \rightarrow \tau_2$, which is the type of function taking $\tau_1$-typed terms as input to produce $\tau_2$-typed terms as output. For example, given $B = \{ \Bool, \Int \}$, the following are examples of valid types: $\Bool$, $\Int$, $\Bool \rightarrow \Bool$, $\Bool \rightarrow \Int$, $\Bool \rightarrow (\Bool \rightarrow \Int)$.
+
+Arrow is right-associative, so $\Bool \rightarrow \Bool \rightarrow \Int = \Bool \rightarrow (\Bool \rightarrow \Int)$. The terms ``arrow-type'' and ``function-type'' are interchangeable. \\
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau$}
+
+\[
+\begin{array}{c}
+
+
+\infer[\textsc{(T-Var)}]
+	{\Gamma, x: \tau \vdash x: \tau}
+	{}
+	
+~~~~~~
+	
+\infer[\textsc{(T-Abs)}]
+	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
+	{\Gamma, x: \tau_1 \vdash e: \tau_2} \\[4ex]
+	
+	
+\infer[\textsc{(T-App)}]
+	{\Gamma \vdash e_1~e_2: \tau_3}
+	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}
+	~~~~~~
+\infer[\textsc{T-Subsume}]
+	{\Gamma \vdash e: \tau_2}
+	{\Gamma \vdash e: \tau_1 & \tau_1 <: \tau_2 }
+
+\end{array}
+\]
+
+	
+\fbox{$\tau <: \tau$}
+
+	
+\[
+\begin{array}{c}
+
+
+\infer[\textsc{(S-Arrow)}]
+	{\tau_1 \rightarrow \tau_2 <: \tau_1' \rightarrow \tau_2'}
+	{\tau_1' <: \tau_1 & \Gamma \vdash \tau_2 <: \tau_2'}
+
+~~~~~~
+
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{Static rules for $\stlc$.}
+\label{This is the label.}
+\end{figure}
+
+Static rules for $\stlc$ are summarised in Figure 2.5. There are two \textsc{T-Var} states that a variable bound in some context can be typed as its binding. \textsc{T-Abs} states that a function can be typed in $\Gamma$ if $\Gamma$ can type the body of the function when the function's argument has been bound. \textsc{T-App} states that an application is well-typed if the left-hand expression is a function (has an arrow-type $\tau_2 \rightarrow \tau_3$) and the right-hand expression has the same type as the function's input ($\tau_2$).
+
+\textsc{T-Subsume} is the rule which says you may a type a term more generally as any of its supertypes. For example, if we had base types $\Int$ and $\Real$, and a rule specifying $\Int <: \Real$, a term of type $\Int$ can also be typed as $\Real$. This allows programs such as $(\lambda x: \Real. x)~3$ to type, because $3$ can be widened to a $\Real$ by \textsc{T-Subsumption}.
+
+The only subtyping rule we provide is \textsc{S-Arrow}, which describes when one function is a subtype of another. Note how the subtyping relation on the input types is reversed from the subtyping relation on the functions. This is called \textit{contravariance}. Contrast this with the output type, which preserves the order of the subtyping relation. That is called \textit{covariance}. Arrow-types are said to be contravariant in their input and covariant in their output.
+
+Because there are no axiomatic subtyping rules, there are no provable subtyping judgements in this $\lambda$-calculus. In practice we add extra subtyping judgements for the base-types we have chosen as primitive in our calculus. For example, if $\Int$ and $\kwa{Real}$ were base-types, we might add $\Real <: \Int$ as a rule. This is largely an implementation detail and particular to your chosen set of base-types, so we give no such rules here (but will when describing $\epscalc$).
+
+A useful principle in the design and understanding of subtyping rules is Liskov's substitution principle, which states that if $\tau_1 <: \tau_2$, then instances of $\tau_2$ can be replaced with instances of $\tau_1$ without changing the semantics or correctness of the program \cite{liskov87}. Subtyping rules are not usually semantic-preserving, but we'll occasionally use this ideal to motivate certain rules.
+
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$e \longrightarrow e$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-App1)}]
+	{\hat e_1 \hat e_2 \longrightarrow \hat e_1' \hat e_2~|~\varepsilon}
+	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon}
+	~~~~~~
+\infer[\textsc{(E-App2)}]
+	{\hat v_1 \hat e_2 \longrightarrow \hat v_1 \hat e_2'~|~\varepsilon} 
+	{\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon}\\[4ex]
+	
+\infer[\textsc{(E-App3)}]
+	{ (\lambda x: \hat \tau.\hat e) \hat v_2 \longrightarrow [\hat v_2/x]\hat e~|~\varnothing }
+	{}\\[4ex]
+	
+\end{array}
+\]
+
+\noindent
+\fbox{$e \longrightarrow^{*} e$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-MultiStep1)}]
+	{\hat e \rightarrow^{*} \hat e~|~\varnothing}
+	{}
+~~~
+\infer[\textsc{(E-MultiStep2)}]
+	{\hat e \rightarrow^{*} \hat e'~|~\varepsilon}
+	{\hat e \rightarrow \hat e'~|~\varepsilon} \\[3ex]
+	
+\infer[\textsc{(E-MultiStep3)}]
+	{\hat e \rightarrow^{*} \hat e''~|~\varepsilon_1 \cup \varepsilon_2}
+	{\hat e \rightarrow^{*} \hat e'~|~\varepsilon_1 & \hat e' \rightarrow^{*} \hat e''~|~\varepsilon_2}
+\end{array}
+\]
+\vspace{-7pt}
+\caption{Dynamic rules for $\stlc$.}
+\label{This is the label.}
+\end{figure}
+
+We give two sorts of reduction rules: $e \longrightarrow e$ (single-step) rules involve a single computational step, while $e \longrightarrow^{*} e$ (multi-step) rules are a sequence of computational steps defined inductively over single-steps. 
 
 \section{Capability Safety}
 
