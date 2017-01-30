@@ -1,6 +1,306 @@
-\chapter{Semantics}
+\chapter{Effect Calculi}
 
-\section{Grammar}
+\section{$\opercalc$: Operation Calculus}
+
+The operation calculus $\opercalc$ is an extension of $\stlc$ with primitive capabilities (resources) and their operations. Effects are identified with operation-calls. A program's runtime effects are those operations which it calls during execution. The static rules approximate the runtime effects of an expression, forming a simple effect system. These rules are very simple, but formalising and studying them will introduce new notations and a new concept of effect-soundness on which we shall build the $\epscalc$.
+
+\subsection{Definition of $\opercalc$}
+
+\begin{figure}[h]
+\vspace{-5pt}
+
+\[
+\begin{array}{lll}
+
+\begin{array}{lllr}
+
+e & ::= & ~ & exprs: \\
+	& | & x & variable \\
+	& | & v & value \\
+	& | & e ~ e & application \\
+	& | & e.\pi & operation \\
+	&&\\
+
+v & ::= & ~ & values: \\
+	& | & r & resource~literal \\
+	& | & \lambda x: \tau.e & abstraction \\
+	&&\\
+
+\end{array}
+
+& ~~~~~~~~&
+
+\begin{array}{lllr}
+
+\varepsilon & ::= & ~ & effects: \\
+	& | & \{ \overline{r.\pi} \} \\
+	&&\\
+
+\tau & ::= & ~ & types: \\
+		& | & \{ \bar r \} \\
+		& | & \tau \rightarrow_{\varepsilon} \tau \\ 
+		&&\\
+
+\Gamma & ::= & ~ & type~ctx: \\
+				& | & \varnothing \\
+				& | & \Gamma, x: \tau \\
+				&&\\
+\end{array}
+
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{Grammar for $\opercalc$.}
+\label{This is the label.}
+\end{figure}
+
+The base types of $\opercalc$ are sets of resources, denoted by $\{ \bar r \}$. Resources are drawn from a fixed set $R$ of variables, and model those initial capabilities passed in from the system environment. They cannot be created at runtime. When a resource type is ascribed to a program, as in the judgement $\Gamma \vdash e: \{ \bar r \}$, it means that if $e$ terminates it will result in a resource literal $r \in \bar r$. A resource literal $r$ is a variable ranging over the elements of $R$.
+
+An operation is a special action that can be invoked on a resource-typed expression. For example, we might invoke the $\kwa{open}$ operation on a $\kwa{File}$ resource. Operations are drawn from a fixed set $\Pi$ of variables and cannot be created at runtime.
+
+An effect is an operation performed on a resource. Formally, they are members of $R \times \Pi$, but for readability we write $\kwa{File.write}$ over $\kwa{(File, write)}$. A set of effects is denoted by $\varepsilon$. Effects and operations notationally look the same, but should be distinguished: an effect is some action upon a resource which may happen during runtime; an operation-call is an expression representing the actual invocation of an effect at runtime.
+
+In practical applications, operations take arguments. For example, when writing to a file, we want to specify \textit{what} is being written to the file, e.g. $\kwa{File.write(``my msg'')}$. Because we are only concerned with the use and propagation of effects, and not the semantics of particular effects, we make the simplifying assumption that all operations are null-ary.
+
+The only type constructor is $\rightarrow_{\varepsilon}$, where $\varepsilon$ is a concrete set of effects. $\tau_1 \rightarrow_{\varepsilon} \tau_2$ is the type of a function which takes inputs of type $\tau_1$, produces outputs of type $\tau_2$, and incurs no more effects than those contained in $\varepsilon$. For example, the type of a function which sends a message over a socket and returns a success flag could be $\kwa{Str} \rightarrow_{\kwa{Socket.write}} \Bool$. From this signature we can tell this function will not open or close the socket, because the annotation on the arrow does not have those effects. A valid implementation of this function might not write to the $\kwa{Socket}$, because $\{ \kwa{Socket.write} \}$ is an upper-bound on the effects which can happen. Every function type in $\opercalc$ must be annotated with an upper-bound in this way.
+
+
+
+\begin{figure}[h]
+
+
+\noindent
+\fbox{$\Gamma \vdash e: \tau~\kw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{($\varepsilon$-Var)}]
+	{ \Gamma, x:\tau \vdash x: \tau~\kw{with} \varnothing }
+	{}
+	
+	~~~
+	
+\infer[\textsc{($\varepsilon$-Resource)}]
+ 	{ \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
+ 	{} \\[3ex]
+ 	
+ 	~~~
+	\infer[\textsc{($\varepsilon$-Abs)}]
+	{ \Gamma \vdash \lambda x:\tau_2 . e : \tau_2 \rightarrow_{\varepsilon_3} \tau_3~\kw{with} \varnothing }
+	{ \Gamma, x: \tau_2 \vdash e: \tau_3~\kw{with} \varepsilon_3 }
+	
+	~~~
+	
+\infer[\textsc{($\varepsilon$-App)}]
+	{ \Gamma \vdash e_1~e_2 : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
+	{ \Gamma \vdash e_1: \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1 & \Gamma \vdash e_2: \tau_2~\kw{with} \varepsilon_2 } \\[3ex]
+	
+\infer[\textsc{($\varepsilon$-OperCall)}]
+	{ \Gamma \vdash e.\pi: \kw{Unit} \kw{with} \{ \bar r.\pi \} }
+	{ \Gamma \vdash e: \{ \bar r \} & \forall r \in \bar r \mid r: \{ r \} \in \Gamma & \pi \in \Pi } \\[3ex]
+
+\infer[\textsc{($\varepsilon$-Subsume)}]
+	{ \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
+	{ \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}
+\end{array}
+\]
+
+
+\noindent
+\fbox{$\Gamma \vdash e: \tau~\kw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(S-Arrow)}]
+	{ \tau_1 \rightarrow_{\varepsilon} \tau_2 <: \tau_1' \rightarrow_{\varepsilon'} \tau_2' }
+	{ \tau_1' <: \tau_1 & \tau_2 <: \tau_2' & \varepsilon \subseteq \varepsilon' }
+~~~~~~
+\infer[\textsc{(S-Resource)}]
+	{ \{ \bar r_1 \} <: \{ \bar r_2 \} }
+	{ r \in r_1 \implies r \in r_2 }
+
+\end{array}
+\]
+
+
+\vspace{-7pt}
+\caption{Type-with-effect judgements in $\opercalc$.}
+\label{This is the label.}
+\end{figure}
+
+The static rules for $\opercalc$ are summarised in Figure 3.2. The typing judgement $\Gamma \vdash e: \tau~\kw{with} \varepsilon$ means that successive reductions on $e$ will yield terms of type $\tau$, and collectively incur no more than those effects in $\varepsilon$. This $\varepsilon$ is a conservative approximation to the runtime effects of executing $e$, so it may contain effects which don't happen at runtime.
+
+The rules for variables and values are: \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, and \textsc{$\varepsilon$-Abs}. These are identical to the rules in $\stlc$, except they approximate the set of effects as $\varnothing$. Although a fucntion and a resource literal both encapsulate capabilities, something must be done to them (apply the function, operate on the resource) to incur a runtime effect.
+
+The effects of a lambda application are: the effects of evaluating its subexpressions, and the effects incurred by executing the body of the lambda to which the left-hand side evaluates. Those last effects are obtained from the label on the lambda's arrow-type in the first premise.
+
+The effects of an operation call are: the effects of evaluating the subexpression, and the single effect incurred when the subexpression is reduced to a resource literal $r$, and operation $\pi$ is invoked on it. It is not always possible to know statically which exact resource literal the subexpression reduces to (if it halts at all). For example, the program $\kwa{(if~System.randomBool~then~File~else~Socket).close}$ may either reduce to $\kwa{File.close}$ or $\kwa{Socket.close}$. In such cases, the safe approximation is to type the conditional as $\{ \kwa{File, Socket} \}$. \textsc{$\varepsilon$-OperCall} would then approximate the runtime effects of the operation call as  $\{ \kwa{File.close, Socket.close} \}$. Being able to type an expression as a (non-singleton) set of resources requires an extra rule: \textsc{S-Resource}. This says that a subset of resources is also a subtype. 
+
+Because we're not really interested in what exactly an operation call does, every operation is valid for every resource. This can give bizarre programs --- $\kwa{Sensor.readTemp}$ seems like a sensible operation call, but what about $\kwa{File.readTemp}$? Because we are not interested in the specific behaviours of operations, we permit any operation on any resource to simplify the static rules.
+
+The other subtyping rule is \textsc{S-Arrow}, a modification of the rule from $\stlc$. In addition to this rule being contravariant in the input and covariant in the output, it is also covariant in the effects. Justified in terms of the Liskov substitution principle, any possible effect which might be incurred by the subtype should be expected by the supertype, otherwise substitution of a supertype for a subtype would allow for the possibility of new effects not possible under the original.\\
+
+\begin{figure}[h]
+
+\bm{$\kwa{substitution :: e \times v \times v \rightarrow e}$}
+
+\begin{itemize}
+	\setlength\itemsep{-0.7em}
+	\item[] $[v/y]x = v$, if $x = y$
+	\item[] $[v/y]x = x$, if $x \neq y$
+	\item[] $[v/y](\lambda x: \tau. e) = \lambda x: \tau.[v/y]e$, if $y \neq x$ and $y$ does not occur free in $e$
+	\item[] $[v/y](e_1~e_2) = ([v/y]e_1)([v/y]e_2)$
+	\item[] $[v/y](e_1.\pi) = ([v/y]e_1).\pi$
+\end{itemize}
+
+\vspace{-7pt}
+\caption{Substitution function.}
+\label{This is the label.}
+\end{figure}
+
+Figure 3.2. shows the updated definition of $\kwa{substitution}$. In $\opercalc$, a variable may only be substituted for a value, making the function a partial one. This restriction is imposed because, if a variable can be replaced with an arbitrary expression, then we might also be introducing arbitrary effects --- a situation which violates the preservation of effects under reduction. \\
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$e \longrightarrow e~|~\varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-App1)}]
+	{e_1 e_2 \longrightarrow e_1'~ e_2~|~\varepsilon}
+	{e_1 \longrightarrow e_1'~|~\varepsilon}
+	~~~~~~
+\infer[\textsc{(E-App2)}]
+	{v_1 ~ e_2 \longrightarrow v_1 ~ e_2'~|~\varepsilon} 
+	{e_2 \longrightarrow e_2'~|~\varepsilon}
+~~~~~~
+\infer[\textsc{(E-App3)}]
+	{ (\lambda x: \hat \tau.\hat e) \hat v_2 \longrightarrow [\hat v_2/x]\hat e~|~\varnothing }
+	{}\\[4ex]
+	
+\infer[\textsc{(E-OperCall1)}]
+	{\hat e.\pi \longrightarrow \hat e'.\pi~|~\varepsilon }
+	{\hat e \rightarrow \hat e'~|~\varepsilon}
+		
+	~~~~~~
+	
+\infer[\textsc{(E-OperCall2)}]
+	{r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \} }
+	{r \in R & \pi \in \Pi}
+	 \\[4ex]
+	 
+\end{array}
+\]
+
+
+\vspace{-7pt}
+\caption{Single-step reductions.}
+\label{This is the label.}
+\end{figure}
+
+Single-step reduction is now a relation on an expression $e$ and a pair $e \times \varepsilon$, representing the reduced expression and all effects incurred during the single-step of computation. \textsc{E-App1} and \textsc{E-App2} incur whatever is the effect of reducing their subexpressions. \textsc{E-App3} incurs no effects.
+
+The new single-step rules are \textsc{E-OperCall1} and \textsc{E-OperCall2}. The former reduces the receiver of an operation-call, and the latter performs an operation on a resource literal. \textsc{E-OperCall1} incurs whatever is the effect of reducing the subexpression. \textsc{E-OperCall2}, which reduces the operation-call $r.\pi$, incurs the effect $r.\pi$.
+
+Operation calls reduce to $\unit$ (which is a derived form; see Encodings). $\unit$ is a value representing the absence of information (because it is the only value of its type). Because we are not interested in the semantics of effects, we choose $\unit$ as the result of reducing an operation-call. \\
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$\hat e \longrightarrow^{*} \hat e~|~\varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-MultiStep1)}]
+	{\hat e \rightarrow^{*} \hat e~|~\varnothing}
+	{}
+~~~
+\infer[\textsc{(E-MultiStep2)}]
+	{\hat e \rightarrow^{*} \hat e'~|~\varepsilon}
+	{\hat e \rightarrow \hat e'~|~\varepsilon} \\[3ex]
+	
+\infer[\textsc{(E-MultiStep3)}]
+	{\hat e \rightarrow^{*} \hat e''~|~\varepsilon_1 \cup \varepsilon_2}
+	{\hat e \rightarrow^{*} \hat e'~|~\varepsilon_1 & \hat e' \rightarrow^{*} \hat e''~|~\varepsilon_2}
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{Multi-step reductions in $\opercalc$.}
+\label{This is the label.}
+\end{figure}
+
+A multi-step reduction consists of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation\cite[p. 39]{tapl}.} or more single-step reductions. The resulting effect-set is the union of all the single-steps taken.
+
+\subsection{Soundness of $\opercalc$}
+
+Our goal is to show $\opercalc$ is sound. This requires an appropriate notion of \textit{effect-soudnness}, as we need both the type and approximated effects of an expression to be preserved under reduction. Intuitively, a reduction $e_A \longrightarrow^* e_B~|~\varepsilon$ is sound if the type system's approximation of the effects of $e$ contains the actual runtime effects $\varepsilon$, because then it has statically accounted for every possible runtime effect. Below is a definition, phrased in terms of single-step reduction.
+
+
+\begin{theorem}[Soundness]
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\end{theorem}
+
+This definition is slightly stronger, because it relates the approximation after reduction to the approximation before reduction, by saying it can only get more precise. This is analogous to the type-safe component of the definition, which states that the types of successive terms under reduction can only get more precise.
+
+Our road to proving soundness takes the standard approach of showing that progress and preservation hold of $\opercalc$. Progress follows immediately by observing some properties of the typing rules.
+
+\begin{lemma}[Canonical Forms]
+The following are true:
+\begin{itemize}
+	\setlength\itemsep{-0.7em}
+	\item If $\hat \Gamma \vdash \hat v: \hat \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $\hat \Gamma \vdash \hat v: \{ \bar r \}$ then $\hat v = r$ for some $r \in R$ and $\{ \bar r \} = \{ r \}$.
+\end{itemize}
+\end{lemma}
+
+\begin{theorem}[Progress]
+If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$.
+\end{theorem}
+
+\begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$, for $\hat e$ not a value. If the rule is \textsc{$\varepsilon$-Subsumption} it follows by inductive hypothesis. If $\hat e$ has a reducible subexpression then reduce it. Otherwise use one of \textsc{$\varepsilon$-App3} or \textsc{$\varepsilon$-OperCall2}.
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{$\epscalc$: Epsilon Calculus}
+
+
+The effect calculus is based on the simply-typed lambda calculus $\lambda^{\rightarrow}$. There is one type constructor, $\rightarrow$. The base types are sets of resources, denoted by $\{ \bar r \}$. Although the calculus has no primitive notions of integers or booleans, we shall assume these may be encoded as they are in the usual way (e.g. as Church numerals) and make free use of them in examples as though they were standard, for the sake of readability.
+
+\subsection{Definition}
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -75,8 +375,6 @@ v & ::= & ~ & values: \\
 \caption{Effect calculus.}
 \label{This is the label.}
 \end{figure}
-
-The effect calculus is based on the simply-typed lambda calculus $\lambda^{\rightarrow}$. There is one type constructor, $\rightarrow$. The base types are sets of resources, denoted by $\{ \bar r \}$. Although the calculus has no primitive notions of integers or booleans, we shall assume these may be encoded as they are in the usual way (e.g. as Church numerals) and make free use of them in examples as though they were standard, for the sake of readability.
 
 Resources are drawn from a fixed set $R$ of variables, and model those initial capabilities passed in from the system environment. Resources cannot be created at runtime. When a resource type is ascribed to a program, as in the judgement $\Gamma \vdash e: \{ \bar r \}$, it means that if $e$ terminates it will result in a resource literal $r \in \bar r$.
 
@@ -163,6 +461,13 @@ Annotation is not always safe. For instance, $\kwa{annot}(\lambda l: \kwa{Int} \
 
 
 
+
+
+
+
+
+
+
 \begin{figure}[h]
 
 $\bm{\kwa{effects :: \hat \tau \rightarrow \varepsilon}}$ \begin{itemize}
@@ -215,8 +520,6 @@ Note that substitution is partial, because it is only defined when a free-variab
 To avoid accidental variable capture we adopt the convention of $\alpha$-conversion, whereby we freely and implicitly interchange expressions which are equivalent up to the naming of bound variables \cite[p. 71]{tapl}. This elides some tedious bookkeeping. Consequently, we shall assume variables are (re-)named in this way to avoid accidental capture.
 
 
-
-\section{Static Rules}
 
 \begin{figure}[h]
 
@@ -452,8 +755,6 @@ The rule for resources says that a superset of resources is a subtype.
 
 
 
-\section{Dynamic Rules}
-
 \begin{figure}[h]
 
 \noindent
@@ -542,7 +843,7 @@ $\textsc{E-Import2}$ performs module resolution. The (unlabelled) body of code i
 \noindent
 A multi-step reduction consists of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation\cite[p. 39]{tapl}.} or more single-step reductions. The resulting effect-set is the union of all the single-steps taken.
 
-\section{Soundness}
+\subsection{Soundness of $\epscalc$}
 
 \noindent
 Our goal is to show $\epscalc$ is sound. This requires an appropriate notion of \textit{effect-soundness}.

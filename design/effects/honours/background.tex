@@ -2,7 +2,7 @@
 
 In this section we cover some of the necessary concepts and existing work informing this paper. No prior knowledge is assumed.
 
-\section{Formal Semantics}
+\section{Defining a Formal Language}
 
 \noindent
 We will consider a programming language as three sets of rules: the grammar, the static rules, and the dynamic rules. To illustrate each we give rules for a toy language that evaluates basic arithmetic operations on $\mathbb{N}$.
@@ -122,9 +122,7 @@ These theorems can be proven by structural induction on the typing judgement $\G
 
 Some languages extend the notion of a type system to a \textit{type-and-effect system}. Effects describe intensional information about the way in which a program executes \cite{nielson99}. A judgement like $\kwa{\Gamma \vdash e: \tau~\kw{with} \{ File.write \}}$ can be interpreted as meaning that execution of $e$ will result in a value of type $\tau$ (if it halts), and during execution might perform the $\kwa{write}$ effect on a $\kwa{File}$. This judgement is an upper-bound: it says that the only effects $e$ might have when executed are in the set $\{ \kwa{File.write} \}$. The upper-bound is not tight: if $e$ executes, it may not incur every effect ascribed to it.
 
-\section{ $\stlc$ --- Simply-Typed $\lambda$-Calculus}
-
-
+\section{ $\stlc$: Simply-Typed $\lambda$-Calculus}
 
 The simply-typed $\lambda$-calculus $\stlc$ is a model of computation which incorporates a basic theory of types. It was first described by Alonzo Church \cite{church40}. In this section we will cover the rules of a version of $\stlc$ with subtyping, and summarise its basic properties.
 
@@ -218,7 +216,7 @@ Arrow is right-associative, so $\Bool \rightarrow \Bool \rightarrow \Int = \Bool
 
 \infer[\textsc{(S-Arrow)}]
 	{\tau_1 \rightarrow \tau_2 <: \tau_1' \rightarrow \tau_2'}
-	{\tau_1' <: \tau_1 & \Gamma \vdash \tau_2 <: \tau_2'}
+	{\tau_1' <: \tau_1 & \tau_2 <: \tau_2'}
 
 ~~~~~~
 
@@ -234,11 +232,34 @@ Static rules for $\stlc$ are summarised in Figure 2.5. There are two \textsc{T-V
 
 \textsc{T-Subsume} is the rule which says you may a type a term more generally as any of its supertypes. For example, if we had base types $\Int$ and $\Real$, and a rule specifying $\Int <: \Real$, a term of type $\Int$ can also be typed as $\Real$. This allows programs such as $(\lambda x: \Real. x)~3$ to type, because $3$ can be widened to a $\Real$ by \textsc{T-Subsumption}.
 
-The only subtyping rule we provide is \textsc{S-Arrow}, which describes when one function is a subtype of another. Note how the subtyping relation on the input types is reversed from the subtyping relation on the functions. This is called \textit{contravariance}. Contrast this with the output type, which preserves the order of the subtyping relation. That is called \textit{covariance}. Arrow-types are said to be contravariant in their input and covariant in their output.
+The only subtyping rule we provide is \textsc{S-Arrow}, which describes when one function is a subtype of another. Note how the subtyping relation on the input types is reversed from the subtyping relation on the functions. This is called \textit{contravariance}. Contrast this with the relation on the output type, which preserves the order. That is called \textit{covariance}. Arrow-types are contravariant in their input and covariant in their output.
 
 Because there are no axiomatic subtyping rules, there are no provable subtyping judgements in this $\lambda$-calculus. In practice we add extra subtyping judgements for the base-types we have chosen as primitive in our calculus. For example, if $\Int$ and $\kwa{Real}$ were base-types, we might add $\Real <: \Int$ as a rule. This is largely an implementation detail and particular to your chosen set of base-types, so we give no such rules here (but will when describing $\epscalc$).
 
 A useful principle in the design and understanding of subtyping rules is Liskov's substitution principle, which states that if $\tau_1 <: \tau_2$, then instances of $\tau_2$ can be replaced with instances of $\tau_1$ without changing the semantics or correctness of the program \cite{liskov87}. Subtyping rules are not usually semantic-preserving, but we'll occasionally use this ideal to motivate certain rules.
+
+
+
+\begin{figure}[h]
+
+\bm{$\kwa{substitution :: \hat e \times \hat e \times \hat v \rightarrow \hat e}$}
+
+\begin{itemize}
+	\setlength\itemsep{-0.7em}
+	\item[] $[\hat v/y]x = \hat v$, if $x = y$
+	\item[] $[\hat v/y]x = x$, if $x \neq y$
+	\item[] $[\hat v/y](\lambda x: \hat \tau. \hat e) = \lambda x: \hat \tau.[\hat v/y]\hat e$, if $y \neq x$ and $y$ does not occur free in $\hat e$
+	\item[] $[\hat v/y](\hat e_1~\hat e_2) = ([\hat v/y]\hat e_1)([\hat v/y]\hat e_2)$
+\end{itemize}
+
+\vspace{-7pt}
+\caption{Substitution for $\stlc$.}
+\label{This is the label.}
+\end{figure}
+
+Before giving the dynamic rules we must define the substitution function. $\kwa{substitution}(e, e_1, x)$ replaces all free occurrences of $x$ with $e_1$ in $e$. The short-hand is $[e_1/x]e1$. When performing multiple substitutions we use the notation $[e_1/x_1, e_2/x_2] e$ as shorthand for $[e_2/x_2]([e_1/x_1]\hat e)$. Note how the order of the variables has been flipped; the substitutions occur as they are written, left-to-right.
+
+To avoid accidental avriable capture we adopt the convention of $\alpha$-conversion, whereby we freely and implicitly interchange expressions which are equivalent up to the naming of bound variables \cite[p. 71]{tapl}. This elides some tedious bookkeeping in the definition of $\kwa{substitution}$. Consequently, we shall assume variables are (re-)named in this way to avoid accidental capture.
 
 
 \begin{figure}[h]
@@ -271,16 +292,16 @@ A useful principle in the design and understanding of subtyping rules is Liskov'
 \begin{array}{c}
 
 \infer[\textsc{(E-MultiStep1)}]
-	{\hat e \rightarrow^{*} \hat e~|~\varnothing}
+	{\hat e \longrightarrow^{*} \hat e~|~\varnothing}
 	{}
 ~~~
 \infer[\textsc{(E-MultiStep2)}]
-	{\hat e \rightarrow^{*} \hat e'~|~\varepsilon}
-	{\hat e \rightarrow \hat e'~|~\varepsilon} \\[3ex]
+	{\hat e \longrightarrow^{*} \hat e'~|~\varepsilon}
+	{\hat e \longrightarrow \hat e'~|~\varepsilon} \\[3ex]
 	
 \infer[\textsc{(E-MultiStep3)}]
-	{\hat e \rightarrow^{*} \hat e''~|~\varepsilon_1 \cup \varepsilon_2}
-	{\hat e \rightarrow^{*} \hat e'~|~\varepsilon_1 & \hat e' \rightarrow^{*} \hat e''~|~\varepsilon_2}
+	{\hat e \longrightarrow^{*} \hat e''~|~\varepsilon_1 \cup \varepsilon_2}
+	{\hat e \longrightarrow^{*} \hat e'~|~\varepsilon_1 & \hat e' \rightarrow^{*} \hat e''~|~\varepsilon_2}
 \end{array}
 \]
 \vspace{-7pt}
@@ -288,9 +309,28 @@ A useful principle in the design and understanding of subtyping rules is Liskov'
 \label{This is the label.}
 \end{figure}
 
-We give two sorts of reduction rules: $e \longrightarrow e$ (single-step) rules involve a single computational step, while $e \longrightarrow^{*} e$ (multi-step) rules are a sequence of computational steps defined inductively over single-steps. 
+There are two sorts of reduction rules: single-steps $e \longrightarrow e$, and multi-steps $e \longrightarrow^{*}$ which consists of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation\cite[p. 39]{tapl}.} or more single-steps. These semantics are call-by-value, because execution of a function (\textsc{E-App3}) can only happen when the subexpressions have been reduced (by \textsc{E-App1} until the left-hand side is a value, and then \textsc{E-App2}).
 
-\section{Capability Safety}
+The soundness property for $\stlc$ is as follows.
+
+\begin{theorem}[$\stlc$ Soundness]
+If $\Gamma \vdash e_A: \tau_A$ and $e_A \longrightarrow^* e_B$, then $\Gamma \vdash e_B: \tau_B$, where $\tau_B <: \tau_A$.
+\end{theorem}
+
+$\stlc$ is also strongly-normalizing, meaning that well-typed terms always halt. A consequence is that $\stlc$ cannot express certain programs and is therefore Turing-incomplete. One routine way of making the language Turing-complete is to add a $\kwa{fix}$ operator. Turing completenses is not overly relevant to the typing rules of $\epscalc$, so to simplify the presentation we shall leave our $\stlc$ a Turing-incomplete language.
+
+\textbf{Revisit this depending on how you encode types and stuff in $\epscalc$}
+
+
+\section{Effect Systems}
+
+
+\section{ETL: Effect-Typed Language}
+
+
+
+
+\section{The Capability Model}
 
 A \textit{capability} is a unique, unforgeable reference, giving its bearer permission to perform some operation \cite{dennis66}. A piece of code $S$ has \textit{authority} over a capability $C$ if it can directly invoke the operations endowed by $C$; it has \textit{transitive authority} if it can indirectly invoke the operations endowed by a capability $C$ (for example, by deferring to another piece of code with authority over $C$).
 
