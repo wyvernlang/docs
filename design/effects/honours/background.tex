@@ -2,12 +2,15 @@
 
 In this section we cover some of the necessary concepts and existing work informing this paper. No prior knowledge is assumed.
 
-\section{Defining a Formal Language}
+\section{Formally Defining a Programming Language}
 
-\noindent
-We will consider a programming language as three sets of rules: the grammar, the static rules, and the dynamic rules. To illustrate each we give rules for a toy language that evaluates basic arithmetic operations on $\mathbb{N}$.
+A programming language can be defined formally by supplying three sets of rules: the grammar, the static rules, and the dynamic rules. To illustrate each we will develop a toy language for evaluating basic arithmetic operations on $\mathbb{N}$.
 
-The grammar specifies what strings are syntactically legal in the language. A grammar is specified by giving the different categories of terms, and specifying all the possible forms which instantiate that category. Metavariables range over the terms of the category for which they are named. The conventions for specifying a grammar are based on standard Backur-Naur form \cite{bnf}. Figure 2.1. shows a simple grammar describing integer literals and arithmetic expressions on them.
+The grammar specifies what strings are syntactically legal. A grammar is specified by giving the different categories of terms, and specifying all the possible forms which instantiate that category. Metavariables range over the terms of the category for which they are named. The conventions for specifying a grammar are based on standard Backur-Naur form \cite{bnf}. Figure 2.1. shows a simple grammar describing integer literals and arithmetic expressions on them.
+
+The only type in the arithmetic language is $\Nat$. A context is a mapping from variables to types, defined recursively as either an empty context $\varnothing$, or as a context followed by a single binding. A program in the language consists of an expression $e$. A valid expression is either a variable (drawn from some implicit set of variable names), a constant (such as $3$ or $0$), or the addition of two other valid expressions. The following are all examples of syntactically legal programs: $x$, $y$, $3$, $3+2$, $3+x$, $3+(x+2)$.
+
+A string like $3 + (x + 2)$ should be seen as a short-hand for the corresponding abstract syntax tree (AST), whose structure is given by the rules of the grammar. \textbf{A diagram might be nice here}. Sometimes the AST is ambiguous, as in $3 + x + 2$ which might be parsed as $3 + (x + 2)$ or as $(3 + x) + 2$. How we parse and disambiguate is largely an implementation detail, so throughout this report we shall only consider strings which unambiguously correspond to a valid AST.\\
 
 \begin{figure}[h]
 
@@ -19,7 +22,13 @@ The grammar specifies what strings are syntactically legal in the language. A gr
 e & ::= & ~ & exprs: \\
 	& | & x & variable \\
 	& | & e + e & addition \\
-	& | & l & integer~constant \\
+	& | & e \lor e & disjunction \\
+	& | & \letxpr{x}{e}{e} & let~expr. \\
+	&&\\
+	
+v & ::= & ~ & values: \\
+	& | & l & \Nat~constant \\
+	& | & b & \Bool~constant \\
 	&&\\
 
 \end{array}
@@ -27,7 +36,8 @@ e & ::= & ~ & exprs: \\
 \begin{array}{lllr}
 
 \tau & ::= & ~ & types: \\
-	& | & \kwa{Int} \\
+	& | & \kwa{Nat} \\
+	& | & \kwa{Bool} \\
 	&&\\
 	
 \Gamma & ::= & ~ & contexts: \\
@@ -45,11 +55,12 @@ e & ::= & ~ & exprs: \\
 \label{A sample. }
 \end{figure}
 
-The static rules specify the type system and other constraints on terms with certain \textit{well-behavedness} properties. In our case, we're interested in what makes a program \textit{well-typed}, which is to say that execution of the program never gets \textit{stuck} due to type-errors. For example, a well-typed program will never try to add two booleans, because addition only makes sense on numbesr. A well-typed program will never try to evaluate an undefined variable, because variables must be defined.
+In designing a language we often want to consider those syntactically legal terms satisfying certain \textit{well-behavedness} properties. One such property is that of being \textit{well-typed}. If a program is well-typed then during execution it will never get \textit{stuck} due to type-errors. For example, when executing $3 + (\kwa{Bool} + 2)$, this program would get stuck when trying to evaluate $\kwa{Bool} + 2$, because addition should be an operation on two numerci expressions. Although $3 + (\kwa{Bool} + 2)$ is a syntactically legal program, it is not well-typed and we can determine this without executing the program. Another useful property says that variables must be declared (a binding for those variables must be introduced at some point in the program).
 
-Static rules are specified by \textit{inference rules}. An inference rule is given as a set of premises above a dividing line which, if they hold, imply the result below the line. An application of an inference rule is called a \textit{judgement}. Judgements take place in typing contexts, denoted by $\Gamma$, which map variables to types. A basic judgement like $\Gamma \vdash e: \tau$ means that executing $e$ will result in a term of type $\tau$ (if it terminates). The contents of $\Gamma$ are specified as a comma-separated sequence of variable-type pairs. The order is irrelevant. A consequence of this convention is that if $\Gamma \vdash e: \tau$, then $\Gamma' \vdash e: \tau$, where $\Gamma$ is contained in $\Gamma'$. When a judgement can be proven from the empty context we leave the left of the turnstile blank, as in $\vdash e: \tau$.
+The static rules of a language give a means of determining which syntactically legal terms satisfy particular properties. They are specified by giving \textit{inference rules}. An inference rule is given as a set of premises above a dividing line which, if they hold, imply the result below the line. An application of an inference rule is called a \textit{judgement}. Judgements often take place in typing contexts ($\Gamma$-terms in our arithmetic language), which map variables to types. Conventionally, we say a term is well-typed in a particular context with the notation $\Gamma \vdash e: \tau$, which means that executing $e$ will result in a term of type $\tau$ (if it terminates), and it will never get stuck due to type-errors.
 
-Though our arithmetic language has no subtyping, most interesting languages do. This judgement is written $\tau_1 <: \tau_2$ and it means that values of $\tau_1$ may be provided anywhere instances of $\tau_2$ are expected. Effect systems have another judgement, which ascribes a type and set of effects to an expression. We shall cover this in greater detail later.
+Although our language has no subtyping, most interesting languages do. This judgement is usually written in the form $\tau_1 <: \tau_2$ and it means that values of $\tau_1$ may be provided anywhere instances of $\tau_2$ are expected. A useful principle in the design and understanding of subtyping rules is Liskov's substitution principle, which states that if $\tau_1 <: \tau_2$, then instances of $\tau_2$ can be replaced with instances of $\tau_1$ without changing the program's semantic properties \cite{liskov87}. Subtyping rules are not usually totally semantic-preserving, but we'll occasionally use this ideal to motivate why certain rules are sensible.\\
+
 
 \begin{figure}[h]
 
@@ -63,9 +74,27 @@ Though our arithmetic language has no subtyping, most interesting languages do. 
 	{\Gamma, x: \kwa{Int} \vdash x: \kwa{Int}}
 	{}
 ~~~
+\infer[\textsc{(T-Bool)}]
+	{\vdash b : \Bool}
+	{}
+	~~~
+\infer[\textsc{(T-Nat)}]
+	{\vdash l : \Nat}
+	{}\\[2ex]
+
+	~~~
+\infer[\textsc{(T-Or)}]
+	{\Gamma \vdash e_1 \lor e_2 : \Bool}
+	{\Gamma \vdash e_1: \Bool & \Gamma \vdash e_2: \Bool}
+	~~~
 \infer[\textsc{(T-Add)}]
-	{\Gamma \vdash e_1 + e_2 : \kwa{Int}}
-	{\Gamma \vdash e_1: \kwa{Int} & \Gamma \vdash e_2: \kwa{Int}}
+	{\Gamma \vdash e_1 + e_2 : \Nat}
+	{\Gamma \vdash e_1: \Nat & \Gamma \vdash e_2: \Nat} \\[2ex]
+	
+\infer[\textsc{(T-Let)}]
+	{\Gamma \vdash \letxpr{x}{e_1}{e_2} : \tau_2}
+	{\Gamma \vdash e_1: \tau_1 & \Gamma, x: \tau_1 \vdash e_2: \tau_2}
+	
 	
 \end{array}
 \]
@@ -75,7 +104,37 @@ Though our arithmetic language has no subtyping, most interesting languages do. 
 \label{A sample. }
 \end{figure}
 
-The dynamic semantics specifies what is the meaning of a legal term. There are different flavorus of dynamic semantics, but the one we use is called \textit{small-step semantics}. This is a set of inference rules specifying how a program is executed. A single application of one of these rules is called a \textit{reduction}.
+There are some pesky technicalities about typing contexts which need to be addressed. Althogh we have defined $\Gamma$ as a \textit{sequence} of variable-type mappings, the order shouldn't really be significant: $x: \kwa{Int}, y: \kwa{Int}$ is really the same thing as $y: \kwa{Int}, x: \kwa{Int}$. Formally, we would specify their equivalence by giving structural rules which allow us to freely permute a context's bindings. Another convention is that any judgement which holds in a context $\Gamma$ should hold in any bigger context $\Gamma'$, where $\Gamma \subseteq \Gamma'$. In practice, the notation for contexts and the rules for how to manipulate them are so conventional that we will not bother supplying them, except for the quick summary in Figure 2.3.
+
+One last convention is that when a judgement can be derived from the empty context, we write $\vdash e: \tau$ instead of $\varnothing \vdash e: \tau$.\\
+
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$\Gamma \vdash e: \tau$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{($\Gamma$-Permute)}]
+	{\Gamma' \vdash e: \tau}
+	{\Gamma \vdash e: \tau & \Gamma'~is~a~permutation~of~\Gamma}
+	~~~
+\infer[\textsc{($\Gamma$-Widen)}]
+	{\Gamma, x: \tau' \vdash e: \tau }
+	{\Gamma \vdash e: \tau & x \notin \Gamma}
+
+	
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{Structural rules for typing contexts.}
+\label{A sample. }
+\end{figure}
+
+The dynamic semantics of a language specify what is the meaning of a legal term. There are different flavours of dynamic semantics, but the one we use is called \textit{small-step semantics}. This is a set of inference rules specifying how a program is executed. A single application of one of these rules is called a \textit{reduction}. If a non-variable expression is irreducible under the dynamic rules, it is called a value. In our language, these are the same expressions as those instantiating the category of values in the grammar.
 
 \begin{figure}[h]
 
@@ -95,37 +154,165 @@ The dynamic semantics specifies what is the meaning of a legal term. There are d
 ~~
 \infer[\textsc{(E-Add3)}]
 	{l_1 + l_2 \longrightarrow l_3}
-	{l_1 + l_2 = l_3}
+	{l_1 + l_2 = l_3} \\[4ex]
+
+\infer[\textsc{(E-Or1)}]
+	{e_1 \lor e_2 \longrightarrow e_1' \lor e_2}
+	{e_1 \longrightarrow e_1'}
+	~~~
+\infer[\textsc{(E-Or2)}]
+	{\true \lor e_2 \longrightarrow \true}
+	{}
+	~~~
+\infer[\textsc{(E-Or3)}]
+	{\false \lor e_2 \longrightarrow e_2}
+	{}\\[4ex]
+	
+\infer[\textsc{(E-Let1)}]
+	{\letxpr{x}{e_1}{e_2} \longrightarrow \letxpr{x}{e_1'}{e_2}}
+	{e_1 \longrightarrow e_1'}
+	~~~
+\infer[\textsc{(E-Let2)}]
+	{\letxpr{x}{v}{e_2} \longrightarrow [v/x]e_2}
+	{}
 
 \end{array}
 \]
 
 
 \vspace{-7pt}
-\caption{Inference rules for reducing arithmetic expressions.}
+\caption{Inference rules for single-step reductions.}
 \label{A sample. }
 \end{figure}
 
-Almost all type systems in which we are interested are \textit{sound}. Soundness is a property that holds between the static and dynamic rules of a language, which says that if a program $e$ is considered well-typed by the static rules, then its reduction under the dynamic rules will never produce a runtime type-error. The exact definition of soundness depends on the semantics under consideration, but it is often split into two parts: progress and preservation. The progress theorem states every term, except those of a particular category called values, can always be reduced by applying some dynamic rule. The preservation theorem is that programs remain well-typed under reduction. Adequate formulations of these two theorems for the language under consideration give us soundness.
+Figure 2.4. gives a set of dynamic rules for the language which specify a single-step reduction relation. The judgement $e \longrightarrow e'$ represents a single computational step.
 
-In the language of arithmetic expressions, progress and preservation would be the following:
+In these single-step semantics, a disjunction is reduced by first reducing the left-hand side to a value (\textsc{E-Or1}). If the left-hand side is the boolean literal $\true$, then we can reduce the expression to $\true$ (because $\true \lor Q = \true$). Otherwise if the left-hand side is the boolean literal $\false$, we can reduce the expression to the right-hand side $e_2$. If the original expression was well-typed, then $e_2$ will reduce to either $\true$ or $\false$. This particular formulation of the rules encodes short-circuiting behaviour into $\lor$, meaning that if the left-hand side is true, the expression evaluates to true without checking the right-hand side.
+
+An addition expression is reduced by first reducing the left-hand side to a value (\textsc{E-Add1}) and then the right-hand side (\textsc{E-Add2}). When both sides are integer literals, the expression reduces to whatever is the sum of those literals.
+
+A let expression is reduced by first reducing the subexpression being bound (\textsc{E-Let1}). When that is a value, we substitute the variable $x$ for the value $v_1$ in the body $e_2$ of the $\kwa{let}$ expression. The notation for this is $[v_1/x]e_2$. This strategy of reducing expressions is \textit{call-by-value}. In a call-by-value strategy, expressions being bound in a program are reduced to values before they are bound to their formal name ($e_1$ is reduced to $v_1$ before it is bound to $x$ in the body $e_2$). Figure 2.5. shows a precise definition of substitution.
+
+
+\begin{figure}[h]
+
+\bm{$\kwa{substitution :: e \times e \times v \rightarrow e}$}
+
+\begin{itemize}
+	\setlength\itemsep{-0.7em}
+	\item[] $[e'/y]l = l$
+	\item[] $[e'/y]b = b$ 
+	\item[] $[e'/y]x =  v$, if $x = y$
+	\item[] $[e'/y]x = x$, if $x \neq y$
+	\item[] $[e'/y](e_1 + e_2) = [e'/y]e_1 + [e'/y]e_2$
+	\item[] $[e'/y](e_1 \lor e_2) = [e'/y]e_1 \lor [e'/y]e_2$
+	\item[] $[e'/y](\letxpr{x}{e_1}{e_2}) = \letxpr{x}{[e'/y]e_1}{[e'/y]e_2}$, if $y \neq x$ and $y$ does not occur free in $e_1$ or $e_2$
+\end{itemize}
+
+\vspace{-7pt}
+\caption{Substitution for $\stlc$.}
+\label{This is the label.}
+\end{figure}
+
+The notation $[e_1/x]e$ is short-hand for $\kwa{substitution}(e, e_1, x)$. When performing multiple substitutions we use the notation $[e_1/x_1, e_2/x_2] e$ as shorthand for $[e_2/x_2]([e_1/x_1] e)$. Note how the order of the variables has been flipped; the substitutions occur as they are written, left-to-right.
+
+A robust definition of the $\kwa{substitution}$ function is surprisingly tricky due to issues surrounding accidental variable capture. Consider the program $\letxpr{x}{1}{(\letxpr{x}{2}{x})}$. It contains two different variables with the same name $x$. Furthermore, neither variable occurs ``free'', because both have been introduced in the body of the program (one for each $\kwa{let}$). Such variables are called bound variables. A robust definition should not accidentally conflate two different variables with identical names, and it should not substitute on bound variables.
+
+To avoid these issues we adopt the convention of $\alpha$-conversion \cite[p. 71]{tapl}. To illustrate, consider $\letxpr{x}{1}{(\letxpr{x}{2}{x})}$. In some sense, this is an equivalent program to $\letxpr{x}{1}{(\letxpr{y}{2}{y})}$. Because the names of variables are arbitrary, changing them will not change the semantics of the program. Therefore, we freely and implicitly interchange expressions which are equivalent up to the naming of bound variables, in order to elide some tedious bookkeeping. This process is called $\alpha$-conversion. Consequently, we shall assume variables are (re-)named in this way to avoid these problems and to play nicely with the definition of $\kwa{substitution}$. \\
+
+Given a single-step reduction relation, we may define a multi-step reduction relation as a sequence of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation \cite[p. 39]{tapl}.} or more single-steps. This is written $e \longrightarrow^* e'$. For example, if $e_1 \longrightarrow e_2 \longrightarrow e_3$, we may also write $e_1 \longrightarrow^* e_3$. 
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$e \longrightarrow^{*} e$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-MultiStep1)}]
+	{ e \longrightarrow^{*}  e}
+	{}
+~~~
+\infer[\textsc{(E-MultiStep2)}]
+	{ e \longrightarrow^{*}  e'}
+	{ e \longrightarrow  e'} \\[3ex]
+	
+\infer[\textsc{(E-MultiStep3)}]
+	{e \longrightarrow^{*}  e''}
+	{ e \longrightarrow^{*}  e' &  e' \rightarrow^{*}  e''}
+\end{array}
+\]
+\vspace{-7pt}
+\caption{Dynamic rules.}
+\label{This is the label.}
+\end{figure}
+
+Almost all type systems in which we are interested are \textit{sound}. Soundness is a property that holds between the static and dynamic rules of a language. It says that if a program $e$ is considered well-typed by the static rules, then its reduction under the dynamic rules will never produce a runtime type-error. It is a guarantee that our typing judgements, as we intuitively understand them, are mathematically correct. The exact definition of soundness depends on the language under consideration, but is often split into two parts called progress and preservation.
 
 \begin{theorem}[Progress]
-If $\Gamma \vdash e: \kwa{Int}$ and $e$ is not an integer constant, then $e \rightarrow e'$.
+If $\Gamma \vdash e: \tau$ and $e$ is not a value, then $e \longrightarrow e'$.
 \end{theorem}
+
+Progress states that any non-value term can be reduced. This essentially says that the definition of a value as something irreducible under the reduction rules, and the definition of a value as some category of terms in the grammar, coincide with each other.
 
 \begin{theorem}[Preservation]
-If $\Gamma \vdash e: \kwa{Int}$ and $e \rightarrow e'$ then $\Gamma \vdash e': \kwa{Int}$.
+If $\Gamma \vdash e: \tau$ and $e \longrightarrow e'$ then $\Gamma \vdash e': \tau$.
 \end{theorem}
 
-These theorems can be proven by structural induction on the typing judgement $\Gamma \vdash e: \kwa{Int}$. This is a common proof technique in formal semantics. A more thorough explanation of this sort of induction can be found in TAPL \cite[p. 31]{tapl}.
+Preservation states that a well-typed term is still well-typed after it has been reduced. This implies that a term cannot get stuck during its reduction, because a sequence of reductions produces intermediate terms that are also well-typed. Note that in this particular system the type of the term after reduction is the same as the type of the term before reduction.
 
-Some languages extend the notion of a type system to a \textit{type-and-effect system}. Effects describe intensional information about the way in which a program executes \cite{nielson99}. A judgement like $\kwa{\Gamma \vdash e: \tau~\kw{with} \{ File.write \}}$ can be interpreted as meaning that execution of $e$ will result in a value of type $\tau$ (if it halts), and during execution might perform the $\kwa{write}$ effect on a $\kwa{File}$. This judgement is an upper-bound: it says that the only effects $e$ might have when executed are in the set $\{ \kwa{File.write} \}$. The upper-bound is not tight: if $e$ executes, it may not incur every effect ascribed to it.
+The soundness theorem combines progress and preservation. Once it has been established that soundness holds for single-step reduction, it will hold for multi-step reduction by inducting on the length of the multi-step.
+
+\begin{theorem}[Soundness]
+If $\Gamma \vdash e: \tau$ and $e \longrightarrow e'$ then $\Gamma \vdash e': \tau$.
+\end{theorem}
+
+These theorems are generally proven by structural induction on the typing rule used $\Gamma \vdash e: \tau$ or on the reduction rule used $e \rightarrow e'$. For each case, you assume that your inductive assumption (progress, preservation) holds of any subderivations, and from that show the conclusion of the rule must hold also. Your base cases will be those rules which have no premises (axioms). Your inductive cases will be those rules which have premises. Together, this implies any axiom is sound, and any application of an inference rule based on sound premises will yield a sound result. Together this shows that the theorem under consideration holds of every particular judgement.
+
+In order to prove certain cases there are two common lemmas needed. The first is canonical forms, which outlines a set of observations that follow immediately by observing the typing rules. The second is the substitution lemma, which says if a term is well-typed in a context $\Gamma, x: \tau' \vdash e: \tau$, and you replace variable $x$ with an expression $e'$ of type $\tau$, then $\Gamma \vdash [e'/x]e: \tau$. This lemma is needed to show that the reduction step in \textsc{E-Let2} preserves soundness. Formulations of these two lemmas for the language is given below.
+
+\begin{lemma}[Canonical Forms]
+The following are true:
+\begin{itemize}
+	\setlength\itemsep{-0.7em}
+	\item If $\Gamma \vdash v: \Int$, then $v = l$ is a $\Nat$ constant.
+	\item If $\Gamma \vdash v: \Bool$, then $b = l$ is a $\Bool$ constant.
+\end{itemize}
+\end{lemma}
+
+
+\begin{lemma}[Substitution]
+If $\Gamma, x: \tau' \vdash e: \tau$ and $\Gamma \vdash e': \tau'$ then $\Gamma \vdash [e'/x]e:  \tau$.
+\end{lemma}
+
+Proofs for these lemmas and theorems can be found in Appendix A.
+
+In this section we've briefly summarised how a language can be formally defined by its grammar, static rules, and dynamic rules. The static rules of a language can be used to show that a particular program satisfies ceratin well-formedness properties. Chief among these is the property of being well-typed. The soundness property shows that programs of a language remain well-typed under reduction. Depending on the language under consideration, the exact formulation of these lemmas, definitions, and theorems will be different. However the general approach, notation, and conventions used throughout this report will be the same as those outlined in this section.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 \section{ $\stlc$: Simply-Typed $\lambda$-Calculus}
 
-The simply-typed $\lambda$-calculus $\stlc$ is a model of computation which incorporates a basic theory of types. It was first described by Alonzo Church \cite{church40}. In this section we will cover the rules of a version of $\stlc$ with subtyping, and summarise its basic properties.
-
+The simply-typed $\lambda$-calculus $\stlc$ is a model of computation, first described by Alonzo Church \cite{church40}, based around the definition and application of functions. In this section we present a variation of $\stlc$ with subtyping and summarise its basic properties. In the main body of this report we shall develop $\epscalc$, which is based on $\stlc$. This section will give us an opportunity to familiarise ourself with $\lambda$-calculi.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -171,10 +358,13 @@ v & ::= & ~ & values: \\
 \label{This is the label.}
 \end{figure}
 
+Types in $\stlc$ are either drawn from a set of base types B, or constructed using $\rightarrow$ (``arrow''). Given types $\tau_1$ and $\tau_2$, $\rightarrow$ can be used to compose a new type, $\tau_1 \rightarrow \tau_2$, which is the type of function taking $\tau_1$-typed terms as input to produce $\tau_2$-typed terms as output. For example, given $B = \{ \Bool, \Int \}$, the following are examples of valid types: $\Bool$, $\Int$, $\Bool \rightarrow \Bool$, $\Bool \rightarrow \Int$, $\Bool \rightarrow (\Bool \rightarrow \Int)$. Arrow is right-associative, so $\Bool \rightarrow \Bool \rightarrow \Int = \Bool \rightarrow (\Bool \rightarrow \Int)$. ``Arrow-type'' and ``function-type'' will be used interchangeably.
 
-Terms in $\stlc$ is based on function abstraction and function application. Types are either drawn from a set of base types B, or constructed using $\rightarrow$ (``arrow''). Given types $\tau_1$ and $\tau_2$, $\rightarrow$ can be used to compose a new type, $\tau_1 \rightarrow \tau_2$, which is the type of function taking $\tau_1$-typed terms as input to produce $\tau_2$-typed terms as output. For example, given $B = \{ \Bool, \Int \}$, the following are examples of valid types: $\Bool$, $\Int$, $\Bool \rightarrow \Bool$, $\Bool \rightarrow \Int$, $\Bool \rightarrow (\Bool \rightarrow \Int)$.
+In addition to variables, there are function definitions (``abstraction'') and the application of a function to an expression (``application''). For example, $\lambda x: \Int . x$ is the identity function on integers. $(\lambda x: \Int . x) 3$ is the application of the identity function to the integer literal $3$. $(\lambda x: \Int . x) \true$ is the applciation of the identity fucntion to a boolean literal, which is syntactically valid, but as we'll see is not well-typed. A more drastic example is $\true~3$, which is trying to apply $\true$ to $3$. Again, this is a syntactically valid term, but not well-typed because $\true$ is not a function.\\
 
-Arrow is right-associative, so $\Bool \rightarrow \Bool \rightarrow \Int = \Bool \rightarrow (\Bool \rightarrow \Int)$. The terms ``arrow-type'' and ``function-type'' are interchangeable. \\
+
+
+
 
 \begin{figure}[h]
 
@@ -228,39 +418,53 @@ Arrow is right-associative, so $\Bool \rightarrow \Bool \rightarrow \Int = \Bool
 \label{This is the label.}
 \end{figure}
 
-Static rules for $\stlc$ are summarised in Figure 2.5. There are two \textsc{T-Var} states that a variable bound in some context can be typed as its binding. \textsc{T-Abs} states that a function can be typed in $\Gamma$ if $\Gamma$ can type the body of the function when the function's argument has been bound. \textsc{T-App} states that an application is well-typed if the left-hand expression is a function (has an arrow-type $\tau_2 \rightarrow \tau_3$) and the right-hand expression has the same type as the function's input ($\tau_2$).
+Static rules for $\stlc$ are summarised in Figure 2.5. \textsc{T-Var} states that a variable bound in some context can be typed as its binding. \textsc{T-Abs} states that a function can be typed in $\Gamma$ if $\Gamma$ can type the body of the function when the function's argument has been bound. \textsc{T-App} states that an application is well-typed if the left-hand expression is a function (has an arrow-type $\tau_2 \rightarrow \tau_3$) and the right-hand expression has the same type as the function's input ($\tau_2$).
 
-\textsc{T-Subsume} is the rule which says you may a type a term more generally as any of its supertypes. For example, if we had base types $\Int$ and $\Real$, and a rule specifying $\Int <: \Real$, a term of type $\Int$ can also be typed as $\Real$. This allows programs such as $(\lambda x: \Real. x)~3$ to type, because $3$ can be widened to a $\Real$ by \textsc{T-Subsumption}.
-
-The only subtyping rule we provide is \textsc{S-Arrow}, which describes when one function is a subtype of another. Note how the subtyping relation on the input types is reversed from the subtyping relation on the functions. This is called \textit{contravariance}. Contrast this with the relation on the output type, which preserves the order. That is called \textit{covariance}. Arrow-types are contravariant in their input and covariant in their output.
-
-Because there are no axiomatic subtyping rules, there are no provable subtyping judgements in this $\lambda$-calculus. In practice we add extra subtyping judgements for the base-types we have chosen as primitive in our calculus. For example, if $\Int$ and $\kwa{Real}$ were base-types, we might add $\Real <: \Int$ as a rule. This is largely an implementation detail and particular to your chosen set of base-types, so we give no such rules here (but will when describing $\epscalc$).
-
-A useful principle in the design and understanding of subtyping rules is Liskov's substitution principle, which states that if $\tau_1 <: \tau_2$, then instances of $\tau_2$ can be replaced with instances of $\tau_1$ without changing the semantics or correctness of the program \cite{liskov87}. Subtyping rules are not usually semantic-preserving, but we'll occasionally use this ideal to motivate certain rules.
-
-
+\textsc{T-Subsume} is the rule which says you may a type a term more generally as any of its supertypes. For example, if we had base types $\Int$ and $\Real$, and a rule specifying $\Int <: \Real$, a term of type $\Int$ can also be typed as $\Real$. This allows programs such as $(\lambda x: \Real. x)~3$ to type, as shown in Figure 2.9.
 
 \begin{figure}[h]
 
-\bm{$\kwa{substitution :: \hat e \times \hat e \times \hat v \rightarrow \hat e}$}
+
+    \begin{prooftree*}
+        \Infer0[\textsc{(T-Var)}]{x: \Real \vdash x: \Real}
+        \Infer1[\textsc{(T-Abs)}]{\vdash \lambda x: \Real . x : \Real \rightarrow \Real }
+        
+        \Hypo{\vdash 3: \Int}
+        \Hypo{\Int <: \Real}
+        \Infer2[\textsc{(T-Subsume)}]{\vdash 3: \Real}
+        
+        \Infer2[\textsc{(T-App)}]{\vdash (\lambda x: \Real . x)~3 : \Real}
+ 	\end{prooftree*}
+ 	
+\vspace{-12pt}
+\caption{Derivation tree showing how \textsc{T-Subsume} can be used.}
+\label{This is the label.}
+\end{figure}
+ 
+
+
+The only subtyping rule we provide is \textsc{S-Arrow}, which describes when one function is a subtype of another. Note how the subtyping relation on the input types is reversed from the subtyping relation on the functions. This is called \textit{contravariance}. Contrast this with the relation on the output type, which preserves the order. That is called \textit{covariance}. Arrow-types are contravariant in their input and covariant in their output.
+
+This presentation has no subtyping rules without premises (axioms), which means there is no way to actually prove a particular subtyping judgement. In practice, we add subtyping axioms for the base-types we have chosen as primitive in our calculus. For example, given base types $\Int$ and $\kwa{Real}$, we might add $\Real <: \Int$ as a rule. This is largely an implementation detail particular to your chosen set of base-types, so we give no subtyping axioms here (but will later when describing $\epscalc$).
+
+\begin{figure}[h]
+
+\bm{$\kwa{substitution :: e \times e \times v \rightarrow e}$}
 
 \begin{itemize}
 	\setlength\itemsep{-0.7em}
-	\item[] $[\hat v/y]x = \hat v$, if $x = y$
-	\item[] $[\hat v/y]x = x$, if $x \neq y$
-	\item[] $[\hat v/y](\lambda x: \hat \tau. \hat e) = \lambda x: \hat \tau.[\hat v/y]\hat e$, if $y \neq x$ and $y$ does not occur free in $\hat e$
-	\item[] $[\hat v/y](\hat e_1~\hat e_2) = ([\hat v/y]\hat e_1)([\hat v/y]\hat e_2)$
+	\item[] $[ v/y]x =  v$, if $x = y$
+	\item[] $[ v/y]x = x$, if $x \neq y$
+	\item[] $[ v/y](\lambda x:  \tau.  e) = \lambda x:  \tau.[ v/y] e$, if $y \neq x$ and $y$ does not occur free in $ e$
+	\item[] $[ v/y]( e_1~ e_2) = ([ v/y] e_1)([ v/y] e_2)$
 \end{itemize}
 
-\vspace{-7pt}
+\vspace{-12pt}
 \caption{Substitution for $\stlc$.}
 \label{This is the label.}
 \end{figure}
 
-Before giving the dynamic rules we must define the substitution function. $\kwa{substitution}(e, e_1, x)$ replaces all free occurrences of $x$ with $e_1$ in $e$. The short-hand is $[e_1/x]e1$. When performing multiple substitutions we use the notation $[e_1/x_1, e_2/x_2] e$ as shorthand for $[e_2/x_2]([e_1/x_1]\hat e)$. Note how the order of the variables has been flipped; the substitutions occur as they are written, left-to-right.
-
-To avoid accidental avriable capture we adopt the convention of $\alpha$-conversion, whereby we freely and implicitly interchange expressions which are equivalent up to the naming of bound variables \cite[p. 71]{tapl}. This elides some tedious bookkeeping in the definition of $\kwa{substitution}$. Consequently, we shall assume variables are (re-)named in this way to avoid accidental capture.
-
+Substitution in $\stlc$ follows the same conventions as it does in $\calc$. Substitution on an application is the same as substitution on its sub-expressions. Substitution on a function involves substitution on the function body.
 
 \begin{figure}[h]
 
@@ -271,45 +475,26 @@ To avoid accidental avriable capture we adopt the convention of $\alpha$-convers
 \begin{array}{c}
 
 \infer[\textsc{(E-App1)}]
-	{\hat e_1 \hat e_2 \longrightarrow \hat e_1' \hat e_2~|~\varepsilon}
-	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon}
-	~~~~~~
+	{ e_1  e_2 \longrightarrow  e_1'  e_2~|~\varepsilon}
+	{ e_1 \longrightarrow  e_1'~|~\varepsilon}
+	~~~
 \infer[\textsc{(E-App2)}]
-	{\hat v_1 \hat e_2 \longrightarrow \hat v_1 \hat e_2'~|~\varepsilon} 
-	{\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon}\\[4ex]
+	{ v_1  e_2 \longrightarrow  v_1  e_2'~|~\varepsilon} 
+	{ e_2 \longrightarrow  e_2'~|~\varepsilon}\\[2ex]
 	
 \infer[\textsc{(E-App3)}]
-	{ (\lambda x: \hat \tau.\hat e) \hat v_2 \longrightarrow [\hat v_2/x]\hat e~|~\varnothing }
-	{}\\[4ex]
+	{ (\lambda x:  \tau. e)  v_2 \longrightarrow [ v_2/x] e~|~\varnothing }
+	{}\\[2ex]
 	
 \end{array}
 \]
 
-\noindent
-\fbox{$e \longrightarrow^{*} e$}
-
-\[
-\begin{array}{c}
-
-\infer[\textsc{(E-MultiStep1)}]
-	{\hat e \longrightarrow^{*} \hat e~|~\varnothing}
-	{}
-~~~
-\infer[\textsc{(E-MultiStep2)}]
-	{\hat e \longrightarrow^{*} \hat e'~|~\varepsilon}
-	{\hat e \longrightarrow \hat e'~|~\varepsilon} \\[3ex]
-	
-\infer[\textsc{(E-MultiStep3)}]
-	{\hat e \longrightarrow^{*} \hat e''~|~\varepsilon_1 \cup \varepsilon_2}
-	{\hat e \longrightarrow^{*} \hat e'~|~\varepsilon_1 & \hat e' \rightarrow^{*} \hat e''~|~\varepsilon_2}
-\end{array}
-\]
-\vspace{-7pt}
+\vspace{-12pt}
 \caption{Dynamic rules for $\stlc$.}
 \label{This is the label.}
 \end{figure}
 
-There are two sorts of reduction rules: single-steps $e \longrightarrow e$, and multi-steps $e \longrightarrow^{*}$ which consists of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation\cite[p. 39]{tapl}.} or more single-steps. These semantics are call-by-value, because execution of a function (\textsc{E-App3}) can only happen when the subexpressions have been reduced (by \textsc{E-App1} until the left-hand side is a value, and then \textsc{E-App2}).
+Applications are the only reducible expressions in $\stlc$. Such an expression is reduced by first reducing the left subexpression (\textsc{E-App1}). For a well-typed expression, this will always be a function. Once that is a value, the right subexpression is reduced (\textsc{E-App2}). When both subexpressions are values, the right subexpression replaces the formal argument of the function via substitution. The multi-step rules for $\stlc$ are identical to those in $\calc$.
 
 The soundness property for $\stlc$ is as follows.
 
@@ -317,7 +502,9 @@ The soundness property for $\stlc$ is as follows.
 If $\Gamma \vdash e_A: \tau_A$ and $e_A \longrightarrow^* e_B$, then $\Gamma \vdash e_B: \tau_B$, where $\tau_B <: \tau_A$.
 \end{theorem}
 
-$\stlc$ is also strongly-normalizing, meaning that well-typed terms always halt. A consequence is that $\stlc$ cannot express certain programs and is therefore Turing-incomplete. One routine way of making the language Turing-complete is to add a $\kwa{fix}$ operator. Turing completenses is not overly relevant to the typing rules of $\epscalc$, so to simplify the presentation we shall leave our $\stlc$ a Turing-incomplete language.
+$\stlc$ is also strongly-normalizing, meaning that well-typed terms always halt. As a consequence it is \textit{not} Turing complete, meaning there are certain computer programs which cannot be written in $\stlc$. By comparison, the \textit{untyped} $\lambda$-calculus is known to be Turing complete \textbf{Citation needed.} One essential ingredient missing from $\stlc$ is a means of general recursion. In mainstream languages such as Java, this involves a construct like a $\kwa{while}$ loop; in the untyped $\lambda$-calculus, it can be simulated using the Y-combinator. $\stlc$ can be made Turing-complete by adding a $\kwa{fix}$ operator which mimics the Y-combinator.
+
+Turing-completeness is an essential property for practical languages. However, the key contribution of this report is in the static rules of $\epscalc$, which hold with or without Turing completeness. Therefore we acknowledge this practical short-coming, but leave $\stlc$ as a Turing-incomplete language to simplify the presentation.
 
 \textbf{Revisit this depending on how you encode types and stuff in $\epscalc$}
 

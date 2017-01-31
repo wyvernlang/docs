@@ -267,8 +267,50 @@ If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is 
 \begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$, for $\hat e$ not a value. If the rule is \textsc{$\varepsilon$-Subsumption} it follows by inductive hypothesis. If $\hat e$ has a reducible subexpression then reduce it. Otherwise use one of \textsc{$\varepsilon$-App3} or \textsc{$\varepsilon$-OperCall2}.
 \end{proof}
 
+To show preservation holds we need to know that type-and-effect safety is preserved by the substitution in the rule \textsc{E-App3}. The formulation of the substitution lemam is largely the same as it is in $\stlc$, except the expression being substituted must be a value. This strengthening of the lemma is not a problem as the dynamic rules employ a strict evaluation strategy, so any expressions are reduced to values before they are substituted.
 
+\begin{lemma}[Substitution]
+If $\Gamma, x: \tau' \vdash e: \tau~\kw{with} \varepsilon$ and $\Gamma \vdash v: \tau'~\kw{with} \varnothing$ then $\Gamma \vdash [v/x]e: \tau~\kw{with} \varepsilon$.
+\end{lemma}
 
+\begin{proof} By induction on $\Gamma, x: \tau' \vdash e: \tau~\kw{with} \varepsilon$.
+\end{proof}
+
+With this lemma, we are ready to prove the preservation theorem.
+
+\begin{theorem}[Preservation]
+If $\Gamma \vdash e_A: \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon$, then $\tau_B <: \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\end{theorem}
+
+\begin{proof} By induction on $\Gamma \vdash e_A: \tau_A~\kw{with} \varepsilon_A$, and then on $e_A \longrightarrow e_B~|~\varepsilon$. Since $e_A$ can be reduced, we need only consider those rules which apply to non-values and non-variables. \\
+
+\textit{Case:} \textsc{$\varepsilon$-App} Then $e_A = e_1 ~ e_2$ and $e_1: \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1$ and $\Gamma \vdash e_2: \tau_2~\kw{with} \varepsilon_2$. If the reduction rule used was \textsc{E-App1} or \textsc{E-App2}, then the result follows by applying the inductive hypothesis to $e_1$ and $e_2$ respectively.
+
+Otherwise the rule used was \textsc{E-App3}. Then $(\lambda x: \tau_2. e) v_2 \longrightarrow [ v_2/x] e~|~\varnothing$. By inversion on the typing rule for $\lambda x:  \tau_2. e$ we know $\Gamma, x:  \tau_2 \vdash  e:  \tau_3~\kw{with} \varepsilon_3$. By canonical forms, $\varepsilon_2 = \varnothing$ because $ e_2 =  v_2$ is a value. Then by the substitution lemma, $ \Gamma \vdash [ v_2/x] e :  \tau_3~\kw{with} \varepsilon_3$. By canonical forms, $\varepsilon_1 = \varepsilon_2 = \varnothing = \varepsilon_C$. Therefore $\varepsilon_A = \varepsilon_3 = \varepsilon_B \cup \varepsilon_C$.\\
+
+\textit{Case:} \textsc{$\varepsilon$-OperCall}. Then $e_A = e_1.\pi$ and $ \Gamma \vdash e_1 : \{ \bar r \}~\kw{with} \varepsilon_1$. If the reduction rule used was \textsc{E-OperCall1} then the result follows by applying the inductive hypothesis to $ e_1$.
+
+Otherwise the reduction rule used was \textsc{E-OperCall2} and $v_1.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$. By canonical forms, $ \Gamma \vdash v_1: \kwa{unit}~\kw{with} \{ r.\pi \}$. Also, $ \Gamma \vdash \kwa{unit}: \kwa{Unit}~\kw{with} \varnothing$. Then $\tau_B = \tau_A$. Also, $\varepsilon_C \cup \varepsilon_B = \{ r.\pi \} = \varepsilon_A$.\\
+
+\end{proof}
+
+Our single-step soundness theorem now holds immediately by joining the progress and preservation theorems into one.
+
+\begin{theorem}[Soundness]
+If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $ e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\end{theorem}
+\begin{proof}
+If $ e_A$ is not a value then the reduction exists by the progress theorem. The rest follows by the preservation theorem.
+\end{proof}
+
+Knowing that single-step reductions are sound, the soundness of multi-step reductions follows by inductively applying single-step soundness on the length of a multi-step reduction.
+
+\begin{theorem}[Multi-step Soundness]
+If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow^{*} e_B~|~\varepsilon$, where $\Gamma \vdash e_B: \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <: \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\end{theorem}
+
+\begin{proof} By induction on the length of the multi-step reduction. If the length is 0 then $e_A = e_B$ and the result holds vacuously. If the length is 1 the result holds by soundness of single-step reductions. if the length is $n+1$, then the first $n$-step reduction is sound by inductive hypothesis and the last step is sound by single-step soundness, so the entire $n+1$-step reduction is sound.
+\end{proof}
 
 
 
