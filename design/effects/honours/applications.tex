@@ -1,13 +1,13 @@
 
 \chapter{Applications}
 
-\section{Encodings}
+\section{Encodings and Extensions}
 
 When writing practical examples it is useful to use higher-level constructs which have been derived from the base language. In this section we introduce some of the constructs that we use in examples. Because the core language is sound, any derived extension is also sound.
 
 \subsection{Unit}
 
-$\kwa{Unit}$ is a type inhabited by exactly one value. It conveys the absence of information. In our dynamic rules, $\kwa{unit}$ is what an operation call on a resource literal is reduced to. We define $\kwa{unit} \defn \lambda x: \varnothing. x$ and $\kwa{Unit} \defn \varnothing \rightarrow_{\varnothing} \varnothing$. Note that because there is no empty resource literal, $\kwa{unit}$ cannot be applied to anything. Furthermore, $\vdash \unit : \Unit~\kw{with} \varnothing$, by \textsc{$\varepsilon$-Abs}, so any context can make this type judgement.
+$\kwa{Unit}$ is a type inhabited by exactly one value. It conveys the absence of information; in $\epscalc$ an operation call on a resource literal reduces to $\unit$ for this reason. We define $\kwa{unit} \defn \lambda x: \varnothing. x$ and $\kwa{Unit} \defn \varnothing \rightarrow_{\varnothing} \varnothing$. Note that because there is no empty resource literal, $\kwa{unit}$ cannot be applied to anything. Furthermore, $\vdash \unit : \Unit~\kw{with} \varnothing$, by \textsc{$\varepsilon$-Abs}.
 
 
 
@@ -79,15 +79,357 @@ The expression $\letxpr{x}{\hat e_1}{\hat e_2}$ first binds the value $\hat e_1$
 
 \subsection{Conditionals}
 
+The introduction of booleans and conditionals allows us to write some more interesting and practical examples. They can be added to the language by introducing a new base type $\Bool$, inhabited by two values, and a conditional expression, as shown in Figure 4.3.
+
+\begin{figure}[h]
+
+\[
+\begin{array}{c}
+
+\begin{array}{lllr}
+
+\hat e & ::= & ... & exprs: \\
+	& | & \cond{\hat e}{\hat e}{\hat e} & conditional \\
+	&&\\
+
+\hat v & ::= & ... & values: \\
+	& | & b & \Bool~constant \\
+	&&\\
+	
+\hat \tau & ::= & ... & types: \\
+	& | & \Bool & boolean \\
+	&&\\
+
+\end{array}
+
+\begin{array}{lllr}
+
+e & ::= & ... & exprs: \\
+	& | & \cond{e}{e}{e} & conditional \\
+	&&\\
+
+v & ::= & ... & values: \\
+	& | & b & \Bool~constant \\
+	&&\\
+		
+\tau & ::= & ... & types: \\
+	& | & \Bool & boolean \\
+	&&\\
+
+\end{array}
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{New grammar rules for $\Bool$.}
+\label{A sample. }
+\end{figure}
+
+Boolean literals can always be typed to $\Bool$ via \textsc{$\varepsilon$-Bool} (if they occur in annotated code) or via \textsc{T-Bool} (if they occur in unannotated code). A conditional types to $\Bool$ if the guard types to $\Bool$ and both branches type to the same type and have the same approximate effects. The two branches can have different effects; the approximation will then be the union of the effects on both branches (via \textsc{$\varepsilon$-Subsume}).
+
+The first dynamic rule, \textsc{E-Cond1}, reduces the guard of the conditional. When the guard has been reduced to a boolean literal, the conditional either reduces to the true branch (\textsc{E-Bool2}) or the false branch (\textsc{E-Bool3}).
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau$} \\
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$} \\
+\fbox{$\hat e \rightarrow \hat e ~|~ \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Bool)}]
+	{\Gamma \vdash b: \Bool}
+	{}
+~~~
+\infer[\textsc{($\varepsilon$-Bool)}]
+	{\hat \Gamma \vdash b: \Bool~\kw{with} \varnothing}
+	{}\\[2ex]
+
+\infer[\textsc{(T-Cond)}]
+	{\Gamma \vdash \cond{\hat e}{\hat e_1}{\hat e_2}: \tau'}
+	{\Gamma \vdash \hat e: \Bool & \Gamma \vdash \hat e_1: \tau' & \Gamma \vdash \hat e_2: \tau'} \\[2ex]
+	
+\infer[\textsc{($\varepsilon$-Cond)}]
+	{\hat \Gamma \vdash \cond{\hat e}{\hat e_1}{\hat e_2}: \tau'~\kw{with} \varepsilon \cup \varepsilon'}
+	{\hat \Gamma \vdash \hat e: \Bool~\kw{with} \varepsilon & \hat \Gamma \vdash \hat e_1: \tau'~\kw{with} \varepsilon' & \hat \Gamma \vdash \hat e_2: \tau'~\kw{with} \varepsilon'} \\[2ex]
+	
+\infer[\textsc{(E-Cond1)}]
+	{\cond{\hat e}{\hat e_1}{\hat e_2} \longrightarrow \cond{\hat e'}{\hat e_1}{\hat e_2}~|~\varepsilon}
+	{\hat e \longrightarrow \hat e'~|~\varepsilon} \\[2ex]
+	
+\infer[\textsc{(E-Cond2)}]
+	{\cond{\true}{\hat e_1}{\hat e_2} \longrightarrow \hat e_1~|~\varnothing}
+	{}~~~
+\infer[\textsc{(E-Cond3)}]
+	{\cond{\false}{\hat e_1}{\hat e_2} \longrightarrow \hat e_2~|~\varnothing}
+	{}
+
+\end{array}
+\]
+\vspace{-12pt}
+\caption{New static and dynamic rules for $\Bool$.}
+\label{A sample. }
+\end{figure}
+
+At this point we can introduce two derived forms. $\neg e \defn \cond{e}{\false}{\true}$ encodes boolean negation, while $e_1 \land e_2 \defn \cond{e_1}{(\cond{e_2}{\true}{\false})}{\false}$ encodes boolean conjunction. The set $\{ \neg, \land \}$ is known to be functionally complete, so this language extension enables the straight-forward expression of propositional logic.
+
 \subsection{Tuples}
 
-\textbf{We need tuples to import multiple names.}
+There are two main reasons for us to introduce tuples. The first is they enable functions to have multiple inputs and outputs. For example, $\lambda x: \Int, y: \Int . x + y$ can be encoded as $\lambda (x,y): \Int \times \Int . x + y$. A second use of tuples is to enable the $\kwa{import}$ construct to introduce multiple names in a straight-forward way. For instance, if some unlabelled code $e$ selected two capabilities and performed some computation, the program might be $\import{\kwa{File}, \kwa{Socket}}{x}{(\kwa{File}, \kwa{Socket})}{e}$. $e$ can then use its selected capabilities by extracting them from $x$.
+
+First let us show how to enrich the language with pairs. This can be done by adding a term for pairs and two primitives for projecting out the two elements of the pair. This requires the addition of a new type-constructor, $\times$ product, which acribes a type to tuples. For instance, the tuple $(\lambda x:\Bool . x, \true)$ would have the type $(\Bool \rightarrow \Bool) \times \Bool$. Tuples of values should also be considered as values, so we add this form to the category of values.
+
+\begin{figure}[h]
+
+\[
+\begin{array}{c}
+
+\begin{array}{lllr}
+
+\hat e & ::= & ... & exprs: \\
+	& | & (\hat e, \hat e) & tuple \\
+	& | & \hat e.1 & project~first \\
+	& | & \hat e.2 & project~second \\
+	&&\\
+
+\hat v & ::= & ... & values: \\
+	& | & (\hat v, \hat v) & tuple~of~values \\
+	&&\\
+	
+\hat \tau & ::= & ... & types: \\
+	& | & \hat \tau \times \hat \tau & product \\
+	&&\\
+
+\end{array}
+
+\begin{array}{lllr}
+
+e & ::= & ... & exprs: \\
+	& | & (e, e) & tuple \\
+	& | & e.1 & project~first \\
+	& | & e.2 & project~second \\
+	&&\\
+
+v & ::= & ... & values: \\
+	& | & (v, v) & tuple~of~values \\
+	&&\\
+		
+\tau & ::= & ... & types: \\
+	& | & \tau \times \tau & product \\
+	&&\\
+
+\end{array}
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{New grammar rules for pairs.}
+\label{A sample. }
+\end{figure}
+
+A pair is reduced by first reducing its components to values via \textsc{E-Pair1} and \textsc{E-Pair}. A pair can only have its contents projected via \textsc{E-Proj1} and \textsc{E-Proj2} if its components are values. Projection incurs no runtime effects.
+
+The type of a pair is the product of its component types (\textsc{T-Pair}). The type of projecting a product-typed expression is the type of the corresponding component (\textsc{T-Proj1}, \textsc{T-Proj2}).
+
+The effects of a pair is approximated as the effect of both its components (\textsc{$\varepsilon$-Pair}). In order to project a tuple, its components must first be reduced to values. These reductions --- which must take place before the projection can happen --- appear in the approximation of the effects of a projection (\textsc{$\varepsilon$-Proj1}, \textsc{$\varepsilon$-Proj2}), although the actual projection itself incurs no effects. 
+
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau$} \\
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$} \\
+\fbox{$\hat e \rightarrow \hat e ~|~ \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Pair)}]
+	{\Gamma \vdash (e_1, e_2): \tau_1 \times \tau_2}
+	{\Gamma \vdash e_1: \tau_1 & \Gamma \vdash e_2: \tau_2}
+	~~~
+\infer[\textsc{($\varepsilon$-Pair)}]
+	{\hat \Gamma \vdash (\hat e_1, \hat e_2): \hat \tau_1 \times \hat \tau_2~\kw{with} \varepsilon_1 \cup \varepsilon_2}
+	{\hat \Gamma \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[3ex]
+
+\infer[\textsc{(T-Proj1)}]
+	{\Gamma \vdash e.1 : \tau_1}
+	{\Gamma \vdash e: \tau_1 \times \tau_2}
+~~~
+
+\infer[\textsc{($\varepsilon$-Proj1)}]
+	{\Gamma \vdash \hat e.1: \hat \tau_1~\kw{with} \varepsilon_1}
+	{\Gamma \vdash \hat e: \hat \tau_1 \times \hat \tau_2 ~\kw{with} \varepsilon}\\[3ex]
+
+\infer[\textsc{(T-Proj2)}]
+	{\Gamma \vdash e.2 : \tau_2}
+	{\Gamma \vdash e: \tau_1 \times \tau_2}
+~~~
+
+\infer[\textsc{($\varepsilon$-Proj2)}]
+	{\Gamma \vdash \hat e.2: \hat \tau_1~\kw{with} \varepsilon_2}
+	{\Gamma \vdash \hat e: \hat \tau_1 \times \hat \tau_2~\kw{with} \varepsilon} \\[3ex]
+
+	\infer[\textsc{(E-Proj1)}]
+	{(\hat v_1, \hat v_2).1 \longrightarrow \hat v_1~|~\varepsilon}
+	{}
+	
+	~~~
+	
+\infer[\textsc{(E-Proj2)}]
+	{(\hat v_1, \hat v_2).2 \longrightarrow \hat v_2~|~\varepsilon}
+	{} \\[3ex]
+
+\infer[\textsc{(E-Pair1)}]
+	{(\hat e_1, \hat e_2) \longrightarrow (\hat e_1', \hat e_2)~|~\varepsilon}
+	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon}
+	
+	~~~
+	
+\infer[\textsc{(E-Pair2)}]
+	{(\hat v_1, \hat e_2) \longrightarrow (\hat v_1, \hat e_2')~|~\varepsilon}
+	{\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon}
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{New static and dynamic rules for pairs.}
+\label{A sample. }
+\end{figure}
+
+There are two straight-forward ways to obtain tuples of arbitrary length. The first is to generalise the forms seen above. The notation is cumbersome, so we instead choose the second approach: introduce syntactic sugar for a tuple of length $n$ by treating it as a pair containing nested pairs, to depth $n$. For example, the triple $(1,2,3)$ can be represented a $(1, (2,3))$. Its second component can be extracted by $((1, (2,3)).2).1$. Its third component can be extracted by $((1, (2,3)).2).2$. This gets unreadable, so we sugar the details away by introducting the notation $t.n$, which extracts the n'th item from tuple $t$.
+
+\subsection{General Recursion}
+
+Most languages support recursive function definitions or a similar construct such as while loops. The introduction of an operator permitting such general recursion introduces the possibility of non-terminating programs, but the language bceomes able to express programs it otherwise couldn't.
+
+Calculi with simple type systems like $\stlc$ and $\epscalc$ can be made Turing complete by the inclusion of a $\kwa{fix}$ operator. $\kwa{fix}$, when given a function, replaces the name of that function's argument with the $\kwa{fix}$ operator itself, inside the function body.
+
+\begin{figure}[h]
+
+\[
+\begin{array}{c}
+
+\begin{array}{lllr}
+
+\hat e & ::= & ... & exprs: \\
+	& | & \fix{\hat e} & fix~point~operator \\
+	&&\\
+
+\end{array}
+
+\begin{array}{lllr}
+
+e & ::= & ... & exprs: \\
+	& | & \fix{e} & fix~point~operator \\
+	&&\\
+
+\end{array}
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{New grammar rules for $\kwa{fix}$.}
+\label{A sample. }
+\end{figure}
+
+
+The semantics of $\kwa{fix}$ are given in Figure 4.8. A $\kwa{fix}$ expression is evaluated by first reducing its argument to a value via \textsc{E-Fix1}. When the argument has been reduced to a function literal, the $\kwa{fix}$ operator replaces all occurrences of the function's formal argument with itself (\textsc{E-Fix2}). If the function body evaluates to the $\kwa{fix}$ operator again it repeats the process. This is clearly non-terminating, unless the function body takes an execution path which doesn't involve evaluating the $\kwa{fix}$ operator; that is, it hits a base-case.
+
+
+\begin{figure}[h]
+\fbox{$\hat e \longrightarrow \hat e ~|~ \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-Fix1)}]
+	{\fix{\hat e} \longrightarrow \fix{\hat e'}~|~\varepsilon}
+	{\hat e \longrightarrow \hat e'~|~\varepsilon}
+~~~
+\infer[\textsc{(E-Fix2)}]
+	{\fix{\lambda x: \tau. \hat e} \longrightarrow [(\fix{\lambda x: \tau. \hat e})/x] \hat e}
+	{}\\[3ex]
+	
+\end{array}
+\]
+	
+\vspace{-12pt}
+\caption{New static and dynamic rules for pairs.}
+\label{A sample. }
+\end{figure}
+
+
+Practically, $\kwa{fix}$ is used by supplying a generating function which encapsulates the recursive function, and abstracts its recursive calls. When $\kwa{fix}$ is evaluated, the recursive call is replaced with an actual function which approximates the answer to the recursive call up to a certain point. Further recursive calls are then replaced with the same $\kwa{fix}$ expression. When it reaches an approximation which gives the correct answer (i.e. reaches a base-case) then the recursive function terminates --- and if that point is never reached, it recurses forever. The function encapsulating the recursive function is called a generator, because it is literally generating the definition of the recursive function as $\kwa{fix}$ expressions are reduced.
+
+Figure 4.8. demonstrates how the $\kwa{fix}$ combinator works in practice, by showing how it can be used to implement a sum function in a $\lambda$ calculus with arithmetic. The body of $\kwa{generator}$ is the definition of the $\kwa{sum}$ function, but recursive calls have been abstracted away as the argument of $\kwa{generator}$. $\kwa{sum}$ is defined as $\kwa{fix~generator}$. When $\kwa{fix}$ is applied the reduction steps into the body of $\kwa{generator}$, but all recursive calls $\kwa{recurse}$ are replaced with the definition of $\kwa{generator}$ again.
+
+\begin{figure}[h]
+\begin{lstlisting}
+generator = $\lambda$recurse: $\Nat \rightarrow \Nat$.
+    $\lambda$x:$\Nat$.
+        if isZero x then 0
+        else x + recurse (x-1)
+\end{lstlisting}
+
+\begin{lstlisting}
+sum = fix generator
+\end{lstlisting}
+\fbox{$\hat e \longrightarrow \hat e ~|~ \varepsilon$}
+
+\vspace{-12pt}
+\caption{A recursive definition of the factorial function.}
+\label{A sample. }
+\end{figure}
+
+Note that, for the particular way in which we are using $\kwa{fix}$, if $\kwa{generator}$ returns an expression of type $\tau$, then $\kwa{generator}$ has type $\tau \rightarrow \tau$. This particular method of using $\kwa{fix}$ is the only one in which we are interested, so we put the constraint that arguments to $\kwa{fix}$ should have type to $\tau \rightarrow \tau$. When $\kwa{fix}$ is applied to the generator, the reduction steps into the body of the generator; therefore, $\kwa{fix}$ types to the same as the expression which the generator is encapsulating.
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau$} \\
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$} \\
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Fix1)}]
+	{\Gamma \vdash \fix{e} : \tau}
+	{\Gamma \vdash e: \tau \rightarrow \tau}
+~~~
+\infer[\textsc{($\varepsilon$-Fix2)}]
+	{\Gamma \vdash \fix{e}: \tau~\kw{with} \varepsilon \cup \varepsilon' }
+	{\Gamma \vdash e: \tau \rightarrow_{\varepsilon'} \tau ~\kw{with} \varepsilon }
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{New static and dynamic rules for the $\kwa{fix}$ operator.}
+\label{A sample. }
+\end{figure}
+
+One way to view $\kwa{fix}$ is that it uses the generator to make a succession of functions, each one slightly better approximating the real answer for the particular input than the last. If this process terminates --- if a ``fixed point'' is found --- then it has found a good-enough approximation which gives the correct answer for the particular input given.
+
+
+\subsection{Objects}
 
 
 \section{Examples}
 
+In this section we present several scenarios where a developer may be forced to reason about the use of effects, and show how the capability-based reasoning of effects can assist them. In some scenarios, a program exhibits a certain nefarious behaviour, in which case capability-based reasoning can automatically detect this behaviour and reject it. Other scenarios are more qualitative; perhaps a developer must make a design choice and none of the alternatives \textit{prima facie} stand out. In such cases, capability-based reasoning might supply them with useful information, enabling tehm to make more informed design choices. We also hope to convince the reader that the rules of $\epscalc$ have practical worth, and could be used to enrich existing capability-safe languages.
 
+The format of each section is as follows. A program is introduced which exhibits some bad behaviour or demonstrates a particular story about software development. The language used is \textit{Wyvern}; a pure, object-oriented, capability-safe language with first-class modules-as-objects. We show how the Wyvern program can be written as a corresponding $\epscalc$ program and sketch a derivation showing how the rules of $\epscalc$ and a sketch a derivation showing how the rules of $\epscalc$ would solve the relevant problem.
 
+We take some shortcuts with the translation of Wyvern into $\epscalc$. Our ``objects'' are really records of functions; the difference between the two is self-reference. The particular examples chosen do not require self-reference, so no important properties are lost by treating Wyvern objects as records.
+
+\subsection{Unannotated Client}
+
+In Figure ?? an annotated $\kwa{Logger}$ module provides its client the ability to append to a particular $\kwa{File}$ resource. $\kwa{File}$ is a primitive capability passed into the program when it begins execution, perhaps from the system environment or a virtual machine. The $\kwa{Logger}$ module presents a controlled subset of operations on the $\kwa{File}$ viz. $\kwa{File.append}$. The program consists of an unannotated client which instantiates the $\kwa{Logger}$ module with the capability it selects ($\kwa{File}$) and then attempts to log.
+
+By inspecting the client's codebase, it is not immediately clear what effects will be incurred. If the client code is executed, what effects will it have? A capability-based argument goes as follows. Because the client code can typecheck needing only $\kwa{Logger}$, then whatever effects the $\kwa{Logger}$ module presents is an upper-bound on the effects of the client.
 
 \begin{figure}[h]
 
@@ -103,15 +445,45 @@ def log(): Unit with File.append =
 require File
 instantiate Logger(File)
 
-def main(): Unit =
-    Logger.log()
+Logger.log()
 \end{lstlisting}
 
-\caption{A $\kwa{logger}$ client doesn't need to add effect labels. These can be inferred.}
+\caption{A $\kwa{logger}$ client doesn't need to add effect labels; these can be inferred.}
 \label{This is the label.}
 \end{figure}
 
+The desugaring first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{Logger}$ and $\kwa{Client}$ modules; the client code is treated as an implicit module. Lines 1-4 define a function which, given a $\kwa{File}$, returns a record containing a single $\kwa{log}$ function. Lines 6-10 define a function which, given a $\kwa{Logger}$, returns the unannotated client code, wrapped inside an $\kwa{import}$ expression selecting its needed authority. Lines 12-16 constitute the meat of the program; this function, when given a $\kwa{File}$ capability, creates the modules and then runs the client code. Program execution begins on line $18$, where the $\kwa{Main}$ is given its initial set of capabilities --- which, in this case, is just $\kwa{File}$.
 
+\begin{figure}[h]
+
+\begin{lstlisting}
+let MakeLogger =
+   ($\lambda$f: File.
+      ({log = $\lambda$x: Unit.
+          f.append(``message written'')}) in
+          
+let MakeClient =
+   ($\lambda$logger: Logger.
+      {run = $\lambda$x: Unit.
+         import(File.append) logger = logger in
+            logger.log unit}) in
+         
+let Main =
+   ($\lambda$f: File.
+      let LoggerModule = MakeLogger f in
+      let ClientModule = MakeClient LoggerModule in
+      ClientModule.run unit) in
+
+Main File
+\end{lstlisting}
+
+\caption{Desugared version of Figure ??}
+\label{This is the label.}
+\end{figure}
+
+At this scale the client can simply inspect the source code of $\kwa{Logger}$ to determine what effects their code might have. Several situations could make this impossible or tedious. First, the manual approach loses efficiency when the system involves many modules of large size across code-ownership boundaries; capability-based reasoning tells you automatically. Second, the source code of $\kwa{Logger}$ might be obfuscated or unavailable, and the only useful information is that given by its signature. Lastly, the client may not care about effects in this situation; the program may be a quick-and-dirty throwaway, in which case it is nice that the capability-based reasoning still accepts the client code without requiring them to annotate their code or perform any other tedious overheads.
+
+\subsection{API Violation}
 
 \begin{figure}[h]
 
@@ -119,7 +491,7 @@ def main(): Unit =
 resource module Logger
 require File
 
-def log(): Unit with File.append, File.write =
+def log(): Unit with {File.append, File.write} =
     File.append(``message logged'')
     File.write(``message written'')
 \end{lstlisting}
@@ -143,8 +515,10 @@ def main(): Unit with File.append =
 \label{This is the label.}
 \end{figure}
 
-
+\subsection{Resource Leak}
 
 \textbf{EXAMPLE OF A RESOURCE LEAKING AND BREAKING CONFINEMENT}
+
+\subsection{Authority Violation}
 
 \textbf{EXAMPLE OF IMPORTING MULTIPLE CAPABILITIES, ONE GETS LEAKED AND PASSED SOMEWHERE IT HASN'T BEEN SELECTED}
