@@ -1,15 +1,21 @@
 
 \chapter{Applications}
 
-\section{Encodings and Extensions}
+In this chapter we show how $\epscalc$ can be used in practice, and show how its rules can enable effect reasoning in existing capability-safe languages. This will take the form of writing a program in a high-level, capability-safe language, translating it to an equivalent $\epscalc$ program, and demonstrating how the rules of $\epscalc$ enable reasoning about the use of effects.
 
-When writing practical examples it is useful to use higher-level constructs which have been derived from the base language. In this section we introduce some of the constructs that we use in examples. Because the core language is sound, any derived extension is also sound.
+In this section the high-level programs will be written in a version of Wyvern. Wyvern is a pure, object-oriented, capability-safe language. It has a first-class module system, in which modules and objects are treated uniformly. Although $\epscalc$ does not have objects, the example Wyvern programs can be expressed using functions. This does not mean the examples given aren't demonstrating useful and realistic situations --- we simply do not need the added expressiveness given by self-referential objects.
+
+In section 4.1. we discuss how the translation from Wyvern to $\epscalc$ will work, and what simplifying assumptions are made in our examples. This also serves as a gentle introduction to Wyvern's syntax. A variety of scenarios are then explored in 4.2. to show how the rules of $\epscalc$ can help developers in practice.
+
+\section{Translations and Encodings}
+
+Our aim is to develop some notation to help us translate Wyvern programs into $\epscalc$. Our approach will be to encode these additional rules and forms into the base language of $\epscalc$; essentially, to give common patterns and forms a short-hand, so they can be easily named and recalled. This is called \textit{sugaring}. When these derived forms are collapsed into their underlying representation, it is called \textit{desugaring}. We are going to introduce several rules to show a Wyvern program might be considered syntactic sugar for an $\epscalc$ program, and translate examples by desugaring according to our rules.
 
 \subsection{Unit}
 
-$\kwa{Unit}$ is a type inhabited by exactly one value. It conveys the absence of information; in $\epscalc$ an operation call on a resource literal reduces to $\unit$ for this reason. We define $\kwa{unit} \defn \lambda x: \varnothing. x$ and $\kwa{Unit} \defn \varnothing \rightarrow_{\varnothing} \varnothing$. Note that because there is no empty resource literal, $\kwa{unit}$ cannot be applied to anything. Furthermore, $\vdash \unit : \Unit~\kw{with} \varnothing$, by \textsc{$\varepsilon$-Abs}.
+$\kwa{Unit}$ is a type inhabited by exactly one value. It conveys the absence of information; in $\epscalc$ an operation call on a resource literal reduces to $\unit$ for this reason. We define $\unit \defn \lambda x: \varnothing. x$. The $\unit$ literal is the same in both annotated and naked code. In annotated code, it has the type $\Unit \defn \varnothing \rightarrow_{\varnothing} \varnothing$, while in naked code it has the type $\Unit \defn \varnothing \rightarrow \varnothing$. While these are technically two seperate types, we will not distinguish between the annotated and naked versions, simply referring to them both as $\Unit$.
 
-
+Note that $\unit$ is a value, and because $\varnothing$ is uninhabited (there is no empty resource literal), $\unit$ cannot be applied to anything. Furthermore, $\vdash \unit: \Unit~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Abs}, and $\vdash \unit: \Unit$ by \textsc{T-Abs}. This leads to the derived rules in \ref{fig:unit_rules}.
 
 \begin{figure}[h]
 
@@ -32,15 +38,31 @@ $\kwa{Unit}$ is a type inhabited by exactly one value. It conveys the absence of
 \end{array}
 \]
 
-	
 \caption{Derived $\kwa{Unit}$ rules.}
-\label{This is the label.}
+\label{fig:unit_rules}
+\end{figure}
+
+Since $\unit$ represents the absence of information, we also use it as the type when a function either takes no argument, or returns nothing. \ref{fig:unit_sugaring} shows the definition of a Wyvern function which takes no argument and returns nothing, and its corresponding representation in $\epscalc$.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+def method():Unit
+   unit
+\end{lstlisting}
+
+\begin{lstlisting}
+$\lambda$x:Unit. unit
+\end{lstlisting}
+
+\caption{Desugaring of functions which take no arguments or return nothing.}
+\label{fig:unit_sugaring}
 \end{figure}
 
 \subsection{Let}
 
 \noindent
-The expression $\letxpr{x}{\hat e_1}{\hat e_2}$ first binds the value $\hat e_1$ to the name $x$ and then evaluates $\hat e_2$. We can generalise by allowing $\hat e_1$ to be a non-value, in which case it must first be reduced to a value. If $\Gamma \vdash \hat e_1: \hat \tau_1$, then $\letxpr{x}{\hat e_1}{\hat e_2} \defn (\lambda x: \hat \tau_1 . \hat e_2) \hat e_1$. Note that if $\hat e_1$ is a non-value, we can reduce the $\kwa{let}$ by \textsc{E-App2}. If $\hat e_1$ is a value, we may apply \textsc{E-App3}, which binds $\hat e_1$ to $x$ in $\hat e_2$. This is fundamentally a lambda application, so it can be typed using \textsc{$\varepsilon$-App} (or \textsc{T-App}, if the terms involved are unlabelled).
+The expression $\letxpr{x}{\hat e_1}{\hat e_2}$ first binds the value $\hat e_1$ to the name $x$ and then evaluates $\hat e_2$. We can generalise by allowing $\hat e_1$ to be a non-value, in which case it must first be reduced to a value. If $\Gamma \vdash \hat e_1: \hat \tau_1$, then $\letxpr{x}{\hat e_1}{\hat e_2} \defn (\lambda x: \hat \tau_1 . \hat e_2) \hat e_1$. Note that if $\hat e_1$ is a non-value, we can reduce the $\kwa{let}$ by \textsc{E-App2}. If $\hat e_1$ is a value, we may apply \textsc{E-App3}, which binds $\hat e_1$ to $x$ in $\hat e_2$. This is fundamentally a lambda application, so it can be typed using \textsc{$\varepsilon$-App} (or \textsc{T-App}, if the terms involved are unlabelled). The new rules in \ref{fig:let_rules} capture these derivations.
 
 \begin{figure}[h]
 
@@ -55,366 +77,132 @@ The expression $\letxpr{x}{\hat e_1}{\hat e_2}$ first binds the value $\hat e_1$
 	
 	\infer[\textsc{($\varepsilon$-Let)}]
 	{\Gamma \vdash \letxpr{x}{e_1}{e_2}: \tau_2}
-	{\Gamma \vdash e_1: \tau_1 & \Gamma, x: \tau_1 \vdash e_2: \tau_2} \\[4ex]
+	{\Gamma \vdash e_1: \tau_1 & \Gamma, x: \tau_1 \vdash e_2: \tau_2} \\[2ex]
 
 \infer[\textsc{($\varepsilon$-Let)}]
 	{\hat \Gamma \vdash \letxpr{x}{\hat e_1}{\hat e_2} : \hat \tau_2~\kw{with} \varepsilon_1 \cup \varepsilon_2}
-	{\hat \Gamma \vdash \hat e_1 : \hat \tau_1~\kw{with} \varepsilon_1 & \hat \Gamma, x: \hat \tau_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2} \\[4ex]
-
-\infer[\textsc{($\varepsilon$-Let1)}]
-	{\letxpr{x}{\hat e_1}{\hat e_2} \longrightarrow \letxpr{x}{\hat e_1'}{\hat e_2}~|~\varepsilon_1}
-	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon_1} \\[3ex]
+	{\hat \Gamma \vdash \hat e_1 : \hat \tau_1~\kw{with} \varepsilon_1 & \hat \Gamma, x: \hat \tau_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2} \\[2ex]
 	
-\infer[\textsc{($\varepsilon$-Let2)}]
+\infer[\textsc{(E-Let1)}]
+	{\letxpr{x}{\hat e_1}{\hat e_2} \longrightarrow \letxpr{x}{\hat e_1'}{\hat e_2}~|~\varepsilon_1}
+	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon_1} \\[2ex]
+	
+\infer[\textsc{(E-Let2)}]
 	{\letxpr{x}{\hat v}{\hat e} \longrightarrow [\hat v/x]\hat e~|~\varnothing}
 	{} 
 
 \end{array}
 \]
 
-
 \caption{Derived $\kwa{let}$ rules.}
-\label{This is the label.}
+\label{fig:let_rules}
 \end{figure}
 
-\subsection{Conditionals}
-
-The introduction of booleans and conditionals allows us to write some more interesting and practical examples. They can be added to the language by introducing a new base type $\Bool$, inhabited by two values, and a conditional expression, as shown in Figure 4.3.
+$\kwa{let}$ expressions can be used to sequence computations. Intuitively, the $\kwa{let}$ expression simply names the results of the intemediate steps and then ignores them in its body. When we ignore the result of a computation we shall bind it to $\_$ instead of a real name, to suggest the result isn't important and prevent the naming of unused variables. \ref{fig:let_rules} shows how this is done.
 
 \begin{figure}[h]
 
-\[
-\begin{array}{c}
-
-\begin{array}{lllr}
-
-\hat e & ::= & ... & exprs: \\
-	& | & \cond{\hat e}{\hat e}{\hat e} & conditional \\
-	&&\\
-
-\hat v & ::= & ... & values: \\
-	& | & b & \Bool~constant \\
-	&&\\
-	
-\hat \tau & ::= & ... & types: \\
-	& | & \Bool & boolean \\
-	&&\\
-
-\end{array}
-
-\begin{array}{lllr}
-
-e & ::= & ... & exprs: \\
-	& | & \cond{e}{e}{e} & conditional \\
-	&&\\
-
-v & ::= & ... & values: \\
-	& | & b & \Bool~constant \\
-	&&\\
-		
-\tau & ::= & ... & types: \\
-	& | & \Bool & boolean \\
-	&&\\
-
-\end{array}
-
-\end{array}
-\]
-
-\vspace{-12pt}
-\caption{New grammar rules for $\Bool$.}
-\label{A sample. }
-\end{figure}
-
-Boolean literals can always be typed to $\Bool$ via \textsc{$\varepsilon$-Bool} (if they occur in annotated code) or via \textsc{T-Bool} (if they occur in unannotated code). A conditional types to $\Bool$ if the guard types to $\Bool$ and both branches type to the same type and have the same approximate effects. The two branches can have different effects; the approximation will then be the union of the effects on both branches (via \textsc{$\varepsilon$-Subsume}).
-
-The first dynamic rule, \textsc{E-Cond1}, reduces the guard of the conditional. When the guard has been reduced to a boolean literal, the conditional either reduces to the true branch (\textsc{E-Bool2}) or the false branch (\textsc{E-Bool3}).
-
-\begin{figure}[h]
-
-\fbox{$\Gamma \vdash e: \tau$} \\
-\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$} \\
-\fbox{$\hat e \rightarrow \hat e ~|~ \varepsilon$}
-
-\[
-\begin{array}{c}
-
-\infer[\textsc{(T-Bool)}]
-	{\Gamma \vdash b: \Bool}
-	{}
-~~~
-\infer[\textsc{($\varepsilon$-Bool)}]
-	{\hat \Gamma \vdash b: \Bool~\kw{with} \varnothing}
-	{}\\[2ex]
-
-\infer[\textsc{(T-Cond)}]
-	{\Gamma \vdash \cond{\hat e}{\hat e_1}{\hat e_2}: \tau'}
-	{\Gamma \vdash \hat e: \Bool & \Gamma \vdash \hat e_1: \tau' & \Gamma \vdash \hat e_2: \tau'} \\[2ex]
-	
-\infer[\textsc{($\varepsilon$-Cond)}]
-	{\hat \Gamma \vdash \cond{\hat e}{\hat e_1}{\hat e_2}: \tau'~\kw{with} \varepsilon \cup \varepsilon'}
-	{\hat \Gamma \vdash \hat e: \Bool~\kw{with} \varepsilon & \hat \Gamma \vdash \hat e_1: \tau'~\kw{with} \varepsilon' & \hat \Gamma \vdash \hat e_2: \tau'~\kw{with} \varepsilon'} \\[2ex]
-	
-\infer[\textsc{(E-Cond1)}]
-	{\cond{\hat e}{\hat e_1}{\hat e_2} \longrightarrow \cond{\hat e'}{\hat e_1}{\hat e_2}~|~\varepsilon}
-	{\hat e \longrightarrow \hat e'~|~\varepsilon} \\[2ex]
-	
-\infer[\textsc{(E-Cond2)}]
-	{\cond{\true}{\hat e_1}{\hat e_2} \longrightarrow \hat e_1~|~\varnothing}
-	{}~~~
-\infer[\textsc{(E-Cond3)}]
-	{\cond{\false}{\hat e_1}{\hat e_2} \longrightarrow \hat e_2~|~\varnothing}
-	{}
-
-\end{array}
-\]
-\vspace{-12pt}
-\caption{New static and dynamic rules for $\Bool$.}
-\label{A sample. }
-\end{figure}
-
-At this point we can introduce two derived forms. $\neg e \defn \cond{e}{\false}{\true}$ encodes boolean negation, while $e_1 \land e_2 \defn \cond{e_1}{(\cond{e_2}{\true}{\false})}{\false}$ encodes boolean conjunction. The set $\{ \neg, \land \}$ is known to be functionally complete, so this language extension enables the straight-forward expression of propositional logic.
-
-\subsection{Tuples}
-
-There are two main reasons for us to introduce tuples. The first is they enable functions to have multiple inputs and outputs. For example, $\lambda x: \Int, y: \Int . x + y$ can be encoded as $\lambda (x,y): \Int \times \Int . x + y$. A second use of tuples is to enable the $\kwa{import}$ construct to introduce multiple names in a straight-forward way. For instance, if some unlabelled code $e$ selected two capabilities and performed some computation, the program might be $\import{\kwa{File}, \kwa{Socket}}{x}{(\kwa{File}, \kwa{Socket})}{e}$. $e$ can then use its selected capabilities by extracting them from $x$.
-
-First let us show how to enrich the language with pairs. This can be done by adding a term for pairs and two primitives for projecting out the two elements of the pair. This requires the addition of a new type-constructor, $\times$ product, which acribes a type to tuples. For instance, the tuple $(\lambda x:\Bool . x, \true)$ would have the type $(\Bool \rightarrow \Bool) \times \Bool$. Tuples of values should also be considered as values, so we add this form to the category of values.
-
-\begin{figure}[h]
-
-\[
-\begin{array}{c}
-
-\begin{array}{lllr}
-
-\hat e & ::= & ... & exprs: \\
-	& | & (\hat e, \hat e) & tuple \\
-	& | & \hat e.1 & project~first \\
-	& | & \hat e.2 & project~second \\
-	&&\\
-
-\hat v & ::= & ... & values: \\
-	& | & (\hat v, \hat v) & tuple~of~values \\
-	&&\\
-	
-\hat \tau & ::= & ... & types: \\
-	& | & \hat \tau \times \hat \tau & product \\
-	&&\\
-
-\end{array}
-
-\begin{array}{lllr}
-
-e & ::= & ... & exprs: \\
-	& | & (e, e) & tuple \\
-	& | & e.1 & project~first \\
-	& | & e.2 & project~second \\
-	&&\\
-
-v & ::= & ... & values: \\
-	& | & (v, v) & tuple~of~values \\
-	&&\\
-		
-\tau & ::= & ... & types: \\
-	& | & \tau \times \tau & product \\
-	&&\\
-
-\end{array}
-
-\end{array}
-\]
-
-\vspace{-12pt}
-\caption{New grammar rules for pairs.}
-\label{A sample. }
-\end{figure}
-
-A pair is reduced by first reducing its components to values via \textsc{E-Pair1} and \textsc{E-Pair}. A pair can only have its contents projected via \textsc{E-Proj1} and \textsc{E-Proj2} if its components are values. Projection incurs no runtime effects.
-
-The type of a pair is the product of its component types (\textsc{T-Pair}). The type of projecting a product-typed expression is the type of the corresponding component (\textsc{T-Proj1}, \textsc{T-Proj2}).
-
-The effects of a pair is approximated as the effect of both its components (\textsc{$\varepsilon$-Pair}). In order to project a tuple, its components must first be reduced to values. These reductions --- which must take place before the projection can happen --- appear in the approximation of the effects of a projection (\textsc{$\varepsilon$-Proj1}, \textsc{$\varepsilon$-Proj2}), although the actual projection itself incurs no effects. 
-
-
-\begin{figure}[h]
-
-\fbox{$\Gamma \vdash e: \tau$} \\
-\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$} \\
-\fbox{$\hat e \rightarrow \hat e ~|~ \varepsilon$}
-
-\[
-\begin{array}{c}
-
-\infer[\textsc{(T-Pair)}]
-	{\Gamma \vdash (e_1, e_2): \tau_1 \times \tau_2}
-	{\Gamma \vdash e_1: \tau_1 & \Gamma \vdash e_2: \tau_2}
-	~~~
-\infer[\textsc{($\varepsilon$-Pair)}]
-	{\hat \Gamma \vdash (\hat e_1, \hat e_2): \hat \tau_1 \times \hat \tau_2~\kw{with} \varepsilon_1 \cup \varepsilon_2}
-	{\hat \Gamma \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[3ex]
-
-\infer[\textsc{(T-Proj1)}]
-	{\Gamma \vdash e.1 : \tau_1}
-	{\Gamma \vdash e: \tau_1 \times \tau_2}
-~~~
-
-\infer[\textsc{($\varepsilon$-Proj1)}]
-	{\Gamma \vdash \hat e.1: \hat \tau_1~\kw{with} \varepsilon_1}
-	{\Gamma \vdash \hat e: \hat \tau_1 \times \hat \tau_2 ~\kw{with} \varepsilon}\\[3ex]
-
-\infer[\textsc{(T-Proj2)}]
-	{\Gamma \vdash e.2 : \tau_2}
-	{\Gamma \vdash e: \tau_1 \times \tau_2}
-~~~
-
-\infer[\textsc{($\varepsilon$-Proj2)}]
-	{\Gamma \vdash \hat e.2: \hat \tau_1~\kw{with} \varepsilon_2}
-	{\Gamma \vdash \hat e: \hat \tau_1 \times \hat \tau_2~\kw{with} \varepsilon} \\[3ex]
-
-	\infer[\textsc{(E-Proj1)}]
-	{(\hat v_1, \hat v_2).1 \longrightarrow \hat v_1~|~\varepsilon}
-	{}
-	
-	~~~
-	
-\infer[\textsc{(E-Proj2)}]
-	{(\hat v_1, \hat v_2).2 \longrightarrow \hat v_2~|~\varepsilon}
-	{} \\[3ex]
-
-\infer[\textsc{(E-Pair1)}]
-	{(\hat e_1, \hat e_2) \longrightarrow (\hat e_1', \hat e_2)~|~\varepsilon}
-	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon}
-	
-	~~~
-	
-\infer[\textsc{(E-Pair2)}]
-	{(\hat v_1, \hat e_2) \longrightarrow (\hat v_1, \hat e_2')~|~\varepsilon}
-	{\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon}
-
-\end{array}
-\]
-
-\vspace{-12pt}
-\caption{New static and dynamic rules for pairs.}
-\label{A sample. }
-\end{figure}
-
-There are two straight-forward ways to obtain tuples of arbitrary length. The first is to generalise the forms seen above. The notation is cumbersome, so we instead choose the second approach: introduce syntactic sugar for a tuple of length $n$ by treating it as a pair containing nested pairs, to depth $n$. For example, the triple $(1,2,3)$ can be represented a $(1, (2,3))$. Its second component can be extracted by $((1, (2,3)).2).1$. Its third component can be extracted by $((1, (2,3)).2).2$. This gets unreadable, so we sugar the details away by introducting the notation $t.n$, which extracts the n'th item from tuple $t$.
-
-\subsection{General Recursion}
-
-Most languages support recursive function definitions or a similar construct such as while loops. The introduction of an operator permitting such general recursion introduces the possibility of non-terminating programs, but the language bceomes able to express programs it otherwise couldn't.
-
-Calculi with simple type systems like $\stlc$ and $\epscalc$ can be made Turing complete by the inclusion of a $\kwa{fix}$ operator. $\kwa{fix}$, when given a function, replaces the name of that function's argument with the $\kwa{fix}$ operator itself, inside the function body.
-
-\begin{figure}[h]
-
-\[
-\begin{array}{c}
-
-\begin{array}{lllr}
-
-\hat e & ::= & ... & exprs: \\
-	& | & \fix{\hat e} & fix~point~operator \\
-	&&\\
-
-\end{array}
-
-\begin{array}{lllr}
-
-e & ::= & ... & exprs: \\
-	& | & \fix{e} & fix~point~operator \\
-	&&\\
-
-\end{array}
-
-\end{array}
-\]
-
-\vspace{-12pt}
-\caption{New grammar rules for $\kwa{fix}$.}
-\label{A sample. }
-\end{figure}
-
-
-The semantics of $\kwa{fix}$ are given in Figure 4.8. A $\kwa{fix}$ expression is evaluated by first reducing its argument to a value via \textsc{E-Fix1}. When the argument has been reduced to a function literal, the $\kwa{fix}$ operator replaces all occurrences of the function's formal argument with itself (\textsc{E-Fix2}). If the function body evaluates to the $\kwa{fix}$ operator again it repeats the process. This is clearly non-terminating, unless the function body takes an execution path which doesn't involve evaluating the $\kwa{fix}$ operator; that is, it hits a base-case.
-
-
-\begin{figure}[h]
-\fbox{$\hat e \longrightarrow \hat e ~|~ \varepsilon$}
-
-\[
-\begin{array}{c}
-
-\infer[\textsc{(E-Fix1)}]
-	{\fix{\hat e} \longrightarrow \fix{\hat e'}~|~\varepsilon}
-	{\hat e \longrightarrow \hat e'~|~\varepsilon}
-~~~
-\infer[\textsc{(E-Fix2)}]
-	{\fix{\lambda x: \tau. \hat e} \longrightarrow [(\fix{\lambda x: \tau. \hat e})/x] \hat e}
-	{}\\[3ex]
-	
-\end{array}
-\]
-	
-\vspace{-12pt}
-\caption{New static and dynamic rules for pairs.}
-\label{A sample. }
-\end{figure}
-
-
-Practically, $\kwa{fix}$ is used by supplying a generating function which encapsulates the recursive function, and abstracts its recursive calls. When $\kwa{fix}$ is evaluated, the recursive call is replaced with an actual function which approximates the answer to the recursive call up to a certain point. Further recursive calls are then replaced with the same $\kwa{fix}$ expression. When it reaches an approximation which gives the correct answer (i.e. reaches a base-case) then the recursive function terminates --- and if that point is never reached, it recurses forever. The function encapsulating the recursive function is called a generator, because it is literally generating the definition of the recursive function as $\kwa{fix}$ expressions are reduced.
-
-Figure 4.8. demonstrates how the $\kwa{fix}$ combinator works in practice, by showing how it can be used to implement a sum function in a $\lambda$ calculus with arithmetic. The body of $\kwa{generator}$ is the definition of the $\kwa{sum}$ function, but recursive calls have been abstracted away as the argument of $\kwa{generator}$. $\kwa{sum}$ is defined as $\kwa{fix~generator}$. When $\kwa{fix}$ is applied the reduction steps into the body of $\kwa{generator}$, but all recursive calls $\kwa{recurse}$ are replaced with the definition of $\kwa{generator}$ again.
-
-\begin{figure}[h]
 \begin{lstlisting}
-generator = $\lambda$recurse: $\Nat \rightarrow \Nat$.
-    $\lambda$x:$\Nat$.
-        if isZero x then 0
-        else x + recurse (x-1)
+def method(f: {File}):Unit with {File.open, File.write, File.close}
+   f.open
+   f.write(``hello, world!'')
+   f.close
 \end{lstlisting}
 
 \begin{lstlisting}
-sum = fix generator
+$\lambda$f: {File}.
+   let _ = f.open in
+   let _ = f.write in
+   f.close
 \end{lstlisting}
-\fbox{$\hat e \longrightarrow \hat e ~|~ \varepsilon$}
 
-\vspace{-12pt}
-\caption{A recursive definition of the factorial function.}
-\label{A sample. }
+\caption{Desugaring of a sequence of computations.}
+\label{fig:let_rules}
 \end{figure}
 
-Note that, for the particular way in which we are using $\kwa{fix}$, if $\kwa{generator}$ returns an expression of type $\tau$, then $\kwa{generator}$ has type $\tau \rightarrow \tau$. This particular method of using $\kwa{fix}$ is the only one in which we are interested, so we put the constraint that arguments to $\kwa{fix}$ should have type to $\tau \rightarrow \tau$. When $\kwa{fix}$ is applied to the generator, the reduction steps into the body of the generator; therefore, $\kwa{fix}$ types to the same as the expression which the generator is encapsulating.
+\subsection{Modules and Objects}
+
+Wyvern's modules are first-class and desugar into objects; invoking a method inside a module is no different from invoking an object's method. There are two kinds of modules: pure and resourceful. For our purposes, a pure module is one with no (transitive) authority over any resources, while a resource module has (transitive) authority over some resource. A pure module may still be given a capability, for example by requesting it in a function signature, but it may not possess or capture the capability for longer than the duration of the method call. \ref{fig:wyv_modules} shows an example of two modules, one pure and one resourceful, each declared in a seperate file. Note how pure modules are declared with the $\kwa{module}$ keyword, while resource modules are declared with the $\kwa{resource~module}$ keywords.
 
 \begin{figure}[h]
 
-\fbox{$\Gamma \vdash e: \tau$} \\
-\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$} \\
+\begin{lstlisting}
+module PureMod
 
-\[
-\begin{array}{c}
+def tick(f: {File}):Unit
+   f.append
 
-\infer[\textsc{(T-Fix1)}]
-	{\Gamma \vdash \fix{e} : \tau}
-	{\Gamma \vdash e: \tau \rightarrow \tau}
-~~~
-\infer[\textsc{($\varepsilon$-Fix2)}]
-	{\Gamma \vdash \fix{e}: \tau~\kw{with} \varepsilon \cup \varepsilon' }
-	{\Gamma \vdash e: \tau \rightarrow_{\varepsilon'} \tau ~\kw{with} \varepsilon }
-\end{array}
-\]
+\end{lstlisting}
 
-\vspace{-12pt}
-\caption{New static and dynamic rules for the $\kwa{fix}$ operator.}
-\label{A sample. }
+\begin{lstlisting}
+resource module ResourceMod
+require File
+
+def tick():Unit with {File.append}
+   File.append
+\end{lstlisting}
+
+\caption{Definition of two modules, one pure and the other resourceful.}
+\label{fig:wyv_modules}
 \end{figure}
 
-One way to view $\kwa{fix}$ is that it uses the generator to make a succession of functions, each one slightly better approximating the real answer for the particular input than the last. If this process terminates --- if a ``fixed point'' is found --- then it has found a good-enough approximation which gives the correct answer for the particular input given.
+Wyvern is capability-safe, so resource modules must be instantiated with the capabilities they require. In \ref{fig:wyv_modules}, $\kwa{ResourceMod}$ requests the use of a $\kwa{File}$ capability, which must be supplied to it from someone already possessing it. Modules are behaving like objects in this way, because they require explicit instantiation. \ref{fig:wyv_module_instantiation} demonstrates how the two modules above would be instantiated and used.
+
+To prevent infinite regress the $\kwa{File}$ must, at some point, be introduced into the program. This happens in a special main module. When the program begins execution, the $\kwa{File}$ capability is passed into the program from the system environment. All these initial capabilities are modelled in $\epscalc$ as resource literals. They are then propagated by the top-level entry point.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+require File
+instantiate PureMod
+instantiate ResourceMod(File)
+
+def main():Unit
+   PureMod.tick(File)
+   ResourceMod.tick()
+\end{lstlisting}
+
+\caption{Definition of two modules, one pure and the other resourceful.}
+\label{fig:wyv_module_instantiation}
+\end{figure}
+
+Before explaining our translation of Wyvern programs into $\epscalc$, we must explain several simplifications made in all of our examples which enable our particular desugaring.
+
+Objects are only ever used in the form of modules. Modules only ever contain functions and other modules, and have no mutable fields. The examples contain no recursion or self-reference, including a module invoking its own functions. Modules will not reference each other cyclically. Lastly, modules only contain one function definition. Despite these simplifications, the chosen examples will highlight the essential aspects of $\epscalc$.
+
+Because modules do not exercise self-reference and only contain one function definition, they will be modelled as functions in $\epscalc$. Applying this function will be equivalent to applying the single function definition in the module.
+
+A collection of modules is desugared into $\epscalc$ as follows. First, a sequence of let-bindings are used to name constructor functions which, when given the capabilities requested by a module, will return an instance of the module. If the module does not require any capabilities then it will take $\Unit$ as its argument. The constructor function for $\kwa{M}$ is called $\kwa{MakeM}$. A function is then defined which represents the $\kwa{main}$ function, which is the entry point into the program. This $\kwa{main}$ function will instantiate all the modules by invoking the constructor functions, and then execute the body of code in main. Finally, the main function is invoked with the primitive capabilities it needs.
+
+To demonstrate this process, \ref{fig:wyv_tutorial_desugaring} shows how the examples above desugar. Lines 1-3 define the constructor for $\kwa{PureMod}$; since $\kwa{PureMod}$ requires no capabilities, the constructor takes $\Unit$ as an argument on line 2. Lines 6-8 define the constructor for $\kwa{ResourceMod}$; it requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 7. The entry point to the program is defiend on lines 11-15, which invokes the constructors and then runs the body of the $\kwa{main}$ method. Lastly, line 17 starts everything off by invoking $\kwa{Main}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+let MakePureMod =
+   $\lambda$x:Unit.
+      $\lambda$f:{File}. f.append
+in
+
+let MakeResourceMod =
+   $\lambda$f:{File}.
+      $\lambda$x:Unit. f.append
+in
+
+let Main =
+   $\lambda$f:{File}.
+      let PureMod = (MakePureMod unit) in
+      let ResourceMod = (MakeResourceMod f) in
+      let _ = (PureMod f) in (ResourceMod unit)
+
+in (Main File)
+\end{lstlisting}
+
+\caption{Desugaring of $\kwa{PureMod}$ and $\kwa{ResourceMod}$ into $\epscalc$.}
+\label{fig:wyv_tutorial_desugaring}
+\end{figure}
 
 
-\subsection{Objects}
 
 
 \section{Examples}
@@ -485,6 +273,82 @@ At this scale the client can simply inspect the source code of $\kwa{Logger}$ to
 
 \subsection{API Violation}
 
+Figure ?? inverts the roles of the last scenario: in this case, the annotated client wants to use an unannotated Logger, but the authority of the Logger exceeds the authority selected by the client.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+resource module Logger
+require File
+
+def log(): Unit =
+    File.append(``message logged'')
+\end{lstlisting}
+
+\begin{lstlisting}
+require File
+instantiate Logger(File)
+
+def main(): Unit with {File.append} =
+   Logger.log()
+\end{lstlisting}
+
+\caption{The unlabelled code exercises authority exceeding that selected by the client.}
+\label{This is the label.}
+\end{figure}
+
+The desugared program is given in Figure ??. At line 
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+let MakeLogger =
+   ($\lambda$f: File.
+      ({log = $\lambda$x: Unit.
+          import(File.append) logger = logger in
+            logger.log unit}) in
+
+let MakeMain =
+   ($\lambda$f: File.
+      let LoggerModule = MakeLogger f in
+      {main = $\lambda$x: Unit.
+          LoggerModule.log()})
+in
+
+(MakeMain File).run unit
+\end{lstlisting}
+
+\caption{Desugared version of Figure ??}
+\label{This is the label.}
+\end{figure}
+
+\subsection{API Violation}
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+module Logger
+
+def log(f: {File}): Unit =
+    f.append(``message logged'')
+\end{lstlisting}
+
+\begin{lstlisting}
+require File
+instantiate Logger(File)
+
+def main(): Unit with {File.append} =
+   Logger.log(File)
+\end{lstlisting}
+
+\caption{The unlabelled code exercises authority exceeding that selected by the client.}
+\label{This is the label.}
+\end{figure}
+
+
+\subsection{API Violation}
+
+
 \begin{figure}[h]
 
 \begin{lstlisting}
@@ -499,7 +363,7 @@ def log(): Unit with {File.append, File.write} =
 \begin{lstlisting}
 module Client
 
-def action(l: Logger): Unit with File.append =
+def run(l: Logger): Unit with {File.append} =
     l.log()
 \end{lstlisting}
 
@@ -507,18 +371,212 @@ def action(l: Logger): Unit with File.append =
 require File
 instantiate Logger(File)
 
-def main(): Unit with File.append =
-    Client.action(Logger)
+def main(): Unit with {File.append} =
+    Client.run(Logger)
 \end{lstlisting}
 
 \caption{This won't type because of a mismatch between the client's effects and the logger's effects.}
 \label{This is the label.}
 \end{figure}
 
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+let MakeLogger =
+   ($\lambda$f: File.
+      ({log = $\lambda$x: Unit.
+          let _ = f.append in f.write}) in
+           
+let MakeClient =
+   ($\lambda$x: Unit.
+      {run = $\lambda$l: Logger.
+         l.log $\unit$}) in
+         
+let Main =
+   ($\lambda$f: File.
+      let LoggerModule = MakeLogger f in
+      let ClientModule = MakeClient $\unit$ in
+      ClientModule.run LoggerModule) in
+
+Main File
+\end{lstlisting}
+
+\caption{Desugared version of Figure ??}
+\label{This is the label.}
+\end{figure}
+
+
+\subsection{Hidden Authority}
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+module Malicious
+
+def stealData(f: {File}):Unit with {File.read}
+   f.read
+\end{lstlisting}
+
+\begin{lstlisting}
+module Plugin
+instantiate Malicious
+
+def run(f: {File}): Unit with $\varnothing$
+   Malicious.stealData(f)
+\end{lstlisting}
+
+\begin{lstlisting}
+require File
+instantiate Plugin
+
+def main(): Unit with {File.append} =
+    ThirdParty.run(File)
+\end{lstlisting}
+
+\caption{The $\kwa{Main}$ module transitively invokes a $\kwa{File.read}$ effects, accidentally violating its selected authority.}
+\label{This is the label.}
+\end{figure}
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+let MakePlugin =
+   ($\lambda$x: Unit.
+      let MakeMalicious =
+         ($\lambda$x: Unit. {stealData = $\lambda$f: {File}. f.read}) in
+      let MaliciousModule =
+          MakeMalicious $\unit$ in
+      {run = $\lambda$f: {File}. MaliciousModule.stealData(f)}) in
+      
+let Main =
+   ($\lambda$f: File.
+      let PluginModule = MakePlugin unit in
+      PluginModule.run f) in
+
+Main File
+\end{lstlisting}
+
+\caption{Desugared version of Figure ??}
+\label{This is the label.}
+\end{figure}
+
+\subsection{Hidden Authority 2} 
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+module Malicious
+
+def log(f: {File}):Unit
+   f.read
+\end{lstlisting}
+
+\begin{lstlisting}
+module ThirdParty
+instantiate Plugin
+
+def run(f: {File}): Unit with $\varnothing$
+   Malicious.log(f)
+\end{lstlisting}
+
+\begin{lstlisting}
+require File
+instantiate Plugin
+
+def main(): Unit with File.append =
+    ThirdParty.run(File)
+\end{lstlisting}
+
+\caption{The transitive invocation of $\kwa{File.read}$ now takes place inside unannotated code, but the type system will still reject this program.}
+\label{This is the label.}
+\end{figure}
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+let MakePlugin =
+   ($\lambda$x: Unit.
+      let MakeMalicious =
+         ($\lambda$x: Unit. {stealData = $\lambda$f: {File}. f.read}) in
+      let MaliciousModule =
+          MakeMalicious $\unit$ in
+      import(File.*) f=f in
+         {run = $\lambda$f: {File}. MaliciousModule.stealData(f)})
+in
+      
+let Main =
+   ($\lambda$f: File.
+      let PluginModule = MakePlugin unit in
+      PluginModule.run f)
+in
+
+Main File
+\end{lstlisting}
+
+\caption{Desugared version of Figure ??}
+\label{This is the label.}
+\end{figure}
+
+\subsection{Hidden Authority 2} 
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+module Malicious
+
+def log(f: Unit $\rightarrow$ Unit):Unit
+   f.read
+\end{lstlisting}
+
+\begin{lstlisting}
+module ThirdParty
+instantiate Plugin
+
+def run(f: {File}): Unit with $\varnothing$
+   Malicious.log($\lambda$x:Unit. f.read)
+\end{lstlisting}
+
+\begin{lstlisting}
+require File
+instantiate Plugin
+
+def main(): Unit with File.append =
+    ThirdParty.run(File)
+\end{lstlisting}
+
+\caption{The transitive invocation of $\kwa{File.read}$ happens when the unannotated code executes the effectful function given to it.}
+\label{This is the label.}
+\end{figure}
+
+
 \subsection{Resource Leak}
 
-\textbf{EXAMPLE OF A RESOURCE LEAKING AND BREAKING CONFINEMENT}
+\begin{figure}[h]
 
-\subsection{Authority Violation}
+\begin{lstlisting}
+module Malicious
 
-\textbf{EXAMPLE OF IMPORTING MULTIPLE CAPABILITIES, ONE GETS LEAKED AND PASSED SOMEWHERE IT HASN'T BEEN SELECTED}
+def log(f: Unit $\rightarrow$ File):Unit
+   f().read
+\end{lstlisting}
+
+\begin{lstlisting}
+module ThirdParty
+instantiate Plugin
+
+def run(f: {File}): Unit with $\varnothing$
+   Malicious.log($\lambda$u: Unit. f)
+\end{lstlisting}
+
+\begin{lstlisting}
+require File
+instantiate Plugin
+
+def main(): Unit with File.append =
+    ThirdParty.run(File)
+\end{lstlisting}
+
+\caption{A resource leak allows $\kwa{Malicious}$ to gain access to the $\kwa{File}$ capability directly.}
+\label{This is the label.}
+\end{figure}
