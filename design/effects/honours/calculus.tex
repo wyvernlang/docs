@@ -713,11 +713,30 @@ $\bm{\kwa{effects :: \hat \tau \rightarrow \varepsilon}}$ \begin{itemize}
 \label{fig:import_rule_2}
 \end{figure}
 
-The counterexample which defeated \textsc{$\varepsilon$-Import1} is now rejected by \textsc{$\varepsilon$-Import2}, but we lose some of the precision gained by effect annotations. To illustrate, consider $\hat e = \import{ \kwa{File.write} }{ x }{ ((\kwa{\lambda y: \{ File \} . \lambda z: Unit . y.write})~\File) }{\kwa{x~unit}}$. The capability being imported is a function which, when given $\unit$, performs a $\kwa{write}$ operation. The stated 
+The counterexample which defeated \textsc{$\varepsilon$-Import1} is now rejected by \textsc{$\varepsilon$-Import2}, but the rule is not yet perfect: the annotations on one import can be broken by another import. To illustrate, consider an example where two capabilities are imported\footnote{As stated before, we only formalise the case where code imports one capability, but this particular issue only arises with multiple imports.} in Figure \ref{fig:rule_import2_counterexample}. This program imports a function $\kwa{go}$ which, when given a $\Unit \rightarrow_{\varnothing} \Unit$ function with no effects, will execute it. The other capability given is a $\kwa{File}$. The unannotated code creates a $\Unit \rightarrow \Unit$ function which writes to a file when executed, and passes it to $\kwa{go}$, which subsequently incurs the $\kwa{File.write}$ effect.
 
+\begin{figure}[h]
 
+\begin{lstlisting}
+import({File.*})
+   go = $\lambda$x: Unit $\rightarrow_{\varnothing}$ Unit. x unit
+   f = File
+in
+   go ($\lambda$y: Unit. f.write)
 
-A precise definition of $\kwa{effects}$ is given in Figure 3.14. along with an associated function, $\kwa{ho \hyphen effects}$. The difference between the two is the difference between direct and transitive authority. If $r.\pi \in \kwa{effects}(\hat \tau)$, then values of $\hat \tau$ have the authority to directly incur $r.\pi$. If $r.\pi \in \kwa{ho \hyphen effects}(\hat \tau)$, then values of $\hat \tau$ can incur $r.\pi$ by deferring to another function. The two are mutually recursive, with resource-types as a base-case. A resource captures every operation on itself, because resource have the authority to call any operation on themselves. A resource captures no higher-order effects.
+\end{lstlisting}
+
+\vspace{-7pt}
+\caption{Permitting multiple imports will break \textsc{$\varepsilon$-Import2}.}
+\label{fig:rule_import2_counterexample}
+\end{figure}
+
+In the world of annotated code, you cannot pass a file-writing function to $\kwa{go}$. However, typechecking of the unannotated body disregards the annotations of its imports, and since the file-writing function takes $\unit$ and returns $\unit$, the type system will accept this program. This example shows that unannotated code might not use its capabilities in a way which respects their annotations. Because the unannotated code selects $\{ \kwa{File.*} \}$, the approximation on this $\kwa{import}$ is actually safe at the top-level, but it contains locally unsafe code. We want to prevent this.
+
+If $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.write} \}} \Unit$ then the above example would be safely rejected. However, a modified version where a file-reading function is passed to $\kwa{go}$ would still have the same issue. $\kwa{go}$ is only safe when it expects every possible effect that the unannotated code could pass into it. For example, if $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.*} \}} \Unit$, then the unannotated code cannot pass it a capability it isn't already expecting, and so it cannot violate the annotation on $\kwa{go}$. To solve the issue, we are going to require imported capabilities to have authority over $\varepsilon$, which contains every possible effect the unannotated code might use to violate their annotations.
+
+To achieve greater control over this, we split the definition of $\kwa{effects}$ into two separate functions, called $\kwa{effects}$ and $\kwa{ho \hyphen effects}$. Definitions are given in Figure \ref{fig:fx_defns}. The difference between the two is the difference between direct and transitive authority. If values of type $\hat \tau$ can directly incur an effect $r.\pi$, then $r.\pi \in \fx{\hat \tau}$. If values of type $\hat \tau$ can indirectly incur an effect $r.\pi$ --- perhaps because they are given a capability for this effect as a function argument --- then $r.\pi \in \hofx{\hat \tau}$. Put another way, if values of $\hat \tau$ possess a capability for that effect, then the capability's effects are contained in $\fx{\hat \tau}$. If values of $\hat \tau$ can incur an effect, but need to be given the capability by someone else in order to do that, then the effect belongs in $\hofx{\hat \tau}$.
+
 
 \begin{figure}[h]
 
@@ -735,10 +754,15 @@ $\bm{\kwa{ho \hyphen effects} :: \hat \tau \rightarrow \varepsilon}$ \begin{item
 
 \vspace{-7pt}
 \caption{Effect functions.}
-\label{This is the label.}
+\label{fig:fx_defns}
 \end{figure}
 
-\textsc{$\varepsilon$-Import2} is better, but still puts no constraints on what higher-order effects might be captured by $\hat \tau$. At the moment, so long as $\hat e$ can only \textit{directly} invoke those effects selected by $\varepsilon$, it is allowed to nest any other type with arbitrary authority. On the other hand, it is safe to pass in something of type $\hat \tau$ if every callable function inside $e$ expects the captured higher-order effects. Intuitively, the functions of $e$ need to have selected $\kwa{ho \hyphen effects}(\hat \tau)$, otherwise we may be exceeding their authority in giving them access to $\hat \tau$. This motivates the predicates $\safe{\hat \tau}{\varepsilon}$ and $\hosafe{\hat \tau}{\varepsilon}$. A type is safe for $\varepsilon$ if every directly invocable function selects the authority in $\varepsilon$. A type is higher-order safe for $\varepsilon$ if every indirectly function selects the authority in $\varepsilon$. If the caller supplies a set of capabilities $\varepsilon$ to a piece of code typing to $\hat \tau$, it would violate the restriction on \textit{ambient authority} if a capability was supplied that $\hat \tau$ had not explicitly asked for. Therefore, $\safe{\hat \tau}{\varepsilon}$ holds when the (non higher-order) effects selected by $\hat \tau$ include $\varepsilon$. $\hosafe{\hat \tau}{\varepsilon}$ holds when the higher-order effects selected by $\hat  \tau$ include $\varepsilon$. For our rule to be capability-safe, we need to ensure that any higher-order function in scope is expecting the set of capabilities in $\hat \tau$. If not, we could exercise ambient authority by passing that higher-order function a capability from $\hat \tau$ which it hadn't selected. This is the purpose of $\hosafe{\hat \tau}{\varepsilon}$: all higher-order functions in scope need to be expecting any capability they might be passed. Formal definitions are given in Figure 3.15. 
+Note how the functions are mutually recursive, and have base cases for resource types. Any effect can be directly incurred by a resource on itself, hence $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$. A resource cannot be used to indirectly invoke some other effect, so $\hofx{\{ \bar r \}} = \varnothing$. There is also a correspondence between these definitions and the subtyping rule for functions. Recall that functions are contravariant in their input-type and covariant in their output-type. Similarly, both functions recurse on the input-type using the other function, and recurse on the output-type using the same function.
+
+In light of these new definitions, we would still require $\fx{\hat \tau} \subseteq \varepsilon$ --- unannotated code must select any capability which could be given to it --- but a new premise $\varepsilon \subseteq \hofx{\hat \tau}$ would be added to formalise the idea that imported capabilities must know about every effect they could be given by unannotated code.  The counterexample from Figure \ref{fig:rule_import2_counterexample} will now be rejected, because $\hofx{\Unit \rightarrow_{\varnothing} \Unit) \rightarrow_{\varnothing} \Unit} = \varnothing$, but $\{ \kwa{File.*} \} \not\subseteq \varnothing$. But this is \textit{still} not sufficient! Consider $\varepsilon \subseteq \hofx{ \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2 }$. We want \textit{every} higher-order capability involved to be expecting $\varepsilon$, but $\subseteq$ does not distribute over $\rightarrow_{\varepsilon'}$. Expanding the definition, $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$. Let $r.\pi \in \varepsilon$ and suppose $r.\pi \in \fx{\hat \tau_1}$, but $r.\pi \notin \hofx{\hat \tau_2}$. Then $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$ is still true, but $\hat \tau_2$ is not expecting $r.\pi$. Unannotated code could then violate the annotations on $\hat \tau_2$ by causing it to invoke $r.\pi$, using the same trickery from before.
+
+The solution is to define a relation like $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$, but where the $\subseteq$ distributes over the input and output type. The two relations are called $\kwa{safe}$ and $\kwa{ho \hyphen safe}$. The former is a distributive version of $\varepsilon \subseteq \fx{\hat \tau}$ and the latter of $\varepsilon \subseteq \hofx{\hat \tau}$. Definitions are given in \ref{fig:safe_defns}.
+
 
 \begin{figure}[h]
 
@@ -786,10 +810,44 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 
 \vspace{-7pt}
 \caption{Safety judgements in the epsilon calculus.}
-\label{This is the label.}
+\label{fig:safe_defns}
 \end{figure}
 
-The final version of \textsc{$\varepsilon$-Import} is given in Figure 3.16. It requires the import $\hat e$ to be well-typed. The effects captured by the import $\kwa{effects}(\hat \tau)$ must be the same as those effects selected by the body of the import. The import must be higher-order safe; that is, every possible function that could be invoked by the import must be expecting the effects declared in $\varepsilon$. Lastly, the body of the import must be well-formed with only a binding for the imported name.
+Note again how the mutual recursion of $\kwa{safe}$ and $\kwa{ho \hyphen safe}$ mimics the co(ntra)variance rules for function subtyping. Some properties of these relations are also immediate: $\safe{\hat \tau}{\varepsilon}$ implies $\varepsilon \subseteq \fx{\hat \tau}$ and $\hosafe{\hat \tau}{\varepsilon}$ implies $\varepsilon \subseteq \hofx{\hat \tau}$, but the converses are not true, so the safety judgements are stronger notions.
+
+We are now ready to give an amended version of \textsc{$\varepsilon$-Import}. The rule is stated in Figure \ref{fig:import_rule3}, and contains a new premise $\hosafe{\hat \tau}{\varepsilon}$, which formalises the notion that every capability which could given to a value of $\hat \tau$ --- or any constitutent piece of $\hat \tau$ --- must be expecting the effects which might be passed to it inside the unannotated code, which are contained in $\varepsilon$.
+
+\begin{figure}[h]
+
+\noindent
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{($\varepsilon$-Import3)}]
+	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1
+~~~~~~
+\kwa{effects}(\hat \tau) \subseteq \varepsilon \\
+\hosafe{\hat \tau}{\varepsilon} ~~~~~~ x: \kwa{erase}(\hat \tau) \vdash e: \tau
+  \end{array}}} 
+ 
+\end{array}
+\]
+
+\vspace{-7pt}
+\caption{A third rule for type-and-effect checking $\kwa{import}$ expressions.}
+\label{fig:import_rule3}
+\end{figure}
+
+The premises so far are comprehensively strict about what capabilities might be directly exercised by the unannotated code --- but what about those which are indirectly exercised? Consider $\hat e = \import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$. The unannotated selects no capabilities and returns a function which, when given a $\kwa{File}$, will incur $\kwa{File.write}$. This satisfies the premises in \textsc{$\varepsilon$-Import3}, but the ascribed type is $\{ \File \} \rightarrow_{\varnothing} \Unit$ --- not good!
+
+So far we have only focused on the capabilities $\varepsilon$ which unannotated code might select and be endowed with, but a capability might also be introduced to unannotated code during runtime by being passed in as a function argument. Suppose the unannotated code returns a function $f$. Then $f$ may take as input either a resource or a function. If a function, then the permitted effects of this function are bound by $\varepsilon$, because the $\kwa{import}$ annotates $f$ with $\varepsilon$. Trying to invoke $\annot{f}{\varepsilon}$ back in annotated code with a capability whose authority exceeds $\varepsilon$ would therefore be rejected by the soundness of $\opercalc$, so we are automatically higher-order safe in this case. However, if a resource is given to $f$ then it could directly invoke any effect on $f$ without selecting it in $\varepsilon$. To prevent this, we add $\hofx{\annot{\tau}{\varepsilon}} \subseteq \varepsilon$ as a premise. This will collect every effect captured by a resource literal passed into the unannotated code and ensure it has been selected. $\kwa{hofx}$ is only defined on annotated types, so we must first annotate $\tau$ in order to apply the function --- the annotated type is otherwise not relevant to this situation.
+
+The final version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:import_rule}.
 
 \begin{figure}[h]
 
@@ -803,10 +861,8 @@ The final version of \textsc{$\varepsilon$-Import} is given in Figure 3.16. It r
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
 {{\def\arraystretch{1.4}
   \begin{array}{c}
-\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1
-~~~~~~
-\varepsilon = \kwa{effects}(\hat \tau) \\
-\kwa{ho \hyphen safe}(\hat \tau, \varepsilon) ~~~~~~ x: \kwa{erase}(\hat \tau) \vdash e: \tau
+\varepsilon = \kwa{effects}(\hat \tau) \cup \hofx{\annot{\tau}{\varepsilon}} \\
+\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1 ~~~~~~ \kwa{ho \hyphen safe}(\hat \tau, \varepsilon) ~~~~~~ x: \kwa{erase}(\hat \tau) \vdash e: \tau
   \end{array}}} 
  
 \end{array}
@@ -814,8 +870,8 @@ The final version of \textsc{$\varepsilon$-Import} is given in Figure 3.16. It r
 
 
 \vspace{-7pt}
-\caption{Type-with-effect judgements.}
-\label{This is the label.}
+\caption{The final rule for typing imports.}
+\label{fig:import_rule}
 \end{figure}
 
 
