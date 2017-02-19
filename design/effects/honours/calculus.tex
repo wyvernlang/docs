@@ -289,7 +289,7 @@ The last rule, \textsc{$\varepsilon$-Subsume}, only makes sense in the presence 
 \label{fig:opercalc_static_rules}
 \end{figure}
 
-The first subtyping rule is \textsc{S-Arrow}, which is similar to the rule for subtyping functions in $\stlc$. The only addition is that the effects of the subtype must be contained in the effects of the supertype. This is because any possible effect which might be incurred by the subtype should be expected by the supertype, otherwise you could supply an instance of the subtype and incur an effect the supertype's interface was not expecting.
+The first subtyping rule is \textsc{S-Arrow}, which is similar to the rule for subtyping functions in $\stlc$. The only addition is that the effects of the subtype must be contained in the effects of the supertype, so that instances of the subtype can only incur effects the supertype's interface is expecting.
 
 The other subtyping rule is \textsc{S-Resource}, which says a subset of resource sis also a subtype. To justify this rule, consider $\{ \bar r \} <: \{ \bar r_2 \}$. Any value with type $\{ \bar r_1 \}$ can reduce to any resource literal in $\bar r_1$, so to be compatible with type $\{ \bar r_2 \}$, the resource literals in $\bar r_1$ must also be in $\bar r_2$.
 
@@ -419,7 +419,25 @@ def someMethod(f: Unit $\rightarrow$ Unit):
 \label{fig:unannotated_reasoning}
 \end{figure}
 
-A capability-safe design can help us: if the capabilities exercised by the unannotated code are passed in from an annotated environment, then whatever effects they capture are a conservative upper-bound on what can happen in the unannotated code. To this end we add a new $\kwa{import}$ expression for nesting unannotated code inside annotated code, which selects the authority the unannotated code is allowed to exercise. The static rules of $\epscalc$ can then determine if this authority is being violated. That capability-safe design enables this inference is the key result of this report. We spend the rest of this chapter formalising the idea and proving it sound.
+A capability-safe design can help us: if the capabilities exercised by the unannotated code are passed in from an annotated environment, then whatever effects they capture are a conservative upper-bound on what can happen in the unannotated code. To demonstrate, consider a developer who wants to decide whether the modele in Figure \ref{fig:cc_motivation}. The module is a $\kwa{Logger}$ which possesses two capabilities $\kwa{File}$ and $\kwa{Socket}$, and provides a single unannotated function $\kwa{log}$.
+
+\begin{figure}[h]
+\begin{lstlisting}
+resource module Logger
+require File
+require Socket
+
+def log(x: Unit): Unit
+   ...
+\end{lstlisting}
+\vspace{-7pt}
+\caption{What effects can $\kwa{someMethod}$ incur?}
+\label{fig:cc_motivation}
+\end{figure}
+
+What effects will be incurred if $\kwa{Logger.log}$ is invoked? One approach is to examine its source code, but this is tedious and in many real-world situations the source code may not be available. A capability-based argument can do better: the only authority which $\kwa{Logger}$ can exercise is that which has been explicitly given. Here, the $\kwa{Logger}$ can be explicitly given a $\kwa{File}$ and a $\kwa{Socket}$, so $\kwa{ \{ \kwa{File.*, Socket.*} \} }$ is a safe upper bound on the effects of $\kwa{Logger}$. Knowing $\kwa{Logger}$ could be manipulating sockets, a developer may decide this implementation cannot be trusted and choose not to use it.
+
+The reasoning we employed only required us to examine the interface of the unannotated code for the capabilities that might be passed into it. To model this situation in $\epscalc$, we add a new $\kwa{import}$ expression which selects the authority the unannotated code is allowed to use. The static rules can then approximate the effects of the unannotated code as being those captured by its imports. That capability-safe design enables this inference is the key result of this report. We spend the rest of this chapter formalising the idea and proving it sound.
 
 \subsection{$\epscalc$ Grammar}
 
@@ -779,7 +797,7 @@ in
 \label{fig:rule_import2_counterexample}
 \end{figure}
 
-In the world of annotated code, you cannot pass a file-writing function to $\kwa{go}$. However, the judgement $x: \erase{\hat \tau} \vdash e: \tau$ discards the annotations on $\kwa{go}$, and since the file-writing function has type $\unit \rightarrow \unit$, the unannotated world accepts it as well-typed. Because the $\kwa{import}$ selects $\{ \kwa{File.*} \}$, the approximation is actually safe at the top-level, but it contains locally unsafe code. We want to prevent this.
+In the world of annotated code it is not possible to pass a file-writing function to $\kwa{go}$. However, the judgement $x: \erase{\hat \tau} \vdash e: \tau$ discards the annotations on $\kwa{go}$, and since the file-writing function has type $\unit \rightarrow \unit$, the unannotated world accepts it as well-typed. Because the $\kwa{import}$ selects $\{ \kwa{File.*} \}$, the approximation is actually safe at the top-level, but it contains locally unsafe code. We want to prevent this.
 
 If $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.write} \}} \Unit$ then the above example would be safe. However, a modified version where a file-reading function is passed to $\kwa{go}$ would have the same issue. $\kwa{go}$ is only safe when it expects every possible effect that the unannotated code might incur; if $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.*} \}} \Unit$, then the unannotated code cannot pass it a capability with an effect it isn't already expecting, and so the annotation on $\kwa{go}$ cannot be violated. To solve the issue, we require imported capabilities to have authority to incur the effects in $\varepsilon$.
 
@@ -891,9 +909,13 @@ An amended version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:
 \label{fig:import_rule3}
 \end{figure}
 
-The premises so far are comprehensively strict about what capabilities might be directly exercised by the unannotated code --- but what about those which are indirectly exercised? Consider $\hat e = \import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$. The unannotated selects no capabilities and returns a function which, when given a $\kwa{File}$, will incur $\kwa{File.write}$. This satisfies the premises in \textsc{$\varepsilon$-Import3}, but the ascribed type is $\{ \File \} \rightarrow_{\varnothing} \Unit$ --- not good!
+The premises so far restrict what authority can be selected by unannotated code, but what about authority passed as a function argument? Consider $\hat e = \import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$. The unannotated code selects no capabilities and returns a function which, when given a $\kwa{File}$, will incur $\kwa{File.write}$. This satisfies the premises in \textsc{$\varepsilon$-Import3}, but the type ascribed by \textsc{$\varepsilon$-Import3} is $\{ \File \} \rightarrow_{\varnothing} \Unit$ --- not good!
 
-So far we have only focused on the capabilities $\varepsilon$ which unannotated code might select and be endowed with, but a capability might also be introduced to unannotated code during runtime by being passed in as a function argument. Suppose the unannotated code returns a function $f$. Then $f$ may take as input either a resource or a function. If a function, then the permitted effects of this function are bound by $\varepsilon$, because the $\kwa{import}$ annotates $f$ with $\varepsilon$. Trying to invoke $\annot{f}{\varepsilon}$ back in annotated code with a capability whose authority exceeds $\varepsilon$ would therefore be rejected by the soundness of $\opercalc$, so we are automatically higher-order safe in this case. However, if a resource is given to $f$ then it could directly invoke any effect on $f$ without having selected it in $\varepsilon$. To prevent this, we add the premise $\hofx{\annot{\tau}{\varepsilon}} \subseteq \varepsilon$. This will collect every effect captured by a resource literal passed into the unannotated code and ensure it has been selected. $\kwa{hofx}$ is only defined on annotated types, so we must first annotate $\tau$ in order to apply the function --- the annotated type is otherwise not relevant to this situation.
+Suppose the unannotated code defines a function $f$, which gets annotated with $\varepsilon$ to produce $\annot{f}{\varepsilon}$. Suppose $\annot{f}{\varepsilon}$ is invoked at a later point and incurs the effect $r.\pi$. What is the source of $r.\pi$? If $r.\pi$ was selected by the $\kwa{import}$ expression surrounding $f$, it is safe for $\annot{f}{\varepsilon}$ to incur this effect. Otherwise, $\annot{f}{\varepsilon}$ may have been passed an argument which can be used to incur $r.\pi$, in which case $r.\pi$ is a higher-order effect of $\annot{f}{\varepsilon}$. If the argument is a function, then by the soundness of $\opercalc$, it must be that $r.\pi \in \varepsilon$. If the argument is a resource $r$ then $\annot{f}{\varepsilon}$ may exercise $r.\pi$, which our rule does not yet account for. However, we can tell before annotation whether $\annot{f}{\varepsilon}$ might be given $r$ by inspecting its (unannotated type) for a resource set containing $r$.
+
+To solve the problem, we ensure $\varepsilon$ contains every effect captured by resources passed into $f$ as arguments. To do this, we add a new premise $\hofx{\annot{\tau}{\varnothing}} \subseteq \varepsilon$. Because $\kwa{hofx}$ is only defined on annotated types, applying it requires us to first annotate $\tau$. What we annotate with is unimportant --- we know functions passed into $\annot{f}{\varepsilon}$ must satisfy the constraints imposed by $\varepsilon$. We are simply inspecting the resources passed into $f$ as an argument, so we choose to annotate with $\varnothing$.
+
+We can now handle the counterexample $\import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$: because $\kwa{x: Unit \vdash \lambda f: { File }.~f.write: \{ File \} \rightarrow Unit}$, and $\hofx{\annot{ \{ \File \} \rightarrow \Unit}{\varnothing}} = \{ \File \}$, but $\{ \File \} \not\subseteq \varnothing$, so the example safely rejects.
 
 The final version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:import_rule}.
 
@@ -921,7 +943,6 @@ The final version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:i
 \caption{The final rule for typing imports.}
 \label{fig:import_rule}
 \end{figure}
-
 
 
 
