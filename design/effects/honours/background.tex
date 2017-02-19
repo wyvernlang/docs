@@ -1,23 +1,20 @@
 \chapter{Background}\label{C:background}
 
-In this section we cover some of the necessary concepts and existing work informing this report. First we cover the process of formally defining a programming language and proving some of its properties. For this purpose, we present $\calc$. We then summarise the rules and properties of a variation of the simply-typed lambda calculus $\stlc$. $\stlc$ is an historically important model of computation and serves as a basis for many functional programming language. It is also the basis of $\epscalc$, so a preliminary understanding of $\stlc$ will help us understand $\epscalc$.
-
-$\epscalc$ is a capability-based language with an effect system. To understand what that means we cover some existing work on effect systems and discuss Miller's capability model.
-
+In this chapter we cover the necessary concepts and existing work informing this report. First we detail how a programming language and its type system are defined, and how to prove the type system is correct. For this purpose, we present a toy language called $\calc$. We then summarise a variant of the simply-typed lambda calculus $\stlc$. $\stlc$ is an historically important model of computation which serves as a basis for many programming languages, including the capability calculus $\epscalc$. $\epscalc$ is also a capability-based language with an effect system. To understand what this means we cover some existing work on effect systems and discuss Miller's capability model.
 
 \section{Formally Defining a Programming Language}
 
-A programming language can be defined formally by supplying three sets of rules: a grammar, which defines syntactically legal terms; static rules, which determine whether programs meet certain well-formedness properties; anddynamic rules, which express the meaning of a program by defining how they are executed. When a language has been defined we want to know its rules are mathematically correct.
+A programming language can be defined by giving three sets of rules: a grammar, which defines syntactically legal terms; dynamic rules, which give the meaning of a program by how it is executed; and static rules, which determine whether programs meet certain well-behavedness properties. When a language has been defined we want to know its static rules are mathematically correct with respect to the dynamic rules.
 
-We illustrate these concepts by presenting $\calc$, which is a simple, type-safe language based around boolean and arithmetic expressions. Like every language in this report, it is expression-based, meaning that valid programs can always be evaluated to yield a value. Although $\calc$ is not very interesting, the process of defining it and proving its rules correct illustrate the general approach this report will take towards formally specifying programming languages.
+Alongside the explanation of these concepts we develop $\calc$, a simple, typed language of arithmetic and boolean expressions. It is a language invented in this report for demonstrative purposes. Like every language we coevr, it is expression-based, meaning that programs are evaluated to yield a value. Although $\calc$ is not very interesting, it will illustrate the general approach in this report.
 
 \subsection{Grammar}
 
-The grammar of a language specifies what strings are syntactically legal. It is specified by giving the different categories of terms, and specifying all the possible forms which instantiate that category. Metavariables range over the terms of the category for which they are named. The conventions for specifying a grammar are based on standard Backur-Naur form \cite{bnf}. Figure 2.1. shows a simple grammar describing integer literals and arithmetic expressions on them. A syntactically valid string is called a term.
+The grammar of a language specifies what strings are syntactically legal. A syntactically legal string is called a \textit{term}. It is specified by giving the different categories of terms and the forms which instantiate those categories. The conventions for specifying a grammar are based on standard Backur-Naur form \cite{bnf}. Figure \ref{fig:ebl_grammar} shows a simple grammar describing integer literals and arithmetic expressions on them. In each rule, the metavariables range over the terms of the category for which they are named.
 
-A $\calc$ program is an expression $e$, consisting of variable definitions and the application of boolean and arithmetic operations. A valid expression is either a variable, a constant (such as $3$, $0$, $\true$, or $\false$), by joining two other valid expressions using $+$ or $\lor$, or by introducing a binding for a variable in a piece of code ($\kwa{let}$ expression). The following are examples of syntactically legal programs: $x$, $y$, $3$, $3+2$, $\false \lor \true$, $3 \lor \false$, $\true + \false$, $\letxpr{x}{3}{x+1}$, $3+(x+2)$.
+A $\calc$ program is an expression $e$, consisting of variable definitions, constants, and the application of boolean and arithmetic operators. A valid expression is either a variable, a constant (such as $3$, $0$, $\true$, or $\false$), the application of an operator $+$ or $\lor$ to two subexpressions, or a binding for a variable in a piece of code ($\kwa{let}$ expression). The following are $\calc$ terms: $x$, $y$, $3$, $3+2$, $\false \lor \true$, $3 \lor \false$, $\true + \false$, $\letxpr{x}{3}{x+1}$.
 
-A string like $3 + (x + 2)$ should be seen as a short-hand for the corresponding abstract syntax tree (AST), whose structure is given by the rules of the grammar. \textbf{A diagram might be nice here}. Sometimes the AST is ambiguous, as in $3 + x + 2$ which might be parsed as $3 + (x + 2)$ or as $(3 + x) + 2$. How we parse and disambiguate is an implementation detail, so throughout this report we only consider strings which unambiguously correspond to a valid AST.\\
+Although the grammar hs no brackets, a string like $3 + (x + 2)$ should be seen as a short-hand for the corresponding abstract syntax tree (AST), whose structure is given by the rules of the grammar. For some strings the AST is ambiguous, as in $3 + x + 2$, which might be parsed as $3 + (x + 2)$ or as $(3 + x) + 2$. How we parse and disambiguate strings is not relevant to us, so throughout the report we only ever consider strings which unambiguously correspond to terms in the grammar.\\
 
 \begin{figure}[h]
 
@@ -45,13 +42,13 @@ v & ::= & ~ & values: \\
 
 \vspace{-12pt}
 \caption{Grammar for $\calc$ expressions.}
-\label{A sample. }
+\label{fig:ebl_grammar}
 \end{figure}
 
 
 \subsection{Dynamic Rules}
 
-The dynamic rules of a language specify the meaning of syntactically-valid terms. There are different approaches, but the one we use is called \textit{small-step semantics}, where the meaning of a program is given by how it is executed. This is specified as a set of \textit{inference rules}. An inference rule is given as a set of premises above a dividing line which, if they hold, imply the result below the line. If an inference rule has no premises it is called an \textit{axiom}. An instantiation of a particular inference rule is called a judgement.
+The dynamic rules of a language specify the meaning of terms. There are different approaches, but the one we use is called \textit{small-step semantics}, where the meaning of a program is given by explaining how it is executed. This is given as a set of \textit{inference rules}, which are given as a set of premises above a dividing line. If the premises above the line hold, they imply the result below the line. The results are called \textit{judgements}. If an inference rule has no premises it is an \textit{axiom}. A particular application of an inference rule is a \textit{derivation}. Figure \ref{fig:sub_defn} gives the dynamic rules for $\calc$, which specify a binary relation $\longrightarrow$, representing a single computational step. When the relation holds of a particular pair, we say the judgement $e \longrightarrow e'$ holds, and that $e$ reduces to $e'$. 
 
 \begin{figure}[h]
 
@@ -96,25 +93,18 @@ The dynamic rules of a language specify the meaning of syntactically-valid terms
 \end{array}
 \]
 
-
 \vspace{-12pt}
 \caption{Inference rules for single-step reductions.}
-\label{A sample. }
+\label{fig:ebl_dynamic}
 \end{figure}
 
-Figure 2.4. gives the dynamic rules for $\calc$. Their conclusions specify members of a binary relation $\longrightarrow$, representing a single computational step. When the relation holds of a particular pair, we say the judgement $e \longrightarrow e'$ holds, and that $e$ reduces to $e'$. 
+An addition is reduced by first reducing the left-hand side to an irreducible form (\textsc{E-Add1}) and then the right-hand side (\textsc{E-Add2}). If both sides are integer literals, the expression reduces to whatever is the sum of those literals.
 
-If a non-variable expression is irreducible under the dynamic rules, it is called a value. The grammar of $\calc$ also specifies a category of terms called ``value''. As we shall see, these two definitions correspond. $3$, $\true$, and $\false$ are examples of irreducible expressions.
+According to these rules, a disjunction is reduced by first reducing the left-hand side to an irreducible form (\textsc{E-Or1}). If the left-hand side is the boolean literal $\true$, the expression reduces to $\true$ (because $\true \lor Q = \true$). Otherwise if the left-hand side is the boolean literal $\false$, the expression reduces to the right-hand side $e_2$ (because $\false \lor Q = Q$). This particular formulation encodes short-circuiting behaviour into $\lor$, meaning if the left-hand side is true, the whole expression will evaluate to true without checking the right-hand side.
 
-A disjunction is reduced by first reducing the left-hand side to a value (\textsc{E-Or1}). If the left-hand side is the boolean literal $\true$, then we can reduce the expression to $\true$ (because $\true \lor Q = \true$). Otherwise if the left-hand side is the boolean literal $\false$, we can reduce the expression to the right-hand side $e_2$ (because $\false \lor Q = Q$). This particular formulation of the rules encodes short-circuiting behaviour into $\lor$, meaning that if the left-hand side is true, the expression evaluates to true without checking the right-hand side.
+A $\kwa{let}$ expression is reduced by first reducing the subexpression being bound (\textsc{E-Let1}). If the subexpression is an irreducible form $v_1$, the variable $x$ is substituted for $v_1$ in the body $e_2$ of the $\kwa{let}$ expression. The notation for this is $[v_1/x]e_2$. For example, $\letxpr{x}{1}{x+1}$ reduces to $1+1$ by \textsc{E-Let2}.
 
-An addition expression is reduced by first reducing the left-hand side to a value (\textsc{E-Add1}) and then the right-hand side (\textsc{E-Add2}) to a value. When both sides are integer literals, the expression reduces to whatever is the sum of those literals.
-
-A let expression is reduced by first reducing the subexpression being bound (\textsc{E-Let1}). When that is a value, we substitute the variable $x$ for the value $v_1$ in the body $e_2$ of the $\kwa{let}$ expression. The notation for this is $[v_1/x]e_2$. For example, $\letxpr{x}{1}{x+1}$ reduces to $1+1$ by an application of \textsc{E-Let2}.
-
-Consider $\letxpr{x}{1+1}{x+1}$. According to the rules, $1+1$ would first be reduced to $2$ before the substitution is made into $x+1$. This strategy of reducing expressions before they are bound to variable names is \textit{call-by-value}. 
-
-Formally, substitution is a function operating on expressions. A definition is given in Figure 2.5. The notation $[e_1/x]e$ is short-hand for $\kwa{substitution}(e, e_1, x)$. When performing multiple substitutions we use the notation $[e_1/x_1, e_2/x_2] e$ as shorthand for $[e_2/x_2]([e_1/x_1] e)$. Note how the order of the variables has been flipped; the substitutions occur as they are written, left-to-right.
+Formally, substitution is a function operating on expressions. A definition is given in Figure \ref{fig:ebl_sub_defn}. The notation $[e_1/x]e$ is short-hand for $\kwa{substitution}(e, e_1, x)$. For multiple substitutions we use the notation $[e_1/x_1, e_2/x_2] e$ as shorthand for $[e_2/x_2]([e_1/x_1] e)$. Note how the order of the variables has been flipped; the substitutions occur left-to-right, as they are written.
 
 \begin{figure}[h]
 
@@ -133,14 +123,17 @@ Formally, substitution is a function operating on expressions. A definition is g
 
 \vspace{-12pt}
 \caption{Substitution for $\calc$.}
-\label{This is the label.}
+\label{fig:ebl_sub_defn}
 \end{figure}
 
 A robust definition of the $\kwa{substitution}$ function is surprisingly tricky. Consider the program $\letxpr{x}{1}{(\letxpr{x}{2}{x+z})}$. It contains two different variables with the same name $x$, with the inner one ``shadowing'' the outer one. Neither variable occurs ``free'', because both have been introduced in the body of the program (one for each $\kwa{let}$). Such variables are called bound variables. By contrast, $z$ is a free variable because it has no definition in the program. A robust $\kwa{substitution}$ should not accidentally conflate two different variables with identical names, and it should not do anything to bound variables.
 
 To illustrate the solution, consider $\letxpr{x}{1}{(\letxpr{x}{2}{x+z})}$. In some sense, this is an equivalent program to $\letxpr{x}{1}{(\letxpr{y}{2}{y+z})}$. Because the names of variables are arbitrary, changing them will not change the semantics of the program. Therefore, we freely and implicitly interchange expressions which are equivalent up to the naming of bound variables. This process is called $\alpha$-conversion \cite[p. 71]{tapl}. Consequently, we assume variables are (re-)named in this way to avoid these problems and to play nicely with the definition of $\kwa{substitution}$.
 
-Given a single-step reduction relation, we may define a multi-step reduction relation as a sequence of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation \cite[p. 39]{tapl}.} or more single-steps. This is written $e \longrightarrow^* e'$. For example, if $e_1 \longrightarrow e_2$ and $e_2 \longrightarrow e_3$, then $e_1 \longrightarrow^* e_3$. Figure 2.4. shows how multi-step reduction can be defined with a set of inference rules.
+Lastly, note how in an expression like $\letxpr{x}{1+1}{x+1}$. According to the rules, $1+1$ would first be reduced to $2$ before the substitution is made on $x+1$. This strategy of reducing expressions to irreducible forms before they are bound to their names is known as \textit{call-by-value}. Some languages --- such as Haskell --- are not call-by-value, but we shall only consider languages with call-by-value semantics.
+
+From the single-step reduction relation, we define a multi-step reduction relation as a sequence of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation \cite[p. 39]{tapl}.} or more single-steps. This is written $e \longrightarrow^* e'$. For example, if $e_1 \longrightarrow e_2$ and $e_2 \longrightarrow e_3$, then $e_1 \longrightarrow^* e_3$. Figure \ref{fig:ebl_dyn_multistep} defines multi-step reduction in $\calc$.
+
 
 \begin{figure}[h]
 
@@ -165,7 +158,7 @@ Given a single-step reduction relation, we may define a multi-step reduction rel
 \]
 \vspace{-12pt}
 \caption{Dynamic rules.}
-\label{This is the label.}
+\label{fig:ebl_dyn_multistep}
 \end{figure}
 
 
@@ -174,12 +167,11 @@ Given a single-step reduction relation, we may define a multi-step reduction rel
 
 \subsection{Static Rules}
 
-If you try to reduce some terms you either end up with nonsense or get stuck in a situation where no rule applies. For example, $(1+1)+\false \longrightarrow 2 + \false$ by \textsc{E-Add1}, but then you are stuck. $\false \lor 3 \longrightarrow 3$ by \textsc{E-Or3}, which is strange.
+When attempting to reduce $\calc$ terms you may find you end up with nonsense, or get stuck in a situation where no rule applies due to a typing error. For example, $\false \lor 3 \longrightarrow 3$ by \textsc{E-Or3}, which is nonsense. $(1+1)+\false \longrightarrow 2 + \false$ by \textsc{E-Add1}, but then you are stuck because $+$ is an operation on numbers, and $\false$ is a boolean. Another example is $\kwa{x+1}$, which gets stuck because $x$ is undefined.
 
-When designing a language we often want to consider those syntactically legal terms satisfying certain \textit{well-behavedness} properties. One such property is that of being \textit{well-typed}: if a program is well-typed then during execution it will never get \textit{stuck} due to type-errors. Another useful well-formedness property says that every variable used in a program must be declared beforehand. The examples above are \textit{not} well-typed, because they are applying operators to arguments of the wrong type. We want rules to help us determine if this is the case without having to execute the program.
+We often want to consider those programs which satisfy certain well-behavedness properties. One such property is that of being \textit{well-typed}: if a program is well-typed then during execution it will never get \textit{stuck} due to type-errors. Another says that every variable in a program must be declared before it is used. If a program satisfies these well-behavedness properties, its execution will never get stuck or produce a nonsense answer. We also want to know if a program satisfies these properties before it is executed.
 
-The static rules of $\calc$ describe a basic type system which let us determine, without executing a program, whether it contains type errors. The relevant constructs for $\calc$ are given as a grammar in Figure 2.5. There are two types: $\Nat$ and $\Bool$. Furthermore, there is the notion of a \textit{typing context}, which maps variables to their types. This is needed in the case of a program like $\letxpr{x}{1}{x+1}$. In trying to determine whether $x+1$ is well-typed, we need to know what is the type of $x$. To do this, when we see the binding $x=1$ we extend the context to say that $x$ has type $\Nat$.
-
+To achieve this we add static rules, enriching $\calc$ with a basic type system, which associates each expression with a type. If an expression can be given a type then its execution will have no type errors. Our type system will also encode the requirement that variables be defined before they are used. The relevant constructrs for the type system are given as a grammar in Figure \ref{fig:calc_types}. There are two types: $\Nat$ and $\Bool$, and a notion of a typing context, which map variables to their types. This is needed in a program like $\letxpr{x}{1}{x+1}$, where in typing $x+1$, we need to know the type of $x$.
 
 \begin{figure}[h]
 
@@ -203,13 +195,11 @@ The static rules of $\calc$ describe a basic type system which let us determine,
 \]
 
 \vspace{-12pt}
-\caption{Grammar for arithmetic expressions.}
-\label{A sample. }
+\caption{Grammar for the type system of $\calc$.}
+\label{fig:calc_types}
 \end{figure}
 
-Figure 2.6. summarises the static rules of $\calc$. Note that every judgement holds in a particular typing context. For example, the judgement $x: \Int \vdash x + 1: \Int$ is a claim about a particular property ($x+1$ has the type $\Int$) in a particular context (the context where $x$ is an $\Int$). If a judgement can be derived from the empty context, we conventionally write it as $\vdash e: \tau$ instead of $\varnothing \vdash e: \tau$.
-
-\textsc{T-Bool} and \textsc{T-Nat} are rules which say that constants always type to $\Bool$ or $\Nat$. \textsc{T-Var} says that a variable types to whatever the context binds it to. \textsc{T-Or} types a disjunction if the arguments are both $\Bool$. \textsc{T-Add} types a sum if the arguments are both $\Nat$. The most interesting rule is \textsc{T-Let}, where the context gains a binding for $x$ when type-checking the body of the $\kwa{let}$ expression. The type of a $\kwa{let}$ expression is the type of its body.
+Figure \ref{fig:ebl_static} presents the static rules of $\calc$. The judgement form is $\Gamma \vdash e: \tau$, which means expression $e$ has type $\tau$ in the context $\Gamma$. When a judgement can be derived from the empty context it is written $\vdash e: \tau$ instead of $\varnothing \vdash e: \tau$.
 
 \begin{figure}[h]
 
@@ -250,12 +240,31 @@ Figure 2.6. summarises the static rules of $\calc$. Note that every judgement ho
 
 \vspace{-12pt}
 \caption{Inference rules for typing arithmetic expressions.}
-\label{A sample. }
+\label{fig:ebl_static}
 \end{figure}
 
-There are some pesky technicalities about typing contexts which need to be addressed. Althogh we have defined $\Gamma$ as a \textit{sequence} of variable-type mappings, the order shouldn't really be significant: $x: \kwa{Int}, y: \kwa{Int}$ is really the same thing as $y: \kwa{Int}, x: \kwa{Int}$. We essentially want to treat it as a set.
+\textsc{T-Bool} and \textsc{T-Nat} are rules which say that constants always type to $\Bool$ or $\Nat$. \textsc{T-Var} says that a variable types to whatever the context binds it to. \textsc{T-Or} types a disjunction if the arguments are both $\Bool$. \textsc{T-Add} types a sum if the arguments are both $\Nat$. The most interesting rule is \textsc{T-Let}, where the context gains a binding for $x$ to type-check the body of the $\kwa{let}$ expression. This lets $\letxpr{x}{1}{x+1}$ typecheck, because $x:\Int \vdash x + 1: \Int$. A derivation is given in Figure \ref{fig:ebl_let_tree}. The type of a $\kwa{let}$ expression is the type of its body.
 
-Formally, we can specify their equivalence by giving structural rules which say that a judgement holds in $\Gamma$ if it holds in any permutation of $\Gamma$. Another convention is that any judgement which holds in a context $\Gamma$ should hold in any bigger context $\Gamma'$, where $\Gamma \subseteq \Gamma'$. For example, $x: \Int \vdash x: \Int$, but it is also true that $x: \Int, y: \Int \vdash x: \Int$. In practice, the notation for contexts and the rules for how to manipulate them are so conventional that, beyond the quick summary in Figure 2.3., we will not bother to mention them again.
+\begin{figure}[h]
+
+
+    \begin{prooftree*}
+        \Infer0[\textsc{(T-Nat)}]{\vdash 1: \Nat}
+        
+        \Infer0[\textsc{(T-Var)}]{x: \Int \vdash x: \Int}
+        \Infer0[\textsc{(T-Nat)}]{x: \Int \vdash 1: \Int }
+        \Infer2[\textsc{(T-Add)}]{x: \Int \vdash x + 1: \Int}
+        
+        \Infer2[\textsc{(T-Let)}]{\vdash \letxpr{x}{1}{x+1}: \Int}
+        
+ 	\end{prooftree*}
+ 	
+\vspace{-12pt}
+\caption{Derivation tree for $\letxpr{x}{1}{x+1}$}
+\label{fig:ebl_let_tree}
+\end{figure}
+ 
+There are some pesky technicalities about typing contexts which need to be addressed. Though we have defined $\Gamma$ syntactically as a sequence of variable-type pairs, we really want to treat it as a mapping from variables to types. $x: \kwa{Int}, y: \kwa{Int}$ is really the same thing as $y: \kwa{Int}, x: \kwa{Int}$. Furthermore, if a judgement holds in a context $\Gamma$, it should also hold in any super-context $\Gamma$. For example, $x:\Int \vdash x:\Int$, but it's also true that $x:\Int, y:\Int \vdash x:\Int$. We can ensure these properties with the rules in Figure \ref{fig:ctx_rules}.
 
 \begin{figure}[h]
 
@@ -271,7 +280,7 @@ Formally, we can specify their equivalence by giving structural rules which say 
 	~~~
 \infer[\textsc{($\Gamma$-Widen)}]
 	{\Gamma, x: \tau' \vdash e: \tau }
-	{\Gamma \vdash e: \tau & x \notin \Gamma}
+	{\Gamma \vdash e: \tau & x \notin \kwa{dom}(\Gamma)}
 
 	
 \end{array}
@@ -279,38 +288,57 @@ Formally, we can specify their equivalence by giving structural rules which say 
 
 \vspace{-12pt}
 \caption{Structural rules for typing contexts.}
-\label{A sample. }
+\label{fig:ctx_rules}
 \end{figure}
 
-Though $\calc$ has no subtyping, most interesting languages do. This judgement is written form $\tau_1 <: \tau_2$ and it means that expressions of $\tau_1$ may be provided anywhere expressions of $\tau_2$ are expected, and the program will still be well-typed. A useful principle in the design and understanding of subtyping rules is Liskov's substitution principle, which states that if $\tau_1 <: \tau_2$, then instances of $\tau_2$ can be replaced with instances of $\tau_1$ without changing the program's semantic properties \cite{liskov87}. Subtyping rules are not usually totally semantic-preserving, but we'll occasionally use this idea to justify why certain subtyping rules are sensible.
+\textsc{$\Gamma$-Permute} says that a judgement holds in $\Gamma$ if it holds in any permutation of $\Gamma$, meaning the order is irrelevant. \textsc{$\Gamma$-Widen} says that any judgement which holds in $\Gamma$ will hold in $\Gamma, x: \tau$, provided $x$ is not already in the domain of $\Gamma$. $\kwa{dom}(\Gamma)$ is the set of variables bound in $\Gamma$; a definition is given in \ref{fig:ctx_dom_defn}. Another property we desire of $\Gamma$ is that it contains no duplicate variables. However, by the convention of $\alpha$-renaming, all programs have unique variable names, so no rule is required.
+
+\begin{figure}[h]
+
+\bm{$\kwa{dom :: \Gamma \rightarrow \{ x \}}$}
+
+\begin{itemize}
+	\setlength\itemsep{-0.7em}
+	\item[] $\kwa{dom}(\varnothing) = \varnothing$
+	\item[] $\kwa{dom}(\Gamma, x: \tau) = \kwa{dom}(\Gamma) \cup \{ x \}$
+\end{itemize}
+
+\vspace{-12pt}
+\caption{Definition of $\kwa{dom}$.}
+\label{fig:ctx_dom_defn}
+\end{figure}
+
+These rules cause typing contexts to behave as we expect, but in practice the notation for contexts and how to manipulate are so conventional that we shall not bother to mention them again. The rules above will be applied automatically and left out of derivation trees.
+
+It is worth mentioning that most languages have a \textit{subtyping} judgement, written $\tau_1 <: \tau_2$, meaning expressions of type $\tau_1$ may be provided anywhere in a program where an expression of type $\tau_2$ are expected, and the program will still be well-typed. $\calc$ has no subtyping rules, but we shall encounter some later.
 
 \subsection{Soundness}
 
-Having defined a type system, we want to know it is \textit{sound}: that if the type system says a program is well-typed, the program will not run into type errors during execution. Soundness is a guarantee that our typing judgements, as we intuitively understand them, are mathematically correct. The exact definition of soundness depends on the language under consideration, but is often split into two parts called progress and preservation.
+Having defined the static rules of $\calc$ we can try to apply the rules to those examples in the last section which got stuck during reduction or evaluated to some nonsense result, but there is no application of rules that will ascribe a type to these examples, signalling that these do not meet our well-behavedness properties. However, we want to know these rules are correct in that they reject every program which goes wrong during execution. This property is called \textit{soundness}, and asserts that the static rules are correct with respect to the dynamic rules. The exact definition depends on the language under consideration, but is often split into two parts called progress and preservation. These are given below for $\calc$.
 
-\begin{theorem}[Progress]
-If $~\vdash e: \tau$ and $e$ is not a value, then $e \longrightarrow e'$.
+\begin{theorem}[$\calc$ Preservation]
+If $~\vdash e: \tau$ and $e \longrightarrow e'$, then $\vdash e': \tau$ for some $e'$.
 \end{theorem}
 
-Progress states that any well-typed, non-value term can be reduced i.e. it will not get stuck due to type errors. It also says that the definition of a value, as a non-variable irreducible expression, is coincident with the definition of a value as a particular category of terms in the grammar.
+Preservation states that a well-typed term is still well-typed after it has been reduced. This means a sequence of reductions will produce intermediate terms that are also well-typed and do not get stuck. In $\calc$, the type of the term after reduction is the same as the type of the term before reduction.
 
-\begin{theorem}[Preservation]
-If $~\vdash e: \tau$ and $e \longrightarrow e'$ then $\vdash e': \tau$.
+\begin{theorem}[$\calc$ Progress]
+If $~\vdash e: \tau$ and $e$ is not a value, then $e \longrightarrow e'$ for some $e'$.
 \end{theorem}
 
-Preservation states that a well-typed term is still well-typed after it has been reduced. This means a sequence of reductions will produce intermediate terms that are also well-typed and do not get stuck. Note that in this particular formulation of preservation for $\calc$, the type of the term after reduction is the same as the type of the term before reduction.
+Progress states that any well-typed, non-value term can be reduced i.e. it will not get stuck due to type errors. A consequence of this is that values in the grammar are exactly the well-typed, irreducible expressions. This is intentional and we always define values to be like this. For this reason we will often refer to irreducible expressions as values, even before we have shown they are equivalent.
 
-By combining progress and preservation, we know that a runtime type-error can never occur as the result of a single-step reduction. This is \textit{small-step soundness}. Once this has been established, we may extend this to multi-step reductions by inducting on the length of the multi-step and appealing to the soundness of single-step reductions. This yields the following result.
+By combining progress and preservation, we know that a runtime type-error can never occur as the result of a single-step reduction. This is soundness for small-step reductions. Once this has been established, we may extend this to multi-step reductions by inducting on the length of the multi-step and appealing to the soundness of single-step reductions, which yields the following theorem.
 
-\begin{theorem}[Soundness]
-If $~\vdash e: \tau$ and $e \longrightarrow e'$ then $\vdash e': \tau$.
+\begin{theorem}[$\calc$ Soundness]
+If $~\vdash e: \tau$ and $e \longrightarrow^{*} e'$ then $\vdash e': \tau$.
 \end{theorem}
 
-These theorems are proven by structural induction on the typing rule used $\Gamma \vdash e: \tau$ or on the reduction rule used $e \rightarrow e'$. 
+All these theorems are proven by structural induction on the typing rule $\Gamma \vdash e: \tau$ used in the premise and, where appropriate, on the reduction rule $e \longrightarrow e'$ used.
 
-In order to prove certain cases of progress and preservation there are two common lemmas needed. The first is canonical forms, which outlines a set of observations that follow immediately by observing the typing rules. The second is the substitution lemma, which says if a term is well-typed in a context $\Gamma, x: \tau' \vdash e: \tau$, and you replace variable $x$ with an expression $e'$ of type $\tau$, then $\Gamma \vdash [e'/x]e: \tau$. In $\calc$, this lemma is needed to show that the reduction step in \textsc{E-Let2} preserves soundness. The other languages considered in this report will have similar reduction steps.
+There are two common lemmas needed in the proof of soundness. The first is canonical forms, which outlines a set of useful observations that follow immediately from the typing rules. The second is the substitution lemma, which says if a term is well-typed in a context $\Gamma, x: \tau' \vdash e: \tau$, and you replace variable $x$ with an expression $e'$ of type $\tau$, then $\Gamma \vdash [e'/x]e: \tau$. Note how $e$ and $[e'/x]$ are ascribed the same type in the same context. In $\calc$, this lemma is needed to show that the reduction step in \textsc{E-Let2} is type-preserving.
 
-A precise formulation of these two lemmas for $\calc$ is given below.
+Precise formulations of these lemmas for $\calc$ is given below.
 
 \begin{lemma}[Canonical Forms]
 The following are true:
@@ -321,20 +349,17 @@ The following are true:
 \end{itemize}
 \end{lemma}
 
-
 \begin{lemma}[Substitution]
 If $\Gamma, x: \tau' \vdash e: \tau$ and $\Gamma \vdash e': \tau'$ then $\Gamma \vdash [e'/x]e:  \tau$.
 \end{lemma}
 
-Proofs for these lemmas and theorems can be found in Appendix A.
-
-To summarise, soundness is a property which says, generally, that if a type system says a program is well-typed, it will not encounter a runtime type-error. The corollary of this is also interesting to consider: if a program has no runtime type-error, will the type system accept it? This property is called \textit{completeness}, and almost no (interesting) type-systems are complete. This means a type system may reject type-safe programs. However, soundness guarantees that a type system will \textit{always} reject programs which are \textit{not} type-safe. Consider Figure 2.7., which demonstrates a type-safe Java program rejected by Java's type-system: the body of $\kwa{double}$ is type-safe, because the conditional will always execute $\kwa{return x+x}$. However, Java will reject this program.
+To summarise, soundness establishes that the static rules of a language are correct with respect to its semantics. The converse of soundness is also interesting to consider: if a program has no runtime type error, will the type system accept it? This is called \textit{completeness}. Few type systems are complete, including $\calc$. This means $\calc$ might reject type safe programs. To show why, consider the Java program in Figure \ref{ref:java_typing_completeness}. This program is type-safe, because the only branch of the conditional which ever executes is the one which returns an $\kwa{int}$. However, Java will reject this program because, in general, statically determining which branches can or cannot execute is undecidable.
 
 \begin{figure}[h]
 \vspace{-5pt}
 
 \begin{lstlisting}
-public int double(int x) {
+public int doubleNum(int x) {
    if (true) return x + x;
    else return true;
 }
@@ -342,10 +367,10 @@ public int double(int x) {
  
 \vspace{-12pt}
 \caption{A type-safe Java method which does not typecheck.}
-\label{This is the label.}
+\label{ref:java_typing_completeness}
 \end{figure}
 
-Throughout this report we will only be concerned with sound type systems, but it is important to recognise that these type systems are all \textit{conservative} because they may reject type-safe programs. One view of type-systems is that they ``calculate a kind of static  approximation to the run-time behaviours of the terms in a program'' \cite[p. 2]{tapl}. In order to approximate, simplifying assumptions must be made, and these simplifying assumptions are what make the type-system sound; but assumptions which are too generalising can make the system too conservative and of less practical use. This is an important trade-off we discuss in motivating $\epscalc$.
+This report is only ever concerned with proving soundness, but it is impotrant to recognise that being incomplete makes a type system inherently \textit{conservative}, meaning it can reject type-safe programs or make over-estimations as to what will happen. One view of type systems is that they ``calculate a kind of static  approximation to the run-time behaviours of the terms in a program'' \cite[p. 2]{tapl}. In order to approximate, simplifying assumptions must be made, and these simplifying assumptions are what make the type-system sound; but assumptions which are too generalising may result in more and more type safe examples getting rejected.
 
 
 
@@ -458,7 +483,7 @@ In addition to variables, there are function definitions (``abstraction'') and t
 
 Static rules for $\stlc$ are summarised in Figure 2.8. \textsc{T-Var} states that a variable bound in some context can be typed as its binding. \textsc{T-Abs} states that a function can be typed in $\Gamma$ if $\Gamma$ can type the body of the function when the function's argument has been bound. \textsc{T-App} states that an application is well-typed if the left-hand expression is a function (has an arrow-type $\tau_2 \rightarrow \tau_3$) and the right-hand expression has the same type as the function's input ($\tau_2$).
 
-\textsc{T-Subsume} is the rule which says you may a type a term more generally as any of its supertypes. For example, if we had base types $\Int$ and $\Real$, and a rule specifying $\Int <: \Real$, a term of type $\Int$ can also be typed as $\Real$. This allows programs such as $(\lambda x: \Real. x)~3$ to type, as shown in Figure 2.9.
+\textsc{T-Subsume} is the rule which says you may a type a term more generally as any of its supertypes. For example, if we had base types $\Int$ and $\Real$, and a rule specifying $\Int <: \Real$, a term of type $\Int$ can also be typed as $\Real$. This allows programs such as $(\lambda x: \Real. x)~3$ to type, as shown in Figure \ref{fig:subsume}.
 
 \begin{figure}[h]
 
@@ -476,7 +501,7 @@ Static rules for $\stlc$ are summarised in Figure 2.8. \textsc{T-Var} states tha
  	
 \vspace{-12pt}
 \caption{Derivation tree showing how \textsc{T-Subsume} can be used.}
-\label{This is the label.}
+\label{fig:subsume}
 \end{figure}
  
 
@@ -551,22 +576,228 @@ Turing-completeness is an essential property for practical, general-purpose prog
 
 \section{Effect Systems}
 
-In the previous section we looked at how the static rules of a language might make a judgement such as $\Gamma \vdash e: \tau$, which ascribes the type $\tau$ to program $e$. This expresses a certain about what the runtime behaviour of the program is: namely that successive reductions of $e$ will produce terms of type $\tau$, and that this sequence of reductions will never get stuck due to a runtime type-error.
+We have seen how the static rules of a language allow us to judge whether certain well-behavedness properties hold of a piece of code, relative to a particular typing context. Some of these well-behavedness properties include being well-typed, and defining every variable before it is used.
 
-One extension to classical type systems is to incorporate a theory of \textit{effects}. A \textit{type-and-effect} system can ascribe a type and an effect to a piece of code, the effect component of which specifies intensional information about what will happen during the execution of the program \cite{nielson99}. For example, a judgement like $\Gamma \vdash e: \tau~\kw{with} \{ \kwa{File.write} \}$ means that successive reductions of $e$ will result in terms of type $\tau$, and during execution might write to a file. This tells us extra information about what can happen during runtime.
+One extension to classical type systems is to incorporate a theory of \textit{effects}. Judgements in a \textit{type-and-effect} system ascribe both a type and an effect to a piece of code; the effect component describes intensional information about the way in which a program executes \cite{nielson99}. To illustrate, we summarise the static rules of $\fxtute$ (Side-Effect Analysis), which is a lambda calculus for reasoning about the set of memory cells that are written or read during execution \cite{nielson99}. Our summary is simplified for presentation purposes.
 
-\textbf{Talk about use of effect systems. Mention the basic effect system we will introduce.}
+\subsection{$\fxtute$: Side-Effect Analysis}
 
-\subsection{ETL: Effect-Typed Language}
+$\fxtute$ is a lambda calculus with a type-and-effect system for reasoning about what memory cells are affected by computations. It extends $\stlc$ with imperative constructs for creating, accessing, and updating reference variables. Our interest is in determining which cells might be created, accessed, or updated by a piece of code; effects in $\fxtute$ are therefore one of those three operations on a particular cell. A particular memory cell is denoted $\pi$. It can be thought of as drawn from a set of memory cell variables, $\Pi$.
+
+A full definition of $\fxtute$ would include its dynamic rules and a formulation and proof of soundness. Our purpose is to demonstrate how static rules can be used to describe what effects take place during a program execution. To this end, we omit a proper treatment of soundness and reduction, instead giving a quick summary.
+
+The grammar for $\fxtute$ programs is given in Figure \ref{fig:fx_tute}. The first new form is $\refnew{\pi}{x}{e}{e}$, which creates a new reference $x$ in the body of $e_2$, with its value initialised to $e_1$, at location $\pi$. $!x$ is used to access the value of the reference $x$. $x := e$ updates the value of $x$ with $e$.
+
+\begin{figure}[h]
+
+\[
+\begin{array}{c}
+
+\begin{array}{lllr}
+
+e & ::= & ~ & exprs: \\
+	& | & x & variable \\
+	& | & e~e & application \\
+	& | & \refnew{\pi}{x}{e}{e} & ref.~creation\\
+	& | & !x & ref.~access \\
+	& | & x := e & ref.~update \\
+	& | & v & value \\
+	&&\\
+	
+\end{array}
+	
+\begin{array}{lllr}
 
 
+e & ::= & ~ & exprs: \\
+	& | & \lambda x: \tau. e & abstraction \\
+	& | & b & boolean~literal \\
+	& | & n & natural~literal \\
+	&&\\
+	
 
+\end{array}
+	
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{Grammar for $\fxtute$ expressions.}
+\label{fig:fx_tute}
+\end{figure}
+
+In $\fxtute$ an effect $\phi$ is the creation, reading, or writing of a reference at a particular location $\pi$. For example, a program with the effect $!\pi$ is one that reads from memory cell $\pi$ during execution; creating a reference at $\pi$ is $\kwa{new}_{\pi}$; updating a reference at $\pi$ is $\kwa{\pi :=}$. A set of effects is denoted $\Phi$. A grammar for effects is given in \ref{fig:fxtute_fx_regions}.
+
+\begin{figure}[h]
+
+\[
+\begin{array}{c}
+
+\begin{array}{lllr}
+
+\phi & ::= & ~ & effects: \\
+	& | & \kwa{new}_{\pi} & ref.~creation\\
+	& | & !\pi & ref.~access \\
+	& | & \pi := & ref.~update \\
+	&&\\
+	
+\end{array}
+	
+\begin{array}{lllr}
+
+\Phi & ::= & ~ & sets~of~effects: \\
+	& | & \{ \bar \phi \} \\
+	&&\\
+	
+\end{array}
+	
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{Grammar for effects and regions of $\fxtute$.}
+\label{fig:fxtute_fx_regions}
+\end{figure}
+
+The runtime has the notion of a \textit{store}, which maps each reference to the value defined in its cell. The store also keeps track of the location at which a reference was created. It can be enlarged and updated during runtime by the creation, access, and updating of references, each of which incurs a runtime effect $\kwa{new}_{\pi}$, $!\pi$, or $\pi :=$ respectively. Both reading and writing to a reference $x$ will return the value of $x$. Executing a program in a store yields a reduced program, the modified version of the store, and the set of effects $\Phi$ which occurred during the execution.
+
+In our presentation, the base types of $\fxtute$ are $\Nat$ and $\Bool$. $\tau_1 \rightarrow_{\Phi} \tau_2$ is the type of a function which takes a $\tau_1$ as input and returns a $\tau_2$ as output. The set $\Phi$ is an upper-bound on the actual effects incurred by the function: if an effect $\phi$ occurs at runtime, then $\phi \in \Phi$, but it is not guaranteed that every effect in $\Phi$ will happen during execution. There is also a new type constructor $\kwa{ref}$. $\reftype{\tau}{\rho}$ is the type of a reference defined in one of the regions in $\rho$, which points to a value of type $\tau$. The grammar for types is given in \ref{fig:fxtute_types}.
+
+\begin{figure}[h]
+
+\[
+\begin{array}{c}
+
+\begin{array}{lllr}
+
+\tau & ::= & ~ & types: \\
+	& | & \Nat & natural~numbers \\
+	& | & \Bool & booleans \\
+	& | & \tau \rightarrow \tau & functions \\
+	& | & \reftype{\tau}{\pi} & references \\
+	&&\\
+
+\end{array}
+
+\begin{array}{lllr}
+	
+\Gamma & ::= & ~ & contexts: \\
+	& | & \varnothing & empty~ctx. \\
+	& | & \Gamma, x: \tau & var.~binding \\
+	&&\\
+\end{array}
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{Grammar for $\fxtute$ types.}
+\label{fig:fxtute_types}
+\end{figure}
+
+There is a single judgement in $\fxtute$, which has the form $\Gamma \vdash e: \tau~\kw{with} \Phi$. This can be read as meaning that, in the context $\Gamma$, $e$ terminates yielding a value of type $\tau$, with $\Phi$ as a conservative upper-bound on the effects incurred during execution. If $\phi \in \Phi$, it is not guaranteed to happen at runtime, but if $\phi \notin \Phi$, it cannot happen at runtime. The static rules are summarised in Figure \ref{fig:fxtute_static}.
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau~\kw{with} \Phi$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Bool)}]
+	{\Gamma \vdash b: \Bool ~\kw{with} \varnothing}
+	{}
+	~~~
+\infer[\textsc{(T-Nat)}]
+	{\Gamma \vdash n: \Nat ~\kw{with} \varnothing }
+	{} \\[2ex]
+
+\infer[\textsc{(T-Var)}]
+	{\Gamma, x: \tau \vdash x: \tau~\kw{with} \varnothing}
+	{}
+	
+~~~
+	
+\infer[\textsc{(T-Abs)}]
+	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow_{\Phi} \tau_2~\kw{with} \varnothing}
+	{\Gamma, x: \tau_1 \vdash e: \tau_2~\kw{with} \Phi} \\[2ex]
+	
+	
+\infer[\textsc{(T-App)}]
+	{\Gamma \vdash e_1~e_2: \tau_3~\kw{with} \Phi_1 \cup \Phi_2 \cup \Phi_3}
+	{\Gamma \vdash e_1: \tau_2 \rightarrow_{\Phi_3} \tau_3~\kw{with} \Phi_1 & \Gamma \vdash e_2: \tau_2~\kw{with} \Phi_2} \\[2ex]
+
+\infer[\textsc{(T-Read)}]
+	{\Gamma, x: \reftype{\tau}{\pi} \vdash~!x : \tau~\kw{with} \{ !\pi \}}
+	{} \\[2ex]
+	
+\infer[\textsc{(T-Write)}]
+	{ \Gamma, x: \reftype{\tau}{\pi} \vdash x := e : \tau~\kw{with} \Phi \cup \{ \pi:=\} }
+	{ \Gamma, x: \reftype{\tau}{\pi} \vdash e: \tau~\kw{with} \Phi } \\[2ex]
+
+\infer[\textsc{(T-New)}]
+	{ \Gamma \vdash \refnew{\pi}{x}{e_1}{e_2}: \tau_2~\kw{with} \Phi_1 \cup \Phi_2 \cup \{ \kwa{new}_{\pi} \} }
+	{ \Gamma \vdash e_1: \tau_1~\kw{with} \Phi_1 & \Gamma, x: \reftype{\tau_1}{\pi} \vdash e_2: \tau_2~\kw{with} \Phi_2  } \\[2ex]
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{Static rules for $\fxtute$.}
+\label{fig:fxtute_static}
+\end{figure}
+
+The first two rules state that in any context, constants have their appropriate type and no effects. The next three rules are analogous to those in $\stlc$, but with effects included. \textsc{T-Var} says that any variable $x$ has the effect $\varnothing$, so long as the context has a binding for $x$. \textsc{T-Abs} says that if the body of the function has the effects $\Phi$, then the function types to $\tau_1 \rightarrow_{\Phi} \tau_2$. \textsc{T-App} says that applying a function incurs the effects of reducing the two subexpressions to values ($\Phi_1$ and $\Phi_2$) and then the effects of applying the function $(\Phi_3)$.
+
+The new typing rules are for manipulating references. \textsc{T-Read} will type $!x$ to the type $\tau$ referenced by $x$. Its effects are statically approximated as the singleton $\{!\pi\}$, where $\pi$ is the location of $x$ in the typing context. \textsc{T-Write} also has the type $\tau$ referenced by $x$, but its effects are both the operation on the reference $\pi :=$, and the result of reducing the expressino being assigned, $\Phi$. \textsc{T-New} is well-typed if the initial expression $e_1$ of $x$ is well-typed, and the same environment with a new binding $x: \kwa{ref}(\tau_1, \pi)$ can type the rest of the code $e_2$. The effects incurred by the $\kwa{new}$ expression are those incurred by reducing the initial expresion ($\Phi_1$) and those incurred by reducing the rest of the code ($\Phi_2$).
+
+The rules of $\fxtute$ now give us the ability to determine which locations in memory are instantiated, modified, or accessed --- and we do not have to execute the program to find out! As an example, consider the program $e = \refnew{l_1}{x}{3}{ x := 5 }$, which initialises a reference at location $l_1$ with $3$, and then updates it to $5$ . This can be typed as $\vdash e: \Nat~\kw{with} \{ l_1 := \}$; a derivation tree is given in Figure \ref{fig:fxtute_tree}.
+
+\begin{figure}[h]
+
+
+    \begin{prooftree*}
+       \Infer0[\textsc{(T-Nat)}]{\vdash 3: \Nat~\kw{with} \varnothing}
+       
+       \Infer0[\textsc{(T-Nat)}]{x: \reftype{\Nat}{l_1} \vdash 5: \Nat ~\kw{with} \varnothing}
+       
+       \Infer1[\textsc{(T-Write)}]{x: \reftype{\Nat}{l_1} \vdash x := 5 : \Nat~\kw{with} \{ l_1 := \}}
+       
+       \Infer2[\textsc{(T-New)}]{\vdash \refnew{l_1}{x}{3}{x := 5}: \Nat~\kw{with} \{ l_1 := \}}
+       
+ 	\end{prooftree*}
+ 	
+\vspace{-12pt}
+\caption{Derivation tree for $\refnew{l_1}{x}{3}{ x := 5 }$.}
+\label{fig:fxtute_tree}
+\end{figure}
+
+Currently, the expressive power of $\fxtute$ is so low that the approximations from the static rules give \textit{exactly} those effects which will be incurred at runtime. In more complex languages the approximations will stop being tight upper-bounds. As an example of why, consider an extended version of $\fxtute$ with conditional expressions. The conditional $\cond{e_1}{e_2}{e_3}$ will evaluate $e_1$ and check if it is $\true$ or $\false$. If $\true$, it executes $e_1$; if $\false$, it executes $e_2$. A rule for conditionals is given in Figure \ref{fig:fxtute_cond_rule}.
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau~\kw{with} \Phi$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Cond)}]
+	{ \Gamma \vdash \cond{e_1}{e_2}{e_3}: \tau~\kw{with} \Phi_1 \cup \Phi_2 \cup \Phi_3 }
+	{ \Gamma \vdash e_1: \Bool~\kw{with} \Phi_1 & \Gamma \vdash e_2: \tau~\kw{with} \Phi_2 & \Gamma \vdash e_3: \tau~\kw{with} \Phi_3 }
+	
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{Static rules for $\fxtute$.}
+\label{fig:fxtute_static}
+\end{figure}
+
+A conditional is well-typed if the guard $e_1$ types to $\Bool$ and the two branches type to the same $\tau$. Its effects are approximated as the effects incured by reducing the guard, and the effects incurred along both branches. Only branch is executed during runtime, but in general it cannot be statically determined which branch will execute. The only safe conclusion to make is to consider both branches as having executed, with respect to the approximated effects.
 
 \section{The Capability Model}
 
-A \textit{capability} is a unique, unforgeable reference, giving its bearer permission to perform some operation \cite{dennis66}. A piece of code $S$ has \textit{authority} over a capability $C$ if it can directly invoke the operations endowed by $C$; it has \textit{transitive authority} if it can indirectly invoke the operations endowed by a capability $C$ (for example, by deferring to another piece of code with authority over $C$).
-
-In a capability model, authority can only proliferate in the following ways \cite{miller06}:
+A \textit{capability} is a unique, unforgeable reference, granting its bearer permission to perform some operation \cite{dennis66}. A piece of code $S$ has \textit{authority} over a capability $C$ if it can directly invoke the operations granted by $C$; it has \textit{transitive authority} if it can indirectly invoke the operations endowed by a capability $C$ (for example, by deferring to another piece of code with authority over $C$).  In the capability model, authority can only proliferate in the following ways \cite{miller06}:
 
 \begin{enumerate}
 	\item By the initial set of capabilities passed into the program (initial conditions).
@@ -575,13 +806,9 @@ In a capability model, authority can only proliferate in the following ways \cit
 	\item A capability may be transferred via method-calls or function applications (introduction).
 \end{enumerate}
 
-The rules of authority proliferation are summarised as: ``only connectivity begets connectivity''.
+The proliferation rules are summarised as: ``only connectivity begets connectivity''. The initial set of capabilites are passed into the program at the beginning of execution by the system environment or virtual machine, and grant operations over \textit{resources} in the system environment. A capability is either one of these initial capabilities, or a function or object which captures (potentially transitive) authority over an existing capability. For example, an initial capability $\kwa{File}$ might grant read and write access to a particular resource in the system environment. Usually we conflate initial capabilities and they system resources they grant access to, referring to both as resources. Another capability might be a $\kwa{Logger}$, which presents a confined subset of operations on $\kwa{File}$, such as allowing its bearer to perform $\kwa{append}$ operations, but not $\kwa{read}$ or $\kwa{write}$.
 
-Primitive capabilities are called \textit{resources}. Resources model those initial capabilities passed into the runtime from the system environment. A capability is either a resource, or a function or object with (potentially transitive) authority over a capability. An example of a resource might be a particular file. A function which manipulates that file (for example, a logger) would also be a capability, but not a resource. Any piece of code which uses a capability, directly or indirectly, is called \textit{impure}. For example, $\kwa{\lambda x: \kwa{Int} .~x}$ is pure, while $\kwa{\lambda f: File .~f.log(``error~message'')}$ is impure.
-
-A relevant concept in the design of capability-based programming languages is \textit{ambient authority}. This is a kind of exercise of authority over a capability $C$ which has not been explicitly \cite{miller03}. Figure 2.4. gives an example in Java, where a malicious implementation of $\kwa{List.add}$ attempts to overwrite the user's $\kwa{.bashrc}$ file. $\kwa{MyList}$ gains this capability by importing the $\kwa{java.io.File}$ class, but its use of files is not immediate from the signature of its functions.
-
-Ambient authority is a challenge to POLA because it makes it impossible to determine from a module's signature what authority is being exercised. From the perspective of $\kwa{Main}$, knowing that $\kwa{MyList.add}$ has a capability for the user's $\kwa{.bashrc}$ file requires one to inspect the source code of $\kwa{.bashrc}$; a necessity at odds with the circumstances which often surround untrusted code and code ownership.
+The proliferation rules impose constraints on how capabilities may spread throughout a program. The result is that any component of a program which needs to use a particular system resource must either possess a capability for it, or be given a capability as a function argument, so gaining authority is an explicit process. In a language not adhering to the capability model, the implicit exercise of authority is known as \textit{ambient authority}. Figure \ref{java_ambient_authority} demonstrates an example of ambient authority in Java: a malicious implementation of $\kwa{List.add}$ attempts to overwrite the user's $\kwa{.bashrc}$ file. $\kwa{MyList}$ gains this capability by importing $\kwa{java.io.File}$ and instantiating new instances of a capability for the user's $\kwa{.bashrc}$ file. In a capability-safe language, $\kwa{MyList}$ would have to be given the $\kwa{.bashrc}$ file on start-up from the system environment directly, or by someone that already possesses it.
 
 \begin{figure}[h]
 
@@ -615,13 +842,13 @@ class Main {
 
 \vspace{-12pt}
 \caption{$\kwa{Main}$ exercises ambient authority over a $\kwa{File}$ capability.}
-\label{A sample. }
+\label{java_ambient_authority}
 \end{figure}
 
-A language is \textit{capability-safe} if it satisfies this capability model and disallows ambient authority. Some examples include E, Js, and Wyvern. \textbf{Get citations.}
+Another way to exercise ambient authority is through global state: if a capability is stored inside a global variable then any component is able to access and use its operations without having been given the capability. Therefore, languages adhering to the capability model must disallow global state and unrestricted imports.
 
-\section{First-Class Modules}
+Ambient authority is also a challenge to POLA because it makes it impossible to determine from a module's signature what authority is being exercised. From the perspective of $\kwa{Main}$, knowing that $\kwa{MyList.add}$ has a capability for the user's $\kwa{.bashrc}$ file requires one to inspect the source code of $\kwa{.bashrc}$; a necessity at odds with the circumstances which often surround untrusted code and code ownership.
 
-The exact way in which modules work is language-dependent, but we are particularly interested in languages with a first-class module systems. First-class modules are important in capability-safe languages because they mean capability-safe reasoning operates across module boundaries. Because modules are first-class, they must be instantiated like regular objects. They must therefore select their capabilities, and be supplied those capabilities by the proliferation rules of the capability model. In practice, first-class modules can be achieved by having module declarations desugar into an underlying lambda or object representation. This generally requires an ``intermediate representation'' of the language, which is simpler than the one in which programmers write.
+Languages adhering to the capability model often have first-class modules, meaning objects and modules are treated in a uniform manner. This means modules, like objects, must be instantiated with those capabilites they require. They are also bound by the same proliferation rules constraining objects, which allosw the constraints of the capability model to be preserved across module boundaries. Java is an example of a mainstream language whose modules are not first-class. Scala has first-class modules \cite{odersky16}, but is not capability-safe. Smalltalk is a dynamically-typed capability-safe language with first-class modules \cite{bracha10}. Wyvern is a statically-typed capability-safe language with first-class modules \cite{kurilova16}.
 
-Java is an example of a mainstream language whose modules are not first-class. Scala has first-class modules \cite{odersky16}, but is not capability-safe. Smalltalk is a dynamically-typed capability-safe language with first-class modules \cite{bracha10}. Wyvern is a statically-typed capability-safe language with first-class modules \cite{kurilova16}.
+A language is \textit{capability-safe} if it satisfies this capability model and disallows ambient authority. Some examples include E, Js, and Wyvern. 
