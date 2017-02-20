@@ -862,7 +862,7 @@ $\fbox{$\kwa{safe(\hat \tau, \varepsilon)}$}$
 \begin{array}{c}
 
 \infer[\textsc{(Safe-Resource)}]
-	{\kwa{safe}(\{ \bar r \}, \varepsilon)}
+	{}
 	{ \{ r.\pi \mid r \in \bar r, \pi \in \Pi \} \subseteq \varepsilon } \\[3ex]
 
 \infer[\textsc{(Safe-Arrow)}]
@@ -1008,7 +1008,7 @@ If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is 
 
 The preservation theorem has an extra case for when the typing rule used is \textsc{$\varepsilon$-Import}. This has two subcases, depending on whether the reduction rule used was \textsc{E-Import1} and \textsc{E-Import2}. The former is straightforward to prove, but the latter is tricky; we need several lemmas to do it.
 
-Firstly, suppose $\hat e_i$ has type $\hat \tau_i$. In general, if we wanted to approximate what effects $\hat e_i$ might incur when executed, we might produce a summary $\varepsilon$ of its effects and try to replace the annotations on $\hat \tau_i$ with $\varepsilon$. The approximation would be type safe if $\hat \tau_i <: \annot{\erase{\hat \tau}}{\varepsilon}$ and $\fx{\hat \tau_i} \cup \hofx{\hat \tau_i} \subseteq \varepsilon$. However, replacing all annotations with $\varepsilon$ is not usually a type safe thing to do: functions are contravariant, so the subtyping relation recursively flips on the input-types. These input-types endow $\hat \tau$ with its higher-order effects, so the subsetting relation between $\varepsilon$ and the (constituent) higher-order effects of $\hat \tau_i$ would also keep flipping. However, if $\varepsilon = \fx{\hat \tau} = \hofx{\hat \tau}$, the contravariant behaviour would not matter. In \textsc{$\varepsilon$-Import}, we know $\fx{\hat \tau} \subseteq \varepsilon_s$. Furthermore, $\hosafe{\hat \tau_i}{\varepsilon_s}$ implies $\varepsilon_s \subseteq \hofx{\hat \tau_i}$. Therefore, the approximation of $\hat \tau_i$ obtained by replacing its annotations with $\varepsilon_s$ will correctly summarise the effects of $\hat e_i$. This result is given as a pair of lemmas below.
+Firstly, since $\varepsilon_s$ is an upper bound on what effects can be incurred by the unannotated code, it should also be an upper bound on what effects can be incurred by the capabilities imported into the unannotated code; therefore, if we take $\hat \tau_i$ and replace its annotations with $\varepsilon_s$, we should get a more general function type $\hat \tau_i <: \annot{\erase{\hat \tau_i}}{\varepsilon}$. This result is given as the pair of lemmas below.
 
 \begin{lemma}[$\epscalc$ Approximation 1]
 If $\kwa{effects}(\hat \tau) \subseteq \varepsilon$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\hat \tau <: \kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
@@ -1019,14 +1019,12 @@ If $\kwa{ho \hyphen effects}(\hat \tau) \subseteq \varepsilon$ and $\safe{\hat \
 \end{lemma}
 
 \begin{proof}
-By simultaneous induction on $\kwa{ho \hyphen safe}$ and $\kwa{safe}$.
+By simultaneous induction on derivations of $\hosafe{\hat \tau}{\varepsilon}$ and $\safe{\hat \tau}{\varepsilon}$.
 \end{proof}
 
-Secondly, if \textsc{E-Import2} is applied, the reduction has the form $\import{\varepsilon_{s}}{x}{\hat v_i}{e} \longrightarrow [\hat v_i/x]\annot{e}{\varepsilon_s}~|~\varnothing$. If $\hat \Gamma \vdash \hat v_i: \hat \tau_i~\kw{with} \varepsilon_i$ and $x: \erase{\hat \tau} \vdash e: \tau$, it is reasonable to assume that $\hat \Gamma \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$, because $\varepsilon_s$ is an upper-bound on all the effects that can be incurred by $e$ and it correctly summarises the  correctly summarises what the capabilities in $\hat \tau$ can do.
+Recall that function types are contravariant in their input, so the subtyping and subsetting relations flip direction when considering the input type of a function. This is why there are two lemmas: one for each direction.
 
-To show it is safe requires a few things. First, if $\hat \Gamma \vdash \import{\varepsilon_s}{x}{\hat v_i}{e}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$, the reduced expression must type in the same context, so we need $\hat \Gamma \vdash [\hat v_i/x]\annot{e}{\varepsilon_s}: \hat \tau_B~\kw{with} \varepsilon_B$. The reduction incurs no effects, so $\varepsilon = \varnothing$. Since $e$ cannot exceed the authority in $\varepsilon_{s}$ the approximation $\varepsilon_B = \varepsilon_{s} = \varepsilon_A$ would be safe. To be type-safe we need $\tau_B <: \tau_A$. What is $\tau_B$? Intuitively, $e_B = [\hat v_i/x]\annot{e}{\varepsilon_s}$, so the type of $\annot{e}{\epsilon_s}$ ought to be $\annot{\tau}{\varepsilon}$. Then, by the substitution lemma, we get $\hat \Gamma \vdash [\hat v/x]\annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$.  
-
-Based on our analysis, we need $\hat \Gamma, x: \hat \tau \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s} ~\kw{with} \varepsilon_s$. The existence of this judgement is the subject of the following lemma.
+Now, if \textsc{E-Import2} is applied, the reduction has the form $\import{\varepsilon_{s}}{x}{\hat v_i}{e} \longrightarrow [\hat v_i/x]\annot{e}{\varepsilon_s}~|~\varnothing$. Since $x: \erase{\hat \tau} \vdash e: \tau$, it is reasonable to expect that (1) $\hat \Gamma \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$ would be true, because although $\annot{e}{\varepsilon_s}$ has annotations and $e$ does not, annotations do not change runtime semantics --- the two programs have the same structure and capture the same effects. If judgement (1) holds, then $\hat \Gamma \vdash [\hat v_i/x]\annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$ by the substitution lemma; that it does hold is the subject of the following lemma.
 
 \begin{lemma}[$\epscalc$ Annotation]
 If the following are true:
@@ -1043,16 +1041,28 @@ If the following are true:
 Then $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s) : \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s$.
 \end{lemma}
 
+
+The premises of the lemma are very specific to the premises of \textsc{$\varepsilon$-Import}, but generalised to accommodate a proof by induction: $e$ is allowed to typecheck with bindings in $\Gamma$, so long as $\Gamma$ does not introduce any resources whose authority is not already in $\varepsilon_s$. We need this $\Gamma$ because some effects \textit{look} ambient in certain sub-scopes of $e$, and we need to keep track of them. For example, $\kwa{f.write}$ exercises ambient authority over whatever resource is bound to $f$, but when enclosed by an appropriate abstraction like $\kwa{\lambda f: {File}.~f.write}$, $f$ is no longer ambient. Proving the lemma requires us to inductively step into the bodies of functions, at which point certain capabilities look ambient and need to be bound in the context --- therefore, we permit $e$ to typecheck in a larger environment $\Gamma$. We stipulate $\fx{\annot{\Gamma}{\varnothing}} \subseteq \varepsilon_s$ so that any effects captured by $\Gamma$ are not ambient. Note that when $\Gamma = \varnothing$ then $\varepsilon' = \varepsilon_s$ and applying the lemma gives the judgement $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s) : \kwa{annot}(\tau_i, \varepsilon_s)~\kw{with} \varepsilon_s$. This is ultimately the judgement we want, so when we apply the annotation lemma, we choose $\Gamma = \varnothing$.
+
+The proof of the annotation lemma is quite long, but a sketch is given below.
+
 \begin{proof}
-By induction on $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$.
+By induction on derivations of $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$.\\
+
+\textit{Case:} \textsc{T-Var}. Then $e = x$. If $x \neq y$ use \textsc{$\varepsilon$-Var} and \textsc{$\varepsilon$-Subsume}. Otherwise $x = y$. Then $y: \erase{\hat \tau_i} \vdash x: \tau$ implies that $\hat \tau_i = \tau$. Apply the approximation lemma and simplify to obtain $\hat \tau_i <: \annot{\tau_i}{\varepsilon_s}$, and then use \textsc{$\varepsilon$-Subsume} to get the result.\\
+
+\textit{Case:} \textsc{T-Resource}. Use \textsc{$\varepsilon$-Resource} and \textsc{$\varepsilon$-Subsume}.\\
+
+\textit{Case:} \textsc{T-Abs}. Use inversion to get a judgement for the body of the function $\Gamma, y: \erase{\hat \tau_i}, x: \tau_2 \vdash e_{body}: \tau_3~\kw{with} \varepsilon_s$. Apply the inductive hypothesis to $e_{body}$ with $\Gamma, x: \tau_2$ as the context in which $e_{body}$ typechecks, noting that the premises are satisfied because $\hofx{\annot{\tau}}{\varnothing} \subseteq \varepsilon_s$ implies $\kwa{fx}(\annot{\tau_2}{\varnothing} \subseteq \varepsilon_s$. Then use \textsc{$\varepsilon$-Abs} and \textsc{$\varepsilon$-Subsume}.	\\
+
+\textsc{Case:} \textsc{T-App}. Apply the inductive assumption to the subexpressions, then use \textsc{$\varepsilon$-App} and simplify.\\
+
+\textsc{Case:} \textsc{T-OperCall}. Apply the inductive hypothesis to the receiver and use \textsc{$\varepsilon$-OperCall}. This gives the approximate effects $\varepsilon_s \cup \{ \bar r.\pi \}$. By considering where the binding is in $\hat \Gamma, \annot{\Gamma}{\varepsilon_s}, y: \hat \tau$, conclude that $\{ \bar r.\pi \} \subseteq \varepsilon_s$.\\
+
 \end{proof}
 
-The premises of the annotation lemma are very specific to the premises of \textsc{$\varepsilon$-Import}, but generalised to accommodate a proof by induction: $e$ is allowed to typecheck in a $\Gamma$ with ambient bindings because of the judgement $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$. Therefore $e$ can use any resources bound in $\Gamma$, so whatever effects they capture $\fx{\annot{\Gamma}{\varnothing}}$ are added to $\varepsilon_{s}$ to give a a safe approximation $\varepsilon'$.
-
-Note that when $\Gamma = \varnothing$ then $\varepsilon' = \varepsilon_s$ and applying the lemma gives the judgement $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s) : \kwa{annot}(\tau_i, \varepsilon_s)~\kw{with} \varepsilon_s$, which is the judgement we want. Therefore, when we apply the annotation lemma, we choose $\Gamma = \varnothing$. However, we need $\Gamma$ in the proof because some effects \textit{look} ambient in certain sub-scopes of $e$. For example, the expression $\kwa{f.write}$ exercises ambient authority over whatever resource is bound to $f$, but when enclosed by an appropriate abstraction like $\kwa{\lambda f: {File}.~f.write}$, $f$ is no longer ambient. Proving the lemma requires us to inductively step into the bodies of functions, at which point certain capabilities look ambient and need to be bound in the context --- therefore, we permit $e$ to typecheck in an arbitrarily large environment $\Gamma$, but are only interested in applying the lemma with $\Gamma = \varnothing$.
-
 \noindent
-Again, there is a close relation between these lemmas and the subtyping rule for functions. In a subtyping relation between functions, the input type is contravariant. Therefore, if $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \tau_2$ and we have $\hat \tau <: \kwa{annot}(\tau, \varepsilon)$, then we need to know $\kwa{annot}(\tau_1) <: \hat \tau_1$. This is why there are two lemmas: one for each direction.
+
 
 Armed with the annotation lemma, we can now prove the preservation theorem.
 
@@ -1078,10 +1088,10 @@ Otherwise $\hat e$ is a value and the reduction used was \textsc{E-Import2}. The
 \end{enumerate}
 
 \noindent
-Apply the annotation lemma with $\Gamma = \varnothing$ to get $\hat \Gamma, x: \hat \tau \vdash \kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$. From assumption (4) we know $\hat \Gamma \vdash \hat v: \hat \tau~\kw{with} \varnothing$,n so the substitution lemma may be applied, giving $\hat \Gamma \vdash [\hat v/x]\kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$. By canonical forms, $\varepsilon_1 = \varepsilon_C = \varnothing$. Then $\varepsilon_B = \varepsilon = \varepsilon_A \cup \varepsilon_C$. By examination, $\tau_A = \tau_B = \kwa{annot}(\tau, \varepsilon)$.
+Apply the annotation lemma with $\Gamma = \varnothing$ to get $\hat \Gamma, x: \hat \tau \vdash \kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$. From assumption (4) we know $\hat \Gamma \vdash \hat v: \hat \tau~\kw{with} \varnothing$, so the substitution lemma may be applied, giving $\hat \Gamma \vdash [\hat v/x]\kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$. By canonical forms, $\varepsilon_1 = \varepsilon_C = \varnothing$. Then $\varepsilon_B = \varepsilon = \varepsilon_A \cup \varepsilon_C$. By examination, $\tau_A = \tau_B = \kwa{annot}(\tau, \varepsilon)$.
 \end{proof}
 
-We can now combine Progress and Preservation into the Soundness theorem for $\epscalc$. The proof of multi-step soundness in $\epscalc$ is identical to the proof in $\opercalc$.
+From progress and preservation, the single-step and multi-step soundness theorems for $\epscalc$ hold. The proofs are identical to the ones in $\opercalc$.
 
 \begin{theorem}[$\epscalc$ Single-step Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, where $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat e_B$, $\varepsilon$, $\hat \tau_B$, and $\varepsilon_B$.
