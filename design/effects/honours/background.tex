@@ -376,7 +376,7 @@ This report is only ever concerned with proving soundness, but it is impotrant t
 
 \section{ $\stlc$: Simply-Typed $\lambda$-Calculus}
 
-The simply-typed $\lambda$-calculus $\stlc$ is a model of computation, first described by Alonzo Church \cite{church40}, based on the definition and application of functions. In this section we present a variation of $\stlc$ with subtyping and summarise its basic properties. Various $\lambda$-calculi serve as the basis for numerous functional programming languages, including $\epscalc$. This section gives us an opportunity to familiarise ourself with $\stlc$ to help introduce $\epscalc$.
+The simply-typed $\lambda$-calculus $\stlc$ is a model of computation, first described by Alonzo Church \cite{church40}, based on the definition and application of functions. $\stlc$ serves as the basis for many programming languages, including those in this report. We present a variant with natural and integer numbers, so we can familiarise ourselves with subtyping. A grammar for $\stlc$ programs is given in Figure \ref{fig:stlc_grammar}.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -392,24 +392,14 @@ e & ::= & ~ & exprs: \\
 	& | & v & value \\
 	&&\\
 	
-v & ::= & ~ & values: \\
-	& | & \lambda x: \tau . e & abstraction \\
-	&&\\
-	
 \end{array}
-
-& ~~~~~~ &
 
 \begin{array}{lllr}
 
-\tau & ::= & ~ & types: \\
-	& | & B & base~type \\
-	& | & \tau \rightarrow \tau & arrow~type \\
-	&&\\
-	
-\Gamma & ::= & ~ & contexts: \\
-	& | & \varnothing & empty~ctx. \\
-	& | & \Gamma, x: \tau & var.~binding \\
+v & ::= & ~ & values: \\
+	& | & \lambda x: \tau . e & abstraction \\
+	& | & n & \Nat~constant \\
+	& | & i & \Int~constant \\
 	&&\\
 	
 \end{array}
@@ -419,96 +409,49 @@ v & ::= & ~ & values: \\
 
 \vspace{-12pt}
 \caption{Grammar for $\stlc$.}
-\label{This is the label.}
+\label{fig:stlc_grammar}
 \end{figure}
 
-Types in $\stlc$ are either drawn from a set of base types B, or constructed using $\rightarrow$ (``arrow''). Given types $\tau_1$ and $\tau_2$, $\rightarrow$ can be used to compose a new type, $\tau_1 \rightarrow \tau_2$, which is the type of function taking $\tau_1$-typed terms as input to produce $\tau_2$-typed terms as output. For example, given $B = \{ \Bool, \Int \}$, the following are examples of valid types: $\Bool$, $\Int$, $\Bool \rightarrow \Bool$, $\Bool \rightarrow \Int$, $\Bool \rightarrow (\Bool \rightarrow \Int)$. Arrow is right-associative, so $\Bool \rightarrow \Bool \rightarrow \Int = \Bool \rightarrow (\Bool \rightarrow \Int)$. ``Arrow-type'' and ``function-type'' will be used interchangeably.
+An expression in $\stlc$ is either a variable $x$, the application of a function to a value $e~e$, or a value. A value can be a $\Nat$ constant $n$, an $\Int$ constant $n$, or the function literal $\lambda x: \tau.e$. To distinguish $\Nat$ constants from positive $\Int$ constants, we write $3_{\mathbb{N}}$ for the former and $3_{\mathbb{Z}}$ for the latter. This is not part of the grammar, it is just our notation for distinguishing between the two categories. In the function literal $\lambda x: \tau.e$, $e$ is the function body, $x$ is the name of the argument to the function, and $\tau$ is the type of the argument. An example is $\lambda x: \Int. ~x$, which is the identity function on integers. $(\lambda x: \Int.~ x)~3_{\mathbb{Z}}$ is the application of that identity function to the integer literal $3_{\mathbb{Z}}$. 
 
-In addition to variables, there are function definitions (``abstraction'') and the application of a function to an expression (``application''). For example, $\lambda x: \Int . x$ is the identity function on integers. $(\lambda x: \Int . x) 3$ is the application of the identity function to the integer literal $3$. $(\lambda x: \Int . x) \true$ is the applciation of the identity function to a boolean literal, which is syntactically valid, but as we'll see is not well-typed. A more drastic example is $\true~3$, which is trying to apply $\true$ to $3$. Again, this is a syntactically valid term, but not well-typed because $\true$ is not a function.\\
-
-
-
-
+A grammar for types in $\stlc$ is given in Figure \ref{fig:stlc_type_grammar}. A type context $\Gamma$ is a sequence of variable bindings, interpreted in the usual way. There are two base types $\Nat$ and $\Int$. The arrow $\rightarrow$ is a type constructor: it can be used to build a new type from existing ones. $\tau_1 \rightarrow \tau_2$ is the type of a function which takes as input a $\tau_1$ and returns a $\tau_2$. For example, the function $\lambda x: \Int. ~x$ would have the type $\Int \rightarrow \Int$. Some other examples of types are $\Int \rightarrow \Nat$, $\Nat \rightarrow (\Int \rightarrow \Nat)$, and $(\Nat \rightarrow \Nat) \rightarrow (\Nat \rightarrow \Int)$.
 
 \begin{figure}[h]
-
-\fbox{$\Gamma \vdash e: \tau$}
+\vspace{-5pt}
 
 \[
-\begin{array}{c}
+\begin{array}{lll}
 
 
-\infer[\textsc{(T-Var)}]
-	{\Gamma, x: \tau \vdash x: \tau}
-	{}
-	
-~~~
-	
-\infer[\textsc{(T-Abs)}]
-	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
-	{\Gamma, x: \tau_1 \vdash e: \tau_2} \\[2ex]
-	
-	
-\infer[\textsc{(T-App)}]
-	{\Gamma \vdash e_1~e_2: \tau_3}
-	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}
-	~~~
-\infer[\textsc{T-Subsume}]
-	{\Gamma \vdash e: \tau_2}
-	{\Gamma \vdash e: \tau_1 & \tau_1 <: \tau_2 }
+\begin{array}{lllr}
 
+\Gamma & ::= & ~ & type~: \\
+	& | & \Nat & natural~numbers \\
+	& | & \Int & integers \\
+	& | & \tau \rightarrow \tau & arrow \\
+	&&\\
+	
 \end{array}
-\]
 
+
+\begin{array}{lllr}
+
+\Gamma & ::= & ~ & type~ctx.: \\
+	& | & \varnothing & empty~ctx. \\
+	& | & \Gamma, x: \tau & binding \\
+	&&\\
 	
-\fbox{$\tau <: \tau$}
-
-	
-\[
-\begin{array}{c}
-
-
-\infer[\textsc{(S-Arrow)}]
-	{\tau_1 \rightarrow \tau_2 <: \tau_1' \rightarrow \tau_2'}
-	{\tau_1' <: \tau_1 & \tau_2 <: \tau_2'}\\[2ex]
-
+\end{array}
 
 \end{array}
 \]
 
 \vspace{-12pt}
-\caption{Static rules for $\stlc$.}
-\label{This is the label.}
+\caption{Grammar for $\stlc$.}
+\label{fig:stlc_type_grammar}
 \end{figure}
 
-Static rules for $\stlc$ are summarised in Figure 2.8. \textsc{T-Var} states that a variable bound in some context can be typed as its binding. \textsc{T-Abs} states that a function can be typed in $\Gamma$ if $\Gamma$ can type the body of the function when the function's argument has been bound. \textsc{T-App} states that an application is well-typed if the left-hand expression is a function (has an arrow-type $\tau_2 \rightarrow \tau_3$) and the right-hand expression has the same type as the function's input ($\tau_2$).
-
-\textsc{T-Subsume} is the rule which says you may a type a term more generally as any of its supertypes. For example, if we had base types $\Int$ and $\Real$, and a rule specifying $\Int <: \Real$, a term of type $\Int$ can also be typed as $\Real$. This allows programs such as $(\lambda x: \Real. x)~3$ to type, as shown in Figure \ref{fig:subsume}.
-
-\begin{figure}[h]
-
-
-    \begin{prooftree*}
-        \Infer0[\textsc{(T-Var)}]{x: \Real \vdash x: \Real}
-        \Infer1[\textsc{(T-Abs)}]{\vdash \lambda x: \Real . x : \Real \rightarrow \Real }
-        
-        \Hypo{\vdash 3: \Int}
-        \Hypo{\Int <: \Real}
-        \Infer2[\textsc{(T-Subsume)}]{\vdash 3: \Real}
-        
-        \Infer2[\textsc{(T-App)}]{\vdash (\lambda x: \Real . x)~3 : \Real}
- 	\end{prooftree*}
- 	
-\vspace{-12pt}
-\caption{Derivation tree showing how \textsc{T-Subsume} can be used.}
-\label{fig:subsume}
-\end{figure}
- 
-
-
-The only subtyping rule we provide is \textsc{S-Arrow}, which describes when one function is a subtype of another. Note how the subtyping relation on the input types is reversed from the subtyping relation on the functions. This is called \textit{contravariance}. Contrast this with the relation on the output type, which preserves the order. That is called \textit{covariance}. Arrow-types are contravariant in their input and covariant in their output.
-
-This presentation has no subtyping rules without premises (axioms), which means there is no way to actually prove a particular subtyping judgement. In practice, we add subtyping axioms for the base-types we have chosen as primitive in our calculus. For example, given base types $\Int$ and $\kwa{Real}$, we might add $\Real <: \Int$ as a rule. This is largely an implementation detail particular to your chosen set of base-types, so we give no subtyping axioms here (but will later when describing $\epscalc$).
+Before giving the small-step semantics, we need to define $\kwa{substitution}$. Its definition is given in Figure \ref{fig:stlc_sub_defn}. Numeric constants are unchanged by substitution. A variable is changed if it matches the variable being replaced. A function has the free variables in its body replaced. An application has the free variables in its subexpressions replaced.
 
 \begin{figure}[h]
 
@@ -516,6 +459,8 @@ This presentation has no subtyping rules without premises (axioms), which means 
 
 \begin{itemize}
 	\setlength\itemsep{-0.7em}
+	\item[] $[v/y]i = i$
+	\item[] $[v/y]n = n$
 	\item[] $[ v/y]x =  v$, if $x = y$
 	\item[] $[ v/y]x = x$, if $x \neq y$
 	\item[] $[ v/y](\lambda x:  \tau.  e) = \lambda x:  \tau.[ v/y] e$, if $y \neq x$ and $y$ does not occur free in $ e$
@@ -524,10 +469,10 @@ This presentation has no subtyping rules without premises (axioms), which means 
 
 \vspace{-12pt}
 \caption{Substitution for $\stlc$.}
-\label{This is the label.}
+\label{fig:stlc_sub_defn}
 \end{figure}
 
-Substitution in $\stlc$ follows the same conventions as it does in $\calc$. Substitution on an application is the same as substitution on its sub-expressions. Substitution on a function involves substitution on the function body.
+The dynamic rules for $\stlc$ are summarised in Figure \ref{fig:stlc_dynamic_rules}. The only reducible expression is a function application. \textsc{E-App1} will reduce the left-side of an application. If the left-side is a value, but the right-side is an expression, then \textsc{E-App2} will reduce the right-side. If the left side is a function and the right-side is a value, then the right-side is bound to the name of the function's formal argument in the function body. For example, $(\lambda x:\Int.~x)~3_{\mathbb{Z}} \longrightarrow 3_{\mathbb{Z}}$ by \textsc{E-App3}.
 
 \begin{figure}[h]
 
@@ -554,35 +499,152 @@ Substitution in $\stlc$ follows the same conventions as it does in $\calc$. Subs
 
 \vspace{-12pt}
 \caption{Dynamic rules for $\stlc$.}
-\label{This is the label.}
+\label{fig:stlc_dynamic_rules}
 \end{figure}
 
-Applications are the only reducible expressions in $\stlc$. Such an expression is reduced by first reducing the left subexpression (\textsc{E-App1}). For a well-typed expression, this will always be a function. Once that is a value, the right subexpression is reduced (\textsc{E-App2}). When both subexpressions are values, the right subexpression replaces the formal argument of the function via substitution. The multi-step rules for $\stlc$ are identical to those in $\calc$.
+As with $\calc$, some expressions in $\stlc$ exhibit strange behaviours due to type errors or undefined variables. For example, consider $e = (\lambda x: \Int.~x) (\lambda x:\Int.~x)$. Then $e \longrightarrow e$ by \textsc{E-App3}. This expression can be endlessly reduced! But intuitively, we want to exclude it as a well-behaved program, because the function on the left takes an $\Int$ as an argument, and the function on the right is not an $\Int$. Another example is $(\lambda x: \Int.~y)~3_{\mathbb{Z}}$, which reduces to $y$ by \textsc{E-App3} and then gets stuck. This should be excluded because $y$ is undefined. To determine whether a program is well-behaved we can apply the static rules for $\stlc$, summarised in Figure \ref{fig:stlc_static_rules}.
 
-The soundness property for $\stlc$ is as follows.
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Nat)}]
+	{\Gamma \vdash n: \Nat}
+	{}
+	~~~
+\infer[\textsc{(T-Int)}]
+	{\Gamma \vdash i: \Int}
+	{}
+~~~
+\infer[\textsc{(T-Var)}]
+	{\Gamma, x: \tau \vdash x: \tau}
+	{} \\[2ex]
+	
+\infer[\textsc{(T-Abs)}]
+	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
+	{\Gamma, x: \tau_1 \vdash e: \tau_2} 
+	~~~
+	
+\infer[\textsc{(T-App)}]
+	{\Gamma \vdash e_1~e_2: \tau_3}
+	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}
+
+\end{array}
+\]
+
+
+\vspace{-12pt}
+\caption{Static rules for $\stlc$.}
+\label{fig:stlc_static_rules}
+\end{figure}
+
+The first two rules state that a natural number constant can always be typed to $\Nat$, and an integer cosntant can always be typed to $\Int$. \textsc{T-Var} states that a variable bound in some context can be typed as its binding. \textsc{T-Abs} states that a function can be typed in $\Gamma$ if $\Gamma$ can type the body of the function, when the function's argument has been bound to its formal type. \textsc{T-App} states that an application is well-typed if the left-hand expression reduces to a function of type $\tau_2 \rightarrow \tau_3$ and the right-hand expression has type $\tau_2$. The examples above will now reject: $(\lambda x: \Int.~x)~(\lambda x:\Int.~x)$ does not type because $\vdash \lambda x: \Int.~x : \Int \rightarrow \Int$, but the right-hand side does not have type $\Int$; $(\lambda x: \Int.~y)~3_{\mathbb{Z}}$ does not type because no rule can type $y$ in the context $x: \Int$.
+
+Consider the example $(\lambda x: \Int.~x)~3_{\mathbb{N}}$, where a natural number is passed to the identity function for integers. The rules cannot type this program because the function expects an $\Int$, but in some sense a $\Nat$ is a specific sort of $\Int$, and sometimes it is convenient to treat it as such. We call $\Nat$ a subtype of $\Int$ and write $\Nat <: \Int$ for this judgement. In general, the judgement form $\tau_1 <: \tau_2$ means that values of type $\tau_1$ are also values of type $\tau_2$. We say $\tau_1$ is a more specific type than $\tau_2$, and that $\tau_2$ is a more general type than $\tau_1$. Subtyping judgements for $\stlc$ are given in Figure \ref{fig:stlc_subtyping}. 
+
+\begin{figure}[h]
+
+\fbox{$\tau <: \tau$}
+
+	
+\[
+\begin{array}{c}
+
+\infer[\textsc{(S-Reflexive)}]
+	{\tau <: \tau}
+	{}
+	~~~
+\infer[\textsc{(S-Transitive)}]
+	{\tau_1 <: \tau_3}
+	{\tau_1 <: \tau_2 & \tau_2 <: \tau_3}\\[2ex]
+
+\infer[\textsc{(S-Nat)}]
+	{\Nat <: \Int}
+	{}~~~
+
+\infer[\textsc{(S-Arrow)}]
+	{\tau_1 \rightarrow \tau_2 <: \tau_1' \rightarrow \tau_2'}
+	{\tau_1' <: \tau_1 & \tau_2 <: \tau_2'}
+
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{Static rules for $\stlc$.}
+\label{fig:stlc_static_rules}
+\end{figure}
+
+The rules \textsc{S-Reflexive} and \textsc{S-Transitive} make subtyping a pre-ordering relation on types. \textsc{S-Nat} says that natural numbers are also integers. The most intriguing rule is \textsc{S-Arrow}, which describes when one function is a subtype of another. Notice how the direction of the subtyping relation is flipped for the input types in the premise, whereas the direction is preserved for the output types. The former is called \textit{contravariance} and the latter \textit{covariance}. We say functions are contravariant in their input type and covariant in their output type.
+
+To illustrate why \textsc{S-Arrow} is sensible, consider $\Int \rightarrow \Int$ and $\Nat \rightarrow \Int$. The former could take either an $\Int$ or a $\Nat$ as input (because $\Nat <: \Int$), but the latter can only take a $\Nat$ as input. $\Int \rightarrow \Int$ functions can therefore take more specific inputs than $\Nat \rightarrow \Int$ functions, so $\Int \rightarrow \Int <: \Nat \rightarrow \Int$; the direction of this judgement is reversed from $\Nat <: \Int$, so input type should be contravariant. On the other hand, consider $\Int \rightarrow \Int$ and $\Int \rightarrow \Nat$. The former might return a $\Nat$ or an $\Int$, but the latter can only return a $\Nat$; then it would be safe to treat $\Int \rightarrow \Nat$ functions as $\Int \rightarrow \Int$ functions, because the former only return $\Nat$ values, and the latter is allowed to return $\Nat$ values. However, $\Int \rightarrow \Int$ functions could return an $\Int$ value, so it would not be safe to treat them as a $\Int \rightarrow \Nat$ function, which can only return a $\Nat$ value. Therefore, $\Int \rightarrow \Nat <: \Int \rightarrow \Int$; the direction of this judgement is the same as $\Nat <: \Int$, so the output types should be covariant.
+
+In order to typecheck an example like $\lambda x: \Int.~3_{\mathbb{N}}$, we need a rule which lets us consider $3_{\mathbb{N}}$ as an $\Int$. More generally, we should be able to treat any subtype as one of its supertypes. This is called subsumption; the rule for it is given in Figure \ref{fig:stlc_subsumption}.
+
+\begin{figure}[h]
+
+\fbox{$\tau <: \tau$}
+
+	
+\[
+\begin{array}{c}
+
+\infer[\textsc{T-Subsume}]
+	{\Gamma \vdash e: \tau_2}
+	{\Gamma \vdash e: \tau_1 & \tau_1 <: \tau_2 }
+
+\end{array}
+\]
+
+\vspace{-12pt}
+\caption{The subsumption rule.}
+\label{fig:stlc_subsumption}
+\end{figure}
+
+The type system will now accept programs like $(\lambda x: \Int.~x)~3_{\mathbb{N}}$. A derivation for $\vdash (\lambda x: \Int.~x)~3_{\mathbb{N}}: \Int$ is given in Figure \ref{fig:subsume_derivation}.
+
+\begin{figure}[h]
+
+
+    \begin{prooftree*}
+    
+        \Infer0[\textsc{(T-Var)}]{x: \Int \vdash x: \Int}
+        \Infer1[\textsc{(T-Abs)}]{\vdash \lambda x: \Int~x: \Int \rightarrow \Int}
+        
+        \Infer0[\textsc{(T-Nat)}]{\vdash 3_{\mathbb{N}}: \Nat}
+        \Infer0[\textsc{(S-Nat)}]{\Nat <: \Int}
+        \Infer2[\textsc{(T-Subsume)}]{\vdash 3_{\mathbb{N}}: \Int}
+        
+        \Infer2[\textsc{(T-App)}]{(\lambda x: \Int.~x)~3_{\mathbb{N}}: \Int}
+
+ 	\end{prooftree*}
+ 	
+\vspace{-12pt}
+\caption{A derivation of $\vdash (\lambda x: \Int.~x)~3_{\mathbb{N}}: \Int$.}
+\label{fig:subsume_derivation}
+\end{figure}
+ 
+The definition of soundness for $\stlc$ is very similar to $\calc$, but in the presence of subtyping, the type after reduction may get more specific than the type before reduction. To illustrate why this might happen, consider $(\lambda x: \Int.~x)~3_{\mathbb{N}}$. Figure \ref{fig:subsume_derivation} derives the judgement $\vdash (\lambda x: \Int.~x)~3_{\mathbb{N}}: \Int$. By \textsc{E-App3}, $(\lambda x: \Int.~x)~3_{\mathbb{N}} \longrightarrow 3_{\mathbb{N}}$. Then by \textsc{T-Nat}, $\vdash 3_{\mathbb{N}}: \Nat$ --- and $\Nat <: \Int$, so the type got more specific. In general, if a function has input type $\tau$ then it could take any argument which is a subtype of $\tau$. Once that argument has been reduced to a value, we can determine exactly which subtype it is. In general, we cannot statically determine the most precise type of an expression.
+ 
+The soundness property for $\stlc$ is given below. Note how $\tau_B <: \tau_A$, whereas in $\calc$, which had no subtyping, $\tau_B = \tau_A$.
 
 \begin{theorem}[$\stlc$ Soundness]
 If $\Gamma \vdash e_A: \tau_A$ and $e_A \longrightarrow^* e_B$, then $\Gamma \vdash e_B: \tau_B$, where $\tau_B <: \tau_A$.
 \end{theorem}
 
-Note how with the inclusion of subtyping rules, the type after reduction can get more specific than the type before reduction, but never less specific. This is in contrast to $\calc$, where the type remains the same.
-
-$\stlc$ is also strongly-normalizing, meaning that well-typed terms always halt i.e. they eventually yield a value. As a consequence it is \textit{not} Turing complete, meaning there are certain computer programs which cannot be written in $\stlc$. By comparison, the \textit{untyped} $\lambda$-calculus is known to be Turing complete \cite{kleene43}. The essential ingredient missing from $\stlc$ is a means of general recursion. In mainstream languages such as Java, this is realised by constructs like the $\kwa{while}$ loop; in the untyped $\lambda$-calculus by the Y-combinator. $\stlc$ can be made Turing-complete by adding a $\kwa{fix}$ operator which mimics the Y-combinator.
-
-Turing-completeness is an essential property for practical, general-purpose programming languages. However, the key contribution of this report is in the static rules of $\epscalc$, and not the expressive power of its dynamic semantics. Therefore we acknowledge this practical short-coming, but leave the basis of $\epscalc$ as a Turing-incomplete language to reduce the number of rules and simplify its presentation.
-
-\textbf{Revisit this depending on how you encode types and stuff in $\epscalc$}
-
+As a short aside, $\stlc$ (and $\calc$) are \textit{Turing-incomplete}, meaning there are programs which can be written in general-purpose languages that cannot be written in $\stlc$. There are several routine ways to make $\stlc$ as expressive as these general-purpose languages, but because this report is mainly interested in static rules, we leave our languages Turing-incomplete to simplify the formalisms and minimise irrelevant details. Being Turing-complete is essential for a general purpose programming language, but in this report, we are just demonstrating the static rules (which equally apply to Turing-incomplete program), so it is not necessary.
 
 \section{Effect Systems}
 
-We have seen how the static rules of a language allow us to judge whether certain well-behavedness properties hold of a piece of code, relative to a particular typing context. Some of these well-behavedness properties include being well-typed, and defining every variable before it is used.
-
-One extension to classical type systems is to incorporate a theory of \textit{effects}. Judgements in a \textit{type-and-effect} system ascribe both a type and an effect to a piece of code; the effect component describes intensional information about the way in which a program executes \cite{nielson99}. To illustrate, we summarise the static rules of $\fxtute$ (Side-Effect Analysis), which is a lambda calculus for reasoning about the set of memory cells that are written or read during execution \cite{nielson99}. Our summary is simplified for presentation purposes.
+We have seen how the static rules of a language allow us to judge whether certain well-behavedness properties hold of a piece of code, relative to a particular typing context. Some of these well-behavedness properties include being well-typed, and defining every variable before it is used. One extension to classical type systems is to incorporate a theory of \textit{effects}. Judgements in a \textit{type-and-effect} system ascribe both a type and an effect to a piece of code; the effect component describes intensional information about the way in which a program executes \cite{nielson99}. To illustrate, we present a simplified version of $\fxtute$ (Side-Effect Analysis), which is a calculus for reasoning about the set of memory cells that are written or read during execution \cite{nielson99}. Properly defining the small-step semantics of $\fxtute$ requires us to cover more concepts which are largely irrelevant for the rest of the report, so we instead give a quick explanation of how they work.
 
 \subsection{$\fxtute$: Side-Effect Analysis}
 
-$\fxtute$ is a lambda calculus with a type-and-effect system for reasoning about what memory cells are affected by computations. It extends $\stlc$ with imperative constructs for creating, accessing, and updating reference variables. Our interest is in determining which cells might be created, accessed, or updated by a piece of code; effects in $\fxtute$ are therefore one of those three operations on a particular cell. A particular memory cell is denoted $\pi$. It can be thought of as drawn from a set of memory cell variables, $\Pi$.
+$\fxtute$ is a lambda calculus with a type-and-effect system for reasoning about what memory cells are affected by computations. It extends $\stlc$ with imperative constructs for creating, accessing, and updating reference variables. Our interest is in determining which cells might be created, accessed, or updated by a piece of code; effects in $\fxtute$ are therefore one of those three operations on a particular cell. A particular memory cell is denoted $\pi$. It can be thought of as drawn from a set of memory cell variables $\Pi$.
 
 A full definition of $\fxtute$ would include its dynamic rules and a formulation and proof of soundness. Our purpose is to demonstrate how static rules can be used to describe what effects take place during a program execution. To this end, we omit a proper treatment of soundness and reduction, instead giving a quick summary.
 
