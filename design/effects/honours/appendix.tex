@@ -2,12 +2,13 @@
 
 \chapter{$\opercalc$ Proofs}
 
-\begin{lemma}[Canonical Forms]
+\begin{lemma}[$\opercalc$ Canonical Forms]
 Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
 \begin{enumerate}
 	\setlength\itemsep{-0.7em}
+	\item If $\Gamma \vdash x: \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
 	\item If $ \Gamma \vdash  v:  \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
-	\item If $ \Gamma \vdash v: \{ \bar r \}~\kw{with} \varepsilon$ then $ v = r$ for some $r \in R$ and $\{ \bar r \} = \{ r \}$.
+	\item If $ \Gamma \vdash v: \{ \bar r \}~\kw{with} \varepsilon$ then $ v = r$ and $\{ \bar r \} = \{ r \}$.
 	\item If $\Gamma \vdash v: \tau_1 \rightarrow_{\varepsilon'} \tau_2~\kw{with} \varepsilon$ then $v = \lambda x:\tau. e$.
 \end{enumerate}
 \end{lemma}
@@ -16,7 +17,8 @@ Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
 ~
 \begin{enumerate}
 	\setlength\itemsep{-0.7em}
-	\item A value is either a resource literal or a lambda. The only rules which can type values are \textsc{$\varepsilon$-Resource} and \textsc{$\varepsilon$-Abs}. In the conclusions of both, $\varepsilon = \varnothing$.
+	\item The only rule that applies to variables is \textsc{$\varepsilon$-Var} which ascribes the type $\varnothing$.
+	\item By definition a value is either a resource literal or a lambda. The only rules which can type values are \textsc{$\varepsilon$-Resource} and \textsc{$\varepsilon$-Abs}. In the conclusions of both, $\varepsilon = \varnothing$.
 	\item The only rule ascribing the type $\{ \bar r \}$ is \textsc{$\varepsilon$-Resource}. Its premises imply the result.
 	\item The only rule ascribing the type $\tau_1 \rightarrow_{\varepsilon'} \tau_2$ is \textsc{$\varepsilon$-Abs}. Its premises imply the result.
 \end{enumerate}
@@ -25,40 +27,39 @@ Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
 \hrulefill
 
 
-\begin{theorem}[Progress]
-If $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$ and $ e$ is not a value or variable, then $ e \longrightarrow  e'~|~\varepsilon$.
+\begin{theorem}[$\opercalc$ Progress]
+If $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$ and $ e$ is not a value or variable, then $ e \longrightarrow  e'~|~\varepsilon$, for some $e', \varepsilon$.
 \end{theorem}
 
 \begin{proof} By induction on $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$. \\
 
-Case: \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, or  \textsc{$\varepsilon$-Abs}. Then $e$ is a value or variable, and the theorem statement holds vacuously.\\
+Case: \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, or  \textsc{$\varepsilon$-Abs}. Then $e$ is a value or variable and the theorem statement holds vacuously.\\
 
-Case: \textsc{$\varepsilon$-App}. Then $ e =  e_1~ e_2$. If $ e_1$ is a non-value it can be reduced by inductive assumption, and then $ e_1~ e_2 \longrightarrow  e_1'~ e_2$ by \textsc{E-App1}. If $ e_1 =  v_1$ is a value and $ e_2$ a non-value, then $e_2$ can be reduced by inductive assumption and then $ e_1~ e_2 \longrightarrow  v_1~ e_2'$ by \textsc{E-App2}. Otherwise $ e_1 = v_1$ and $ e_2 = v_2$ are both values. By canonical forms, $v_1 = \lambda x: \tau. e$. Then $(\lambda x:  \tau.  e)  v_2 \longrightarrow [ v_2/x]~|~\varnothing$ by \textsc{E-App3}.\\
+Case: \textsc{$\varepsilon$-App}. Then $ e =  e_1~ e_2$. If $ e_1$ is not a value or variable it can be reduced $e_1 \longrightarrow e_1'~|~\varepsilon$ by inductive assumption, so $ e_1~ e_2 \longrightarrow  e_1'~ e_2~|~\varepsilon$ by \textsc{E-App1}. If $ e_1 =  v_1$ is a value and $ e_2$ a non-value, then $e_2$ can be reduced $e_2 \longrightarrow e_2'~|~\varepsilon$ by inductive assumption, so $ e_1~ e_2 \longrightarrow  v_1~ e_2'~|~\varepsilon$ by \textsc{E-App2}. Otherwise $ e_1 = v_1$ and $ e_2 = v_2$ are both values. By inversion on \textsc{$\varepsilon$-App} and canonical forms, $\Gamma \vdash v_1: \tau_2 \rightarrow_{\varepsilon'} \tau_3~\kw{with} \varnothing$, and $v_1 = \lambda x: \tau_2. e_{body}$. Then $(\lambda x:  \tau.  e_{body})  v_2 \longrightarrow [ v_2/x]e_{body}~|~\varnothing$ by \textsc{E-App3}.\\
 
-Case: \textsc{$\varepsilon$-Oper}. Then $ e =  e_1.\pi$. If $ e_1$ is a non-value it can be reduced by inductive assumption, and then $ e_1.\pi \longrightarrow  e_1'.\pi~|~\varepsilon_1$ by \textsc{E-OperCall1}. Otherwise $ e_1 =  v_1$ is a value. By canonical forms, $ v_1 = r$. Then $r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$ by \textsc{E-OperCall2}.\\
+Case: \textsc{$\varepsilon$-OperCall}. Then $ e =  e_1.\pi$. If $ e_1$ is a non-value it can be reduced $e_1 \longrightarrow e_1'~|~\varepsilon$ by inductive assumption, so $ e_1.\pi \longrightarrow  e_1'.\pi~|~\varepsilon$ by \textsc{E-OperCall1}. Otherwise $ e_1 =  v_1$ is a value. By inversion on \textsc{$\varepsilon$-OperCall} and canonical forms, $\Gamma \vdash v_1: \{ r \}~\kw{with} \{ r.\pi \}$, and $v_1 = r$. Then $r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$ by \textsc{E-OperCall2}.\\
 
-Case: \textsc{$\varepsilon$-Subsume}. Then $ \Gamma \vdash  e:  \tau'~\kw{with} \varepsilon'$. By inversion, $ \Gamma \vdash  e: \tau~\kw{with} \varepsilon$, where $\tau' <: \tau$ and $\varepsilon' \subseteq \varepsilon$. If $e$ is a value or variable, the theorem holds vacuously. Otherwise the reduction exists by applying the inductive assumption to the sub-derivation.
+Case: \textsc{$\varepsilon$-Subsume}. If $e$ is a value or variable, the theorem holds vacuously. Otherwise by inversion on \textsc{$\varepsilon$-Subsume},  $ \Gamma \vdash e:  \tau'~\kw{with} \varepsilon'$, and $e \longrightarrow e'~|~\varepsilon$ by inductive assumption.
+
 \end{proof}
 
 \hrulefill
 
-\begin{lemma}[Substitution]
-If $\Gamma, x: \tau' \vdash e: \tau~\kw{with} \varepsilon$ and $ \Gamma \vdash  v: \tau'~\kw{with} \varnothing$ then $ \Gamma \vdash [ v/x]e:  \tau~\kw{with} \varepsilon$.
+\begin{lemma}[$\opercalc$ Substitution]
+If $\Gamma, x: \tau' \vdash e: \tau~\kw{with} \varepsilon$ and $\Gamma \vdash v: \tau'~\kw{with} \varnothing$ then $\Gamma \vdash [v/x]e: \tau~\kw{with} \varepsilon$.
 \end{lemma}
 
-\begin{proof} By induction on $ \Gamma, x:  \tau' \vdash e:  \tau~\kw{with} \varepsilon$. \\
+\begin{proof} By induction on the derivation of $ \Gamma, x:  \tau' \vdash e:  \tau~\kw{with} \varepsilon$. \\
 
-\textit{Case}: \textsc{$\varepsilon$-Var}. Then $ e = y$ and either $y = x$ or $y \neq x$.
+\textit{Case}: \textsc{$\varepsilon$-Var}. Then $ e = y$ is a variable. Either $y = x$ or $y \neq x$. Suppose $y=x$. By applying canonical Forms to the theorem assumption $\Gamma, x: \tau' \vdash e: \tau'~\kw{with} \varnothing$, hence $\tau' = \tau$. $[v/x]y = [v/x]x = v$, and by assumption, $\Gamma \vdash v: \tau'~\kw{with} \varnothing$, so $\Gamma \vdash [v/x]y: \tau~\kw{with} \varnothing$.
 
-\textbf{Subcase 1:} $y \neq x$. By theorem assumption, $\Gamma \vdash y:\tau~\kw{with} \varepsilon$, where $\varepsilon = \varnothing$ by inversion on \textsc{$\varepsilon$-Var}. Since $[v/x]y = y$, then $ \Gamma \vdash [ v/x]y:  \tau~\kw{with} \varnothing$.
-
-\textbf{Subcase 2:} $y = x$. By inversion on \textsc{$\varepsilon$-Var}, the typing judgement from the theorem assumption is $ \Gamma, x:  \tau' \vdash x:  \tau'~\kw{with} \varnothing$. Since $[ v/x]y =  v$, and by assumption $ \Gamma \vdash  v:  \tau'~\kw{with} \varnothing$, then $ \Gamma \vdash [ v/x]x:  \tau'~\kw{with} \varnothing$. \\
+Otherwise $y \neq x$. By applying canonical forms to the theorem assumption $\Gamma, x: \tau' \vdash y: \tau~\kw{with} \varnothing$, so $y: \tau \in \Gamma$. Since $[v/x]y = y$, then $\Gamma \vdash y: \tau~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Var}. \\
 
 \textit{Case}: \textsc{$\varepsilon$-Resource}. Because $ e = r$ is a resource literal then $ \Gamma \vdash r:  \{ r \}~\kw{with} \varnothing$ by canonical forms. By definition $[ v/x]r = r$, so $ \Gamma \vdash [ v/x]r:  \{ \bar r\}~\kw{with} \varnothing$. \\
 
-\textit{Case:} \textsc{$\varepsilon$-App}. By inversion, $ \Gamma, x:  \tau' \vdash  e_1: \tau_2 \rightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_A$ and $ \Gamma, x:  \tau' \vdash  e_2:  \tau_2~\kw{with} \varepsilon_B$, where $\varepsilon = \varepsilon_A \cup \varepsilon_B \cup \varepsilon_3$ and $ \tau =  \tau_3$. By inductive assumption, $ \Gamma \vdash [ v/x] e_1:  \tau_2 \rightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_A$ and $ \Gamma \vdash [ v/x] e_2:  \tau_2~\kw{with} \varepsilon_B$. By \textsc{$\varepsilon$-App} we have $ \Gamma \vdash ([ v/x] e_1) ([ v/x] e_2) :  \tau_3~\kw{with} \varepsilon_A \cup \varepsilon_B \cup \varepsilon_3$. By simplifying and applying the definition of $\kwa{substitution}$, this is the same as $ \Gamma \vdash [ v/x]( e_1  e_2):  \tau~\kw{with} \varepsilon$. \\
+\textit{Case:} \textsc{$\varepsilon$-App}. By inversion $ \Gamma, x:  \tau' \vdash  e_1: \tau_2 \rightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_A$ and $ \Gamma, x:  \tau' \vdash  e_2:  \tau_2~\kw{with} \varepsilon_B$, where $\varepsilon = \varepsilon_A \cup \varepsilon_B \cup \varepsilon_3$ and $ \tau =  \tau_3$. From inversion on \textsc{$\varepsilon$-App} and inductive assumption, $ \Gamma \vdash [ v/x] e_1:  \tau_2 \rightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_A$ and $ \Gamma \vdash [ v/x] e_2:  \tau_2~\kw{with} \varepsilon_B$. By \textsc{$\varepsilon$-App}  $ \Gamma \vdash ([ v/x] e_1) ([ v/x] e_2) :  \tau_3~\kw{with} \varepsilon_A \cup \varepsilon_B \cup \varepsilon_3$. By simplifying and applying the definition of $\kwa{substitution}$, this is the same as $ \Gamma \vdash [ v/x]( e_1~ e_2):  \tau~\kw{with} \varepsilon$. \\
 
-\textit{Case:} \textsc{$\varepsilon$-OperCall}. By inversion, $ \Gamma, x:  \tau' \vdash  e_1: \{ \bar r \}~\kw{with} \varepsilon_1$, where $ \tau = \{ \bar r \}$ and $\varepsilon = \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$. By applying the inductive assumption, $ \Gamma \vdash [ v/x] e_1 : \{ \bar r \} ~\kw{with} \varepsilon_1$. Then by \textsc{$\varepsilon$-OperCall}, $ \Gamma \vdash ([ v/x] e_1).\pi: \{ \bar r \}~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r.\pi \in \bar r \times \Pi \}$. By simplifying and applying the definition of $\kwa{substitution}$, this is the same as $ \Gamma \vdash [ v/x]( e_1.\pi):  \tau~\kw{with} \varepsilon$.\\
+\textit{Case:} \textsc{$\varepsilon$-OperCall}. By inversion $ \Gamma, x:  \tau' \vdash  e_1: \{ \bar r \}~\kw{with} \varepsilon_1$ and $\tau = \Unit$ and $\varepsilon = \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$. By inductive assumption, $ \Gamma \vdash [ v/x] e_1 : \{ \bar r \} ~\kw{with} \varepsilon_1$. Then by \textsc{$\varepsilon$-OperCall}, $ \Gamma \vdash ([ v/x] e_1).\pi: \Unit~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r.\pi \in \bar r \times \Pi \}$. By simplifying and applying the definition of $\kwa{substitution}$, this is the same as $ \Gamma \vdash [ v/x]( e_1.\pi):  \tau~\kw{with} \varepsilon$.\\
 
 \textit{Case:} \textsc{$\varepsilon$-Subsume}. By inversion, $ \Gamma, x:  \tau' \vdash  e:  \tau_2~\kw{with} \varepsilon_2$, where $ \tau_2 <:  \tau$ and $\varepsilon_2 \subseteq \varepsilon$. By inductive hypothesis, $ \Gamma \vdash [ v/x] e:  \tau_2~\kw{with} \varepsilon_2$. Then $ \Gamma \vdash [ v/x] e:  \tau~\kw{with} \varepsilon$ by \textsc{$\varepsilon$-Subsume}.
 
@@ -67,53 +68,52 @@ If $\Gamma, x: \tau' \vdash e: \tau~\kw{with} \varepsilon$ and $ \Gamma \vdash  
 
 \hrulefill
 
-\begin{theorem}[Preservation]
-If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon_C$, then $ \Gamma \vdash e_B: \tau_B~\kw{with} \varepsilon_B$, where $e_B <: e_A$ and $\varepsilon \cup \varepsilon_B \subseteq \varepsilon_A$.
+\begin{theorem}[$\opercalc$ Preservation]
+If $\Gamma \vdash e_A: \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon$, then $\tau_B <: \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $e_B, \varepsilon, \tau_B, \varepsilon_B$.
 \end{theorem}
 
+
 \begin{proof}
-By induction on $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$, and then on $e_A \longrightarrow e_B~|~\varepsilon$. \\
+By induction on the derivation of $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and then the derivation of $e_A \longrightarrow e_B~|~\varepsilon$.  \\
 
-\textit{Case:} \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Unit}, \textsc{$\varepsilon$-Abs}. Then $e_A$ is a value and cannot be reduced, so the theorem holds vacuously. \\
+\textit{Case:} \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Unit}, \textsc{$\varepsilon$-Abs}. Then $e_A$ is a value and cannot be reduced, so the theorem holds vacuously.\\
 
-\textit{Case:} \textsc{$\varepsilon$-App}. Then $e_A =  e_1~ e_2$ and $ e_1:  \tau_2 \longrightarrow_{\varepsilon}  \tau_3~\kw{with} \varepsilon_1$ and $ \Gamma \vdash  e_2:  \tau_2~\kw{with} \varepsilon_2$ and $\tau_B = \tau_3$ and $\varepsilon_A = \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon$.
+\textit{Case:} \textsc{$\varepsilon$-App}. Then $e_A =  e_1~ e_2$ and $\Gamma \vdash e_1:  \tau_2 \longrightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_1$ and $ \Gamma \vdash  e_2:  \tau_2~\kw{with} \varepsilon_2$ and $\tau_B = \tau_3$ and $\varepsilon_A = \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$.  In each case we choose $\tau_B = \tau_A$ and $\varepsilon_B \cup \varepsilon = \varepsilon_A$.
 
-\textbf{Subcase:} \textsc{E-App1}. Then $e_1~e_2 \longrightarrow e_1'~e_2~|~\varepsilon_C$. From inversion on \textsc{E-App1}, $e_1 \longrightarrow e_1'~|~\varepsilon_C$. By inductive hypothesis and application of \textsc{$\varepsilon$-Subsume}, $\Gamma \vdash e_1': \tau_2 \longrightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1$. Then $\Gamma \vdash e_1'~e_2: \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon$ by \textsc{$\varepsilon$-App}.
+\textbf{Subcase:} \textsc{E-App1}. Then $e_1~e_2 \longrightarrow e_1'~e_2~|~\varepsilon$. By inversion on \textsc{E-App1}, $e_1 \longrightarrow e_1'~|~\varepsilon$. By inductive hypothesis and \textsc{$\varepsilon$-Subsume} $\Gamma \vdash v_1: \tau_2 \longrightarrow_{\varepsilon_3} \tau_3~\kw{with} \varepsilon_1$. Then $\Gamma \vdash e_1'~e_2: \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$ by \textsc{$\varepsilon$-App}.
 
-\textbf{Subcase:} \textsc{E-App2}. Then $e_1 = v_1$ is a value and $e_2 \longrightarrow e_2'~|~\varepsilon_C$. By inversion on \textsc{E-App2}, $e_2 \longrightarrow e_2'~|~\varepsilon_C$. By inductive hypothesis and application of \textsc{$\varepsilon$-Subsume}, $\Gamma \vdash e_2': \tau_2~\kw{with} \varepsilon_2$. Then $\Gamma \vdash v_1~e_2': \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon$ by \textsc{$\varepsilon$-App}.
+\textbf{Subcase:} \textsc{E-App2}. Then $e_1 = v_1$ is a value and $e_2 \longrightarrow e_2'~|~\varepsilon$. By inversion on \textsc{E-App2}, $e_2 \longrightarrow e_2'~|~\varepsilon$. By inductive hypothesis and \textsc{$\varepsilon$-Subsume} $\Gamma \vdash e_2': \tau_2~\kw{with} \varepsilon_2$. Then $\Gamma \vdash v_1~e_2': \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$ by \textsc{$\varepsilon$-App}.
 
-\textbf{Subcase:} \textsc{E-App3}. Then $e_1 = \lambda x: \tau_2.e$ and $e_2 = v_2$ are values, and $(\lambda x: \tau_2.e)~v_2 \longrightarrow [v_2/x]e~|~\varnothing$. By inversion on the typing rule for $\lambda x:  \tau_2. e$, we know $\Gamma, x:  \tau_2 \vdash e: \tau_3~\kw{with} \varepsilon_3$. By canonical forms, $\varepsilon_2 = \varnothing$ because $ e_2 =  v_2$ is a value. Then by the substitution lemma, $ \Gamma \vdash [ v_2/x] e :  \tau_3~\kw{with} \varepsilon_3$. By canonical forms, $\varepsilon_1 = \varepsilon_2 = \varnothing = \varepsilon_C$. Therefore $\varepsilon_A = \varepsilon_3 = \varepsilon_B \cup \varepsilon_C$. \\
+\textbf{Subcase:} \textsc{E-App3}. Then $e_1 = \lambda x: \tau_2.e_{body}$ and $e_2 = v_2$ are values and $(\lambda x: \tau_2.e_{body})~v_2 \longrightarrow [v_2/x]e_{body}~|~\varnothing$. By inversion on the rule \textsc{$\varepsilon$-App} used to type $\lambda x:  \tau_2. e_{body}$, we know $\Gamma, x:  \tau_2 \vdash e_{body}: \tau_3~\kw{with} \varepsilon_3$. $e_1 = v_1$ and $e_2 = v_2$ are values, so $\varepsilon_1 = \varepsilon_2 = \varnothing$ by canonical forms . Then by the substitution lemma, $ \Gamma \vdash [ v_2/x] e_{body} :  \tau_3~\kw{with} \varepsilon_3$ and $\varepsilon_A = \varepsilon_B = \varepsilon$. \\
 
-\textit{Case:}  \textsc{$\varepsilon$-OperCall}. Then $e_A = e_1.\pi$ and $e_1: \{ \bar r \}~\kw{with} \varepsilon_1$ and $\tau_A = \Unit$ and $\varepsilon_A = \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$.
+\textit{Case:}  \textsc{$\varepsilon$-OperCall}. Then $e_A = e_1.\pi$ and $\Gamma \vdash e_1: \{ \bar r \}~\kw{with} \varepsilon_1$ and $\tau_A = \Unit$ and $\varepsilon_A = \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$.
 
-\textbf{Subcase:} \textsc{E-OperCall1}. Then $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon_C$. By inversion on \textsc{E-OperCall1}, $e_1 \longrightarrow e_1'~|~\varepsilon_C$. By inductive hypothesis and application of \textsc{$\varepsilon$-Subsume}, $\Gamma \vdash e_1: \{ \bar r \}~\kw{with} \varepsilon_1$. Then $\Gamma \vdash e_1'.\pi: \{ \bar r \}~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$.
+\textbf{Subcase:} \textsc{E-OperCall1}. Then $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. By inversion on \textsc{E-OperCall1}, $e_1 \longrightarrow e_1'~|~\varepsilon$. By inductive hypothesis and application of \textsc{$\varepsilon$-Subsume}, $\Gamma \vdash e_1': \{ \bar r \}~\kw{with} \varepsilon_1$. Then $\Gamma \vdash e_1'.\pi: \{ \bar r \}~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$ by \textsc{$\varepsilon$-OperCall}.
 
 
-\textbf{Subcase:} \textsc{E-OperCall2}. Then $e_1 = r$ is a resource literal and $r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$. By canonical forms, $ \Gamma \vdash r: \kwa{unit}~\kw{with} \{ r.\pi \}$. Trivially, $ \Gamma \vdash \kwa{unit}: \kwa{Unit}~\kw{with} \varnothing$. Therefore $\tau_B = \tau_A$ and $\varepsilon_C \cup \varepsilon_B = \{ r.\pi \} = \varepsilon_A$.
+\textbf{Subcase:} \textsc{E-OperCall2}. Then $e_1 = r$ is a resource literal and $r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$. By canonical forms, $\varepsilon_1 = \varnothing$. By \textsc{$\varepsilon$-Unit}, $ \Gamma \vdash \kwa{unit}: \kwa{Unit}~\kw{with} \varnothing$. Therefore $\tau_B = \tau_A$ and $\varepsilon \cup \varepsilon_B = \{ r.\pi \} = \varepsilon_A$.
 \end{proof}
 
 \hrulefill
 
-\begin{theorem}[Soundness]
-If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $ e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+
+\begin{theorem}[$\opercalc$ Single-step Soundness]
+If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $ e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $e_B, \varepsilon, \tau_B, \varepsilon_B$.
 \end{theorem}
 \begin{proof}
-If $ e_A$ is not a value or variable then the reduction exists by the progress theorem. The rest of the theorem statement follows by the preservation theorem.
+If $ e_A$ is not a value then the reduction exists by the progress theorem. The rest follows by the preservation theorem.
 \end{proof}
 
 \hrulefill
 
-\begin{theorem}[Multi-step Soundness]
-If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow^{*} e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\begin{theorem}[$\opercalc$ Multi-step Soundness]
+If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow^{*} e_B~|~\varepsilon$, where $\Gamma \vdash e_B: \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <: \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
 \end{theorem}
-
 \begin{proof} By induction on the length of the multi-step reduction.\\
 
-\textit{Case:} Length $0$. Then $e_A = e_B$, and therefore $\tau_A = \tau_B$ and $\varepsilon = \varnothing$ and $\varepsilon_A = \varepsilon_B$.\\
+\textit{Case:} Length $0$. Then $e_A = e_B$ and $\tau_A = \tau_B$ and $\varepsilon = \varnothing$ and $\varepsilon_A = \varepsilon_B$.\\
 
-\textit{Case:} Length $1$. Then the result follows by single-step soundness.\\
-
-\textit{Case:} Length $n+1$. Then by inversion the multi-step can be split into a multi-step of length $n$, which is $ e_A \longrightarrow^{*}  e_C~|~\varepsilon'$, and a single-step of length $1$, which is $e_C \longrightarrow e_B~|~\varepsilon''$, where $\varepsilon = \varepsilon' \cup \varepsilon''$. By inductive assumption and preservation theorem, $ \Gamma \vdash  e_C:  \tau_C~\kw{with} \varepsilon_C$ and $ \Gamma \vdash  e_B:  \tau_B~\kw{with} \varepsilon_B$. By inductive assumption, $ \tau_C <:  \tau_A$ and $ \varepsilon_C \cup \varepsilon' \subseteq \varepsilon_A$. By single-step soundness, $ \tau_B <:  \tau_C$ and $ \varepsilon_B \cup \varepsilon'' \subseteq \varepsilon_C$. Then by transitivity, $ \tau_B <:  \tau$ and $ \varepsilon_B \cup \varepsilon' \cup \varepsilon'' = \varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\textit{Case:} Length $n+1$. By inversion the multi-step can be split into a multi-step of length $n$, which is $ e_A \longrightarrow^{*}  e_C~|~\varepsilon'$, and a single-step of length $1$, which is $e_C \longrightarrow e_B~|~\varepsilon''$, where $\varepsilon = \varepsilon' \cup \varepsilon''$. By inductive assumption and preservation theorem, $ \Gamma \vdash  e_C:  \tau_C~\kw{with} \varepsilon_C$ and $ \Gamma \vdash  e_B:  \tau_B~\kw{with} \varepsilon_B$, where $ \tau_C <:  \tau_A$ and $ \varepsilon_C \cup \varepsilon' \subseteq \varepsilon_A$. By single-step soundness, $ \tau_B <:  \tau_C$ and $ \varepsilon_B \cup \varepsilon'' \subseteq \varepsilon_C$. Then by transitivity, $ \tau_B <:  \tau$ and $ \varepsilon_B \cup \varepsilon' \cup \varepsilon'' = \varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
 \end{proof}
 
 
@@ -133,10 +133,10 @@ If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarr
 \chapter{$\epscalc$ Proofs}\label{appendix:LAS File}
 
 \begin{theorem}[Progress]
-If $\hat \Gamma \vdash \hat e_A: \hat \tau~\kw{with} \varepsilon$ and $\hat e_A$ is not a value or variable, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$.
+If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$, for some $\hat e', \varepsilon$.
 \end{theorem}
 
-\begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.\\
+\begin{proof} By induction on the derivation of $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.\\
 
 Case: \textsc{$\varepsilon$-Module}. Then $\hat e_A = \import{\varepsilon}{x}{\hat e}{e}$. If $\hat e$ is a non-value then $\hat e \longrightarrow \hat e'~|~\varepsilon'$ by inductive assumption. Then $\import{\varepsilon}{x}{\hat e}{e} \longrightarrow \import{\varepsilon}{x}{\hat e'}{e}~|~\varepsilon'$ by \textsc{E-Module1}. Otherwise $\hat e = \hat v$ is a value. Then $\import{\varepsilon}{x}{\hat v}{e} \longrightarrow [\hat v/x]\kwa{annot}(e, \varepsilon)~|~\varnothing$ by \textsc{E-Module2}.
 \end{proof}

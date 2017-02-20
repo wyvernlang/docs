@@ -368,19 +368,23 @@ First consider how the type after reduction relates to the type before reduction
 If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $ e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $e, \varepsilon, \tau_B, \varepsilon_B$.
 \end{theorem}
 
-Our approach to proving soundness wil be to show progress and preservation. These in turn rely on canonical forms and the substitution lemma, modified for $\opercalc$. The new version of canonical forms states that resource-typed values are resource literals, and any typing judgement of a value will approximate the runtime effects as $\varnothing$. This result is not true if the rule used is \textsc{$\varepsilon$-Subsume}, so the lemma statement excludes judgements which use that rule. Progress follows from Canonical Forms.
+Our approach to proving soundness is to show progress and preservation separately. These in turn rely on canonical forms and the substitution lemma, modified for $\opercalc$ given below. The results are not true if the rule used is \textsc{$\varepsilon$-Subsume} (because the type and approximate effects of a value can be arbitrarily widened), so we must exclude that.
 
 \begin{lemma}[$\opercalc$ Canonical Forms]
 Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
-\begin{itemize}
+\begin{enumerate}
 	\setlength\itemsep{-0.7em}
+	\item If $\Gamma \vdash x: \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
 	\item If $ \Gamma \vdash  v:  \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
-	\item If $ \Gamma \vdash  v: \{ \bar r \}$ then $ v = r$ for some $r \in R$ and $\{ \bar r \} = \{ r \}$.
-\end{itemize}
+	\item If $ \Gamma \vdash v: \{ \bar r \}~\kw{with} \varepsilon$ then $v = r$ and $\{ \bar r \} = \{ r \}$.
+	\item If $\Gamma \vdash v: \tau_1 \rightarrow_{\varepsilon'} \tau_2~\kw{with} \varepsilon$ then $v = \lambda x:\tau. e$.
+\end{enumerate}
 \end{lemma}
 
+The first two observations state that a variable will always type with approximate effects $\varnothing$. The third states that if a value is typed to a set of resources, the set of a singleton $\{ r \}$ and the value is the resource literal $r$. The fourth states that if a value types to a function then it is a lambda. Progress follows from Canonical Forms.
+
 \begin{theorem}[$\opercalc$ Progress]
-If $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$ and $ e$ is not a value, then $ e \longrightarrow  e'~|~\varepsilon$, for some $e', \varepsilon$.
+If $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$ and $ e$ is not a value or variable, then $ e \longrightarrow  e'~|~\varepsilon$, for some $e', \varepsilon$.
 \end{theorem}
 
 \begin{proof} By induction on $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$, for $ e$ not a value. If the rule is \textsc{$\varepsilon$-Subsumption} it follows by inductive hypothesis. If $e$ has a reducible subexpression then reduce it. Otherwise use one of \textsc{$\varepsilon$-App3} or \textsc{$\varepsilon$-OperCall2}.
@@ -971,22 +975,24 @@ We can now model the example from the beginning of Section 3.2., where the $\kwa
 
 Only annotated programs can be reduced and have their effects approximated, so the statement of soundness only applies to them. A definition is given below.
 
-\begin{theorem}[Soundness]
+\begin{theorem}[$\epscalc$ Single-step Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, where $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat e_B, \varepsilon, \hat \tau_B, \varepsilon_B$.
 \end{theorem}
 
 The rules of $\opercalc$ are contained in $\epscalc$ and have been proven sound in Section 3.1.4., so we do not repeat their proofs. Instead we present the same theorems and lemmas, but only prove them as they pertain to the new cases in $\epscalc$. Some lemmas are new, and in those cases we prove them for every rule. We begin with canonical forms, which is unchanged. The substitution lemma gains an extra case, but the proof is routine.
 
-\begin{lemma}[Canonical Forms]
+\begin{lemma}[$\epscalc$ Canonical Forms]
 Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
-\begin{itemize}
+\begin{enumerate}
 	\setlength\itemsep{-0.7em}
-	\item If $ \Gamma \vdash \hat v: \hat \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
-	\item If $ \Gamma \vdash \hat v: \{ \bar r \}$ then $\hat v = r$ for some $r \in R$ and $\{ \bar r \} = \{ r \}$.
-\end{itemize}
+	\item If $\hat \Gamma \vdash x: \hat \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $\hat \Gamma \vdash \hat v: \hat \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $\hat \Gamma \vdash \hat v: \{ \bar r \}~\kw{with} \varepsilon$ then $\hat v = r$ and $\{ \bar r \} = \{ r \}$.
+	\item If $\hat \Gamma \vdash \hat v: \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2~\kw{with} \varepsilon$ then $\hat v = \lambda x:\tau. \hat e$.
+\end{enumerate}
 \end{lemma}
 
-\begin{lemma}[Substitution]
+\begin{lemma}[$\epscalc$ Substitution]
 If $\hat \Gamma, x: \hat \tau' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat \Gamma \vdash \hat v: \hat \tau'~\kw{with} \varnothing$ then $\hat \Gamma \vdash [\hat v/x]\hat e: \hat \tau~\kw{with} \varepsilon$.
 \end{lemma}
 
@@ -997,11 +1003,11 @@ If $\hat \Gamma, x: \hat \tau' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ a
 
 The progress theorem also has an extra case for \textsc{$\varepsilon$-Import}, but the proof is routine.
 
-\begin{theorem}[Progress]
+\begin{theorem}[$\epscalc$ Progress]
 If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$, for some $\hat e', \varepsilon$.
 \end{theorem}
 
-\begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.\\
+\begin{proof} By induction on the derivation of $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.\\
 
 \textit{Case:} \textsc{$\varepsilon$-Import}. Then $\hat e = \import{\varepsilon}{x}{\hat e''}{e}$. If $\hat e''$ is a non-value then $\hat e$ reduces by \textsc{E-Import1}. Otherwise $\hat e$ reduces by \textsc{E-Import2}.
 \end{proof}
@@ -1012,7 +1018,7 @@ In this subcase the reduction has the form $\import{\varepsilon_{select}}{x}{\ha
 
 Based on our analysis, we expect $\hat \Gamma, x: \hat \tau \vdash \annot{e}{\varepsilon}: \annot{\tau}{\varepsilon}~\kw{with} \varepsilon$. Then, by the substitution lemma, we get $\hat \Gamma \vdash [\hat v/x]\annot{e}{\varepsilon}: \annot{\tau}{\varepsilon}~\kw{with} \varepsilon$. This first judgement is the subject of the following annotation lemma.
 
-\begin{lemma}[Annotation]
+\begin{lemma}[$\epscalc$ Annotation]
 If the following are true:
 
 \begin{enumerate}
@@ -1035,11 +1041,11 @@ Note that when $\Gamma = \varnothing$ then $\varepsilon' = \varepsilon$ and appl
 By induction on $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$.
 \end{proof}
 
-\begin{lemma}
+\begin{lemma}[$\epscalc$ Duality 1]
 If $\kwa{effects}(\hat \tau) \subseteq \varepsilon$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\hat \tau <: \kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
 \end{lemma}
 
-\begin{lemma}
+\begin{lemma}[$\epscalc$ Duality 2]
 If $\kwa{ho \hyphen effects}(\hat \tau) \subseteq \varepsilon$ and $\safe{\hat \tau}{\varepsilon}$ then $\kwa{annot(erase}(\hat \tau), \varepsilon) <: \hat \tau$.
 \end{lemma}
 
@@ -1052,7 +1058,7 @@ Again, there is a close relation between these lemmas and the subtyping rule for
 
 Armed with the annotation lemma, we can now prove the preservation theorem.
 
-\begin{theorem}[Preservation]
+\begin{theorem}[$\epscalc$ Preservation]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, then $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
 \end{theorem}
 
@@ -1078,11 +1084,11 @@ Apply the annotation lemma with $\Gamma = \varnothing$ to get $\hat \Gamma, x: \
 
 We can now combine Progress and Preservation into the Soundness theorem for $\epscalc$. The proof of multi-step soundness in $\epscalc$ is identical to the proof in $\opercalc$.
 
-\begin{theorem}[Soundness]
+\begin{theorem}[$\epscalc$ Single-step Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
 \end{theorem}
 
-\begin{theorem}[Multi-step Soundness]
+\begin{theorem}[$\epscalc$ Multi-step Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow^{*} e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
 \end{theorem}
 
