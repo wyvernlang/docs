@@ -1,14 +1,41 @@
 \chapter{Effect Calculi}
 
-In this section we introduce a pair of langauges: the operation calculus $\opercalc$ and the capability calculus $\epscalc$. $\opercalc$ is an extension of $\stlc$ with primitive capabilities and their operations. Every function is annotated with what effects it might incur. The static rules of $\opercalc$ ascribe a type-and-effect to programs. They are type-sound, but also \textit{effect-sound}, which is a new notion we introduce.
+This chapter introduces a pair of languages: the operation calculus $\opercalc$ and the capability calculus $\epscalc$. $\opercalc$ is an extension of $\stlc$ with primitive capabilities and their operations. Every function is annotated with what effects it might incur. The static rules of $\opercalc$ ascribe a type-and-effect to programs, and the resulting theory is sound with respect to both types and effects. We then generalise $\opercalc$ to obtain $\epscalc$, which allows unannotated code to be nested inside annotated code using a new $\kwa{import}$ construct in a capability-safe manner. A safe inference can be made about what effects the unannotated code might incur by inspecting the capabilities it is given.
 
-We then extend $\opercalc$ to obtain $\epscalc$, which allows the nesting of unannotated code inside annotated code using a new $\kwa{import}$ construct. An effect-sound inference can be made about what effects the unannotated code might incur by inspecting those capabilities passed into the unannotated code.
-
-The high-level motivating examples in this section written in a \textit{Wyvern}-like language. Wyvern is a capability-safe, pure, object-oriented language with first-class modules. A more thorough discussion of how Wyvern programs might be translated into the calculi is given in Chapter 4.
+The motivating examples in this chapter are written in a \textit{Wyvern}-like language. Wyvern is a capability-safe, pure, object-oriented language with first-class modules \cite{nistor13}. A more thorough discussion of how Wyvern programs might be translated into the calculi is given in Chapter 4.
 
 \section{$\opercalc$: Operation Calculus}
 
-The operation calculus $\opercalc$ is an extension of $\stlc$ with primitive capabilities and operations which can be invoked on them. A primitive capability encapsulates some system resource. For simplicity, we conflate the two and use the term resource to refer to primitive capabilities. An effect is a particular operation invoked on some resource. Every function-type is annotated with what effects may be incurred during execution of the function body. The static rules of $\opercalc$ can inspect this information and ascribe a set of effects to a piece of code, giving a static approximation to the runtime effects. 
+The operation calculus $\opercalc$ extends $\stlc$ with primitive capabilities and their operations. A primitive capability encapsulates some system resource; a primitive capability $\kwa{File}$ might provide some operations on a particular file in the file system. For convenience we often conflate the capability granting operations with the resource itself. An effect is a particular operation invoked on some resource. Every function-type in $\opercalc$ is annotated with what effects may be incurred during execution of the function body. The static rules of $\opercalc$ can inspect this information and ascribe a set of effects to a piece of code, giving a static approximation to the runtime effects.
+
+When a component is annotated with the effects it might incur, an effect-system can determine when the allowed 	authority of a component is being violated. Consider the pair of modules in Figure \ref{fig:opercalc_motivating}: the $\kwa{Logger}$ possesses a $\kwa{File}$ capability and exposes a single function $\kwa{log}$ which incurs the $\kwa{File.write}$ effect. The $\kwa{Client}$, when passed a $\kwa{Logger}$, will invoke its $\kwa{log}$ function.
+
+
+\begin{figure}[h]
+\vspace{-5pt}
+
+\begin{lstlisting}
+resource module Logger
+require File
+
+def log(): Unit with {File.write} =
+    File.write(``message written'')
+\end{lstlisting}
+
+\begin{lstlisting}
+module Client
+
+def run(l: Logger): Unit with $\varnothing$ =
+    l.log()
+\end{lstlisting}
+
+\vspace{-7pt}
+\caption{The implementation of $\kwa{Client.run}$ exceeds its specified authority.}
+\label{fig:opercalc_motivating}
+\end{figure}
+
+Following the principle of least authority, $\kwa{Client.run}$ is annotated as incurring $\varnothing$ as its effects and $\kwa{Logger.log}$ is annotated as incurring $\{ \kwa{File.write} \}$. But as $\kwa{Client.run}$ invokes $\kwa{Logger.log}$, its implementation violates its specified authority. By the end of this section, we will have developed rules for $\opercalc$ that reject implementations inconsistent with their specification.
+
 
 \subsection{$\opercalc$ Grammar}
 
@@ -29,7 +56,11 @@ e & ::= & ~ & exprs: \\
 	& | & e.\pi & operation \\
 	&&\\
 
-v & ::= & ~ & values: \\
+\end{array}
+
+\begin{array}{lllr}
+
+v & ::= & ~ & values: \\ 
 	& | & r & resource~literal \\
 	& | & \lambda x: \tau.e & abstraction \\
 	&&\\
@@ -44,11 +75,12 @@ v & ::= & ~ & values: \\
 \label{fig:opercalc_grammar}
 \end{figure}
 
-A resource literal $r$ is a variable drawn from a fixed set $R$. Resources cannot be created or destroyed at runtime; they simply exist throughout the duration of the program. They resource those initial capabilities passed into the program which endow operations upon some system resources. For example, a $\kwa{File}$ or $\kwa{Socket}$ might provide read-and-write operations on a particular file or socket in the system environment.
+A resource literal $r$ is a variable drawn from a fixed set $R$. Resources cannot be created or destroyed at runtime. They model those initial capabilities passed into the program which endow operations upon system resources. A $\kwa{File}$ and a $\kwa{Socket}$ are examples of resource literals.
 
-An operation call $e.\pi$ represents some primitive operation invoked on the resource described by $e$. For example, we might invoke the $\kwa{open}$ operation on a $\kwa{File}$ resource, which would be the operation call $\kwa{File.open}$. Operations are drawn from a fixed set $\Pi$. Like resources, they cannot be created or destroyed at runtime.
+An operation call $e.\pi$ is the invocation of a primitive operation $\pi$ invoked on the resource described by $e$. For example, we might invoke the $\kwa{open}$ operation on a $\kwa{File}$ resource, which would be the operation call $\kwa{File.open}$. Operations are drawn from a fixed set $\Pi$. Like resources, they cannot be created or destroyed at runtime.
 
-An effect is a pair $(r, \pi) \in R \times \Pi$. Sets of effects are denoted $\varepsilon$; a rule for them is given in Figure \ref{fig:opercalc_fx}. As a shorthand, we write $r.\pi$ instead of $(r, \pi)$. Effects should be distinguished from operation calls: an operation call is the invocation of a particular operation on a particular resource in a program, while an effect is a mathematical object describing this behaviour.
+An effect is a pair $(r, \pi) \in R \times \Pi$. Sets of effects are denoted $\varepsilon$; a rule for them is given in Figure \ref{fig:opercalc_fx}. 
+ As a shorthand, we write $r.\pi$ instead of $(r, \pi)$. Effects should be distinguished from operation calls: an operation call is the invocation of a particular operation on a particular resource in a program, while an effect is a mathematical object describing this behaviour. We have defined $\varepsilon$ syntactically as a sequence of pairs from $R \times \Pi$, but instances of $\varepsilon$ should be interpreted as a set. The notation $r.*$ is short-hand for the set $\{ r.\pi \mid \pi \in \Pi \}$, which contains every effect on $r$. Sometimes we abuse notation by conflating the effect $r.\pi$ with a singleton set of effects $\{ r.\pi \}$. We might also write things like $\{ r_1.*, r_2.* \}$, which should be understood as the set of all operations on $r_1$ and $r_2$.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -72,9 +104,11 @@ An effect is a pair $(r, \pi) \in R \times \Pi$. Sets of effects are denoted $\v
 \label{fig:opercalc_fx}
 \end{figure}
 
-Because the static rules of $\opercalc$ are only interested in where effects are incurred, we have chosen not to model the semantics of particular operations. In practice, operations might take arguments of particular types and return a value of a particular type; for example, $\kwa{File.write(``msgToWrite'')}$. We make the assumption that all operations are null-ary and return a value. Furthermore, all operations are assumed to be valid on all resources.
+Because the static rules of $\opercalc$ are only interested in where effects are incurred, we have chosen not to model the semantics of particular operations. In practice, operations might take arguments of particular types and return a value of a particular type $\kwa{File.write(``msgToWrite'')}$, for example. We make a simplifying assumption that all operations are null-ary and return the same dummy value, and that all operations are defined on all resources. 
 
-An updated definition of $\kwa{substitution}$ is given in Figure \ref{fig:opercalc_sub_defn}. The new cases are straightforward, but we make an extra restriction in $\opercalc$ that a variable may only be substituted for a value. This restriction is imposed because if a variable can be repalced with an arbitrary expression, then we might also be introducing arbitrary effects, which violates the preservation of effects. Because we only consider the call-by-value strategy, in which expressions are reduced to values before being bound to names, this restriction is no issue.
+\subsection{$\opercalc$ Dynamic Rules}
+
+Before giving the dynamic rules we extend the definition of $\kwa{substitution}$ to be defined on the extra forms. The extra cases are given in Figure \ref{fig:opercalc_sub_defn}. The function is defined the same on existing forms as in $\stlc$, so we do not repeat them. We also make an extra restriction in $\opercalc$ that a variable may only be substituted for a value. This restriction is imposed because if a variable can be replaced with an arbitrary expression, we might also be introducing arbitrary effects, which violates the preservation of effects. Because we only consider the call-by-value strategy, in which expressions are reduced to values before being bound to names, this restriction is no issue.
 
 \begin{figure}[h]
 
@@ -82,10 +116,7 @@ An updated definition of $\kwa{substitution}$ is given in Figure \ref{fig:operca
 
 \begin{itemize}
 	\setlength\itemsep{-0.7em}
-	\item[] $[v/y]x = v$, if $x = y$
-	\item[] $[v/y]x = x$, if $x \neq y$
-	\item[] $[v/y](\lambda x: \tau. e) = \lambda x: \tau.[v/y]e$, if $y \neq x$ and $y$ does not occur free in $e$
-	\item[] $[v/y](e_1~e_2) = ([v/y]e_1)([v/y]e_2)$
+	\item[] $[v/y]r = r$
 	\item[] $[v/y](e_1.\pi) = ([v/y]e_1).\pi$
 \end{itemize}
 
@@ -94,9 +125,7 @@ An updated definition of $\kwa{substitution}$ is given in Figure \ref{fig:operca
 \label{fig:opercalc_sub_defn}
 \end{figure}
 
-\subsection{$\opercalc$ Dynamic Rules}
-
-During reduction an operation call may be evaluated. When this happens, a runtime effect is said to have taken place. The form of the single-step reduction judgement is now $e \longrightarrow e~|~\varepsilon$ to reflect this fact. The resulting pair is the reduced expression, and the set of effects incurred as a result. In the case of single-step reduction, this is at most a single effect. The judgements for single-step reductions are summarised in Figure \ref{fig:opercalc_singlestep}.
+During reduction an operation call may be evaluated. When this happens a runtime effect is said to have taken place. The form of the single-step reduction judgement is now $e \longrightarrow e~|~\varepsilon$ to reflect this fact; the resulting pair is the reduced expression, and the set of effects incurred as a result. In the case of single-step reduction, this is at most a single effect. Judgements for single-step reductions are summarised in Figure \ref{fig:opercalc_singlestep}.
 
 \begin{figure}[h]
 
@@ -138,9 +167,9 @@ During reduction an operation call may be evaluated. When this happens, a runtim
 \label{fig:opercalc_singlestep}
 \end{figure}
 
-\textsc{E-App1} and \textsc{E-App2} incur whatever is the effect of reducing their subexpressions. \textsc{E-App3} incurs effects when it substitutes the actual value of the argument for its formal name in the function body. The first new single-step rule is \textsc{E-OperCall1}, which reduces the receiver of an operation call. The effects incurred are the effects incurred by reducing the receiver. The other new rule is \textsc{E-OperCall2}, which is reducing an operation call on a resource literal; then $r.\pi$ incurs the effect-set $\{ r.\pi \}$.
+The first three rules are analogous to the rules from $\stlc$. \textsc{E-App1} and \textsc{E-App2} incur the effects of reducing their subexpressions. Because \textsc{E-App3} is simply performing a substitution, it incurs no effects. The first new rule is \textsc{E-OperCall1}, which reduces the receiver of an operation call; the effects incurred are the effects incurred by reducing the receiver. When an operation $\pi$ is invoked on a resource literal $r$, \textsc{E-OperCall2} will reduce it to $\unit$, incurring $\{ r.\pi \}$ as a result. $\unit$ is a derived form. It is the only value of its type, so is used to represent the absence of information. Because we choose not to model the semantics of operation calls, $\unit$ is a good dummy-value for operation calls to be returning.
 
-From the judgements for single-step reduction we define judgements for multi-step reductions in Figure \ref{fig:opercalc_multistep_defn}. A multi-step reduction consists of zero or more single-steps. The resulting effect-set is the union of all the effect-sets produced by the intermediate single-steps.
+From the single-step reductions we define the multi-step reductions in Figure \ref{fig:opercalc_multistep_defn}. A multi-step reduction consists of zero or more single-steps. The resulting effect-set is the union of all the effect-sets produced by the intermediate single-steps.
 
 \begin{figure}[h]
 
@@ -177,7 +206,7 @@ From the judgements for single-step reduction we define judgements for multi-ste
  
 \subsection{$\opercalc$ Static Rules}
 
-A grammar for the types of $\opercalc$ is given in Figure \ref{fig:opercalc_types}. Typing contexts are the same as in $\stlc$. The base types are sets of resources, denoted $\{ \bar r \}$. If an expression is associated with type $\{ \bar r \}$, then evaluating $e$ will reduce to one of the resource literals $r \in \bar r$ (assuming it terminates). There is a single type-constructor, $\rightarrow_{\varepsilon}$. If an expression is associated with type $\tau_1 \rightarrow_{\varepsilon} \tau_2$, then it is a function which takes a $\tau_1$ as input, returns a $\tau_2$ as output, and during execution incurs no more than those effects in $\varepsilon$. If an effect $r.\pi \in \varepsilon$, then it is not guaranteed that $r.\pi$ will occur during function execution; but if $r.\pi \notin \varepsilon$, then it cannot occur during function execution.
+A grammar for the types of $\opercalc$ is given in Figure \ref{fig:opercalc_types}. Typing contexts are the same as in $\stlc$. The base types are sets of resources, denoted $\{ \bar r \}$. If an expression is associated with type $\{ \bar r \}$, then evaluating $e$ will reduce to one of the resource literals $r \in \bar r$ (assuming it terminates). Although $\{ \bar r \}$ is syntactically defined as a sequence, it should be interpreted as a set; $\{ \kwa{File, Socket} \}$ is the same type as $\{ \kwa{Socket, File} \}$. There is a single type-constructor, $\rightarrow_{\varepsilon}$. If an expression is associated with type $\tau_1 \rightarrow_{\varepsilon} \tau_2$, then it is a function which takes a $\tau_1$ as input, returns a $\tau_2$ as output, and during execution incurs no more than those effects in $\varepsilon$. If an effect $r.\pi \in \varepsilon$, then it is not guaranteed that $r.\pi$ will occur during function execution; but if $r.\pi \notin \varepsilon$, then it cannot occur during function execution.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -405,9 +434,9 @@ If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarr
 
 \section{$\epscalc$: Capability Calculus}
 
-$\opercalc$ requires every function to have its input type annotated --- if we relax this requirement, can a type system say anything useful about pieces of unannotated code? There are practical reasons to permit unannotated code in an effect-conscious language. Previous effect systems have been criticised for their verbosity \cite{rytz2012}, which might disincline a programmer from bothering to use them. Allowing structured, safe mixing of annotated and unannotated code can alleviate this problem by allowing develoeprs to rapidly prototype software in the unannotated sublanguage and then incrementally add effect annotations as they are needed, giving a trade-off between convenience and safety.
+$\opercalc$ requires every function to be annotated --- if we relax this requirement, can a type system say anything useful about pieces of unannotated code? There are practical reasons to permit unannotated code in an effect-conscious language. Previous effect systems have been criticised for their verbosity \cite{rytz2012}, which might disincline a programmer from bothering to use them. The structured mixing of annotated and unannotated code can alleviate the problem by allowing developers to rapidly prototype in the unannotated sublanguage and incrementally add annotations as they are needed, giving a balance between convenience and safety.
 
-In general, reasoning about unannotated code is difficult because there are no constraints on what effects might be incurred. Figure \ref{fig:unannotated_reasoning} demonstrates the issue: $\kwa{someMethod}$ takes a function as input and executes it, but the effects of $\kwa{f}$ depend on the particular implementation passed to $\kwa{someMethod}$. Without more information, such as extra constraints on the problem, more annotations, or a more complex type system, there is no way to know what effects might be incurred by $\kwa{someMethod}$.
+In general, reasoning about unannotated code is difficult because there are no constraints on what effects might be incurred. Figure \ref{fig:unannotated_reasoning} demonstrates the issue: $\kwa{someMethod}$ takes a function $f$ as input and executes it, but the effects of $f$ depend on the implementation. Without more information, such as extra constraints on the problem, more annotations, or a more complex type system, there is no way to know what effects might be incurred by $\kwa{someMethod}$.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -419,7 +448,7 @@ def someMethod(f: Unit $\rightarrow$ Unit):
 \label{fig:unannotated_reasoning}
 \end{figure}
 
-A capability-safe design can help us: if the capabilities exercised by the unannotated code are passed in from an annotated environment, then whatever effects they capture are a conservative upper-bound on what can happen in the unannotated code. To demonstrate, consider a developer who wants to decide whether the modele in Figure \ref{fig:cc_motivation}. The module is a $\kwa{Logger}$ which possesses two capabilities $\kwa{File}$ and $\kwa{Socket}$, and provides a single unannotated function $\kwa{log}$.
+A capability-safe design can help us: if the capabilities exercised by the unannotated code are supplied by an annotated environment, then whatever effects they capture are a conservative upper-bound on what can happen in the unannotated code. To demonstrate, consider a developer who wants to decide whether the module in Figure \ref{fig:cc_motivation} is trustworthy. The module is a $\kwa{Logger}$, possessing two capabilities $\kwa{File}$ and $\kwa{Socket}$, and providing a single unannotated function $\kwa{log}$.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -435,13 +464,13 @@ def log(x: Unit): Unit
 \label{fig:cc_motivation}
 \end{figure}
 
-What effects will be incurred if $\kwa{Logger.log}$ is invoked? One approach is to examine its source code, but this is tedious and in many real-world situations the source code may not be available. A capability-based argument can do better: the only authority which $\kwa{Logger}$ can exercise is that which has been explicitly given. Here, the $\kwa{Logger}$ can be explicitly given a $\kwa{File}$ and a $\kwa{Socket}$, so $\kwa{ \{ \kwa{File.*, Socket.*} \} }$ is a safe upper bound on the effects of $\kwa{Logger}$. Knowing $\kwa{Logger}$ could be manipulating sockets, a developer may decide this implementation cannot be trusted and choose not to use it.
+What effects will be incurred if $\kwa{Logger.log}$ is invoked? One approach is to examine its source code, but this manual process is tedious and error-prone. In many real-world situations the source code may not be available. A capability-based argument can do better: the only authority which $\kwa{Logger}$ can exercise is that which it has been explicitly given. Here, the $\kwa{Logger}$ can be given a $\kwa{File}$ and a $\kwa{Socket}$, so $\kwa{ \{ \kwa{File.*, Socket.*} \} }$ is an upper bound on the effects of $\kwa{Logger}$. Knowing $\kwa{Logger}$ could be manipulating sockets, a developer may decide this implementation cannot be trusted and choose not to use it.
 
-The reasoning we employed only required us to examine the interface of the unannotated code for the capabilities that might be passed into it. To model this situation in $\epscalc$, we add a new $\kwa{import}$ expression which selects the authority the unannotated code is allowed to use. The static rules can then approximate the effects of the unannotated code as being those captured by its imports. That capability-safe design enables this inference is the key result of this report. We spend the rest of this chapter formalising the idea and proving it sound.
+The reasoning we employed only required us to examine the interface of the unannotated code for the capabilities that passed into it. To model this situation in $\epscalc$, we add a new $\kwa{import}$ expression selecting what effects $\varepsilon$ the unannotated code may exercise. The static rules can check if the capabilities being imported violate $\varepsilon$. If the rules accept the code, then $\varepsilon$ is a safe approximation of the unannotated code's effects; that capability-safe design enables this inference is the key result. The rest of this chapter is devoted to formalising the idea and proving it sound.
 
 \subsection{$\epscalc$ Grammar}
 
-The grammar of $\epscalc$ is split into rules for annotated code and analogous rules for unannotated code. To distinguish the two we put a hat above annotated types, expressions, and contexts: $\hat e$, $\hat \tau$, and $\hat \Gamma$ are annotated, while $e$, $\tau$, and $\Gamma$ are unannotated. The rules for unannotated programs and their types are given in Figure \ref{fig:epscalc_unannotated_grammar}.
+The grammar of $\epscalc$ is split into rules for annotated code and analogous rules for unannotated code. To distinguish the two, we put a hat above annotated types, expressions, and contexts: $\hat e$, $\hat \tau$, and $\hat \Gamma$ are annotated, while $e$, $\tau$, and $\Gamma$ are unannotated. The rules for unannotated programs and their types are given in Figure \ref{fig:epscalc_unannotated_grammar}.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -485,9 +514,9 @@ v & ::= & ~ & values: \\
 \label{fig:epscalc_unannotated_grammar}
 \end{figure}
 
-The rules are much the same as in $\opercalc$, but the sole type-constructor $\rightarrow$ is not annotated with a set of effects. If an expression is associated with the type $\tau_1 \rightarrow \tau_2$, it should be taken to mean that the expression is a function which, given a $\tau_1$, will return a $\tau_2$. The type says nothing about what effects may or may not be incurred during execution. Unannotated types $\tau$ are built using $\rightarrow$ and sets of resources $\{ \bar r \}$. An unannotated context $\Gamma$ maps variables to unannotated types.
+The rules are much the same as in $\opercalc$, but the sole type-constructor $\rightarrow$ is not annotated with a set of effects. If an expression $e$ is associated with the type $\tau_1 \rightarrow \tau_2$, it means $e$ is a function which, when given a $\tau_1$, will return a $\tau_2$. This type says nothing about what effects may or may not be incurred by $e$. Unannotated types $\tau$ are built using $\rightarrow$ and sets of resources $\{ \bar r \}$. An unannotated context $\Gamma$ maps variables to unannotated types.
 
-Rules for annotated programs and their types are given in Figure \ref{fig:epscalc_annotated_grammar}. Except for the new $\kwa{import}$ expression, the rules for annotated programs are the same as in $\opercalc$. Annotated types $\hat \tau$ are built using the type constructor $\rightarrow_{\varepsilon}$ and sets of resources $\{ \bar r \}$. An annotated context $\hat \Gamma$ maps variables to annotated types.
+Rules for annotated programs and their types are given in Figure \ref{fig:epscalc_annotated_grammar}. Except for the new $\kwa{import}$ expression, the rules are the same as in $\opercalc$. Annotated types $\hat \tau$ are built using the type constructor $\rightarrow_{\varepsilon}$ and sets of resources $\{ \bar r \}$. An annotated context $\hat \Gamma$ maps variables to annotated types.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -536,15 +565,13 @@ Rules for annotated programs and their types are given in Figure \ref{fig:epscal
 \label{fig:epscalc_annotated_grammar}
 \end{figure}
 
-$\kwa{import}$ introduces a name $x$ with annotated definition $\hat e$ into a body of unannotated code $e$. $\varepsilon$ is the authority which $e$ is allowed to exercise, so any resources and operation calls used in $e$ must be declared in $\varepsilon$. The only way to nest unannotated code inside annotated code is to use $\kwa{import}$. It is not possible to nest annotated code inside unannotated code, because of the general difficulty of reasoning about what the unannotated code may do. We will not be interested in unannotated programs, unless they appear inside an $\kwa{import}$ expression.
+The new form $\kwa{import}$ introduces a name $x$ with annotated definition $\hat e$ into a body of unannotated code $e$. This should be understood as $e$ importing the capability $\hat e$. $\varepsilon$ is the authority which $e$ is allowed to exercise, so any resources and operation calls used in $e$ must be declared in $\varepsilon$. $\kwa{import}$ is the only way to nest unannotated code inside annotated code. It is not possible to nest annotated code inside unannotated code, because of the general difficulty of reasoning about what the unannotated code may do. We will not be interested in unannotated programs, unless they appear inside an $\kwa{import}$ expression.
 
 \subsection{$\epscalc$ Dynamic Rules}
 
-Different approaches might be taken to define the small-step semantics of $\epscalc$. One way is to define reductions for both annotated and unannotated programs, but this clutters the formalism with irrelevant, uninteresting rules. Another is to define reductions for either of the two, and translate programs into the appropriate form before executing them. Because our static rules focus on what can be said about unannotated code nested inside annotated code, we take this second approach: reductions are defined on annotated forms, and unannotated forms nested inside annotated code are transformed at runtime.
+Different approaches might be taken to define the small-step semantics of $\epscalc$: one is to define reductions for both annotated and unannotated programs, but this clutters the formalism with irrelevant, uninteresting rules; another is to define reductions for either of the two, and translate programs into the appropriate form before executing them. Because our static rules focus on what can be said about unannotated code nested inside annotated code, we take this second approach: reductions are defined on annotated forms, and unannotated forms nested inside annotated code are transformed at runtime.
 
-Excluding $\kwa{import}$, the annotated sublanguage of $\epscalc$ is the same as $\opercalc$, so we can take the reduction rules of $\opercalc$ to be reduction rules in $\epscalc$. For brevity, they are not restated.
-
-Rules new to $\epscalc$ will be for reducing $\kwa{import}$ expressions. The idea is that whenever a piece of unannotated code $e$ is encountered inside annotated code, the surrounding $\kwa{import}$ will select its authority $\varepsilon$, so we can annotate $e$ with $\varepsilon$ to wrangle it into a form that can be further reduced by the reduction rules. To this end, we define$\annot{e}{\varepsilon}$ in Figure \ref{fig:annot_defn}, which recursively annotates the parts of $e$ with $\varepsilon$. There are versions of $\kwa{annot}$ defined for expressions and types. We will need to annotate contexts later, so the definition is given here.
+Excluding $\kwa{import}$, the annotated sublanguage of $\epscalc$ is the same as $\opercalc$, so we take the reduction rules of $\opercalc$ as also being reduction rules in $\epscalc$. For brevity, they are not restated. The new rules in $\epscalc$ are for reducing $\kwa{import}$ expressions. The idea is that when a piece of unannotated code $e$ is encountered inside annotated code, the surrounding $\kwa{import}$ will select its authority $\varepsilon$, so we can annotate $e$ with $\varepsilon$ to wrangle it into a form that can be further reduced by the rules from $\opercalc$. To this end, we define $\annot{e}{\varepsilon}$ in Figure \ref{fig:annot_defn}, which recursively annotates the parts of $e$ with $\varepsilon$. There are versions of $\kwa{annot}$ defined for expressions and types. We need to annotate contexts later, so the definition is given here.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -576,13 +603,13 @@ $\bm{\kwa{annot :: \Gamma \times \varepsilon \rightarrow \hat \Gamma}}$
 \end{itemize}
 
 \vspace{-7pt}
-\caption{Definitions of $\kwa{annot}$ and $\kwa{erase}$.}
+\caption{Definition of $\kwa{annot}$.}
 \label{fig:annot_defn}
 \end{figure}
 
-It is worth mentioning that $\kwa{annot}$ operates on a purely syntatic level. Nothing in the definition will stop you annotating a program with something silly, so every use of $\kwa{annot}$ must be justified.
+It is worth mentioning that $\kwa{annot}$ operates on a purely syntatic level. Nothing in the definition will stop you annotating a program with something silly, so any use of $\kwa{annot}$ must be justified.
 
-Finally, before giving the dynamic rules we must update $\kwa{substitution}$. Because our dynamic rules are defined on annotated programs, so too will $\kwa{substitution}$ be defined. The definition is the same from $\opercalc$, with the same restriction that variables can only be replaced with values; however, a new case for $\kwa{import}$ is needed. The new case is given in Figure \ref{fig:epscalc_sub_defn}.
+Finally, before giving the dynamic rules we must update the definition of $\kwa{substitution}$. Because our dynamic rules are defined on annotated programs, so too will $\kwa{substitution}$ be defined. Except for the new case for $\kwa{import}$ expressions given in Figure \ref{fig:epscalc_sub_defn}, the definition is the same from $\opercalc$. We still stipulate that variables can only be replaced with values, to prevent the introduction of arbitrary effects.
 
 \begin{figure}[h]
 
@@ -598,7 +625,7 @@ Finally, before giving the dynamic rules we must update $\kwa{substitution}$. Be
 \label{fig:epscalc_sub_defn}
 \end{figure}
 
-The new single-step reductions on $\kwa{import}$ expressions are given in \ref{fig:opercalc_reductions}. \textsc{E-Import1} reduces the definition of the capability being imported. If the capability being imported is a value, then \textsc{E-Import2} annotates $e$ with the authority $\varepsilon$; this is $\annot{e}{\varepsilon}$. The name of the capability $x$ is then replaced with its definition $\hat v$; this is $[\hat v/x]\annot{e}{\varepsilon}$. The single-step incurs no effects.
+The new single-step reductions on $\kwa{import}$ expressions are given in \ref{fig:opercalc_reductions}. \textsc{E-Import1} reduces the definition of the capability being imported. If the capability being imported is a value $\hat v$, then \textsc{E-Import2} annotates $e$ with the authority $\varepsilon$; this is $\annot{e}{\varepsilon}$. The name of the capability $x$ is then replaced with its definition; this is $[\hat v/x]\annot{e}{\varepsilon}$. The single-step incurs no effects.
 
 
 \begin{figure}[h]
@@ -645,11 +672,7 @@ Multi-step reductions in $\epscalc$ are defined the same as in $\opercalc$. For 
 
 \subsection{$\epscalc$ Static Rules}
 
-Our main goal in this section is to introduce the rule for typing $\kwa{import}$ expressions. This is complicated, so we build up to it.
-
-Firstly, since a term might be annotated or unannotated, we need to be able to recognise when either is well-typed. Since the annotated subset of $\epscalc$ contains $\opercalc$, all the $\opercalc$ rules apply, with different notation: we put hats on everything to signify that a typing judgement is being made about annotated code inside an annotated context. This looks like $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$. Except for this change in notation the rules are the same, so we shall not repeat them.
-
-We do not reason about the effects of unannotated code directly, so judgements about them take the form $\Gamma \vdash e: \tau$. The subtyping judgement for unannotated code takes the form $\tau <: \tau$. A summary of these typing and subtyping rules is given in \ref{fig:unannotated_static_rules}; each is analogous to some rule in $\opercalc$, but the parts relating to effects have been removed.
+Since a term might be annotated or unannotated, we need to be able to recognise when either is well-typed. We do not reason about the effects of unannotated code directly, so judgements about them take the form $\Gamma \vdash e: \tau$. The subtyping judgement for unannotated code takes the form $\tau <: \tau$. A summary of these typing and subtyping rules is given in \ref{fig:unannotated_static_rules}; each is analogous to some rule in $\opercalc$, but the parts relating to effects have been removed.
 
 \begin{figure}[h]
 
@@ -706,9 +729,9 @@ We do not reason about the effects of unannotated code directly, so judgements a
 \label{fig:unannotated_static_rules}
 \end{figure}
 
-The only way to approximate what effects might be incurred by some unannotated code is to encapsulate it with an $\kwa{import}$ expression and type-and-effect-check the $\kwa{import}$. For the rest of this section we are going to build up to the final definition of this rule.
+Since the annotated subset of $\epscalc$ contains $\opercalc$, all the $\opercalc$ rules apply, but now we put hats on everything to signify that a typing judgement is being made about annotated code inside an annotated context. This looks like $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$. Except for notation the judgements are the same, so we shall not repeat them. The only new rule is \textsc{$\varepsilon$-Import}, which gives the type and approximate effects of an $\kwa{import}$ expression. This is the only way to reason about what effects might be incurred by some unannotated code. The rule is complicated, so we start with a simple version and spend the rest of the section building up to the final version of \textsc{$\varepsilon$-Import}.
 
-To begin, typing $\import{\varepsilon}{x}{\hat v}{e}$ in a context $\hat \Gamma$ requires us to know that the imported capability $\hat e$ is well-typed, so we should add the premise $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1$. Since $x = \hat e$ is an import, it can be used throughout $e$, but we do not want $e$ to exercise ambient authority, so whatever capabilities are used must be selected by the $\kwa{import}$ expression; therefore, we require that $e$ can be typechecked using only the binding $x: \hat \tau$. However, $e$ is unannotated and $\hat \tau$ is annotated, so there is no rule for typechecking unannotated code in an annotated context. To get around this, we define a function $\kwa{erase}$ which removes the annotations from a type; a definition is given in Figure \ref{fig:erase_defn}. We can then add $x: \erase{\hat \tau} \vdash e: \tau$ as a premise.
+To begin, typing $\import{\varepsilon}{x}{\hat v}{e}$ in a context $\hat \Gamma$ requires us to know that the imported capability $\hat e$ is well-typed, so we add the premise $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1$. Since $x = \hat e$ is an import, it can be used throughout $e$. However, we do not want $e$ to exercise ambient authority beyond that which has been explicitly selected, so whatever capabilities are used must be selected by the $\kwa{import}$ expression; therefore, we require that $e$ can be typechecked using only the binding $x: \hat \tau$. There is a problem though: $e$ is unannotated and $\hat \tau$ is annotated, and there is no rule for typechecking unannotated code in an annotated context. To get around this, we define a function $\kwa{erase}$ in Figure \ref{fig:erase_defn} which removes the annotations from a type. We then add $x: \erase{\hat \tau} \vdash e: \tau$ as a premise.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -726,9 +749,7 @@ $\bm{\kwa{erase :: \hat \tau \rightarrow \tau}}$
 \label{fig:erase_defn}
 \end{figure}
 
-Since $\import{\varepsilon}{x}{\hat v}{e} \longrightarrow [\hat v/x]\annot{e}{\varepsilon}$, then it is sensible that the ascribed type would be $\annot{\tau}{\varepsilon}$: the type of the unannotated code, annotated with the selected authority $\varepsilon$. The approximation of the effects of the $\kwa{import}$ is $\varepsilon \cup \varepsilon_1$; the former comes from reducing the imported capability (which happens prior to executing of the $\kwa{import}$) and the latter contains all the effects which the unannotated code is allowed to incur.
-
-The first version of \textsc{$\varepsilon$-Impotr} is given in Figure \ref{fig:import_rule_1}.
+Since $\import{\varepsilon}{x}{\hat v}{e} \longrightarrow [\hat v/x]\annot{e}{\varepsilon}$ by \textsc{E-Import2}, it is sensible that the ascribed type would be $\annot{\tau}{\varepsilon}$: the type of the unannotated code, annotated with its selected authority $\varepsilon$. The approximate effects are $\varepsilon_1 \cup \varepsilon$; the former comes from reducing the imported capability --- which happens before the (annotated) body of the $\kwa{import}$ is executed --- and the latter contains all the effects which the unannotated code is allowed to incur. The first version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:import_rule_1}.
 
 
 \begin{figure}[h]
@@ -749,7 +770,7 @@ The first version of \textsc{$\varepsilon$-Impotr} is given in Figure \ref{fig:i
 \label{fig:import_rule_1}
 \end{figure}
 
-At the moment there is no relation between $\varepsilon$ --- the effects which $e$ is allowed to incur --- and those effects captured by the imported capability. Consider $\hat e = \import{\varnothing}{x}{\File}{\kwa{x.write}}$, which imports a $\File$ and writes to it, but declares its authority as $\varnothing$. According to \textsc{$\varepsilon$-Import1}, $\vdash \hat e: \Unit~\kw{with} \varnothing$, but this is clearly wrong. We need to constrain the imported capability to only capture effects in $\varepsilon$. To this end we define a function $\kwa{effects}$, which collects the set of effects that an annotated type captures. A first definition is given in Figure \ref{fig:fx_defn}. With it, we can add an extra premise $\kwa{effects}(\hat \tau) \subseteq \varepsilon$ which formalises the idea that any capability exercised by $e$ must be selected in $\varepsilon$. The updated rule is given in Figure \ref{fig:import_rule_2}.
+At the moment there is no relation between $\varepsilon$ --- the effects which $e$ is allowed to incur --- and those effects captured by the imported capability. Consider $\hat e' = \import{\varnothing}{x}{\File}{\kwa{x.write}}$, which imports a $\File$ and writes to it, but declares its authority as $\varnothing$. According to \textsc{$\varepsilon$-Import1}, $\vdash \hat e': \Unit~\kw{with} \varnothing$, but this is clearly wrong since $\hat e'$ writes to $\kwa{File}$. We need to constrain the imported capability to only capture effects in $\varepsilon$. To this end we define a function $\kwa{effects}$, which collects the set of effects that an annotated type captures. A first definition is given in Figure \ref{fig:fx_defn}. We can then add the premise $\kwa{effects}(\hat \tau) \subseteq \varepsilon$ to require that any imported capability must not capture authority beyond that selected in $\varepsilon$. The updated rule is given in Figure \ref{fig:import_rule_2}.
 
 \begin{figure}[h]
 
@@ -779,7 +800,7 @@ $\bm{\kwa{effects :: \hat \tau \rightarrow \varepsilon}}$ \begin{itemize}
 \label{fig:import_rule_2}
 \end{figure}
 
-The counterexample which defeated \textsc{$\varepsilon$-Import1} is now rejected by \textsc{$\varepsilon$-Import2}, but the rule is not yet perfect: the annotations on one import can be broken by another import. To illustrate, consider Figure \ref{fig:rule_import2_counterexample} where two\footnote{Our formalisation only allows unannotated cdoe to import a single capability, but this discussion leads to a generalisation needed for the rules be safe when multiple imports are allowed.} capabilities are imported. This program imports a function $\kwa{go}$ which, when given a $\Unit \rightarrow_{\varnothing} \Unit$ function with no effects, will execute it. The other import is a $\kwa{File}$. The unannotated code creates a $\Unit \rightarrow \Unit$ function which writes to a file when executed, and passes it to $\kwa{go}$, which subsequently incurs the $\kwa{File.write}$ effect.
+The counterexample which defeated \textsc{$\varepsilon$-Import1} is now rejected by \textsc{$\varepsilon$-Import2}, but there are still issues: the annotations on one import can be broken by another import. To illustrate, consider Figure \ref{fig:rule_import2_counterexample} where two\footnote{Our formalisation only permits a single capability to be imported, but this discussion leads to a generalisation needed for the rules be safe when multiple imports are allowed.} capabilities are imported. This program imports a function $\kwa{go}$ which, when given a $\Unit \rightarrow_{\varnothing} \Unit$ function with no effects, will execute it. The other import is $\kwa{File}$. The unannotated code creates a $\Unit \rightarrow \Unit$ function which writes to $\kwa{File}$ and passes it to $\kwa{go}$, which subsequently incurs $\kwa{File.write}$.
 
 \begin{figure}[h]
 
@@ -797,11 +818,11 @@ in
 \label{fig:rule_import2_counterexample}
 \end{figure}
 
-In the world of annotated code it is not possible to pass a file-writing function to $\kwa{go}$. However, the judgement $x: \erase{\hat \tau} \vdash e: \tau$ discards the annotations on $\kwa{go}$, and since the file-writing function has type $\unit \rightarrow \unit$, the unannotated world accepts it as well-typed. Because the $\kwa{import}$ selects $\{ \kwa{File.*} \}$, the approximation is actually safe at the top-level, but it contains locally unsafe code. We want to prevent this.
+In the world of annotated code it is not possible to pass a file-writing function to $\kwa{go}$, but because the judgement $x: \erase{\hat \tau} \vdash e: \tau$ discards the annotations on $\kwa{go}$, and since the file-writing function has type $\unit \rightarrow \unit$, the unannotated world accepts it as well-typed. The $\kwa{import}$ selects $\{ \kwa{File.*} \}$ as its authority, so the approximation is actually safe at the top-level, but it contains code that violates the type signature of $\kwa{go}$. We want to prevent this.
 
-If $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.write} \}} \Unit$ then the above example would be safe. However, a modified version where a file-reading function is passed to $\kwa{go}$ would have the same issue. $\kwa{go}$ is only safe when it expects every possible effect that the unannotated code might incur; if $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.*} \}} \Unit$, then the unannotated code cannot pass it a capability with an effect it isn't already expecting, and so the annotation on $\kwa{go}$ cannot be violated. To solve the issue, we require imported capabilities to have authority to incur the effects in $\varepsilon$.
+If $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.write} \}} \Unit$ the above example would be safe, but a modified version where a file-reading function is passed to $\kwa{go}$ would have the same issue. $\kwa{go}$ is only safe when it expects every effect that the unannotated code might incur; if $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.*} \}} \Unit$, then the unannotated code cannot pass it a capability with an effect it isn't already expecting, so the annotation on $\kwa{go}$ cannot be violated. Therefore we require imported capabilities to have authority to incur the effects in $\varepsilon$.
 
-To achieve greater control in how we say this, the definition of $\kwa{effects}$ into two separate functions, called $\kwa{effects}$ and $\kwa{ho \hyphen effects}$. If values of $\hat \tau$ can be used to directly incur an effect $r.\pi$, then $r.\pi \in \fx{\hat \tau}$. If values of $\hat \tau$ can incur an effect $r.\pi$, but need to be given the capability by someone else in order to do that, then $r.\pi \in \hofx{\hat \tau}$.
+To achieve greater control in how we say this, the definition of $\kwa{effects}$ is split into two separate functions called $\kwa{effects}$ and $\kwa{ho \hyphen effects}$. If values of $\hat \tau$ possess a capability that can be used to incur the effect $r.\pi$, then $r.\pi \in \fx{\hat \tau}$. If values of $\hat \tau$ can incur an effect $r.\pi$, but need to be given the capability by someone else in order to do that, then $r.\pi \in \hofx{\hat \tau}$.
 
 
 \begin{figure}[h]
@@ -823,11 +844,9 @@ $\bm{\kwa{ho \hyphen effects} :: \hat \tau \rightarrow \varepsilon}$ \begin{item
 \label{fig:fx_defns}
 \end{figure}
 
-Note how the functions are mutually recursive, and have base cases for resource types. Any effect can be directly incurred by a resource on itself, hence $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$. A resource cannot be used to indirectly invoke some other effect, so $\hofx{\{ \bar r \}} = \varnothing$. The definitions on functions mirror the subtyping rule for functions. Recall that functions are contravariant in their input type and covariant in their output type. Similarly, both functions recurse on the input-type using the other function, and recurse on the output-type using the same function.
+$\kwa{effects}$ and $\kwa{ho \hyphen effects}$ are mutually recursive, with base cases for resource types. Any effect can be directly incurred by a resource on itself, hence $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$. A resource cannot be used to indirectly invoke some other effect, so $\hofx{\{ \bar r \}} = \varnothing$. The mutual recursion echoes the subtyping rule for functions. Recall that functions are contravariant in their input type and covariant in their output type. Similarly, both functions recurse on the input-type using the other function, and recurse on the output-type using the same function.
 
-In light of these new definitions, we still require $\fx{\hat \tau} \subseteq \varepsilon$ --- unannotated code must select any capability which could be given to it --- but a new premise $\varepsilon \subseteq \hofx{\hat \tau}$ should be added to formalise the idea that imported capabilities must know about every effect they could be given by unannotated code. The counterexample from Figure \ref{fig:rule_import2_counterexample} would now be rejected, because $\hofx{\Unit \rightarrow_{\varnothing} \Unit) \rightarrow_{\varnothing} \Unit} = \varnothing$, but $\{ \kwa{File.*} \} \not\subseteq \varnothing$. But this is \textit{still} not sufficient! Consider $\varepsilon \subseteq \hofx{ \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2 }$. We want \textit{every} higher-order capability involved to be expecting $\varepsilon$. Expanding the definition, $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$. Let $r.\pi \in \varepsilon$ and suppose $r.\pi \in \fx{\hat \tau_1}$, but $r.\pi \notin \hofx{\hat \tau_2}$. Then $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$ is still true, but $\hat \tau_2$ is not expecting $r.\pi$. Unannotated code could then violate the annotations on $\hat \tau_2$ by causing it to invoke $r.\pi$, using the same trickery from before.
-
-The issue is that $\subseteq$ does not distribute over $\rightarrow_{\varepsilon'}$. We want a relation like $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$, but where $\subseteq$ distributes over the input and output type. The two relations are called $\kwa{safe}$ and $\kwa{ho \hyphen safe}$. The former is a distributive version of $\varepsilon \subseteq \fx{\hat \tau}$ and the latter of $\varepsilon \subseteq \hofx{\hat \tau}$. Definitions are given in \ref{fig:safe_defns}.
+In light of these new definitions, we still require $\fx{\hat \tau} \subseteq \varepsilon$ --- unannotated code must select any effect its capabilities can incur --- but we add a new premise $\varepsilon \subseteq \hofx{\hat \tau}$, stipulating that imported capabilities must select every effect they could be given by unannotated code. The counterexample from Figure \ref{fig:rule_import2_counterexample} is now rejected, because $\hofx{\Unit \rightarrow_{\varnothing} \Unit) \rightarrow_{\varnothing} \Unit} = \varnothing$, but $\{ \kwa{File.*} \} \not\subseteq \varnothing$. But this is \textit{still} not sufficient! Consider $\varepsilon \subseteq \hofx{ \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2 }$. We want \textit{every} higher-order capability involved to be expecting $\varepsilon$. Expanding the definition, $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$. Let $r.\pi \in \varepsilon$ and suppose $r.\pi \in \fx{\hat \tau_1}$, but $r.\pi \notin \hofx{\hat \tau_2}$. Then $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$ is still true, but $\hat \tau_2$ is not expecting $r.\pi$. Unannotated code could then violate the annotations on $\hat \tau_2$ by causing it to invoke $r.\pi$, using the same trickery from before. The cause of the issue is that $\subseteq$ does not distribute over $\rightarrow_{\varepsilon'}$. We want a relation like $\varepsilon \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$, but where $\subseteq$ distributes over the input and output type. Figure \ref{fig:safe_defns} defines exactly this: $\kwa{safe}$ is a distributive version of $\varepsilon \subseteq \fx{\hat \tau}$ and $\kwa{ho \hyphen safe}$ is a distributive version of $\varepsilon \subseteq \hofx{\hat \tau}$.
 
 
 \begin{figure}[h]
@@ -879,9 +898,9 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 \label{fig:safe_defns}
 \end{figure}
 
-Note again how the mutual recursion of $\kwa{safe}$ and $\kwa{ho \hyphen safe}$ mimics the co(ntra)variance rules for function subtyping. Some properties of these relations are also immediate: $\safe{\hat \tau}{\varepsilon}$ implies $\varepsilon \subseteq \fx{\hat \tau}$ and $\hosafe{\hat \tau}{\varepsilon}$ implies $\varepsilon \subseteq \hofx{\hat \tau}$, but the converses are not true, because the safety predicates are distributive and are therefore stronger notions.
+Note again how the mutual recursion of $\kwa{safe}$ and $\kwa{ho \hyphen safe}$ mimics the co(ntra)variance rules for function subtyping. Some properties are also immediate: $\safe{\hat \tau}{\varepsilon}$ implies $\varepsilon \subseteq \fx{\hat \tau}$ and $\hosafe{\hat \tau}{\varepsilon}$ implies $\varepsilon \subseteq \hofx{\hat \tau}$, but the converses are not true, because the safety predicates are distributive and therefore stronger.
 
-An amended version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:import_rule3}. It contains a new premise $\hosafe{\hat \tau}{\varepsilon}$ which formalises the notion that every capability which could given to a value of $\hat \tau$ --- or any constitutent piece of $\hat \tau$ --- must be expecting the effects $\varepsilon$ which might be passed to it inside the unannotated code.
+An amended version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:import_rule3}. It contains a new premise $\hosafe{\hat \tau}{\varepsilon}$ which formalises the notion that every capability which could given to a value of $\hat \tau$ --- or any of its constituent pieces --- must be expecting the effects in $\varepsilon$ that the unannotated code might pass to it..
 
 \begin{figure}[h]
 
@@ -909,13 +928,15 @@ An amended version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:
 \label{fig:import_rule3}
 \end{figure}
 
-The premises so far restrict what authority can be selected by unannotated code, but what about authority passed as a function argument? Consider $\hat e = \import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$. The unannotated code selects no capabilities and returns a function which, when given a $\kwa{File}$, will incur $\kwa{File.write}$. This satisfies the premises in \textsc{$\varepsilon$-Import3}, but the type ascribed by \textsc{$\varepsilon$-Import3} is $\{ \File \} \rightarrow_{\varnothing} \Unit$ --- not good!
+The premises so far restrict what authority can be selected by unannotated code, but what about authority passed as a function argument? Consider $\hat e = \import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$. The unannotated code selects no capabilities and returns a function which, when given $\kwa{File}$, incurs $\kwa{File.write}$. This satisfies the premises in \textsc{$\varepsilon$-Import}, but its annotated type is \textsc{$\varepsilon$-Import} is $\{ \File \} \rightarrow_{\varnothing} \Unit$ --- not good!
 
-Suppose the unannotated code defines a function $f$, which gets annotated with $\varepsilon$ to produce $\annot{f}{\varepsilon}$. Suppose $\annot{f}{\varepsilon}$ is invoked at a later point and incurs the effect $r.\pi$. What is the source of $r.\pi$? If $r.\pi$ was selected by the $\kwa{import}$ expression surrounding $f$, it is safe for $\annot{f}{\varepsilon}$ to incur this effect. Otherwise, $\annot{f}{\varepsilon}$ may have been passed an argument which can be used to incur $r.\pi$, in which case $r.\pi$ is a higher-order effect of $\annot{f}{\varepsilon}$. If the argument is a function, then by the soundness of $\opercalc$, it must be that $r.\pi \in \varepsilon$. If the argument is a resource $r$ then $\annot{f}{\varepsilon}$ may exercise $r.\pi$, which our rule does not yet account for. However, we can tell before annotation whether $\annot{f}{\varepsilon}$ might be given $r$ by inspecting its (unannotated type) for a resource set containing $r$.
+Suppose the unannotated code defines a function $f$, which gets annotated with $\varepsilon$ to produce $\annot{f}{\varepsilon}$. Suppose $\annot{f}{\varepsilon}$ is invoked at a later point and incurs the effect $r.\pi$. What is the source of $r.\pi$? If $r.\pi$ was selected by the $\kwa{import}$ expression surrounding $f$, it is safe for $\annot{f}{\varepsilon}$ to incur this effect. Otherwise, $\annot{f}{\varepsilon}$ may have been passed an argument which can be used to incur $r.\pi$, in which case $r.\pi$ is a higher-order effect of $\annot{f}{\varepsilon}$. If the argument is a function, then by the soundness of $\opercalc$, it must be that $r.\pi \in \varepsilon$, or it will not typecheck. If the argument is a resource $r$ then $\annot{f}{\varepsilon}$ may exercise $r.\pi$, which our rule does not yet account for.
 
-To solve the problem, we ensure $\varepsilon$ contains every effect captured by resources passed into $f$ as arguments. To do this, we add a new premise $\hofx{\annot{\tau}{\varnothing}} \subseteq \varepsilon$. Because $\kwa{hofx}$ is only defined on annotated types, applying it requires us to first annotate $\tau$. What we annotate with is unimportant --- we know functions passed into $\annot{f}{\varepsilon}$ must satisfy the constraints imposed by $\varepsilon$. We are simply inspecting the resources passed into $f$ as an argument, so we choose to annotate with $\varnothing$.
 
-We can now handle the counterexample $\import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$: because $\kwa{x: Unit \vdash \lambda f: { File }.~f.write: \{ File \} \rightarrow Unit}$, and $\hofx{\annot{ \{ \File \} \rightarrow \Unit}{\varnothing}} = \{ \File \}$, but $\{ \File \} \not\subseteq \varnothing$, so the example safely rejects.
+
+We want $\varepsilon$ to contain every effect captured by resources passed into $\annot{f}{\varepsilon}$ as arguments. We can do this by inspecting its (unannotated type) for resource sets. For example, if the unannotated code has the type $\kwa{ \{ File \} \rightarrow \Unit}$, then we need $\kwa{ \{ File.* \} }$ in $\varepsilon$. To do this, we add a new premise $\hofx{\annot{\tau}{\varnothing}} \subseteq \varepsilon$. $\kwa{hofx}$ is only defined on annotated types, so we first annotate $\tau$ with $\varnothing$. We are only inspecting the resources passed into $f$ as an argument, so the annotations on the arrow should be ignored -- annotating $\tau$ with $\varnothing$ is therefore a good choice.
+
+We can now handle the example from before: $\import{\varnothing}{x}{\unit}{\kwa{\lambda f: { File }.~f.write}}$. The unannotated code types via the judgement $\kwa{x: Unit \vdash \lambda f: { File }.~f.write: \{ File \} \rightarrow Unit}$. Its higher-order effects are $\hofx{\annot{ \{ \File \} \rightarrow \Unit}{\varnothing}} = \{ \kwa{File.*} \}$, but $\{ \kwa{File.*} \} \not\subseteq \varnothing$, so the example safely rejects.
 
 The final version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:import_rule}.
 
@@ -931,7 +952,7 @@ The final version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:i
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
 {{\def\arraystretch{1.4}
   \begin{array}{c}
-\varepsilon = \kwa{effects}(\hat \tau) \cup \hofx{\annot{\tau}{\varepsilon}} \\
+\kwa{effects}(\hat \tau) \cup \hofx{\annot{\tau}{\varepsilon}}\subseteq \varepsilon \\
 \hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1 ~~~~~~ \kwa{ho \hyphen safe}(\hat \tau, \varepsilon) ~~~~~~ x: \kwa{erase}(\hat \tau) \vdash e: \tau
   \end{array}}} 
  
@@ -944,55 +965,52 @@ The final version of \textsc{$\varepsilon$-Import} is given in Figure \ref{fig:i
 \label{fig:import_rule}
 \end{figure}
 
-
+We can now model the example from the beginning of Section 3.2., where the $\kwa{Logger}$ implementation selects the capabilities $\kwa{File}$ and $\kwa{Socket}$ and exposes an unannotated function $\kwa{log}$ with type $\Unit \rightarrow \Unit$. \textsc{$\varepsilon$-Import} would annotate $\kwa{log}$ so it has the type $\Unit \rightarrow_{ \{ \kwa{File.*, Socket.*} \} } \Unit$. If an annotated $\kwa{Client}$ only expects the $\kwa{File.append}$ effect, the $\opercalc$ rules will reject any attempt to give $\kwa{Logger}$ to $\kwa{Client}$ because $\kwa{ \{ File.*, Socket.* \} }$ exceeds $ \kwa{ \{File.append  \}}$. More detailed examples are given in Chapter 4.
 
 \subsection{$\epscalc$ Soundness}
 
-Annotated programs are the only ones which can be reduced and have their effects approximated, so the statement of soundness in $\epscalc$ only applies to those situations. A definition is given below.
+Only annotated programs can be reduced and have their effects approximated, so the statement of soundness only applies to them. A definition is given below.
 
 \begin{theorem}[Soundness]
-If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, where $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat e_B, \varepsilon, \hat \tau_B, \varepsilon_B$.
 \end{theorem}
 
-Since the rules of $\opercalc$ are also contained in $\epscalc$ and have been proven sound, we shall present the same theorems in this section, but only comment on the cases which pertain to new forms and rules. Some lemmas are new, and in those cases we prove them for every case.
-
-We begin with canonical forms, which remains unchanged. The substitution lemma gains an extra case, but the proof is routine.
-
+The rules of $\opercalc$ are contained in $\epscalc$ and have been proven sound in Section 3.1.4., so we do not repeat their proofs. Instead we present the same theorems and lemmas, but only prove them as they pertain to the new cases in $\epscalc$. Some lemmas are new, and in those cases we prove them for every rule. We begin with canonical forms, which is unchanged. The substitution lemma gains an extra case, but the proof is routine.
 
 \begin{lemma}[Canonical Forms]
 Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
 \begin{itemize}
 	\setlength\itemsep{-0.7em}
-	\item If $ \Gamma \vdash  v:  \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
-	\item If $ \Gamma \vdash  v: \{ \bar r \}$ then $ v = r$ for some $r \in R$ and $\{ \bar r \} = \{ r \}$.
+	\item If $ \Gamma \vdash \hat v: \hat \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $ \Gamma \vdash \hat v: \{ \bar r \}$ then $\hat v = r$ for some $r \in R$ and $\{ \bar r \} = \{ r \}$.
 \end{itemize}
 \end{lemma}
 
 \begin{lemma}[Substitution]
-If $\hat \Gamma, x: \hat \tau' \vdash e: \hat \tau~\kw{with} \varepsilon$ and $\hat \Gamma \vdash \hat v: \hat \tau'~\kw{with} \varnothing$ then $\hat \Gamma \vdash [\hat v/x]e: \hat \tau~\kw{with} \varepsilon$.
+If $\hat \Gamma, x: \hat \tau' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat \Gamma \vdash \hat v: \hat \tau'~\kw{with} \varnothing$ then $\hat \Gamma \vdash [\hat v/x]\hat e: \hat \tau~\kw{with} \varepsilon$.
 \end{lemma}
 
-\begin{proof} By induction on $\hat \Gamma, x: \hat \tau' \vdash e: \hat \tau~\kw{with} \varepsilon$,
+\begin{proof} By induction on the derivation of $\hat \Gamma, x: \hat \tau' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.\\
 
 \textit{Case:} \textsc{$\varepsilon$-Import}. By definition, $[\hat v/y](\import{\varepsilon}{x}{\hat e}{e}) = \import{\varepsilon}{x}{[\hat v/y] \hat e}{e}$. The result follows by applying the inductive assumption to $[\hat v/y] \hat e$.
 \end{proof}
 
-Similarly, the progress theorem now has an extra case for when the typing rule used was \textsc{$\varepsilon$-Import}. The proof is also straightforward.
+The progress theorem also has an extra case for \textsc{$\varepsilon$-Import}, but the proof is routine.
 
 \begin{theorem}[Progress]
-If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$.
+If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$, for some $\hat e', \varepsilon$.
 \end{theorem}
 
-\begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.
+\begin{proof} By induction on $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.\\
 
-\textit{Case:} Then $\hat e = \import{\varepsilon}{x}{\hat e'}{e}$. If $\hat e'$ is a non-value then $\hat e$ reduces by \textsc{E-Import1}. Otherwise $\hat e$ reduces by \textsc{E-Import2}.
+\textit{Case:} \textsc{$\varepsilon$-Import}. Then $\hat e = \import{\varepsilon}{x}{\hat e''}{e}$. If $\hat e''$ is a non-value then $\hat e$ reduces by \textsc{E-Import1}. Otherwise $\hat e$ reduces by \textsc{E-Import2}.
 \end{proof}
 
-The preservation theorem also gains an extra case for when \textsc{$\varepsilon$-Import} is the typing rule used. The subcase where \textsc{E-Import1} is the reduction rule used is straightforward, but the other subcase where \textsc{E-Import2} is used is tricky. We devote most of the rest of this section to building up the appropriate lemmas needed to show that this particular subcase is type-and-effect safe.
+The extra case for the preservation theorem when \textsc{$\varepsilon$-Import} is the typing rule used has two subcases. The subcase where \textsc{E-Import1} is the reduction rule used is straightforward, but the other where \textsc{E-Import2} is used is tricky. Recall that \textsc{E-Import2} annotates the unannotated code with its selected authority; proving this safe requires several lemmas, which take up the bulk of the remainder of this section.
 
-In this particular situation the capability being imported is a value and the reduction annotates the naked code with its selecetd authority $\varepsilon$ and then performs substitution. The reduction has the form $\import{\varepsilon}{x}{\hat v}{e} \longrightarrow [\hat v/x]\annot{e}{\varepsilon}~|~\varnothing$. To show it preserves type-and-effect safety requires a few things. First, if $\hat \Gamma \vdash \import{\varepsilon}{x}{\hat v}{e}: \hat \tau_A~\kw{with} \varepsilon$, then we need to be able to type the reduced expression in the same context: $\hat \Gamma \vdash [\hat v/x]\annot{e}{\varepsilon}: \hat \tau_B~\kw{with} \varepsilon_B$. Since $\hat v$ is a value then by the conclusion of \textsc{$\varepsilon$-Import}, $\varepsilon_B = \varepsilon$, the selected authority of $e$. Showing $\varepsilon \subseteq \varepsilon_A$ would be efficient to show effect-soundness.
+In this subcase the reduction has the form $\import{\varepsilon_{select}}{x}{\hat v}{e} \longrightarrow [\hat v/x]\annot{e}{\varepsilon}~|~\varnothing$. To show it is safe requires a few things. First, if $\hat \Gamma \vdash \import{\varepsilon_{select}}{x}{\hat v}{e}: \hat \tau_A~\kw{with} \varepsilon$, the reduced expression must type in the same context: $\hat \Gamma \vdash [\hat v/x]\annot{e}{\varepsilon}: \hat \tau_B~\kw{with} \varepsilon_B$. The reduction incurs no effects, so $\varepsilon = \varnothing$. Since $e$ cannot exceed the authority in $\varepsilon_{select}$, the approximation $\varepsilon_B = \varepsilon_{select} = \varepsilon_A$ would be safe. To be type-safe we need $\tau_B <: \tau_A$. But what is $\tau_B$? Intuitively, if $x: \erase{\hat \tau} \vdash e: \tau$, and the expression after reduction is $[\hat v/x]\annot{e}{\varepsilon}$, then the type after reduction ought to be $\annot{\tau}{\varepsilon}$.
 
-To show type-soundness we need $\tau_B <: \tau_A$. But what is $\tau_B$? Intuitively, if $x: \erase{\hat \tau} \vdash e: \tau$, and the expression after reduction is $[\hat v/x]\annot{e}{\varepsilon}$, then the type after reduction is probably related to $\tau$ in some way. By substitution lemma, the type of $\annot{e}{\varepsilon}$ ought to be preserved after substitution. So we might guess the type will be either $\annot{\tau}{\varepsilon}$ or $\annot{\hat \tau}{\varepsilon}$. The first of those two is what we prove with the following lemma.
+Based on our analysis, we expect $\hat \Gamma, x: \hat \tau \vdash \annot{e}{\varepsilon}: \annot{\tau}{\varepsilon}~\kw{with} \varepsilon$. Then, by the substitution lemma, we get $\hat \Gamma \vdash [\hat v/x]\annot{e}{\varepsilon}: \annot{\tau}{\varepsilon}~\kw{with} \varepsilon$. This first judgement is the subject of the following annotation lemma.
 
 \begin{lemma}[Annotation]
 If the following are true:
@@ -1001,19 +1019,17 @@ If the following are true:
 	\setlength\itemsep{-0.7em}
 	\item $\hat \Gamma \vdash \hat v : \hat \tau~\kw{with} \varnothing$
 	\item $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$
-	\item $\varepsilon = \kwa{effects}(\hat \tau) \cup \hofx{\annot{\tau}{\varepsilon}}$
+	\item $\kwa{effects}(\hat \tau) \cup \hofx{\annot{\tau}{\varepsilon}} \subseteq \varepsilon_{select}$
 	\item $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$
 \end{enumerate}
 
 \noindent
-Let $\varepsilon' = \varepsilon~\cup~ \fx{\annot{\Gamma}{\varepsilon}}$. Then $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon'), y: \hat \tau \vdash \kwa{annot}(e, \varepsilon') : \kwa{annot}(\tau, \varepsilon')~\kw{with} \varepsilon'$.
+Let $\varepsilon' = \varepsilon_{select}~\cup~ \fx{\annot{\Gamma}{\varnothing}}$. Then $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon'), y: \hat \tau \vdash \kwa{annot}(e, \varepsilon') : \kwa{annot}(\tau, \varepsilon')~\kw{with} \varepsilon'$.
 \end{lemma}
 
-The premises of the annotation lemma are very specific to the premises of \textsc{$\varepsilon$-Import}, but generalised slightly to accommodate a proof by induction: note how there are ambient bindings in the typechecking of unannotated code: $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$. Furthermore, the approximated effects in the judgement in the conclusion of the theorem statement contain everything captured by these ambient bindings: $\fx{\annot{\Gamma}{\varepsilon}}$, which is essentially the ambient authority exercised in $e$. By contrast, $\varepsilon$ is the selected authority of $e$.
+The premises of the annotation lemma are very specific to the premises of \textsc{$\varepsilon$-Import}, but generalised to accommodate a proof by induction: $e$ might typecheck in a $\Gamma$ with ambient bindings: $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$. Then $e$ can use any resources bound in $\Gamma$, so whatever effects they capture $\fx{annot{\Gamma}{\varnothing}}$ are added to $\varepsilon_{select}$ to give a a safe approximation $\varepsilon'$.
 
-Because of the constraints imposed on $e$ by \textsc{$\varepsilon$-Import}, no effect at the top-level is ambient.; therefore when we apply the annotation lemma we choose $\Gamma = \varnothing$. However, inductively-speaking, some effects are ambient in certain sub-scopes of $e$. For example, the expression $\kwa{f.write}$ exercises ambient authority over whatever resource is bound to $f$, but when enclosed by an appropriate abstraction like $\kwa{\lambda f: {File}.~f.write}$, $f$ is no longer considered ambient in the enclosing scope. In the process of proving the lemma we may need to, for example, step into the body of a function, at which point certain capabilities become ambient and need to be considered as such, and so we need to consider at all points what is the ambient authority.
-
-Note that when $\Gamma = \varnothing$ then $\varepsilon' = \varepsilon$ and applying the lemma gives a typing judgement of the form $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon'), y: \hat \tau \vdash \kwa{annot}(e, \varepsilon') : \kwa{annot}(\tau, \varepsilon')~\kw{with} \varepsilon$, which matches the judgement in the conclusion of \textsc{$\varepsilon$-Import}, before the substitution $[\hat v/x]$ is made.
+Note that when $\Gamma = \varnothing$ then $\varepsilon' = \varepsilon$ and applying the lemma gives a typing judgement of the form $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon'), y: \hat \tau \vdash \kwa{annot}(e, \varepsilon') : \kwa{annot}(\tau, \varepsilon')~\kw{with} \varepsilon$, which is the judgement we want to hold after an application of \textsc{E-Import2}. Therefore, when we apply the annotation lemma, we choose $\Gamma = \varnothing$. However, we need $\Gamma$ in the proof because some effects \textit{look} ambient in certain sub-scopes of $e$. For example, the expression $\kwa{f.write}$ exercises ambient authority over whatever resource is bound to $f$, but when enclosed by an appropriate abstraction like $\kwa{\lambda f: {File}.~f.write}$, $f$ is no longer ambient. Proving the lemma requires us to inductively step into the bodies of functions, at which point certain capabilities look ambient and need to be bound in the context --- therefore, we permit $e$ to typecheck in an arbitrarily large environment $\Gamma$, but are only interested in applying the lemma with $\Gamma = \varnothing$.
 
 \begin{proof}
 By induction on $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$.
