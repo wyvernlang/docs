@@ -863,11 +863,7 @@ $\fbox{$\kwa{safe(\hat \tau, \varepsilon)}$}$
 
 \infer[\textsc{(Safe-Resource)}]
 	{\kwa{safe}(\{ \bar r \}, \varepsilon)}
-	{}
-~~~~~
-\infer[\textsc{(Safe-Unit)}]
-	{\kwa{safe}(\kwa{Unit}, \varepsilon)}
-	{} \\[3ex]
+	{ \{ r.\pi \mid r \in \bar r, \pi \in \Pi \} \subseteq \varepsilon } \\[3ex]
 
 \infer[\textsc{(Safe-Arrow)}]
 	{\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon)}
@@ -884,11 +880,7 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 
 \infer[\textsc{(HOSafe-Resource)}]
 	{ \kwa{ho \hyphen safe}( \{ \bar r \}, \varepsilon)} 
-	{}
-	~~~~~~
-\infer[\textsc{(HOSafe-Unit)}]
-	{ \kwa{ho \hyphen safe}( \kwa{Unit}, \varepsilon)} 
-	{}\\[3ex]
+	{} \\[3ex]
 
 \infer[\textsc{(HOSafe-Arrow)}]
 	{ \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon ) }
@@ -979,9 +971,9 @@ Only annotated programs can be reduced and have their effects approximated, so t
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, where $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat e_B, \varepsilon, \hat \tau_B, \varepsilon_B$.
 \end{theorem}
 
-From here onwards we adopt slightly different notation to avoid name clashes. The selected authority of an $\kwa{import}$ is written $\varepsilon_{s}$ (``epsilon select'') and the imported capability is written $\hat e_i$ or $\hat v_i$ (``e import'' and ``v import''), and has the type $\tau_i$ and approximate effects $\varepsilon_i$.
+From here onwards we adopt a different convention to avoid name clashes. The selected authority of an $\kwa{import}$ is written $\varepsilon_{s}$ (``epsilon select'') and the imported capability is written $\hat e_i$ or $\hat v_i$ (``e import'' and ``v import''), and has type $\tau_i$ and approximate effects $\varepsilon_i$.
 
-The rules of $\opercalc$ are contained in $\epscalc$ and have been proven sound in Section 3.1.4., so we do not repeat their proofs. Instead we present the same theorems and lemmas, but only prove them as they pertain to the new cases in $\epscalc$. Some lemmas are new, and in those cases we prove them for every rule. We begin with canonical forms, which is unchanged. The substitution lemma gains an extra case, but the proof is routine.
+The rules of $\opercalc$ are also rules of $\epscalc$, and have been proven sound in Section 3.1.4., so we do not repeat them here. We present the same theorems and lemmas, but only discuss and prove the cases which use new rules from $\epscalc$. Some lemmas are new, so we shall prove all of their cases. We begin with canonical forms, which is unchanged. The substitution lemma gains an extra case, but the proof is routine.
 
 \begin{lemma}[$\epscalc$ Canonical Forms]
 Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
@@ -1003,7 +995,7 @@ If $\hat \Gamma, x: \hat \tau' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ a
 \textit{Case:} \textsc{$\varepsilon$-Import}. By definition, $[\hat v/y](\import{\varepsilon_s}{y}{\hat e_i}{e}) = \import{\varepsilon_s}{y}{[\hat v/x] \hat e_i}{e}$. The result follows by applying the inductive assumption to $[\hat v/x] \hat e_i$.
 \end{proof}
 
-The progress theorem also has an extra case for \textsc{$\varepsilon$-Import} with a routine proof. 
+The progress theorem also has an extra case, and the proof is routine.
 
 \begin{theorem}[$\epscalc$ Progress]
 If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$, for some $\hat e', \varepsilon$.
@@ -1014,40 +1006,15 @@ If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is 
 \textit{Case:} \textsc{$\varepsilon$-Import}. Then $\hat e = \import{\varepsilon_s}{x}{\hat e_i}{e}$. If $\hat e_i$ is a non-value then $\hat e$ reduces by \textsc{E-Import1}. Otherwise $\hat e$ reduces by \textsc{E-Import2}.
 \end{proof}
 
-The extra case for the preservation theorem when \textsc{$\varepsilon$-Import} is the typing rule used has two subcases. The subcase where \textsc{E-Import1} is the reduction rule used is straightforward, but the other where \textsc{E-Import2} is used is tricky. Recall that \textsc{E-Import2} annotates the unannotated code with its selected authority $\varepsilon_s$; proving this safe requires several lemmas, which take up the bulk of the remainder of this section.
+The preservation theorem has an extra case for when the typing rule used is \textsc{$\varepsilon$-Import}. This has two subcases, depending on whether the reduction rule used was \textsc{E-Import1} and \textsc{E-Import2}. The former is straightforward to prove, but the latter is tricky; we need several lemmas to do it.
 
-In the \textsc{E-Import2} subcase the reduction has the form $\import{\varepsilon_{s}}{x}{\hat v_i}{e} \longrightarrow [\hat v_i/x]\annot{e}{\varepsilon_s}~|~\varnothing$. To show it is safe requires a few things. First, if $\hat \Gamma \vdash \import{\varepsilon_s}{x}{\hat v_i}{e}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$, the reduced expression must type in the same context, so we need $\hat \Gamma \vdash [\hat v_i/x]\annot{e}{\varepsilon_s}: \hat \tau_B~\kw{with} \varepsilon_B$. The reduction incurs no effects, so $\varepsilon = \varnothing$. Since $e$ cannot exceed the authority in $\varepsilon_{s}$ the approximation $\varepsilon_B = \varepsilon_{s} = \varepsilon_A$ would be safe. To be type-safe we need $\tau_B <: \tau_A$. What is $\tau_B$? Intuitively, $e_B = [\hat v_i/x]\annot{e}{\varepsilon_s}$, so the type of $\annot{e}{\epsilon_s}$ ought to be $\annot{\tau}{\varepsilon}$. Then, by the substitution lemma, we get $\hat \Gamma \vdash [\hat v/x]\annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$.  
+Firstly, suppose $\hat e_i$ has type $\hat \tau_i$. In general, if we wanted to approximate what effects $\hat e_i$ might incur when executed, we might produce a summary $\varepsilon$ of its effects and try to replace the annotations on $\hat \tau_i$ with $\varepsilon$. The approximation would be type safe if $\hat \tau_i <: \annot{\erase{\hat \tau}}{\varepsilon}$ and $\fx{\hat \tau_i} \cup \hofx{\hat \tau_i} \subseteq \varepsilon$. However, replacing all annotations with $\varepsilon$ is not usually a type safe thing to do: functions are contravariant, so the subtyping relation recursively flips on the input-types. These input-types endow $\hat \tau$ with its higher-order effects, so the subsetting relation between $\varepsilon$ and the (constituent) higher-order effects of $\hat \tau_i$ would also keep flipping. However, if $\varepsilon = \fx{\hat \tau} = \hofx{\hat \tau}$, the contravariant behaviour would not matter. In \textsc{$\varepsilon$-Import}, we know $\fx{\hat \tau} \subseteq \varepsilon_s$. Furthermore, $\hosafe{\hat \tau_i}{\varepsilon_s}$ implies $\varepsilon_s \subseteq \hofx{\hat \tau_i}$. Therefore, the approximation of $\hat \tau_i$ obtained by replacing its annotations with $\varepsilon_s$ will correctly summarise the effects of $\hat e_i$. This result is given as a pair of lemmas below.
 
-Based on our analysis, we need $\hat \Gamma, x: \hat \tau \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s} ~\kw{with} \varepsilon_s$. The existence of this judgement is the subject of the following lemma.
-
-\begin{lemma}[$\epscalc$ Annotation]
-Suppose the following are true.
-
-\begin{enumerate}
-	\setlength\itemsep{-0.7em}
-	\item $\hat \Gamma \vdash \hat v_i : \hat \tau_i~\kw{with} \varnothing$
-	\item $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$
-	\item $\kwa{effects}(\hat \tau_i) \cup \hofx{\annot{\tau}{\varnothing}} \subseteq \varepsilon_{s}$
-	\item $\kwa{ho \hyphen safe}(\hat \tau_i, \varepsilon_s)$
-\end{enumerate}
-
-\noindent
-Let $\varepsilon' = \varepsilon_{s}~\cup~ \fx{\annot{\Gamma}{\varnothing}}$. Then $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon'), y: \hat \tau \vdash \kwa{annot}(e, \varepsilon') : \kwa{annot}(\tau, \varepsilon')~\kw{with} \varepsilon'$.
-\end{lemma}
-
-The premises of the annotation lemma are very specific to the premises of \textsc{$\varepsilon$-Import}, but generalised to accommodate a proof by induction: $e$ is allowed to typecheck in a $\Gamma$ with ambient bindings because of the judgement $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$. Therefore $e$ can use any resources bound in $\Gamma$, so whatever effects they capture $\fx{\annot{\Gamma}{\varnothing}}$ are added to $\varepsilon_{s}$ to give a a safe approximation $\varepsilon'$.
-
-Note that when $\Gamma = \varnothing$ then $\varepsilon' = \varepsilon_s$ and applying the lemma gives the judgement $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s) : \kwa{annot}(\tau_i, \varepsilon_s)~\kw{with} \varepsilon_s$, which is the judgement we want. Therefore, when we apply the annotation lemma, we choose $\Gamma = \varnothing$. However, we need $\Gamma$ in the proof because some effects \textit{look} ambient in certain sub-scopes of $e$. For example, the expression $\kwa{f.write}$ exercises ambient authority over whatever resource is bound to $f$, but when enclosed by an appropriate abstraction like $\kwa{\lambda f: {File}.~f.write}$, $f$ is no longer ambient. Proving the lemma requires us to inductively step into the bodies of functions, at which point certain capabilities look ambient and need to be bound in the context --- therefore, we permit $e$ to typecheck in an arbitrarily large environment $\Gamma$, but are only interested in applying the lemma with $\Gamma = \varnothing$.
-
-\begin{proof}
-By induction on $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$.
-\end{proof}
-
-\begin{lemma}[$\epscalc$ Duality 1]
+\begin{lemma}[$\epscalc$ Approximation 1]
 If $\kwa{effects}(\hat \tau) \subseteq \varepsilon$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\hat \tau <: \kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
 \end{lemma}
 
-\begin{lemma}[$\epscalc$ Duality 2]
+\begin{lemma}[$\epscalc$ Approximation 2]
 If $\kwa{ho \hyphen effects}(\hat \tau) \subseteq \varepsilon$ and $\safe{\hat \tau}{\varepsilon}$ then $\kwa{annot(erase}(\hat \tau), \varepsilon) <: \hat \tau$.
 \end{lemma}
 
@@ -1055,13 +1022,43 @@ If $\kwa{ho \hyphen effects}(\hat \tau) \subseteq \varepsilon$ and $\safe{\hat \
 By simultaneous induction on $\kwa{ho \hyphen safe}$ and $\kwa{safe}$.
 \end{proof}
 
+Secondly, if \textsc{E-Import2} is applied, the reduction has the form $\import{\varepsilon_{s}}{x}{\hat v_i}{e} \longrightarrow [\hat v_i/x]\annot{e}{\varepsilon_s}~|~\varnothing$. If $\hat \Gamma \vdash \hat v_i: \hat \tau_i~\kw{with} \varepsilon_i$ and $x: \erase{\hat \tau} \vdash e: \tau$, it is reasonable to assume that $\hat \Gamma \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$, because $\varepsilon_s$ is an upper-bound on all the effects that can be incurred by $e$ and it correctly summarises the  correctly summarises what the capabilities in $\hat \tau$ can do.
+
+To show it is safe requires a few things. First, if $\hat \Gamma \vdash \import{\varepsilon_s}{x}{\hat v_i}{e}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$, the reduced expression must type in the same context, so we need $\hat \Gamma \vdash [\hat v_i/x]\annot{e}{\varepsilon_s}: \hat \tau_B~\kw{with} \varepsilon_B$. The reduction incurs no effects, so $\varepsilon = \varnothing$. Since $e$ cannot exceed the authority in $\varepsilon_{s}$ the approximation $\varepsilon_B = \varepsilon_{s} = \varepsilon_A$ would be safe. To be type-safe we need $\tau_B <: \tau_A$. What is $\tau_B$? Intuitively, $e_B = [\hat v_i/x]\annot{e}{\varepsilon_s}$, so the type of $\annot{e}{\epsilon_s}$ ought to be $\annot{\tau}{\varepsilon}$. Then, by the substitution lemma, we get $\hat \Gamma \vdash [\hat v/x]\annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$.  
+
+Based on our analysis, we need $\hat \Gamma, x: \hat \tau \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s} ~\kw{with} \varepsilon_s$. The existence of this judgement is the subject of the following lemma.
+
+\begin{lemma}[$\epscalc$ Annotation]
+If the following are true:
+
+\begin{enumerate}
+	\setlength\itemsep{-0.7em}
+	\item $\hat \Gamma \vdash \hat v_i : \hat \tau_i~\kw{with} \varnothing$
+	\item $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$
+	\item $\kwa{effects}(\hat \tau_i) \cup \hofx{\annot{\tau}{\varnothing}} \cup \fx{\annot{\Gamma}{\varnothing}} \subseteq \varepsilon_{s}$
+	\item $\kwa{ho \hyphen safe}(\hat \tau_i, \varepsilon_s)$
+\end{enumerate}
+
+\noindent
+Then $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s) : \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s$.
+\end{lemma}
+
+\begin{proof}
+By induction on $\Gamma, y: \kwa{erase}(\hat \tau) \vdash e: \tau$.
+\end{proof}
+
+The premises of the annotation lemma are very specific to the premises of \textsc{$\varepsilon$-Import}, but generalised to accommodate a proof by induction: $e$ is allowed to typecheck in a $\Gamma$ with ambient bindings because of the judgement $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$. Therefore $e$ can use any resources bound in $\Gamma$, so whatever effects they capture $\fx{\annot{\Gamma}{\varnothing}}$ are added to $\varepsilon_{s}$ to give a a safe approximation $\varepsilon'$.
+
+Note that when $\Gamma = \varnothing$ then $\varepsilon' = \varepsilon_s$ and applying the lemma gives the judgement $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s) : \kwa{annot}(\tau_i, \varepsilon_s)~\kw{with} \varepsilon_s$, which is the judgement we want. Therefore, when we apply the annotation lemma, we choose $\Gamma = \varnothing$. However, we need $\Gamma$ in the proof because some effects \textit{look} ambient in certain sub-scopes of $e$. For example, the expression $\kwa{f.write}$ exercises ambient authority over whatever resource is bound to $f$, but when enclosed by an appropriate abstraction like $\kwa{\lambda f: {File}.~f.write}$, $f$ is no longer ambient. Proving the lemma requires us to inductively step into the bodies of functions, at which point certain capabilities look ambient and need to be bound in the context --- therefore, we permit $e$ to typecheck in an arbitrarily large environment $\Gamma$, but are only interested in applying the lemma with $\Gamma = \varnothing$.
+
 \noindent
 Again, there is a close relation between these lemmas and the subtyping rule for functions. In a subtyping relation between functions, the input type is contravariant. Therefore, if $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \tau_2$ and we have $\hat \tau <: \kwa{annot}(\tau, \varepsilon)$, then we need to know $\kwa{annot}(\tau_1) <: \hat \tau_1$. This is why there are two lemmas: one for each direction.
 
 Armed with the annotation lemma, we can now prove the preservation theorem.
 
+
 \begin{theorem}[$\epscalc$ Preservation]
-If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, then $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, then $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$, where $\hat e_B <: \hat e_A$ and $\varepsilon \cup \varepsilon_B \subseteq \varepsilon_A$, for some $\hat e_B, \varepsilon, \hat \tau_B, \varepsilon_B$.
 \end{theorem}
 
 \begin{proof} By induction on $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$, and then on $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$. \\
@@ -1087,11 +1084,11 @@ Apply the annotation lemma with $\Gamma = \varnothing$ to get $\hat \Gamma, x: \
 We can now combine Progress and Preservation into the Soundness theorem for $\epscalc$. The proof of multi-step soundness in $\epscalc$ is identical to the proof in $\opercalc$.
 
 \begin{theorem}[$\epscalc$ Single-step Soundness]
-If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, where $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat e_B$, $\varepsilon$, $\hat \tau_B$, and $\varepsilon_B$.
 \end{theorem}
 
 \begin{theorem}[$\epscalc$ Multi-step Soundness]
-If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow^{*} e_B~|~\varepsilon$, where $\hat \Gamma \vdash e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A \longrightarrow^{*} e_B~|~\varepsilon$, then $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$, where $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat \tau_B$, $\varepsilon_B$.
 \end{theorem}
 
 
