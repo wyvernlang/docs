@@ -102,7 +102,7 @@ Wyvern's modules are first-class and desugar into objects; invoking a method ins
 \begin{lstlisting}
 module PureMod
 
-def tick(f: {File}):Unit with $\varnothing$
+def tick(f: {File}):Unit with {File.append}
    f.append
 
 \end{lstlisting}
@@ -121,7 +121,8 @@ def tick():Unit with {File.append}
 
 Resource modules, like objects, must be instantiated. When they are instantiated they must be given the capabilities they require. In \ref{fig:wyv_modules}, $\kwa{ResourceMod}$ requests the use of a $\kwa{File}$ capability. \ref{fig:wyv_module_instantiation} demonstrates how the two modules above would be instantiated and used. To prevent infinite regress the $\kwa{File}$ must, at some point, be introduced into the program. This happens in a special main module. When the program begins execution, the $\kwa{File}$ capability is passed into the program from the system environment. All these initial capabilities are modelled in $\epscalc$ as resource literals. $\kwa{Main}$ then instantiates all the other modules in the program, propagating capabilities as it sees fit.
 
-If a module is annotated, it will 
+If a module is annotated, its function signatures will have effects annoations. For example, in Figure \ref{fig:wyv_modules}, $\kwa{PureMod.tick}$ has the $\kwa{File.append}$ annotation, which means the function should typecheck as $\kwa{ \{ File \} \rightarrow_{\kwa{File.append}} \Unit }$. 
+
 
 \begin{figure}[h]
 
@@ -171,20 +172,15 @@ let MakeMain =
 \label{fig:wyv_tutorial_desugaring}
 \end{figure}
 
-Unannotated modules are modelled with $\kwa{import}$, where the unannotated body of the module is the unannotated body of the $\kwa{import}$. Most examples involving unannotated code will not typecheck because of a mismatch between the selected authority of $\kwa{import}$ and the annotations on the client using unannotated code. Where an example involves unannotated code, the selected authority will be determined by what constraints are imposed by the client. For example, if the client only expects the $\kwa{File.append}$ effect and executes some unlabelled code, the corresponding $\kwa{import}$ expression will select $\kwa{File.append}$.
+When an unannotated module is translated into $\epscalc$, the desugared contents will be encapsulated with an $\kwa{import}$ expression. Most examples involving unannotated code will not typecheck because of a mismatch between the selected authority of $\kwa{import}$ and the annotations on the client using unannotated code. Where an example involves unannotated code, the selected authority will be determined by what constraints are imposed by the client. For example, if the client only expects the $\kwa{File.append}$ effect and executes some unannotated code, the corresponding $\kwa{import}$ expression will select $\kwa{File.append}$.
 
 \section{Examples}
 
-We now present several examples to show how the capability-based reasoning of $\epscalc$ can assist in reasoning about the effects of a program. We also hope to convince the reader that the rules of $\epscalc$ have practical worth, and could be used to enrich existing capability-safe languages in a straightforward and routine manner.
-
-The format of each section is as follows. A program is introduced which exhibits some bad behaviour or demonstrates a particular story about software development. The language used is \textit{Wyvern}; a pure, object-oriented, capability-safe language with first-class modules-as-objects. We show how the Wyvern program can be written as a corresponding $\epscalc$ program and sketch a derivation showing how the rules of $\epscalc$ and a sketch a derivation showing how the rules of $\epscalc$ would solve the relevant problem.
-
-We take some shortcuts with the translation of Wyvern into $\epscalc$. Our ``objects'' are really functions. The particular examples we have chosen only involve modules which export a single function and make no use of self-reference, so no important expressive properties are lost by treating Wyvern objects as functions.
-
+We now present several examples to show the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. Each example exhibits some bad behaviour or demonstrates a particular software development story. The high-level Wyvern code is translated into $\epscalc$, using the techniques from the previous section, and then we sketch an explanation of why $\epscalc$ will accept or reject the program.
 
 \subsection{API Violation}
 
-In the first example there is a single primitive capability called $\kwa{File}$, which is passed into the program when it begins execution, perhaps from the system environment or a virtual machine. There is a $\kwa{Logger}$ module which possess this capability and exposes a single function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{Client}$ module possesses the $\kwa{Logger}$ module as a capability. Its function $\kwa{run}$ will invoke $\kwa{Logger.log}$, incurring both $\kwa{File.write}$; however, the client's annotation is expecting no effects $\varnothing$. Code is shown below.
+In the first example there is a single primitive capability $\kwa{File}$. A $\kwa{Logger}$ module possessing this capability exposes a single function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{Client}$ module possesses the $\kwa{Logger}$ module and exposes a single function $\kwa{run}$ which invokes $\kwa{Logger.log}$, incurring $\kwa{File.write}$; however, the client's annotation is $\varnothing$, so it is not expecting any effects. Code is shown below.
 
 \begin{lstlisting}
 resource module Logger
