@@ -352,6 +352,22 @@ Since in the two cases for selection types, the subderivations are not strictly 
 	 \Sigma; \Gamma \vdash \tau_2 <: \tau_2'}
 	{\Sigma; \Gamma \vdash \text{\texttt{type}} \ L : \tau_1 \ldots \tau_2 \ <:\ \text{\texttt{type}} \ L : \tau_1' \ldots \tau_2'}
 	\quad (\textsc {S-Decl-Type})
+	\and
+\inferrule
+	{\Sigma; \Gamma \vdash \sigma <: \sigma_1 \\
+	 \Sigma; \Gamma \vdash \sigma <: \sigma_2}
+	{\Sigma; \Gamma \vdash \sigma <: \sigma_1 \wedge \sigma_2}
+	\quad (\textsc {S-Decl-Intersection})
+	\and
+\inferrule
+	{\Sigma; \Gamma \vdash \sigma_1 <: \sigma}
+	{\Sigma; \Gamma \vdash \sigma_1 \wedge \sigma_2 <: \sigma}
+	\quad (\textsc {S-Decl-Intersection-L})
+	\and
+\inferrule
+	{\Sigma; \Gamma \vdash \sigma_2 <: \sigma}
+	{\Sigma; \Gamma \vdash \sigma_1 \wedge \sigma_2 <: \sigma}
+	\quad (\textsc {S-Decl-Intersection-R})
 \end{mathpar}
 \caption{Subtyping}
 \label{f:subtype}
@@ -456,31 +472,31 @@ Since in the two cases for selection types, the subderivations are not strictly 
 \inferrule
 	{\Sigma; \Gamma \vdash p \ni \text{\texttt{type}} \ L : \tau_1 \ldots \tau_2 \\
 	 \Sigma; \Gamma \vdash \sigma^z \in \tau_2}
-	{\Sigma; \Gamma \vdash [z \unlhd \tau_2/z]\sigma \in p.L}
+	{\Sigma; \Gamma \vdash ([z \unlhd \tau_2/z]\sigma)^z \in p.L}
 	\quad (\textsc {MT-Sel})
 	\and
 \inferrule
-	{\Sigma; \Gamma \vdash \sigma_1^z \in \tau_1 \\
-	 \Sigma; \Gamma \vdash \sigma_2^z \not\in \tau_2}
-	{\Sigma; \Gamma \vdash \sigma_1^z \in \tau_1 \wedge \tau_2}
+	{\Sigma; \Gamma \vdash \sigma^z \in \tau_1 \\
+	 \forall \sigma':\ \Sigma; \Gamma \vdash \sigma'^z \in \tau_2,\ label(\sigma') \neq label(\sigma)}
+	{\Sigma; \Gamma \vdash ([z \unlhd \tau_1]\sigma)^z \in \tau_1 \wedge \tau_2}
 	\quad (\textsc {MT-Int-L})
 	\and
 \inferrule
-	{\Sigma; \Gamma \vdash \sigma_1^z \not\in \tau_1 \\
-	 \Sigma; \Gamma \vdash \sigma_2^z \in \tau_2}
-	{\Sigma; \Gamma \vdash \sigma_2^z \in \tau_1 \wedge \tau_2}
-	\quad (\textsc {MT-Int-L})
+	{\Sigma; \Gamma \vdash \sigma^z \in \tau_2 \\
+	 \forall \sigma':\ \Sigma; \Gamma \vdash \sigma'^z \in \tau_1,\ label(\sigma') \neq label(\sigma)}
+	{\Sigma; \Gamma \vdash ([z \unlhd \tau_2]\sigma)^z \in \tau_1 \wedge \tau_2}
+	\quad (\textsc {MT-Int-R})
 	\and
 \inferrule
 	{\Sigma; \Gamma \vdash \sigma_1^z \in \tau_1 \\
 	 \Sigma; \Gamma \vdash \sigma_2^z \in \tau_2}
-	{\Sigma; \Gamma \vdash \sigma_1^z \wedge \sigma_2^z \in \tau_1 \wedge \tau_2}
+	{\Sigma; \Gamma \vdash (([z \unlhd \tau_1]\sigma_1) \wedge ([z \unlhd \tau_2]\sigma_2))^z \in \tau_1 \wedge \tau_2}
 	\quad (\textsc {MT-Int-LR})
 	\and
 \inferrule
 	{\Sigma; \Gamma \vdash \sigma_1^z \in \tau_1 \\
 	 \Sigma; \Gamma \vdash \sigma_2^z \in \tau_2}
-	{\Sigma; \Gamma \vdash \sigma_1^z \vee \sigma_2^z \in \tau_1 \vee \tau_2 }
+	{\Sigma; \Gamma \vdash (\sigma_1 \vee \sigma_2)^z \in \tau_1 \vee \tau_2 }
 	\quad (\textsc {MT-Union})
 \end{mathpar}
 \caption{Type Membership}
@@ -550,6 +566,12 @@ Since in the two cases for selection types, the subderivations are not strictly 
   {\Sigma; \Gamma \vdash t \ni \texttt{def} \ m:\tau}
   {\Sigma; \Gamma \vdash t.m : \tau}
   \quad (\textsc {T-Meth})
+	\and
+\inferrule
+  {\Sigma; \Gamma \vdash t :\tau_t \\
+   \Sigma; \Gamma \vdash \tau_t\ <:\ \{z \Rightarrow \text{\texttt{def}}\ m:\ \tau\}}
+  {\Sigma; \Gamma \vdash t.m : \tau}
+  \quad (\textsc {T-Meth'})
 	\and
 \inferrule
   {\Sigma; \Gamma \vdash t : \tau' \\
@@ -771,12 +793,12 @@ Since in the two cases for selection types, the subderivations are not strictly 
 \inferrule
 	{}
 	{\Sigma \vdash l \leadsto l}
-	\quad{\textsc{L-Loc}}
+	\quad(\textsc{L-Loc})
 	\and
 \inferrule
 	{\Sigma \vdash v \leadsto v'}
 	{\Sigma \vdash v \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto v' \unlhd \{z \Rightarrow \overline{\sigma}\}}
-	\quad{\textsc{L-Struct}}
+	\quad(\textsc{L-Struct})
 	\and
 \inferrule
 	{\Sigma; \emptyset \vdash v : \tau \\
@@ -784,7 +806,7 @@ Since in the two cases for selection types, the subderivations are not strictly 
 	 \Sigma; \emptyset \vdash p \ni \text{\texttt{type}}\ L: \tau_1 \ldots \tau_2 \\
 	 \Sigma \vdash v \unlhd \tau_1 \unlhd \tau_2 \leadsto v'}
 	{\Sigma \vdash v \unlhd p.L \leadsto v'}
-	\quad{\textsc{L-Select}}
+	\quad(\textsc{L-Select})
 	\and
 \inferrule
 	{\Sigma; \emptyset \vdash v : \tau \\
@@ -792,7 +814,7 @@ Since in the two cases for selection types, the subderivations are not strictly 
 	 \Sigma; \emptyset \vdash p \ni \text{\texttt{type}}\ L: \tau_1 \ldots \tau_2 \\
 	 \Sigma \vdash v \unlhd \tau_2 \leadsto v'}
 	{\Sigma \vdash v \unlhd p.L \leadsto v'}
-	\quad{\textsc{L-Select-Path-Equiv}}
+	\quad(\textsc{L-Select-Path-Equiv})
 \end{mathpar}
 \caption{Leadsto}
 \label{f:leadsto}
@@ -804,13 +826,13 @@ Since in the two cases for selection types, the subderivations are not strictly 
 \inferrule
 	{\mu(l) = \{z \Rightarrow \ldots, \text{\texttt{def}}\ m : \tau = t, \ldots\}}
 	{\mu \vdash l \leadsto_m [l/z]t}
-	\quad{\textsc{ML-Loc}}
+	\quad(\textsc{ML-Loc})
 	\and
 \inferrule
 	{\mu \vdash v \leadsto_m t \\
 	 \text{\texttt{def}}\ m : \tau \in \overline{\sigma}}
 	{\mu \vdash v \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_m t \unlhd [v \unlhd \{z \Rightarrow \overline{\sigma}\}/z]\tau}
-	\quad{\textsc{ML-Struct}}
+	\quad(\textsc{ML-Struct})
 \end{mathpar}
 \caption{Method Leadsto}
 \label{f:mleadsto}
@@ -822,12 +844,12 @@ Since in the two cases for selection types, the subderivations are not strictly 
 \inferrule
 	{}
 	{\lambda x:\tau.t \leadsto_\lambda ([x \unlhd \tau/x]t)^x}
-	\quad{\lambda\textsc{L-Loc}}
+	\quad(\lambda\textsc{L-Loc})
 	\and
 \inferrule
 	{v \leadsto_\lambda t^x}
 	{v \unlhd \tau_1 \rightarrow \tau_2^x \leadsto_\lambda ([x \unlhd \tau_1/x]t \unlhd \tau_2)^x}
-	\quad{\lambda\textsc{L-Struct}}
+	\quad(\lambda\textsc{L-Struct})
 \end{mathpar}
 \caption{Lambda Leadsto}
 \label{f:lamleadsto}
