@@ -61,10 +61,9 @@ p 		& ::= 														&\text{\bf{Path}} \\
 \begin{array}{llr}
 \tau 	& ::= 														&\text{\bf{Type}} \\
 		& \{z \Rightarrow \overline{\sigma}\}				&\text{\emph{record}}\\
+		& \tau\{z \Rightarrow \overline{\sigma}\}			&\text{\emph{refinement}}\\
 		& \tau \rightarrow \tau^x 							&\text{\emph{arrow}}\\
 		& p.L 														&\text{\emph{selection}}\\
-		& \tau \wedge \tau 										&\text{\emph{intersection}}\\
-		& \tau \vee \tau 										&\text{\emph{union}}\\
 		& \top 													&\text{\emph{top}}\\
 		& \bot 													&\text{\emph{bottom}}\\
 &&\\
@@ -103,89 +102,6 @@ E 		& :: = 													& \text{\bf{Eval Context}}\\
 \caption{Syntax}
 \label{f:syntax}
 \end{figure}
-
-%\begin{figure}[h]
-%\[
-%\begin{array}{lll}
-%\begin{array}{llr}
-%e 		& ::= 														&\text{\bf{Expression}} \\
-%		& x 														&\text{\emph{variable}}\\
-%		& \texttt{new} \ \{z \Rightarrow \overline{d}\}	&\text{\emph{new instance}}\\
-%		& \lambda x:\tau.e 										&\text{\emph{lambda}}\\
-%		& e\ e 													&\text{\emph{application}}\\
-%		& e.m 														&\text{\emph{method invocation}}\\
-%		& e \unlhd \tau 										&\text{\emph{upcast}}\\
-%		& l  														&\text{\emph{location}}\\
-%&&\\
-%p 		& ::= 														&\text{\bf{Path}} \\
-%		& x 														&\\
-%		& l 														&\\
-%		& p \unlhd \tau 										&\\
-%&&\\
-%v 		& ::= 														&\text{\bf{Value}} \\
-%		& l 														&\\
-%		& v \unlhd \tau 										&\\
-%&&\\
-%d 		& ::= 														&\text{\bf{Declaration}} \\
-%  		& \text{\texttt{def}} \ m : \tau = e 				&\text{\emph{method}}\\
-%  		& \text{\texttt{type}} \ L = \tau					&\text{\emph{type}}\\
-%&&\\
-%\sigma	& ::= 														&\text{\bf{Decl Type}}\\
-%		& \text{\texttt{def}} \ m:\tau						&\text{\emph{method}}\\
-%  		& \text{\texttt{type}} \ L : \tau \ldots  \tau			&\text{\emph{type}}\\
-% \end{array}
-%& ~~~~~~
-%&
-%\begin{array}{llr}
-%\tau 	& ::= 														&\text{\bf{Type}} \\
-%		& \{z \Rightarrow \overline{\sigma}\}				&\text{\emph{record}}\\
-%		& (x: \tau) \rightarrow \tau 								&\text{\emph{arrow}}\\
-%		& p.L 														&\text{\emph{selection}}\\
-%		& \tau \wedge \tau 										&\text{\emph{intersection}}\\
-%		& \tau \vee \tau 										&\text{\emph{union}}\\
-%		& \top 													&\text{\emph{top}}\\
-%		& \bot 													&\text{\emph{bottom}}\\
-%&&\\
-%E 		& :: = 													& \text{\bf{Eval Context}}\\
-%		& \bigcirc 												&\\
-%		& E.m 														&\\
-%		& E\ e 													&\\
-%		& p\ E 													&\\
-%		& E \unlhd \tau											&\\
-%&&\\
-%\Gamma	& :: = 													&\text{\bf{Environment}} \\
-%		& \varnothing 											&\\
-%		& \Gamma,\ x : \tau 									&\\
-%&&\\
-%\mu 	& :: = 													& \text{\bf{Store}}\\
-%		& \varnothing 											&\\
-%		& \mu,\ l \mapsto \{z \Rightarrow \overline{d}\}	&\\
-%&&\\
-%\Sigma	& :: = 													&\text{\bf{Store Type}}\\
-%		& \varnothing 											&\\
-%		& \Sigma,\ l : \{\texttt{z} \Rightarrow \overline{\sigma}\}	&\\
-%\end{array}
-%\end{array}
-%\]
-%\caption{Syntax}
-%\label{f:syntax}
-%\end{figure}
-
-
-%\begin{figure}[h]
-%\begin{mathpar}
-%\inferrule
-%  {}
-%  {label(\texttt{def} \, m : \tau) = m}
-%  \and
-%\inferrule
-%  {}
-%  {label(\texttt{type} \, L : \tau_1 \ldots  \tau_2) = L}
-%\end{mathpar}
-%\caption{Declaration Label Function}
-%\label{f:label}
-%\end{figure}
-
 
 In Figure \ref{f:leadsto}:
 \begin{itemize}
@@ -271,6 +187,11 @@ Since in the two cases for selection types, the subderivations are not strictly 
 	\quad (\textsc {S-Struct})
 	\and
 \inferrule
+	{\Sigma; \Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\ [z \unlhd \{z \Rightarrow \overline{\sigma}_2\} / z]\overline{\sigma}_2}
+	{\Sigma; \Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\ <:\ \{z \Rightarrow \overline{\sigma}_2\}}
+	\quad (\textsc {S-Refine})
+	\and
+\inferrule
 	{\Sigma; \Gamma \vdash \tau_1'\ <:\ \tau_1 \\
 	 \Sigma; \Gamma, x : \tau_1' \vdash [x \unlhd \tau_1/x]\tau_2\ <:\ \tau_2'}
 	{\Sigma; \Gamma \vdash \tau_1 \rightarrow\ \tau_2^x <:\ \tau_1' \rightarrow\ \tau_2'^x}
@@ -299,38 +220,6 @@ Since in the two cases for selection types, the subderivations are not strictly 
 	\quad (\textsc {S-Select-Lower})
 	\and
 \inferrule
-	{\Sigma; \Gamma \vdash \tau_1\ <:\ \tau \\
-	 \Sigma; \Gamma \vdash \tau_2\ <:\ \tau}
-	{\Sigma; \Gamma \vdash \tau_1 \vee \tau_2\ <:\ \tau}
-	\quad (\textsc {S-Union})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \tau\ <:\ \tau_1}
-	{\Sigma; \Gamma \vdash \tau\ <:\ \tau_1 \vee \tau_2}
-	\quad (\textsc {S-Union-L})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \tau\ <:\ \tau_2}
-	{\Sigma; \Gamma \vdash \tau\ <:\ \tau_1 \vee \tau_2}
-	\quad (\textsc {S-Union-R})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \tau\ <:\ \tau_1 \\
-	 \Sigma; \Gamma \vdash \tau\ <:\ \tau_2}
-	{\Sigma; \Gamma \vdash \tau\ <:\ \tau_1 \wedge \tau_2}
-	\quad (\textsc {S-Intersection})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \tau_1\ <:\ \tau}
-	{\Sigma; \Gamma \vdash \tau_1 \wedge \tau_2\ <:\ \tau}
-	\quad (\textsc {S-Intersection-L})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \tau_2\ <:\ \tau}
-	{\Sigma; \Gamma \vdash \tau_1 \wedge \tau_2\ <:\ \tau}
-	\quad (\textsc {S-Intersection-R})
-	\and
-\inferrule
 	{}
 	{\Sigma; \Gamma \vdash \tau\ <:\ \top}
 	\quad (\textsc {S-Top})
@@ -352,22 +241,6 @@ Since in the two cases for selection types, the subderivations are not strictly 
 	 \Sigma; \Gamma \vdash \tau_2 <: \tau_2'}
 	{\Sigma; \Gamma \vdash \text{\texttt{type}} \ L : \tau_1 \ldots \tau_2 \ <:\ \text{\texttt{type}} \ L : \tau_1' \ldots \tau_2'}
 	\quad (\textsc {S-Decl-Type})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \sigma <: \sigma_1 \\
-	 \Sigma; \Gamma \vdash \sigma <: \sigma_2}
-	{\Sigma; \Gamma \vdash \sigma <: \sigma_1 \wedge \sigma_2}
-	\quad (\textsc {S-Decl-Intersection})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \sigma_1 <: \sigma}
-	{\Sigma; \Gamma \vdash \sigma_1 \wedge \sigma_2 <: \sigma}
-	\quad (\textsc {S-Decl-Intersection-L})
-	\and
-\inferrule
-	{\Sigma; \Gamma \vdash \sigma_2 <: \sigma}
-	{\Sigma; \Gamma \vdash \sigma_1 \wedge \sigma_2 <: \sigma}
-	\quad (\textsc {S-Decl-Intersection-R})
 \end{mathpar}
 \caption{Subtyping}
 \label{f:subtype}
