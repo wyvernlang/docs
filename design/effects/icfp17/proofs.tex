@@ -1,0 +1,398 @@
+
+\section{$\opercalc$ Proofs}
+
+
+\begin{lemma}[$\opercalc$ Canonical Forms]
+Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
+\begin{enumerate}
+	\item If $\Gamma \vdash x: \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $ \Gamma \vdash  v:  \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $ \Gamma \vdash v: \{ \bar r \}~\kw{with} \varepsilon$ then $ v = r$ and $\{ \bar r \} = \{ r \}$.
+	\item If $\Gamma \vdash v: \tau_1 \rightarrow_{\varepsilon'} \tau_2~\kw{with} \varepsilon$ then $v = \lambda x:\tau. e$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+~
+\begin{enumerate}
+	\item The only rule that applies to variables is \textsc{$\varepsilon$-Var} which ascribes the type $\varnothing$.
+	\item By definition a value is either a resource literal or a lambda. The only rules which can type values are \textsc{$\varepsilon$-Resource} and \textsc{$\varepsilon$-Abs}. In the conclusions of both, $\varepsilon = \varnothing$.
+	\item The only rule ascribing the type $\{ \bar r \}$ is \textsc{$\varepsilon$-Resource}. Its premises imply the result.
+	\item The only rule ascribing the type $\tau_1 \rightarrow_{\varepsilon'} \tau_2$ is \textsc{$\varepsilon$-Abs}. Its premises imply the result.
+\end{enumerate}
+\end{proof}
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{theorem}[$\opercalc$ Progress]
+If $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$ and $ e$ is not a value or variable, then $ e \longrightarrow  e'~|~\varepsilon$, for some $e', \varepsilon$.
+\end{theorem}
+
+\begin{proof} By induction on $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$. \\
+
+Case: \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, or  \textsc{$\varepsilon$-Abs}. Then $e$ is a value or variable and the theorem statement holds vacuously.\\
+
+Case: \textsc{$\varepsilon$-App}. Then $ e =  e_1~ e_2$. If $ e_1$ is not a value or variable it can be reduced $e_1 \longrightarrow e_1'~|~\varepsilon$ by inductive assumption, so $ e_1~ e_2 \longrightarrow  e_1'~ e_2~|~\varepsilon$ by \textsc{E-App1}. If $ e_1 =  v_1$ is a value and $ e_2$ a non-value, then $e_2$ can be reduced $e_2 \longrightarrow e_2'~|~\varepsilon$ by inductive assumption, so $ e_1~ e_2 \longrightarrow  v_1~ e_2'~|~\varepsilon$ by \textsc{E-App2}. Otherwise $ e_1 = v_1$ and $ e_2 = v_2$ are both values. By inversion on \textsc{$\varepsilon$-App} and canonical forms, $\Gamma \vdash v_1: \tau_2 \rightarrow_{\varepsilon'} \tau_3~\kw{with} \varnothing$, and $v_1 = \lambda x: \tau_2. e_{body}$. Then $(\lambda x:  \tau.  e_{body})  v_2 \longrightarrow [ v_2/x]e_{body}~|~\varnothing$ by \textsc{E-App3}.\\
+
+Case: \textsc{$\varepsilon$-OperCall}. Then $ e =  e_1.\pi$. If $ e_1$ is a non-value it can be reduced $e_1 \longrightarrow e_1'~|~\varepsilon$ by inductive assumption, so $ e_1.\pi \longrightarrow  e_1'.\pi~|~\varepsilon$ by \textsc{E-OperCall1}. Otherwise $ e_1 =  v_1$ is a value. By inversion on \textsc{$\varepsilon$-OperCall} and canonical forms, $\Gamma \vdash v_1: \{ r \}~\kw{with} \{ r.\pi \}$, and $v_1 = r$. Then $r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$ by \textsc{E-OperCall2}.\\
+
+Case: \textsc{$\varepsilon$-Subsume}. If $e$ is a value or variable, the theorem holds vacuously. Otherwise by inversion on \textsc{$\varepsilon$-Subsume},  $ \Gamma \vdash e:  \tau'~\kw{with} \varepsilon'$, and $e \longrightarrow e'~|~\varepsilon$ by inductive assumption.
+
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{lemma}[$\opercalc$ Substitution]
+If $\Gamma, x: \tau' \vdash e: \tau~\kw{with} \varepsilon$ and $\Gamma \vdash v: \tau'~\kw{with} \varnothing$ then $\Gamma \vdash [v/x]e: \tau~\kw{with} \varepsilon$.
+\end{lemma}
+
+\begin{proof} By induction on the derivation of $ \Gamma, x:  \tau' \vdash e:  \tau~\kw{with} \varepsilon$. \\
+
+\textit{Case}: \textsc{$\varepsilon$-Var}. Then $ e = y$ is a variable. Either $y = x$ or $y \neq x$. Suppose $y=x$. By applying canonical Forms to the theorem assumption $\Gamma, x: \tau' \vdash e: \tau'~\kw{with} \varnothing$, hence $\tau' = \tau$. $[v/x]y = [v/x]x = v$, and by assumption, $\Gamma \vdash v: \tau'~\kw{with} \varnothing$, so $\Gamma \vdash [v/x]y: \tau~\kw{with} \varnothing$.
+
+Otherwise $y \neq x$. By applying canonical forms to the theorem assumption $\Gamma, x: \tau' \vdash y: \tau~\kw{with} \varnothing$, so $y: \tau \in \Gamma$. Since $[v/x]y = y$, then $\Gamma \vdash y: \tau~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Var}. \\
+
+\textit{Case}: \textsc{$\varepsilon$-Resource}. Because $ e = r$ is a resource literal then $ \Gamma \vdash r:  \{ r \}~\kw{with} \varnothing$ by canonical forms. By definition $[ v/x]r = r$, so $ \Gamma \vdash [ v/x]r:  \{ \bar r\}~\kw{with} \varnothing$. \\
+
+\textit{Case:} \textsc{$\varepsilon$-App}. By inversion $ \Gamma, x:  \tau' \vdash  e_1: \tau_2 \rightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_A$ and $ \Gamma, x:  \tau' \vdash  e_2:  \tau_2~\kw{with} \varepsilon_B$, where $\varepsilon = \varepsilon_A \cup \varepsilon_B \cup \varepsilon_3$ and $ \tau =  \tau_3$. From inversion on \textsc{$\varepsilon$-App} and inductive assumption, $ \Gamma \vdash [ v/x] e_1:  \tau_2 \rightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_A$ and $ \Gamma \vdash [ v/x] e_2:  \tau_2~\kw{with} \varepsilon_B$. By \textsc{$\varepsilon$-App}  $ \Gamma \vdash ([ v/x] e_1) ([ v/x] e_2) :  \tau_3~\kw{with} \varepsilon_A \cup \varepsilon_B \cup \varepsilon_3$. By simplifying and applying the definition of $\kwa{substitution}$, this is the same as $ \Gamma \vdash [ v/x]( e_1~ e_2):  \tau~\kw{with} \varepsilon$. \\
+
+\textit{Case:} \textsc{$\varepsilon$-OperCall}. By inversion $ \Gamma, x:  \tau' \vdash  e_1: \{ \bar r \}~\kw{with} \varepsilon_1$ and $\tau = \Unit$ and $\varepsilon = \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$. By inductive assumption, $ \Gamma \vdash [ v/x] e_1 : \{ \bar r \} ~\kw{with} \varepsilon_1$. Then by \textsc{$\varepsilon$-OperCall}, $ \Gamma \vdash ([ v/x] e_1).\pi: \Unit~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r.\pi \in \bar r \times \Pi \}$. By simplifying and applying the definition of $\kwa{substitution}$, this is the same as $ \Gamma \vdash [ v/x]( e_1.\pi):  \tau~\kw{with} \varepsilon$.\\
+
+\textit{Case:} \textsc{$\varepsilon$-Subsume}. By inversion, $ \Gamma, x:  \tau' \vdash  e:  \tau_2~\kw{with} \varepsilon_2$, where $ \tau_2 <:  \tau$ and $\varepsilon_2 \subseteq \varepsilon$. By inductive hypothesis, $ \Gamma \vdash [ v/x] e:  \tau_2~\kw{with} \varepsilon_2$. Then $ \Gamma \vdash [ v/x] e:  \tau~\kw{with} \varepsilon$ by \textsc{$\varepsilon$-Subsume}.
+
+\end{proof}
+
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{theorem}[$\opercalc$ Preservation]
+If $\Gamma \vdash e_A: \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow e_B~|~\varepsilon$, then $\tau_B <: \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $e_B, \varepsilon, \tau_B, \varepsilon_B$.
+\end{theorem}
+
+
+\begin{proof}
+By induction on the derivation of $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and then the derivation of $e_A \longrightarrow e_B~|~\varepsilon$.  \\
+
+\textit{Case:} \textsc{$\varepsilon$-Var}, \textsc{$\varepsilon$-Resource}, \textsc{$\varepsilon$-Unit}, \textsc{$\varepsilon$-Abs}. Then $e_A$ is a value and cannot be reduced, so the theorem holds vacuously.\\
+
+\textit{Case:} \textsc{$\varepsilon$-App}. Then $e_A =  e_1~ e_2$ and $\Gamma \vdash e_1:  \tau_2 \longrightarrow_{\varepsilon_3}  \tau_3~\kw{with} \varepsilon_1$ and $ \Gamma \vdash  e_2:  \tau_2~\kw{with} \varepsilon_2$ and $\tau_B = \tau_3$ and $\varepsilon_A = \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$.  In each case we choose $\tau_B = \tau_A$ and $\varepsilon_B \cup \varepsilon = \varepsilon_A$.
+
+\textbf{Subcase:} \textsc{E-App1}. Then $e_1~e_2 \longrightarrow e_1'~e_2~|~\varepsilon$. By inversion on \textsc{E-App1}, $e_1 \longrightarrow e_1'~|~\varepsilon$. By inductive hypothesis and \textsc{$\varepsilon$-Subsume} $\Gamma \vdash v_1: \tau_2 \longrightarrow_{\varepsilon_3} \tau_3~\kw{with} \varepsilon_1$. Then $\Gamma \vdash e_1'~e_2: \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$ by \textsc{$\varepsilon$-App}.
+
+\textbf{Subcase:} \textsc{E-App2}. Then $e_1 = v_1$ is a value and $e_2 \longrightarrow e_2'~|~\varepsilon$. By inversion on \textsc{E-App2}, $e_2 \longrightarrow e_2'~|~\varepsilon$. By inductive hypothesis and \textsc{$\varepsilon$-Subsume} $\Gamma \vdash e_2': \tau_2~\kw{with} \varepsilon_2$. Then $\Gamma \vdash v_1~e_2': \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$ by \textsc{$\varepsilon$-App}.
+
+\textbf{Subcase:} \textsc{E-App3}. Then $e_1 = \lambda x: \tau_2.e_{body}$ and $e_2 = v_2$ are values and $(\lambda x: \tau_2.e_{body})~v_2 \longrightarrow [v_2/x]e_{body}~|~\varnothing$. By inversion on the rule \textsc{$\varepsilon$-App} used to type $\lambda x:  \tau_2. e_{body}$, we know $\Gamma, x:  \tau_2 \vdash e_{body}: \tau_3~\kw{with} \varepsilon_3$. $e_1 = v_1$ and $e_2 = v_2$ are values, so $\varepsilon_1 = \varepsilon_2 = \varnothing$ by canonical forms . Then by the substitution lemma, $ \Gamma \vdash [ v_2/x] e_{body} :  \tau_3~\kw{with} \varepsilon_3$ and $\varepsilon_A = \varepsilon_B = \varepsilon$. \\
+
+\textit{Case:}  \textsc{$\varepsilon$-OperCall}. Then $e_A = e_1.\pi$ and $\Gamma \vdash e_1: \{ \bar r \}~\kw{with} \varepsilon_1$ and $\tau_A = \Unit$ and $\varepsilon_A = \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$.
+
+\textbf{Subcase:} \textsc{E-OperCall1}. Then $e_1.\pi \longrightarrow e_1'.\pi~|~\varepsilon$. By inversion on \textsc{E-OperCall1}, $e_1 \longrightarrow e_1'~|~\varepsilon$. By inductive hypothesis and application of \textsc{$\varepsilon$-Subsume}, $\Gamma \vdash e_1': \{ \bar r \}~\kw{with} \varepsilon_1$. Then $\Gamma \vdash e_1'.\pi: \{ \bar r \}~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$ by \textsc{$\varepsilon$-OperCall}.
+
+
+\textbf{Subcase:} \textsc{E-OperCall2}. Then $e_1 = r$ is a resource literal and $r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \}$. By canonical forms, $\varepsilon_1 = \varnothing$. By \textsc{$\varepsilon$-Unit}, $ \Gamma \vdash \kwa{unit}: \kwa{Unit}~\kw{with} \varnothing$. Therefore $\tau_B = \tau_A$ and $\varepsilon \cup \varepsilon_B = \{ r.\pi \} = \varepsilon_A$.
+\end{proof}
+
+
+
+
+
+\hrulefill
+
+\begin{theorem}[$\opercalc$ Single-step Soundness]
+If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $ e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $e_B, \varepsilon, \tau_B, \varepsilon_B$.
+\end{theorem}
+
+\begin{proof}
+If $ e_A$ is not a value then the reduction exists by the progress theorem. The rest follows by the preservation theorem.
+\end{proof}
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{theorem}[$\opercalc$ Multi-step Soundness]
+If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $e_A \longrightarrow^{*} e_B~|~\varepsilon$, where $\Gamma \vdash e_B: \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <: \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\end{theorem}
+
+\begin{proof} By induction on the length of the multi-step reduction.\\
+
+\textit{Case:} Length $0$. Then $e_A = e_B$ and $\tau_A = \tau_B$ and $\varepsilon = \varnothing$ and $\varepsilon_A = \varepsilon_B$.\\
+
+\textit{Case:} Length $n+1$. By inversion the multi-step can be split into a multi-step of length $n$, which is $ e_A \longrightarrow^{*}  e_C~|~\varepsilon'$, and a single-step of length $1$, which is $e_C \longrightarrow e_B~|~\varepsilon''$, where $\varepsilon = \varepsilon' \cup \varepsilon''$. By inductive assumption and preservation theorem, $ \Gamma \vdash  e_C:  \tau_C~\kw{with} \varepsilon_C$ and $ \Gamma \vdash  e_B:  \tau_B~\kw{with} \varepsilon_B$, where $ \tau_C <:  \tau_A$ and $ \varepsilon_C \cup \varepsilon' \subseteq \varepsilon_A$. By single-step soundness, $ \tau_B <:  \tau_C$ and $ \varepsilon_B \cup \varepsilon'' \subseteq \varepsilon_C$. Then by transitivity, $ \tau_B <:  \tau$ and $ \varepsilon_B \cup \varepsilon' \cup \varepsilon'' = \varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$.
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+\section{$\epscalc$ Proofs}
+
+
+\begin{lemma}[$\epscalc$ Canonical Forms]
+Unless the rule used is \textsc{$\varepsilon$-Subsume}, the following are true:
+\begin{enumerate}
+	\item If $\hat \Gamma \vdash x: \hat \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $\hat \Gamma \vdash \hat v: \hat \tau~\kw{with} \varepsilon$ then $\varepsilon = \varnothing$.
+	\item If $\hat \Gamma \vdash \hat v: \{ \bar r \}~\kw{with} \varepsilon$ then $\hat v = r$ and $\{ \bar r \} = \{ r \}$.
+	\item If $\hat \Gamma \vdash \hat v: \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2~\kw{with} \varepsilon$ then $\hat v = \lambda x:\tau. \hat e$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+Same as for $\opercalc$.
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{theorem}[$\epscalc$ Progress]
+If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat e$ is not a value, then $\hat e \longrightarrow \hat e'~|~\varepsilon$, for some $\hat e', \varepsilon$.
+\end{theorem}
+
+\begin{proof} By induction on the derivation of $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.\\
+
+\textit{Case}: \textsc{$\varepsilon$-Module}. Then $\hat e = \import{\varepsilon_{s}}{x}{\hat e_{i}}{e}$. If $\hat e_i$ is a non-value then $\hat e_i \longrightarrow \hat e_i'~|~\varepsilon$ by inductive assumption and $\import{\varepsilon_{s}}{x}{\hat e_i}{e} \longrightarrow \import{\varepsilon_{s}}{x}{\hat e_i'}{e}~|~\varepsilon$ by \textsc{E-Module1}. Otherwise $\hat e_i = \hat v_i$ is a value and $\import{\varepsilon_{s}}{x}{\hat v_i}{e} \longrightarrow [\hat v_i/x]\kwa{annot}(e, \varepsilon_{s})~|~\varnothing$ by \textsc{E-Module2}.
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{lemma}[$\epscalc$ Substitution]
+If $\hat \Gamma, x: \hat \tau' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hat \Gamma \vdash \hat v: \hat \tau'~\kw{with} \varnothing$ then $\hat \Gamma \vdash [\hat v/x]\hat e_A: \hat \tau~\kw{with} \varepsilon$.
+\end{lemma}
+
+\begin{proof} By induction on the derivation of $\hat \Gamma, x: \hat \tau' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$. \\
+
+\textit{Case:} \textsc{$\varepsilon$-Module}. Then the following are true.
+
+\begin{enumerate}
+	\item $\hat e = \import{\varepsilon_{s}}{x}{\hat e_i}{e}$
+	\item $\hat \Gamma, y: \hat \tau' \vdash \hat e_i: \hat \tau_i~\kw{with} \varepsilon_i$
+	\item $y: \erase{\hat \tau_i} \vdash e: \tau$
+	\item $\hat \Gamma, y: \hat \tau' \vdash \import{\varepsilon_s}{x}{\hat e_i}{e} : \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \varepsilon_i$
+	\item $\varepsilon_s = \fx{\hat \tau_i} \cup \hofx{\annot{\tau}{\varnothing}}$
+	\item $\hat \tau_A = \annot{\tau}{\varepsilon}$
+	\item $\hat \varepsilon_A = \varepsilon_s \cup \varepsilon_i$
+\end{enumerate}
+
+By applying inductive assumption to (2) $\hat \Gamma \vdash [\hat v/x]\hat e_i: \hat \tau_i~\kw{with} \varepsilon_i$.
+ Then by \textsc{$\varepsilon$-Module} $\hat \Gamma \vdash \import{\varepsilon_s}{y}{[\hat v/x]\hat e_i}{e}: \kwa{annot}(\tau_i, \varepsilon_s)~\kw{with} \varepsilon_s \cup \varepsilon_i$. By definition of $\kwa{substitution}$, the form in this judgement is the same as $[\hat v/x]\hat e$.
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{lemma}[$\epscalc$ Approximation 1]
+If $\kwa{effects}(\hat \tau) \subseteq \varepsilon$ and $\kwa{ho \hyphen safe}(\hat \tau, \varepsilon)$ then $\hat \tau <: \kwa{annot}(\kwa{erase}(\hat \tau), \varepsilon)$.
+\end{lemma}
+
+\begin{lemma}[$\epscalc$ Approximation 2]
+If $\kwa{ho \hyphen effects}(\hat \tau) \subseteq \varepsilon$ and $\safe{\hat \tau}{\varepsilon}$ then $\kwa{annot(erase}(\hat \tau), \varepsilon) <: \hat \tau$.
+\end{lemma}
+
+\begin{proof}
+By simultaneous induction on derivations of $\kwa{safe}$ and $\kwa{ho \hyphen safe}$.\\
+
+\textit{Case:} $\hat \tau = \{ \bar r \}$ Then $\hat \tau = \kwa{annot(erase}(\hat \tau), \varepsilon)$ and the results for both lemmas hold immediately. \\
+
+\textit{Case: $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2$, $\fx{\hat \tau} \subseteq \varepsilon$, $\hosafe{\hat \tau}{\varepsilon}$} It is sufficient to show $\hat \tau_2 <: \kwa{annot(erase}(\hat \tau_2), \varepsilon)$ and $\kwa{annot(erase}(\hat \tau_1), \varepsilon) <: \hat \tau_1$, because the result will hold by \textsc{S-Effects}. To achieve this we shall inductively apply lemma 1 to $\hat \tau_2$ and lemma 2 to $\hat \tau_1$. 
+
+From $\fx{\hat \tau} \subseteq \varepsilon$ we have $\hofx{\hat \tau_1} \cup \varepsilon' \cup \fx{\hat \tau_2} \subseteq \varepsilon$ and therefore $\fx{\hat \tau_2} \subseteq \varepsilon$. From $\hosafe{\hat \tau}{\varepsilon}$ we have $\hosafe{\hat \tau_2}{\varepsilon}$. Therefore we can apply lemma 1 to $\hat \tau_2$.
+
+From $\fx{\hat \tau} \subseteq \varepsilon$ we have $\hofx{\hat \tau_1} \cup \varepsilon' \cup \fx{\hat \tau_2} \subseteq \varepsilon$ and therefore $\hofx{\hat \tau_1} \subseteq \varepsilon$. From $\hosafe{\hat \tau}{\varepsilon}$ we have $\hosafe{\hat \tau_1}{\varepsilon}$. Therefore we can apply lemma 2 to $\hat \tau_1$.\\
+
+\textit{Case: $\hat \tau = \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2$, $\hofx{\hat \tau} \subseteq \varepsilon$, $\safe{\hat \tau}{\varepsilon}$ } It is sufficient to show $\kwa{annot(erase}(\hat \tau_2), \varepsilon) <: \hat \tau_2$ and $\hat \tau_1 <: \kwa{annot(erase}(\hat \tau_1), \varepsilon)$, because the result will hold by \textsc{S-Effects}. To achieve this we shall inductively apply lemma 2 to $\hat \tau_2$ and lemma 1 to $\hat \tau_1$.
+
+From $\hofx{\hat \tau} \subseteq \varepsilon$ we have $\fx{\hat \tau_1} \cup \hofx{\hat \tau_2} \subseteq \varepsilon$ and therefore $\hofx{\hat \tau_2} \subseteq \varepsilon$. From $\safe{\hat \tau}{\varepsilon}$ we have $\safe{\hat \tau_2}{\varepsilon}$. Therefore we can apply lemma 2 to $\hat \tau_2$.
+
+From $\hofx{\hat \tau} \subseteq \varepsilon$ we have $\fx{\hat \tau_1} \cup \hofx{\hat \tau_2} \subseteq \varepsilon$ and therefore $\fx{\hat \tau_1} \subseteq \varepsilon$. From $\safe{\hat \tau}{\varepsilon}$ we have $\hosafe{\hat \tau_1}{\varepsilon}$. Therefore we can apply lemma 1 to $\hat \tau_1$.
+
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\hrulefill
+
+\begin{lemma}[$\epscalc$ Annotation]
+If the following are true:
+
+\begin{enumerate}
+	\item $\hat \Gamma \vdash \hat v_i : \hat \tau_i~\kw{with} \varnothing$
+	\item $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$
+	\item $\kwa{effects}(\hat \tau_i) \cup \hofx{\annot{\tau}{\varnothing}} \cup \fx{\annot{\Gamma}{\varnothing}} \subseteq \varepsilon_{s}$
+	\item $\kwa{ho \hyphen safe}(\hat \tau_i, \varepsilon_s)$
+\end{enumerate}
+
+Then $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s) : \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s$.
+\end{lemma}
+
+\begin{proof}
+By induction on the derivation of $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e: \tau$. When applying the inductive assumption, $e$, $\tau$, and $\Gamma$ may vary, but the other variables are fixed. \\
+
+\textit{Case: \textsc{T-Var}}. Then $e=x$ and $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash x: \tau$. Either $x=y$ or $x \neq y$. \\
+
+\textbf{Subcase 1: $x = y$}. Then $y: \erase{\hat \tau_i} \vdash y: \tau$ so $\tau = \erase{\hat \tau_i}$. By \textsc{$\varepsilon$-Var}, $y: \hat \tau_i \vdash x: \hat \tau_i~\kw{with} \varnothing$. By definition $\annot{x}{\varepsilon_s} = x$, so (5) $y: \hat \tau_i \vdash \annot{x}{\varepsilon_s}: \hat \tau_i~\kw{with} \varnothing$. By (3) and (4) we know $\fx{\hat \tau_i} \subseteq \varepsilon_s$ and $\hosafe{\hat \tau_i}{\varepsilon_s}$. By the approximation lemma, $\hat \tau_i <: \annot{\erase{\hat \tau_i}}{\varepsilon_s}$. We know $\erase{\hat \tau_i} = \tau$, so this judgement can be rewritten as $\hat \tau_i <: \annot{\tau}{\varepsilon_s}$. From this we can use \textsc{$\varepsilon$-Subsume} to narrow the type of (5) and widen the approximate effects of (5) from $\varnothing$ to $\varepsilon_s$, giving $y: \hat \tau_i \vdash \annot{x}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$. Finally, by widening the context, $\hat \Gamma, \annot{\Gamma}{\varepsilon_s}, \hat \tau_i \vdash \annot{x}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$.\\
+
+\textbf{Subcase 2: $x \neq y$}. Because $\Gamma, y: \erase{\hat \tau_i} \vdash x: \tau$ and $x \neq y$ then $x: \tau \in \Gamma$. Then $x: \annot{\tau}{\varepsilon_s} \in \annot{\Gamma}{\varepsilon_s}$ so $\annot{\Gamma}{\varepsilon_s} \vdash x: \annot{\tau}{\varepsilon_s}~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Var}. By definition $\annot{x}{\varepsilon_s} = x$, so $\annot{\Gamma}{\varepsilon_s} \vdash \annot{x}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varnothing$. Applying \textsc{$\varepsilon$-Subsume} gives $\annot{\Gamma}{\varepsilon_s} \vdash \annot{x}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$. By widening the context $\hat \Gamma, \annot{\Gamma}{\varepsilon_s}, y: \hat \tau_i \vdash \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon'$.\\
+
+\textit{Case: \textsc{T-Resource}}. Then $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash r : \{ r \}$. By \textsc{$\varepsilon$-Resource}, $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau_i \vdash r: \{ r \}~\kw{with} \varnothing$. Applying definitions, $\kwa{annot}(r, \varepsilon) = r$ and $\annot{\{ r \}}{\varepsilon_s} = \{ r \}$, so this judgement can be rewritten as $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau_i \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varnothing$. By \textsc{$\varepsilon$-Subsume}, $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \annot{e}{\varepsilon_s}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$.\\
+
+\textit{Case: \textsc{T-Abs}}. Then $\Gamma, y: \erase{\hat \tau_i} \vdash \lambda x: \tau_2.e_{body}: \tau_2 \rightarrow \tau_3$. Applying definitions, (5) $\kwa{annot}(e, \varepsilon_s) = \kwa{annot}(\lambda x: \tau_2.e_{body}, \varepsilon_s) = \lambda x: \annot{\tau_2}{\varepsilon_s}.\annot{e_{body}}{\varepsilon_s}$ and $\annot{\tau}{\varepsilon_s} = \annot{\tau_2 \rightarrow \tau_3}{\varepsilon_s} = \kwa{annot}(\tau_2, \varepsilon_s) \rightarrow_{\varepsilon_s} \kwa{annot}(\tau_3, \varepsilon_s)$. By inversion on \textsc{T-Abs}, we get the sub-derivation (6) $\Gamma, y: \erase{\hat \tau_i}, x: \tau_2 \vdash e_{body}: \tau_2$. We shall apply the inductive assumption to this judgement with an unannotated context consisting of $\Gamma, x: \tau_2$. To be a valid application of the lemma, it is required that $\fx{\annot{\Gamma, x: \tau_2}{\varnothing} \subseteq \varepsilon_s$. We already know $\fx{\annot{\Gamma}{\varnothing}} \subseteq \varepsilon_s$ by assumption (3). Also by assumption (3), $\hofx{\annot{\tau_2 \rightarrow \tau_3}{\varnothing}} \subseteq \varepsilon_s$; then by definition of $\kwa{ho \hyphen effects}$, $\fx{\annot{\tau_2}{\varnothing}} \subseteq \hofx{\annot{\tau_2 \rightarrow \tau_3}{\varnothing}}$, so $\fx{\annot{x: \tau_2}}{\varepsilon_s}} \subseteq \varepsilon_s$ by transitivity. Then by applying the inductive assumption to (6), $\hat \Gamma, \annot{\Gamma}{\varepsilon_s}, \annot{x: \tau_2}{\varepsilon_s}, y: \hat \tau_i \vdash \annot{e_{body}}{\varepsilon_s}: \annot{\tau_3}{\varepsilon_s}~\kw{with} \varepsilon_s$. By \textsc{$\varepsilon$-Abs}, $\hat \Gamma, \annot{\Gamma}{\varepsilon_s}, y: \hat \tau_i \vdash \lambda x: \annot{\hat \tau_2}{\varepsilon_s}. \annot{e_{body}}{\varepsilon_s} : \annot{\hat \tau_2}{\varepsilon_s} \rightarrow_{\varepsilon_s} \annot{\hat \tau_3}{\varepsilon_s}~\kw{with} \varnothing$. By applying the identities from (5), this judgement can be rewritten as $\hat \Gamma, \annot{\Gamma}{\varepsilon_s}, y: \hat \tau_i \vdash \annot{e}{\varepsilon_s} : \annot{\tau}{\varepsilon_s} ~\kw{with} \varnothing$. Finally, by applying \textsc{$\varepsilon$-Subsume}, $\hat \Gamma, \annot{\Gamma}{\varepsilon_s}, y: \hat \tau_i \vdash \annot{e}{\varepsilon_s} : \annot{\tau}{\varepsilon_s} ~\kw{with} \varepsilon_s$. \\
+
+\textit{Case: \textsc{T-App}}. Then $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e_1~e_2: \tau_3$ and by inversion $\Gamma, y:\kwa{erase}(\hat \tau_i) \vdash e_1: \tau_2 \rightarrow \tau_3$ and $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e_2: \tau_2$. By applying the inductive assumption to these judgements, $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau_i \vdash \annot{e_1}{\varepsilon_2}: \annot{\tau_2}{\varepsilon_s} \rightarrow_{\varepsilon_s} \annot{\tau_3}{\varepsilon_s}~\kw{with} \varepsilon_s$ and $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau \vdash \kwa{annot}(e_2, \varepsilon_s): \kwa{annot}(\tau_2, \varepsilon_s)~\kw{with} \varepsilon_s$. Then by \textsc{$\varepsilon$-App}, we get $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau \vdash \annot{e_1}{\varepsilon_s}~\annot{e_2}{\varepsilon_s} :  \kwa{annot}(\tau_3, \varepsilon)~\kw{with} \varepsilon$. Unfolding the definition of  $\kwa{annot}$ , this judgement can be rewritten as $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau \vdash \annot{e_1~e_2}{\varepsilon_s} :  \kwa{annot}(\tau_3, \varepsilon)~\kw{with} \varepsilon$. Finally, because $e = e_1~e_2$ and $\tau = \tau_3$, this is the same as $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon_s), y: \hat \tau \vdash \annot{e}{\varepsilon_s} :  \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon$.
+\\
+
+\noindent
+\textit{Case: \textsc{T-OperCall}}. Then $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e_1.\pi : \Unit$. By inversion we get the sub-derivation $\Gamma, y: \kwa{erase}(\hat \tau_i) \vdash e_1: \{ \bar r \}$. Applying the inductive assumption, $\hat \Gamma, \kwa{annot}(\Gamma, \varepsilon), y: \hat \tau_i \vdash \annot{e_1}{\varepsilon_s}: \annot{\{ \bar r \}}{\varepsilon_s}~\kw{with} \varepsilon_s$. By definition, $\annot{\{ \bar r \}}{\varepsilon_s} = \{ \bar r \}$, so this judgement can be rewritten as $\hat \Gamma, \kwa{annot}(\Gamma, \varnothing), y: \hat \tau_i \vdash e_1: \{ \bar r \}~\kw{with} \varepsilon_s$. By \textsc{$\varepsilon$-OperCall}, $\hat \Gamma, \kwa{annot}(\Gamma, \varnothing), y: \hat \tau \vdash \annot{e_1.\pi}{\varepsilon_s}: \{ \bar r \} ~\kw{with} \varepsilon_s \cup \{ \bar r.\pi \}$. All that remains is to show $\{ \bar r.\pi \} \subseteq \varepsilon$. We shall do this by considering which subcontext left of the turnstile is capturing $\{ \bar r \}$. Technically, $\hat \Gamma$ may not have a binding for every $r \in \bar r$: the judgement for $e_1$ might be derived using \textsc{S-Resources} and \textsc{$\varepsilon$-Subsume}. However, at least one binding for some $r \in \bar r$ must be present in $\hat \Gamma$ to get the original typing judgement being subsumed, so we shall assume without loss of generality that $\hat \Gamma$ contains a binding for every $r \in \bar r$. \\
+
+\textbf{Subcase 1:} $\{ \bar r \} = \hat \tau$. By assumption (3), $\fx{\hat \tau} \subseteq \varepsilon_s$, so $\bar r.\pi \subseteq \{ r.\pi \mid r \in \bar r, \pi \in \Pi \} = \fx{\{\bar r\}} \subseteq \varepsilon_s$. \\
+
+\textbf{Subcase 2:} $r: \{ \bar r \} \in \annot{\Gamma}{\varepsilon_s}$. Then $\bar r.\pi \in \fx{\{ \bar r \}} \subseteq \fx{\annot{\Gamma}{\varnothing}}$, and by assumption (3) $\fx{\annot{\Gamma}{\varnothing}} \subseteq \varepsilon_s$, so $\bar r.\pi \in \varepsilon_s$.\\
+
+
+\textbf{Subcase 3:} $r: \{ \bar r \} \in \hat \Gamma$. Because $\Gamma, y: \erase{\hat \tau} \vdash e_1: \{ \bar r \}$, then $\bar r \in \Gamma$ or $r = \tau$. If $r \in \annot{\Gamma}{\varnothing}$ then subcase 2 holds. Else $r = \erase{\hat \tau}$. Because $\hat \tau = \{ \bar r \}$, then $\erase{\{ \bar r \}} = \{ \bar r \}$, so $\hat \tau = \tau$; therefore subcase 1 holds.
+\end{proof}
+
+\hrulefill
+
+\begin{theorem}[$\epscalc$ Preservation]
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, then $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$, where $\hat e_B <: \hat e_A$ and $\varepsilon \cup \varepsilon_B \subseteq \varepsilon_A$, for some $\hat e_B, \varepsilon, \hat \tau_B, \varepsilon_B$.
+\end{theorem}
+
+\begin{proof}
+By induction on the derivation of $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and then the derivation of $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$. \\
+
+\textit{Case:} \textsc{$\varepsilon$-Import}. Then by inversion on the rules used, the following are true:
+
+\begin{enumerate}
+	\item $\hat e_A = \kwa{import}(\varepsilon_s)~x = \hat v_i~\kw{in} e$
+	\item $x: \kwa{erase}(\hat \tau_i) \vdash e: \tau$
+	\item $\hat \Gamma \vdash \hat e_i: \hat \tau_i~\kw{with} \varepsilon_1$
+	\item $\hat \Gamma \vdash \hat e_A: \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \varepsilon_1$
+	\item $\kwa{effects}(\hat \tau_i) \cup \hofx{\annot{\tau}{\varnothing}} \subseteq \varepsilon_s$
+	\item $\kwa{ho \hyphen safe}(\hat \tau_i, \varepsilon_s)$
+\end{enumerate}
+
+\textbf{Subcase 1:} \textsc{E-Import1}. Then $\import{\varepsilon_s}{x}{\hat e_i}{e} \longrightarrow \import{\varepsilon_s}{x}{\hat e_i'}{e}~|~\varepsilon$ and by inversion, $\hat e_i \longrightarrow \hat e_i'~|~\varepsilon$. By inductive assumption and subsumption, $\hat \Gamma \vdash \hat e_i': \hat \tau_i'~\kw{with} \varepsilon_1$. Then by \textsc{$\varepsilon$-Import}, $\hat \Gamma \vdash \import{\varepsilon_s}{x}{\hat e_i'}{e}: \annot{\tau}{\varepsilon_s}~\kw{with} \varepsilon_s$. \\
+
+\textbf{Subcase 2:} \textsc{E-Import2}. Then $\hat e_i = \hat v_i$ is a value and $\varepsilon_1 = \varnothing$ by canonical forms. Apply the annotation lemma with $\Gamma = \varnothing$ to get $\hat \Gamma, x: \hat \tau_i \vdash \kwa{annot}(e, \varepsilon_s): \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s$. From assumption (4) and canonical forms we have $\hat \Gamma \vdash \hat v: \hat \tau_i~\kw{with} \varnothing$. Applying the substitution lemma, $\hat \Gamma \vdash [\hat v_i/x]\kwa{annot}(e, \varepsilon): \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s$. Then $\varepsilon \cup \varepsilon_B = \varepsilon_A = \varepsilon_s$ and $\tau_A = \tau_B = \annot{\tau}{\varepsilon_s}$.
+
+\end{proof}
+
+\hrulefill
+
+\begin{theorem}[$\epscalc$ Single-step Soundness]
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, where $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat e_B$, $\varepsilon$, $\hat \tau_B$, and $\varepsilon_B$.
+\end{theorem}
+
+
+\begin{theorem}[$\epscalc$ Multi-step Soundness]
+If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A \longrightarrow^{*} e_B~|~\varepsilon$, then $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$, where $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat \tau_B$, $\varepsilon_B$.
+\end{theorem}
+
+
+\begin{proof}
+The same as for $\opercalc$.
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
