@@ -1,16 +1,16 @@
 
 \section{Applications}
 
-In this chapter we show how $\epscalc$ can be used to model several practical examples. This will take the form of writing a program in a high-level, capability-safe language, translating it to an equivalent $\epscalc$ program, and demonstrating how the rules of $\epscalc$ can be applied to reason about the use of effects. The high-level examples are written in a \textit{Wyvern}-like language. We begin by discussing how the translation from Wyvern to $\epscalc$ will work. This also serves as a gentle introduction to Wyvern syntax. A variety of scenarios are then explored.
+In this chapter we show how $\epscalc$ can model several practical examples. This will take the form of writing a program in a high-level, capability-safe language, translating it to an equivalent $\epscalc$ program, and demonstrating how the rules of $\epscalc$ can be applied to reason about the use of effects. The high-level examples are written in a \textit{Wyvern}-like language. We begin by discussing how the translation from Wyvern to $\epscalc$ will work. This also serves as a gentle introduction to Wyvern syntax. A variety of scenarios are then explored.
 
 
 \subsection{Translations and Encodings}
 
-Our aim is to develop some notation to help us translate Wyvern programs into $\epscalc$. Our approach will be to encode these additional rules and forms into the base language of $\epscalc$; essentially, to give common patterns a short-hand, so they can be easily named and recalled. This is called \textit{sugaring}. When these derived forms are collapsed into their underlying representation, it is called \textit{desugaring}. \\
+Our aim is to desugar Wyvern programs into $\epscalc$. We introduce two derived forms, $\unit$ and $\kwa{let}$, make some simplifying assumptions, and then explain our desugaring of Wyvern modules.\\
 
 \subsubsection{Unit}~\\
 
-The $\unit$ literal is defined as $\unit \defn \lambda x: \varnothing.~x$. It is the same in both annotated and unannotated code. In annotated code, it has the type $\Unit \defn \varnothing \rightarrow_{\varnothing} \varnothing$, while in unannotated code it has the type $\Unit \defn \varnothing \rightarrow \varnothing$. While these are technically two separate types, we will not distinguish between them. Note that $\unit$ is a value, and because $\varnothing$ is uninhabited (there is no empty resource literal), $\unit$ cannot be applied to anything. Furthermore, $\vdash \unit: \Unit~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Abs}, and $\vdash \unit: \Unit$ by \textsc{T-Abs}. This leads to the derived rules in \ref{fig:unit_rules}.
+The $\unit$ literal is defined as $\unit \defn \lambda x: \varnothing.~x$. It is the same in both annotated and unannotated code. In annotated code, it has the type $\Unit \defn \varnothing \rightarrow_{\varnothing} \varnothing$, while in unannotated code it has the type $\Unit \defn \varnothing \rightarrow \varnothing$. These are technically two separate types, but we will not distinguish between them. Note that $\unit$ is a value, and because $\varnothing$ is uninhabited (there is no empty resource literal), $\unit$ cannot be applied to anything. Furthermore, $\vdash \unit: \Unit~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Abs}, and $\vdash \unit: \Unit$ by \textsc{T-Abs}. This leads to the derived rules in Figure \ref{fig:unit_rules}.
 
 \begin{figure}[h]
 
@@ -98,7 +98,7 @@ The expression $\letxpr{x}{\hat e_1}{\hat e_2}$ reduces $\hat e_1$ to a value $\
 
 \subsubsection{Modules and Objects}~\\
 
-Wyvern's modules are first-class and desugar into objects; invoking a method inside a module is no different from invoking an object's method. There are two kinds of modules: pure and resourceful. For our purposes, a pure module is one with no (transitive) authority over any resources, while a resource module has (transitive) authority over some resource. A pure module may still be given a capability, for example by requesting it in a function signature, but it may not possess or capture the capability for longer than the duration of the method call. \ref{fig:wyv_modules} shows an example of two modules, one pure and one resourceful, each declared in a separate file. Pure modules are declared with the $\kwa{module}$ keyword, while resource modules are declared with $\kwa{resource~module}$.
+Wyvern's modules are first-class, desugaring into objects --- invoking a module's function is no different from invoking an object's method. There are two kinds of modules: pure and resourceful. For our purposes, a pure module is one with no (transitive) authority over any resources, while a resource module has (transitive) authority over some resource. A pure module may still be given a capability, for example by requesting it in a function signature, but it may not possess or capture the capability for longer than the duration of the method call. \ref{fig:wyv_modules} shows an example of two modules, one pure and one resourceful, each declared in a separate file. Pure modules are declared with the $\kwa{module}$ keyword, while resource modules are declared with $\kwa{resource~module}$.
 
 \begin{figure}[h]
 
@@ -142,9 +142,9 @@ PureMod.tick(File)
 \label{fig:wyv_module_instantiation}
 \end{figure}
 
-Our desugaring is enabled by several simplifications. The only objects we use in the Wyvern programs are modules which only ever contain one function and the capabilities they require; they have no mutable fields. There are no self-referencing modules or recursive function definitions. Modules will not reference each other cyclically. This enables us to model each module as a function. Applying this function will be equivalent to applying the single function defined by the module. A collection of modules is desugared into $\epscalc$ as follows. First, a sequence of let-bindings are used to name constructor functions which, when given the capabilities requested by a module, will return an instance of the module. If the module does not require any capabilities it will take $\Unit$ as its argument. The constructor function for $\kwa{M}$ is called $\kwa{MakeM}$. A function is then defined which represents the body of code in the $\kwa{Main}$ module. When invoked, this function will instantiate all the modules by invoking their constructor functions, and then execute the body of code in main. Finally, this function is invoked with the primitive capabilities passed into $\kwa{Main}$.
+Several simplifications make our desugaring possible. The only objects we use in the Wyvern examples are modules which only contain one function and the capabilities they require; they have no mutable fields. There are no self-referencing modules or recursive function definitions. Modules will not reference each other cyclically. This enables us to model each module as a function. Applying this function will be equivalent to applying the single function defined by the module. A collection of modules is desugared into $\epscalc$ as follows. First, a sequence of let-bindings are used to name constructor functions which, when given the capabilities requested by a module, will return an instance of the module. If the module does not require any capabilities it will take $\Unit$ as its argument. The constructor for $\kwa{M}$ is called $\kwa{MakeM}$. A function is then defined which represents the body of code in the $\kwa{Main}$ module. When invoked, this function will instantiate all the modules by invoking their constructors, and then execute the code in main. Finally, this function is invoked with the primitive capabilities passed into $\kwa{Main}$.
 
-To demonstrate, Figure \ref{fig:wyv_tutorial_desugaring} shows how the examples above desugar. Lines 1-3 define the constructor for $\kwa{PureMod}$. Since $\kwa{PureMod}$ requires no capabilities, the constructor takes $\Unit$ as an argument on line 2. Lines 6-8 define the constructor for $\kwa{ResourceMod}$; it requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 7. The entry point to the program is defined on lines 11-16, which invokes the constructors and then runs the body of the $\kwa{main}$ method. Line 17 starts everything off by invoking $\kwa{Main}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
+To demonstrate, Figure \ref{fig:wyv_tutorial_desugaring} shows how the examples above desugar. Lines 1-3 define the constructor for $\kwa{PureMod}$. Since $\kwa{PureMod}$ requires no capabilities, the constructor takes $\Unit$ as an argument on line 2. Lines 6-8 define the constructor for $\kwa{ResourceMod}$. It requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 7. The constructor for $\kwa{Main}$ is defined on lines 11-16, which instantiates the other modules and then runs the code inside $\kwa{Main}$. Line 17 starts everything off by invoking $\kwa{Main}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
 
 \begin{figure}[h]
 
@@ -173,12 +173,12 @@ let MakeMain =
 \label{fig:wyv_tutorial_desugaring}
 \end{figure}
 
-When an unannotated module is translated into $\epscalc$, the desugared contents will be encapsulated with an $\kwa{import}$ expression. The selected authority on the $\kwa{import}$ expression will be that we expect of the unannotated code according to the principle of least authority in the particular example under consideration. For example, if the client only expects the unannotated code to have the $\kwa{File.append}$ effect and executes some unannotated code $e$, the corresponding $\kwa{import}$ expression will select $\kwa{\{File.append\}}$.
+When an unannotated module is translated into $\epscalc$, the desugared contents will be encapsulated with an $\kwa{import}$ expression. The selected authority on the $\kwa{import}$ expression will be that we expect of the unannotated code according to the principle of least authority in the particular example under consideration. For example, if the client only expects the unannotated code to have the $\kwa{File.append}$ effect, its corresponding $\kwa{import}$ expression will select $\kwa{\{File.append\}}$.
 
 
 \subsection{Examples}
 
-We now present several examples to show the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. Each example exhibits some unsafe behaviour or demonstrates a particular development story. For each example we present high-level Wyvern code, translate it into $\epscalc$ using the techniques from the previous section, and then sketch an explanation as to why $\epscalc$ will accept or reject the program.\\
+We now present several examples to show how the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. Each example exhibits some unsafe behaviour or demonstrates a particular development story. For each example we present high-level Wyvern code, translate it into $\epscalc$ using the techniques from the previous section, and then sketch an explanation as to why $\epscalc$ will accept or reject the program.\\
 
 
 
@@ -398,7 +398,7 @@ Plugin.run(File)
 
 This examples shows how higher-order effects can obfuscate potential security risks. On line 3 of $\kwa{Malicious}$, the argument to $\kwa{log}$ has type $\Unit \rightarrow \Unit$. The body of $\kwa{log}$ types with the \textsc{T-}rules, which do not approximate effects. It is not clear from inspecting the unannotated code that a $\kwa{File.read}$ will be incurred. To realise this requires one to examine the source code of both $\kwa{Plugin}$ and $\kwa{Malicious}$.
 
-A desugared version is given below. On lines 5-6, the $\kwa{Malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{Plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects. To get this example to typecheck, the $\kwa{import}$ expression would have to select $\kwa{File.*}$ as its authority. 
+A desugared version is given below. On lines 5-6, the $\kwa{Malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{Plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects. To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority. 
 
 \begin{lstlisting}
 let MakePlugin =
@@ -418,6 +418,8 @@ let MakeMain =
 
 (MakeMain File) unit
 \end{lstlisting}
+
+~
 
 
 
