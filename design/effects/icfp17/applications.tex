@@ -1,3 +1,670 @@
 
 \section{Applications}
 
+In this chapter we show how $\epscalc$ can be used to model several practical examples. This will take the form of writing a program in a high-level, capability-safe language, translating it to an equivalent $\epscalc$ program, and demonstrating how the rules of $\epscalc$ can be applied to reason about the use of effects. The high-level examples are written in a \textit{Wyvern}-like language. We begin by discussing how the translation from Wyvern to $\epscalc$ will work. This also serves as a gentle introduction to Wyvern syntax. A variety of scenarios are then explored.
+
+
+\section{Translations and Encodings}
+
+Our aim is to develop some notation to help us translate Wyvern programs into $\epscalc$. Our approach will be to encode these additional rules and forms into the base language of $\epscalc$; essentially, to give common patterns a short-hand, so they can be easily named and recalled. This is called \textit{sugaring}. When these derived forms are collapsed into their underlying representation, it is called \textit{desugaring}. 
+
+\subsection{Unit}
+
+$\kwa{Unit}$ is a type inhabited by exactly one value called $\unit$. It conveys the absence of information; in $\epscalc$. The $\unit$ literal is defined as $\unit \defn \lambda x: \varnothing.~x$. It is the same in both annotated and unannotated code. In annotated code, it has the type $\Unit \defn \varnothing \rightarrow_{\varnothing} \varnothing$, while in naked code it has the type $\Unit \defn \varnothing \rightarrow \varnothing$. While these are technically two separate types, we will not distinguish between the annotated and naked versions,referring to them both as $\Unit$.
+
+Note that $\unit$ is a value, and because $\varnothing$ is uninhabited (there is no empty resource literal), $\unit$ cannot be applied to anything. Furthermore, $\vdash \unit: \Unit~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Abs}, and $\vdash \unit: \Unit$ by \textsc{T-Abs}. This leads to the derived rules in \ref{fig:unit_rules}.
+
+\begin{figure}[h]
+
+
+\fbox{$\Gamma \vdash e: \tau$} \\
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$}
+
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(T-Unit)}]
+	{\Gamma \vdash \unit : \Unit}
+	{} ~~~~
+
+\infer[(\textsc{$\varepsilon$-Unit})]
+	{\hat \Gamma \vdash \unit : \Unit~\kw{with} \varnothing}
+	{}
+
+\end{array}
+\]
+
+\caption{Derived $\kwa{Unit}$ rules.}
+\label{fig:unit_rules}
+\end{figure}
+
+Since $\unit$ represents the absence of information, we also use it as the type when a function either takes no argument, or returns nothing. \ref{fig:unit_sugaring} shows the definition of a Wyvern function which takes no argument and returns nothing, and its corresponding representation in $\epscalc$.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+def method():Unit
+   unit
+\end{lstlisting}
+
+\begin{lstlisting}
+$\lambda$x:Unit. unit
+\end{lstlisting}
+
+\caption{Desugaring of functions which take no arguments or return nothing.}
+\label{fig:unit_sugaring}
+\end{figure}
+
+\subsection{Let}
+
+\noindent
+The expression $\letxpr{x}{\hat e_1}{\hat e_2}$ first binds reduces $\hat e_1$ to a value $\hat v_1$, binds it to the name $x$ in $\hat e_2$, and then executes $[\hat v_1/x]\hat e_2$. If $\hat \Gamma \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1$, then $\letxpr{x}{\hat e_1}{\hat e_2} \defn (\lambda x: \hat \tau_1 . \hat e_2) \hat e_1$\footnote{You can also define an unannotated version of $\kwa{let}$, but we only need the annotated version}. If $\hat e_1$ is a non-value, we can reduce the $\kwa{let}$ by \textsc{E-App2}. If $\hat e_1$ is a value, we may apply \textsc{E-App3}, which binds $\hat e_1$ to $x$ in $\hat e_2$. This is fundamentally a lambda application, so it can be typed using \textsc{$\varepsilon$-App} (or \textsc{T-App}, if the terms involved are unlabelled). The new rules in \ref{fig:let_rules} capture these derivations.
+
+\begin{figure}[h]
+
+\fbox{$\Gamma \vdash e: \tau$}
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$}
+\fbox{$\hat e \rightarrow \hat e ~|~ \varepsilon$}
+
+\[
+\begin{array}{c}
+
+	~~~
+	
+	\infer[\textsc{(T-Let)}]
+	{\Gamma \vdash \letxpr{x}{e_1}{e_2}: \tau_2}
+	{\Gamma \vdash e_1: \tau_1 & \Gamma, x: \tau_1 \vdash e_2: \tau_2}
+
+\infer[\textsc{($\varepsilon$-Let)}]
+	{\hat \Gamma \vdash \letxpr{x}{\hat e_1}{\hat e_2} : \hat \tau_2~\kw{with} \varepsilon_1 \cup \varepsilon_2}
+	{\hat \Gamma \vdash \hat e_1 : \hat \tau_1~\kw{with} \varepsilon_1 & \hat \Gamma, x: \hat \tau_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2} \\[2ex]
+	
+\infer[\textsc{(E-Let1)}]
+	{\letxpr{x}{\hat e_1}{\hat e_2} \longrightarrow \letxpr{x}{\hat e_1'}{\hat e_2}~|~\varepsilon_1}
+	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon_1} 
+	
+\infer[\textsc{(E-Let2)}]
+	{\letxpr{x}{\hat v}{\hat e} \longrightarrow [\hat v/x]\hat e~|~\varnothing}
+	{} 
+
+\end{array}
+\]
+
+\caption{Derived $\kwa{let}$ rules.}
+\label{fig:let_rules}
+\end{figure}
+
+
+\subsection{Modules and Objects}
+
+Wyvern's modules are first-class and desugar into objects; invoking a method inside a module is no different from invoking an object's method. There are two kinds of modules: pure and resourceful. For our purposes, a pure module is one with no (transitive) authority over any resources, while a resource module has (transitive) authority over some resource. A pure module may still be given a capability, for example by requesting it in a function signature, but it may not possess or capture the capability for longer than the duration of the method call. \ref{fig:wyv_modules} shows an example of two modules, one pure and one resourceful, each declared in a separate file. Note how pure modules are declared with the $\kwa{module}$ keyword, while resource modules are declared with $\kwa{resource~module}$.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+module PureMod
+
+def tick(f: {File}):Unit with {File.append}
+   f.append
+
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module ResourceMod
+require File
+
+def tick():Unit with {File.append}
+   File.append
+\end{lstlisting}
+
+\caption{Definition of two modules, one pure and the other resourceful.}
+\label{fig:wyv_modules}
+\end{figure}
+
+Resource modules, like objects, must be instantiated. When they are instantiated they must be given the capabilities they require. In \ref{fig:wyv_modules}, $\kwa{ResourceMod}$ requests the use of a $\kwa{File}$ capability. \ref{fig:wyv_module_instantiation} demonstrates how the two modules above would be instantiated and used. To prevent infinite regress the $\kwa{File}$ must, at some point, be introduced into the program. This happens in a special main module. When the program begins execution, the $\kwa{File}$ capability is passed into the program from the system environment. All these initial capabilities are modelled in $\epscalc$ as resource literals. $\kwa{Main}$ then instantiates all the other modules in the program, propagating capabilities as it sees fit.
+
+If a module is annotated, its function signatures will have effects annoations. For example, in Figure \ref{fig:wyv_modules}, $\kwa{PureMod.tick}$ has the $\kwa{File.append}$ annotation, which means the function should typecheck as $\kwa{ \{ File \} \rightarrow_{\kwa{File.append}} \Unit }$. 
+
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+resource module Main
+require File
+instantiate PureMod
+instantiate ResourceMod(File)
+
+PureMod.tick(File)
+\end{lstlisting}
+
+\caption{The $\kwa{Main}$ module which instantiates $\kwa{PureMod}$ and $\kwa{ResourceMod}$ and then invokes $\kwa{PureMod.tick}$.}
+\label{fig:wyv_module_instantiation}
+\end{figure}
+
+Before explaining our translation of Wyvern programs into $\epscalc$, we must explain several simplifications made in all our examples which enable our particular desugaring. The only objects we use in the Wyvern programs are modules. Modules only ever contain exactly one function and the capabilities they require; they have no mutable fields. There are no self-referencing modules or recursive function definitions. Modules will not reference each other cyclically. In practice, we want allow of these things, but the simplifications minimise the constructs needed to translate Wyvern programs into $\epscalc$, and the examples still demonstrate interesting behaviour.
+
+Because modules do not exercise self-reference and only contain one function definition, they will be modelled as functions in $\epscalc$. Applying this function will be equivalent to applying the single function definition in the module. A collection of modules is desugared into $\epscalc$ as follows. First, a sequence of let-bindings are used to name constructor functions which, when given the capabilities requested by a module, will return an instance of the module. If the module does not require any capabilities it will take $\Unit$ as its argument. The constructor function for $\kwa{M}$ is called $\kwa{MakeM}$. A function is then defined which represents the body of code in the $\kwa{Main}$ module. When invoked, this function will instantiate all the modules by invoking their constructor functions, and then execute the body of code in main. Finally, this function is invoked with the primitive capabilities passed into $\kwa{Main}$.
+
+To demonstrate this process, \ref{fig:wyv_tutorial_desugaring} shows how the examples above desugar. Lines 1-3 define the constructor for $\kwa{PureMod}$; since $\kwa{PureMod}$ requires no capabilities, the constructor takes $\Unit$ as an argument on line 2. Lines 6-8 define the constructor for $\kwa{ResourceMod}$; it requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 7. The entry point to the program is defined on lines 11-16, which invokes the constructors and then runs the body of the $\kwa{main}$ method. Line 17 starts everything off by invoking $\kwa{Main}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
+
+\begin{figure}[h]
+
+\begin{lstlisting}
+let MakePureMod =
+   $\lambda$x:Unit.
+      $\lambda$f:{File}. f.append
+in
+
+let MakeResourceMod =
+   $\lambda$f:{File}.
+      $\lambda$x:Unit. f.append
+in
+
+let MakeMain =
+   $\lambda$f:{File}.
+      $\lambda$x: Unit.
+         let PureMod = (MakePureMod unit) in
+         let ResourceMod = (MakeResourceMod f) in
+         (ResourceMod unit)
+
+(MakeMain File) unit
+\end{lstlisting}
+
+\caption{Desugaring of $\kwa{PureMod}$ and $\kwa{ResourceMod}$ into $\epscalc$.}
+\label{fig:wyv_tutorial_desugaring}
+\end{figure}
+
+When an unannotated module is translated into $\epscalc$, the desugared contents will be encapsulated with an $\kwa{import}$ expression. The selected authority on the $\kwa{import}$ expression will be that we expect of the unannotated code according to the principle of least authority in the particular example under consideration. For example, if the client only expects the unannotated code to have the $\kwa{File.append}$ effect and executes some unannotated code $e$, the corresponding $\kwa{import}$ expression will select $\kwa{File.append}$ for $e$.
+
+
+\section{Examples}
+
+We now present several examples to show the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. Each example exhibits some unsafe behaviour or demonstrates a particular development story. For each example we present high-level Wyvern code, translate it into $\epscalc$ using the techniques from the previous section, and then sketch an explanation as to why $\epscalc$ will accept or reject the program.
+
+\subsection{API Violation}
+
+In the first example there is a single primitive capability $\kwa{File}$. A $\kwa{Logger}$ module possessing this capability exposes a single function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{Client}$ module possesses the $\kwa{Logger}$ module and exposes a single function $\kwa{run}$ which invokes $\kwa{Logger.log}$, incurring $\kwa{File.write}$; however, the client's annotation is $\varnothing$, so it is not expecting any effects. Code is shown below.
+
+\begin{lstlisting}
+resource module Logger
+require File
+
+def log(): Unit with {File.write} =
+    File.write(``message written'')
+\end{lstlisting}
+
+\begin{lstlisting}
+module Client
+
+def run(l: Logger): Unit with $\varnothing$ =
+    l.log()
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module Main
+require File
+instantiate Logger(File)
+
+Client.run(Logger)
+\end{lstlisting}
+
+In this example, all code is fully annotated. A desugared version is given below. Lines 1-3 define the function which instantiates the $\kwa{Logger}$ module. Lines 5-7 define the function which instantiates the $\kwa{Client}$ module. Note how the client code takes as input a function of type $\Unit \rightarrow_{\varnothing} \Unit$. Lines 9-14 define the implicit $\kwa{Main}$ module, which, when given a $\kwa{File}$, will instantiate the other modules and execute the client code. The program begins execution on line 16, where initial capabilities (here just $\kwa{File}$) and arguments are passed to $\kwa{Main}$.
+
+\begin{lstlisting}
+let MakeLogger =
+   ($\lambda$f: File.
+      $\lambda$x: Unit. let _ = f.append in f.write) in
+           
+let MakeClient =
+   ($\lambda$x: Unit.
+      $\lambda$logger: Unit $\rightarrow_{\varnothing}$ Unit. logger unit) in
+                  
+let MakeMain =
+   ($\lambda$f: File.
+      $\lambda$x: Unit.
+         let LoggerModule = MakeLogger f in
+         let ClientModule = MakeClient unit in
+         ClientModule LoggerModule) in
+
+(MakeMain File) unit
+\end{lstlisting}
+
+At line 12, when typing $\kwa{LoggerModule}$, an application of \textsc{$\varepsilon$-App} gives the judgement $\kwa{ f: \{ File \} \vdash LoggerModule: Unit \rightarrow_{\kwa{File.write}} Unit~\kw{with} \varnothing}$. At line 13 the same rule gives $\kwa{ f: \{ File \} \vdash ClientModule: (Unit \rightarrow_{\varnothing} Unit) \rightarrow Unit~\kw{with} \varnothing}$. Now at line 14, when trying to apply \textsc{$\varepsilon$-App}, there is a type mismatch because the formal argument of $\kwa{ClientModule}$ expects a function with no effects, but $\kwa{LoggerModule}$ has typed as incurring $\kwa{File.write}$. This example safely rejects.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Unannotated Client}
+
+This example is a modification of the previous one. Now the $\kwa{Client}$ is unannotated. If the client code is executed, what effects will it have? For the developer maintaining $\kwa{Client}$, the answer is not immediately clear because it depends on what effects are incurred by $\kwa{Logger.log}$. The code for this example is given below.
+
+\begin{lstlisting}
+resource module Logger
+require File
+
+def log(): Unit with File.append =
+    File.append(``message logged'')
+\end{lstlisting}
+
+\begin{lstlisting}
+module Client
+require Logger
+
+def run(): Unit =
+   Logger.log()
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module Main
+require File
+instantiate Logger(File)
+instantiate Client(Logger)
+
+Client.run()
+\end{lstlisting}
+
+The desugared version is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{Logger}$ and $\kwa{Client}$ modules; the client code is treated as an implicit module. Lines 1-4 define a function which, given a $\kwa{File}$, returns a record containing a single $\kwa{log}$ function. Lines 6-8 define a function which, given a $\kwa{Logger}$, returns the unannotated client code, wrapped inside an $\kwa{import}$ expression selecting its needed authority. Lines 10-14 define $\kwa{MakeMain}$ which returns the implicit main module that, when executed, instantiates all the other modules in the program and invokes the code in $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
+
+\begin{lstlisting}
+let MakeLogger =
+   ($\lambda$f: File.
+      $\lambda$x: Unit. f.append) in
+          
+let MakeClient =
+   ($\lambda$logger: Logger.
+      import(File.append) logger = logger in
+         $\lambda$x: Unit. logger unit) in
+          
+let MakeMain =
+   ($\lambda$f: File.
+      $\lambda$x: Unit.
+         let LoggerModule = MakeLogger f in
+         let ClientModule = MakeClient LoggerModule in
+         ClientModule unit) in
+
+(MakeMain File) unit
+\end{lstlisting}
+
+The interesting part  is on lines 7-8, where the unannotated code selects $\kwa{File.append}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\kwa{File.append}} \Unit) = \{ \kwa{File.append} \}$. The code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, the unannotated code typechecks by \textsc{$\varepsilon$-Import}.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Unannotated Library}
+
+The next example inverts the roles of the last scenario: now, the annotated $\kwa{Client}$ wants to use the unannotated $\kwa{Logger}$. The $\kwa{Logger}$ module captures the $\kwa{File}$ capability, and exposes a single function $\kwa{log}$ with the $\kwa{File.append}$ effect. However, the $\kwa{Client}$ has a function $\kwa{run}$ which executes $\kwa{Logger.log}$, incurring the effect of $\kwa{File.append}$, but declares its set of effects as $\varnothing$, so the implementation and signature of $\kwa{Client.run}$ are inconsistent.
+
+\begin{lstlisting}
+resource module Logger
+require File
+
+def log(): Unit =
+    File.append(``message logged'')
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module Client
+require Logger
+
+def run(): Unit with $\varnothing$ =
+   Logger.log()
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module Main
+require File
+instantiate Logger(File)
+instantiate Client(Logger)
+
+Client.run()
+\end{lstlisting}
+
+A desugaring is given below. Lines 1-3 define the function which instantiates the $\kwa{Logger}$ module. Lines 5-8 define the function which instantiates the $\kwa{Client}$ module. Lines 10-15 define the function which instantiates the $\kwa{Main}$ module. Line 17 initiates the program, supplying $\kwa{File}$ to the $\kwa{Main}$ module and invoking its main method. On lines 3-4, the unannotated code is modelled using an $\kwa{import}$ expression which selects $\varnothing$ as its authority. So far this coheres to the expectations of $\kwa{Client}$. However, \textsc{$\varepsilon$-Import} cannot be applied because the name being bound, $\kwa{f}$, has the type $\{ \File \}$, and $\fx{\{ \File \}} = \{ \kwa{File}.* \}$, which is inconsistent with the declared effects $\varnothing$.
+
+\begin{lstlisting}
+let MakeLogger =
+   ($\lambda$f: File.
+      import($\varnothing$) f = f in
+         $\lambda$x: Unit. f.append) in
+
+let MakeClient =
+	($\lambda$logger: Logger.
+	   $\lambda$x: Unit. logger unit) in
+
+let MakeMain =
+   ($\lambda$f: File.
+      let LoggerModule = MakeLogger f in
+      let ClientModule = MakeClient LoggerModule in
+      ClientModule unit) in
+
+(MakeMain File) unit
+\end{lstlisting}
+
+The only way for this to typecheck would be to annotate $\kwa{Client.run}$ as having every effect on $\File$. This demonstrates how the effect-system of $\epscalc$ approximates unannotated code: it simply considers it as having every effect which could be incurred on those resources in scope, which here is $\kwa{File}.*$.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Unannotated Library 2}
+
+In yet another variation of the previous examples, the $\kwa{Logger}$ module is now passed $\kwa{File}$ as an argument, rather than possessing it. $\kwa{Logger.log}$ still incurs $\kwa{File.append}$ inside the unannotated code, which causes the implementation of $\kwa{Client.run}$ to violate its signature. Because $\kwa{Logger}$ has no dependencies, it is now directly instantiated by $\kwa{Client}$.
+
+\begin{lstlisting}
+module Logger
+
+def log(f: {File}): Unit
+    f.append(``message logged'')
+\end{lstlisting}
+
+\begin{lstlisting}
+module Client
+instantiate Logger(File)
+
+def run(f: {File}): Unit with $\varnothing$
+   Logger.log(File)
+   
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module Main
+require File
+instantiate Client
+
+Client.run(File)
+\end{lstlisting}
+
+The desugaring, given below, is slightly different in form from the previous examples because $\kwa{Logger}$ is instantiated by $\kwa{Client}$. The $\kwa{MakeLogger}$ function is defined on lines 2-6, and invoked on line 7. $\kwa{MakeClient}$ then returns a function which, when given a $\kwa{File}$, invokes the function in the $\kwa{Logger}$ module (this is $\kwa{Client.run}$). $\kwa{Main}$ now only instantiates $\kwa{ClientModule}$ on line 13 and then invokes its function on line 14, passing $\kwa{File}$ as an argument.
+
+The $\kwa{Logger}$ module is a function $\lambda f: \{\File\}. \kwa{f.append}$, but encapsulated within an $\kwa{import}$ expression selecting its authority as $\varnothing$ on line 5, to be consistent with the expectations of $\kwa{Client}$. No capabilities are being passed into the $\kwa{Logger}$, which is represented by the import $\kwa{y = unit}$. However, \textsc{$\varepsilon$-Import} will not accept the unannotated code in $\kwa{Logger}$, because it violates the premise $\varepsilon = \fx{\hat \tau} \cup \hofx{\annot{\tau}{\varepsilon}}$. In this case, $\varepsilon = \varnothing$, but $\tau = \kwa{ \{ File \} \rightarrow Unit}$ and $\hofx{\annot{\tau}{\varnothing}} = \{ \kwa{File.*} \}$. The example safely rejects.
+
+\begin{lstlisting}
+let MakeClient =
+	($\lambda$x: Unit.
+	   let MakeLogger =
+	      ($\lambda$x: Unit.
+	         import({File.*}) y=unit in
+	            $\lambda$f: {File}. f.append) in
+      let LoggerModule = MakeLogger unit in
+      $\lambda$f: {File}. LoggerModule f) in
+
+let MakeMain =
+   ($\lambda$f: {File}.
+      $\lambda$x: Unit.
+         let ClientModule = MakeClient unit in
+         ClientModule f) in
+
+(MakeMain File) unit
+\end{lstlisting}
+
+To make this example typecheck would require us to change the annotation on $\kwa{Client.run}$ to be $\kwa{ \{ File.* \}}$; then \textsc{$\varepsilon$-Import} would type the code as $\kwa{ \{ File \} \rightarrow_{\kwa{File.*}}  \Unit ~\kw{with} \{ File.* \}}$. Note how the unannotated code, and the function it returns, are both said to have the effects $\{ \kwa{File.*} \}$. It is true that the function has these effects when it is invoked, but the function literal itself being returned by the unannotated code incurs no effects, so this is a vast approximation. In fact, since the unannotated code is not directly exercising any authority, it is not able to directly incur any effect. If the function it returns is never used, then the program might not incur any effects on $\File$, but the approximation here always treats it as though every effect on $\kwa{File}$ is incurred.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Higher-Order Effects}
+
+In this scenario, $\kwa{Main}$ instantiates the $\kwa{Plugin}$ module, which itself instantiates the $\kwa{Malicious}$ module. $\kwa{Plugin}$ exposes a single function $\kwa{run}$, should incur no effects. However, the implementation tries to read from $\kwa{File}$ by wrapping the operation inside a function and passing it to $\kwa{Malicious}$, where $\kwa{File.read}$ incurs in a higher-order manner.
+
+\begin{lstlisting}
+module Malicious
+
+def log(f: Unit $\rightarrow$ Unit):Unit
+   f()
+\end{lstlisting}
+
+\begin{lstlisting}
+module Plugin
+instantiate Malicious
+
+def run(f: {File}): Unit with $\varnothing$
+   Malicious.log($\lambda$x:Unit. f.read)
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module Main
+require File
+instantiate Plugin
+
+Plugin.run(File)
+\end{lstlisting}
+
+This examples shows how higher-order effects can obfuscate potential security risks. On line 3 of $\kwa{Malicious}$, the argument to $\kwa{log}$ has type $\Unit \rightarrow \Unit$. This will only typecheck using the \textsc{T-}rules from the unannotated fragment of $\epscalc$; no approximation is made inside $\kwa{Malicious}$. The type $\Unit \rightarrow \Unit$ says nothing about the effects which might incur from executing this function. It is not clear from inspecting the unannotated code that it is doing something malicious. To realise this requires one to examine both $\kwa{Plugin}$ and $\kwa{Malicious}$.
+
+A desugared version is given below. On lines 5-6, the $\kwa{Malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{Plugin.run}$. For the same reasons as in the previous section, this example is rejected by \textsc{$\varepsilon$-Import}, because the higher-order effects of $\lambda f: \{ \File \}.~\kwa{LoggerModule~f}$ are $\kwa{File.*}$, which is not contained in the selected authority.
+
+\begin{lstlisting}
+let MakePlugin =
+	($\lambda$x: Unit.
+	   let MakeMalicious =
+	      ($\lambda$x: Unit.
+	         import($\varnothing$) y=unit in
+	            $\lambda$f: {File}. f.append) in
+      let LoggerModule = MakeLogger unit in
+      $\lambda$f: {File}. LoggerModule f) in
+
+let MakeMain =
+   ($\lambda$f: {File}.
+      $\lambda$x: Unit.
+         let ClientModule = MakeClient unit in
+         ClientModule f) in
+
+(MakeMain File) unit
+\end{lstlisting}
+
+To get this example to typecheck, the $\kwa{import}$ expression would have to select $\kwa{File.*}$ as its authority. The unannotated code would then typecheck as $\kwa{ \{ File \} \rightarrow_{\kwa{File.*}} Unit }$, and any application of it would be said to incur $\kwa{ File.* }$ by \textsc{$\varepsilon$-App}.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Resource Leak}
+
+This is another example of trying to obfuscate an unsafe effect by invoking it in a higher-order manner. The setup is the same, except the function which $\kwa{Plugin}$ passes to $\kwa{Malicious}$ now returns $\kwa{File}$ when invoked. $\kwa{Malicious}$ then incurs $\kwa{File.read}$ by invoking its argument to get $\File$, and then directly calling $\kwa{read}$ on it.
+
+\begin{lstlisting}
+module Malicious
+
+def log(f: Unit $\rightarrow$ File):Unit
+   f().read
+\end{lstlisting}
+
+\begin{lstlisting}
+module Plugin
+instantiate Malicious
+
+def run(f: {File}): Unit with $\varnothing$
+   Malicious.log($\lambda$x:Unit. f)
+\end{lstlisting}
+
+\begin{lstlisting}
+resource module Main
+require File
+instantiate Plugin
+
+Plugin.run(File)
+\end{lstlisting}
+
+The desugaring is given below. The unannotated code in $\kwa{Malicious}$ is given on lines 5-6. The selected authority is $\varnothing$, to be consistent with the annotation on $\kwa{Plugin}$. Nothing is being imported, so the $\kwa{import}$ binds a name $\kwa{y}$ to $\unit$. This example is rejected by \textsc{$\varepsilon$-Import} because the premise $\varepsilon = \fx{\hat \tau} \cup \hofx{\annot{\tau}{\varepsilon}}$ is not satisfied. In this case, $\varepsilon = \varnothing$ and $\tau = \kwa{ (Unit \rightarrow \{ File \}) \rightarrow Unit }$. Then $\annot{\tau}{\varepsilon} = \kwa{ (Unit \rightarrow_{\varnothing} \{ File \}) \rightarrow_{\varnothing} Unit }$ and $\hofx{\annot{\tau}{\varepsilon}} = \{ \kwa{File.*} \}$. Thus, the premise cannot be satisfied and the example safely rejects.
+
+
+\begin{lstlisting}
+let MakePlugin =
+	($\lambda$x: Unit.
+	   let MakeMalicious =
+	      ($\lambda$x: Unit.
+	         import($\varnothing$) y=unit in
+	            $\lambda$f: Unit $\rightarrow$ {File}. f().read) in
+      let LoggerModule = MakeLogger unit in
+      $\lambda$f: {File}. LoggerModule f) in
+
+let MakeMain =
+   ($\lambda$f: {File}.
+      $\lambda$x: Unit.
+         let ClientModule = MakeClient unit in
+         ClientModule f) in
+
+(MakeMain File) unit
+\end{lstlisting}
+
+
+
+
+
+
