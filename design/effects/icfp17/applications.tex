@@ -1,12 +1,7 @@
 
 \section{Applications}
 
-In this section we show how the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. We present several scenarios which demonstrate unsafe behaviour or a particular developer story. This takes the form of writing a Wyvern program, expressing it in $\epscalc$ using the techniques of the last section, and then demonstrating how the rules of $\epscalc$ would apply. 
-
-
-\subsection{Examples}
-
-We now present several examples to show how the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. Each example exhibits some unsafe behaviour or demonstrates a particular development story. For each example we present high-level Wyvern code, translate it into $\epscalc$ using the techniques from the previous section, and then sketch an explanation as to why $\epscalc$ will accept or reject the program.\\
+In this section we show how the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. We present several scenarios which demonstrate unsafe behaviour or a particular developer story. This takes the form of writing a Wyvern program, expressing it in $\epscalc$ using the techniques of the last section, and then explaining how the rules of $\epscalc$ apply. 
 
 
 
@@ -46,11 +41,9 @@ We now present several examples to show how the capability-based design of $\eps
 
 
 
+\subsection{Unannotated Client}
 
-
-\subsubsection{Unannotated Client}~\\
-
-There is a single primitive capability $\kwa{File}$. A $\kwa{Logger}$ module possessing this capability exposes a single function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{Client}$ module possesses the $\kwa{Logger}$ module and exposes a single function $\kwa{run}$ which invokes $\kwa{Logger.log}$, incurring $\kwa{File.write}$. While $\kwa{Logger}$ has been annotated, $\kwa{Client}$ has not --- if $\kwa{Client.run}$ is executed, what effects could occur? Code for this example is given below. 
+There is a single primitive capability $\kwa{File}$. A $\kwa{Logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{Client}$ module possesses the $\kwa{Logger}$ module and exposes a function $\kwa{run}$ which invokes $\kwa{Logger.log}$, incurring $\kwa{File.write}$. While $\kwa{Logger}$ has been annotated, $\kwa{Client}$ has not --- if $\kwa{Client.run}$ is executed, what effects might it have? Code for this example is given below. 
 
 \begin{lstlisting}
 resource module Logger
@@ -85,9 +78,9 @@ let MakeLogger =
       $\lambda$x: Unit. f.append) in
           
 let MakeClient =
-   ($\lambda$logger: Logger.
-      import(File.append) logger = logger in
-         $\lambda$x: Unit. logger unit) in
+   ($\lambda$logger: Unit $\rightarrow_{ \{ \kwa{File.append} \}}$ Unit.
+      import(File.append) l = logger in
+         $\lambda$x: Unit. l unit) in
           
 let MakeMain =
    ($\lambda$f: File.
@@ -99,7 +92,7 @@ let MakeMain =
 (MakeMain File) unit
 \end{lstlisting}
 
-The interesting part  is on line $7$ where the unannotated code selects $\kwa{File.append}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\kwa{File.append}} \Unit) = \{ \kwa{File.append} \}$. The code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, the unannotated code typechecks by \textsc{$\varepsilon$-Import} with approximate effects $\kwa{\{ \kwa{File.append} \}}$.\\
+The interesting part  is on line $7$ where the unannotated code selects $\{ \kwa{File.append} \}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\{\kwa{File.append}\}} \Unit) = \{ \kwa{File.append} \}$. The code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, the unannotated code typechecks by \textsc{$\varepsilon$-Import} with approximate effects $\kwa{\{ \kwa{File.append} \}}$.
 
 
 
@@ -141,7 +134,24 @@ The interesting part  is on line $7$ where the unannotated code selects $\kwa{Fi
 
 
 
-\subsubsection{Unannotated Library}~\\
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Unannotated Library}
 
 The next example inverts the roles of the last scenario: now, the annotated $\kwa{Client}$ wants to use the unannotated $\kwa{Logger}$. $\kwa{Logger}$ captures $\kwa{File}$ and exposes a single function $\kwa{log}$ which incurs the $\kwa{File.append}$ effect. $\kwa{Client}$ has a function $\kwa{run}$ which executes $\kwa{Logger.log}$, incurring its effects. $\kwa{Client.run}$ is annotated with $\varnothing$.
 
@@ -170,7 +180,7 @@ instantiate Client(Logger)
 Client.run()
 \end{lstlisting}
 
-A desugaring is given below. On lines 3-4, the unannotated code is modelled using an $\kwa{import}$ expression which selects $\kwa{File.append}$ as its authority. The implementation of $\kwa{Logger}$ actually abides by this selected authority, but it has the authority to perform any operation on $\kwa{File.append}$ and, in general, could be doing any effect. \textsc{$\varepsilon$-Import} will reject this example, because the imported capability $f = \kwa{File}$ has the type $\{ \File \}$ and $\fx{\{ \File \}} = \{ \kwa{File}.* \} \not\subseteq \{ \kwa{ File.append } \}$.
+A desugaring is given below. On lines 3-4, the unannotated code is wrapped in an $\kwa{import}$ expression selecting $\{ \kwa{File.append} \}$ as its authority. The implementation of $\kwa{Logger}$ actually abides by this selected authority, but it has the authority to perform any operation on $\kwa{File}$, so it could, in general, invoke any of them. \textsc{$\varepsilon$-Import} rejects this example because the imported capability has the type $\{ \File \}$ and $\fx{\{ \File \}} = \{ \kwa{File}.* \} \not\subseteq \{ \kwa{ File.append } \}$.
 
 \begin{lstlisting}
 let MakeLogger =
@@ -191,15 +201,28 @@ let MakeMain =
 (MakeMain File) unit
 \end{lstlisting}
 
-The only way for this to typecheck would be to annotate $\kwa{Client.run}$ as having every effect on $\File$. This demonstrates how the effect-system of $\epscalc$ approximates unannotated code: it simply considers it as having every effect which could be incurred on those resources in scope, which here is $\kwa{File}.*$.\\
+The only way for this to typecheck would be to annotate $\kwa{Client.run}$ as having every effect on $\File$. This demonstrates how the effect-system of $\epscalc$ approximates unannotated code: it simply considers it as having every effect which could be incurred on those resources in scope, which here is $\kwa{File}.*$.
 
 
 
 
 
-\subsubsection{Higher-Order Effects}~\\
 
-In this scenario, $\kwa{Main}$ instantiates the $\kwa{Plugin}$ module, which itself instantiates the $\kwa{Malicious}$ module. $\kwa{Plugin}$ exposes a single function $\kwa{run}$ that should incur no effects. However, the implementation tries to read from $\kwa{File}$ by wrapping the operation inside a function and passing it to $\kwa{Malicious}$, which invokes $\kwa{File.read}$ in a higher-order way.
+
+
+
+
+
+
+
+
+
+
+
+
+\subsection{Higher-Order Effects}
+
+In this scenario, $\kwa{Main}$ instantiates the $\kwa{Plugin}$ module, which instantiates the $\kwa{Malicious}$ module. $\kwa{Plugin}$ exposes a function $\kwa{run}$ that should incur no effects. However, the implementation tries to read from $\kwa{File}$ by wrapping the operation inside a function and passing it to $\kwa{Malicious}$, which invokes $\kwa{File.read}$ in a higher-order way.
 
 \begin{lstlisting}
 module Malicious
@@ -224,7 +247,7 @@ instantiate Plugin
 Plugin.run(File)
 \end{lstlisting}
 
-This examples shows how higher-order effects can obfuscate potential security risks. On line 3 of $\kwa{Malicious}$, the argument to $\kwa{log}$ has type $\Unit \rightarrow \Unit$. The body of $\kwa{log}$ types with the \textsc{T-}rules, which do not approximate effects. It is not clear from inspecting the unannotated code that a $\kwa{File.read}$ will be incurred. To realise this requires one to examine the source code of both $\kwa{Plugin}$ and $\kwa{Malicious}$.
+This example shows how higher-order effects can obfuscate potential security risks. On line 3 of $\kwa{Malicious}$, the argument to $\kwa{log}$ has type $\Unit \rightarrow \Unit$. The body of $\kwa{log}$ types with the \textsc{T-}rules, which do not approximate effects. It is not clear from inspecting the unannotated code that a $\kwa{File.read}$ will be incurred. To realise this requires one to examine the source code of both $\kwa{Plugin}$ and $\kwa{Malicious}$.
 
 A desugared version is given below. On lines 5-6, the $\kwa{Malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{Plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects. To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority. 
 
@@ -246,6 +269,19 @@ let MakeMain =
 
 (MakeMain File) unit
 \end{lstlisting}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ~
 
@@ -277,9 +313,9 @@ let MakeMain =
 
 
 
-\subsubsection{Resource Leak}~\\
+\subsection{Resource Leak}
 
-This is another example of trying to obfuscate an unsafe effect by invoking it in a higher-order manner. The setup is the same, except the function which $\kwa{Plugin}$ passes to $\kwa{Malicious}$ now returns $\kwa{File}$ when invoked. $\kwa{Malicious}$ uses this function to obtain $\kwa{File}$, and then directly invokes $\kwa{read}$ upon it.
+This is another example of trying to obfuscate an unsafe effect by invoking it in a higher-order manner. The setup is the same, except the function which $\kwa{Plugin}$ passes to $\kwa{Malicious}$ now returns $\kwa{File}$ when invoked. $\kwa{Malicious}$ uses this function to obtain $\kwa{File}$ and directly invokes $\kwa{read}$ upon it.
 
 \begin{lstlisting}
 module Malicious
