@@ -1,42 +1,59 @@
 \section{Introduction}
 
-Good software is distinguished from bad software by qualities such as security, maintainability, and performance. We are interested in how the design of a programming language and its type system can make it easier to write secure software.
+Capabilities have been recently gaining new attention as a promising mechanism for controlling access to resources in systems and languages~\cite{miller03,drossopoulou07,dimoulas14,devriese16}.
+A \textit{capability} is an unforgeable token that can be used by its bearer to perform some operation on a resource \cite{dennis66}.
+In a \textit{capability-safe} language, all resources must be accessed through capabilities, and a resource-access capability must be obtained from a source that already has it: ``only connectivity begets connectivity'' \cite{miller03}.
+For example, a \kwat{logger} component that provides a logging service would need to be initialized with a capability providing the ability to append to the log file.
 
-There are different situations where we may not trust code. One is in a development environment adhering to ideas of \textit{code ownership}, wherein developers may exercise responsibility for specific components of the system \cite{bird11}. When a developer writes code to interact across code ownership boundaries, they are liable to misuse other components and make false assumptions about how they work. This can break correctness or leave components in a malconfigured state, putting the whole system at risk. Another setting involves applications allowing third-party plug-ins. A malicious outsider can write code to try and compromise the system, in which case we want to know whether the plug-ins supplied are trustworthy before executing them. Whatever is the case, we want to build safe software out of potentially unsafe components.
+Capability-safe languages thus prohibit the \textit{ambient authority} that is present in non-capability-safe languages.
+An implementation of a \kwat{logger} in OCaml or Java, for example, does not need to be passed a capability at initialization time; it can simply import the appropriate file-access library and open the log file for appending itself.
+Critically, a malicious implementation of such a component could also delete the log, read from another file, or exfiltrate logging information over the network.
+Other mechanisms such as sandboxing can be used to limit the effects of such malicious components, but recent work has found that Java's sandbox (for example) is difficult to use and is therefore often misused~\cite{coker15, maass16}.
 
-It is difficult to know if a piece of code should be trusted, but a range of approaches can be taken about the issue. One is to \textit{sandbox} untrusted code inside a virtual environment; if anything goes wrong, damage is theoretically limited to the virtual environment. In practice, there are many  vulnerabilities \cite{coker15, maass16, watson07, schreuders13}. Verification gives a comprehensive analysis of the behaviour of code, but the techniques are heavyweight and developers must have a deep understanding of how they work in order to use them \cite{kneuper97}. Furthermore, verification requires a complete specification of the system, which may be an undefined or evolving artifact throughout the development process. Lightweight analyses, such as type systems, are easy for the developer to use, but existing languages are insufficient in the tools they provide for detecting and isolating untrustworthy components \cite{chen07, ter-louw08}. A qualitative approach might be taken, where software is developed according to best-practice guidelines such as the \textit{principle of least authority}: that software components should only have access to the information and resources necessary for their purpose \cite{saltzer74}. For example, a logger module, which only needs to append to a file, should not be given arbitrary read-write access. Another guideline is \textit{privilege separation}, where the division of a program into components is informed by what resources are needed and how they are to be propagated \cite{saltzer75}. This paper focuses on the class of lightweight analyses, in particular how type systems can be used to reject unsafe programs and determine what authority a component might exercise, putting developers in a more informed position to make qualitative assessments about whether to trust code.
+In practice, reasoning about resource use in capability-based systems is mostly done informally.
+But if capabilities are useful for \textit{informal} reasoning, shouldn't they also aid in \textit{formal} reasoning?
+Recent work by \citet{drossopoulou07} sheds some light on this question by presenting a logic that formalizes capability-based reasoning about trust between objects.
+Two other trains of work, rather than formalize capability-based reasoning itself, reason about how capabilities may be used.
+\citet{dimoulas14} developed a formalism for reasoning about which components may use a capability and which may influence (perhaps indirectly) the use of a capability.
+\citet{devriese16} formulate an effect parametricity theorem that limits the effects of an object based on the capabilities it possesses, and then use logical relations to reason about capability use in higher-order settings.
+Overall, this prior work presents new formal systems for reasoning about capability use, or reasoning about new properties using capabilities.
 
-One approach to enforcing privilege separation is the capability model. A \textit{capability} is an unforgeable token granting its bearer permission to perform some operation \cite{dennis66}. For example, a capability might grant read or write operations on a particular file in the file system. Capabilities also encapsulate the source of \textit{effects}. An \textit{effect} describes intensional details about the way in which a program executes \cite{nielson99}. For example, a logger might $\kwa{append}$ to a $\kwa{File}$, and so its code has the $\kwa{File.append}$ effect. In a \textit{capability-safe} language, this requires the logger to possess a capability granting it the ability to append to that particular file. Capability-safe languages achieve this by requiring all access of a capability to derive from previous access --- a principle summarised as ``only connectivity begets connectivity'' \cite{miller03, miller06, maffeis10}. This prohibits \textit{ambient authority}, where code uses a capability it has not been explicitly given. Figure \ref{fig:java_ambient_authority} demonstrates a Java program with ambient authority: a malicious implementation of $\kwa{List.add}$ attempts to overwrite the user's $\kwa{.bashrc}$ file. $\kwa{MyList}$ gains a capability for this operation by importing $\kwa{java.io.File}$ and instantiating new capabilities for the user's $\kwa{.bashrc}$ file at will. Nobody has explicitly given it these capabilities, it simply creates them. By contrast, in a capability-safe language, such capabilities must be passed to $\kwa{MyList}$ as an argument or when it is instantiated.
+We are interested in a different question: can capabilities be used to enhance formal reasoning that is currently done without relying on capabilities?
+In other words, what value do capabilities add to existing formal reasoning?
 
+To answer this question, we decided to pick a simple and practical formal reasoning system, and see if capability-based reasoning could help.
+A natural choice for our investigation is effect systems~\cite{nielson99}.
+Effect systems are a relatively simple formal reasoning approach, and keeping things simple will help to make the difference made by capabilities more obvious.
+Futhermore, effects have an intuitive link to capabilities: in a system that uses capabilities to protect resources, an expression can only have an effect on a resource if it is given a capability to do so.
 
-\begin{figure}
+How could capabilities help with effects?
+One challenge to the wider adoption of effect systems is their annotation overhead~\cite{rytz12}.
+For example, Java's checked exception system is a kind of effect system, and is often criticised for being cumbersome~\cite{Kiniry2006}.
+Effect inference can be used to reduce the annotations required~\cite{koka14}, but this has significant drawbacks: understanding error messages that arise through effect inference requires a detailed understanding of the internal structure of the code, not just its interface.
+Capabilities are a promising alternative for reducing the overhead of effect annotations, as suggested by the following example:
 
 \begin{lstlisting}
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
+import log : String -> Unit with effect File.write
 
-class MyList<T> extends ArrayList<T> {	
-	@Override
-	public boolean add(T elem) {
-		try {
-			File file = new File("$\$$HOME/.bashrc");
-			file.createNewFile();
-		} catch (IOException e) {}
-		return super.add(elem);
-	}	
-}
+e
 \end{lstlisting}
-\caption{$\kwa{MyList}$ exercises ambient authority over a $\kwa{File}$ capability.}
-\label{fig:java_ambient_authority}
 
-\vspace{-1cm}
+In the code above, written in a capability-safe language, what can we infer about the effects on resources (e.g. the file system or network) of evaluating \kwat{e}?
+Since we are in a capability-safe language, \kwat{e} has no ambient authority, and so the only way it can have any effect on resources is via the \kwat{log} function it imports.
+Note that this reasoning requires nothing about \kwat{e} other than that it obeys the rules of a capability-safe language; in particular, we don't require any effect annotations within \kwat{e}, and we don't need to analyze its structure as an effect inference would have to do.
+Also note that \kwat{e} might be arbitrarily large, perhaps consisting of an entire program that we have downloaded from a source that we trust enough to allow it to write to a log, but that we don't trust to access any other resources.
+Thus in this scenario, capabilities can be used to reason about the effect of a large body of code based on a few annotations on the components it imports.
 
-\end{figure}
+The central intuition that we formalize in this paper is this: the effect of an unannotated expression can be given a bound based on the effects latent in variables that are in scope.
+Of course, there are challenges to solve on the way, most notably involving higher-order programs: how can we generalize this intuition if \kwat{log} takes a higher-order argument?
+If \kwat{e} evalutes not to unit but to a function, what can we infer about that function's effects?
 
+In the remainder of this paper, we will formalize these ideas and explore these questions.
+To demonstrate, we introduce a pair of languages: the operation calculus $\opercalc$ (Section 3) and the capability calculus $\epscalc$ (Section 4).
+$\opercalc$ is a typed lambda calculus with a simple notion of capabilities and their operations, in which all code is effect-annotated.
+Relaxing this requirement, we then introduce $\epscalc$, which permits the nesting of unannotated code inside annotated code in a controlled, capability-safe manner.
+A safe inference about the unannotated code can be made by inspecting the capabilities passed into it from its annotated surroundings.
+We then show how $\epscalc$ can model practical situations, presenting a range of examples to illustrate the benefits of a capability-flavoured effect system.
 
-Effect systems were introduced by \citet{lucassen88} to determine what code can be safely parallelised. They have also been applied to problems such as determining which functions might be invoked in a program \cite{tang94} or determining which regions in memory may be accessed or updated \cite{talpin94}. Knowing what effects a piece of code might incur allows a developer to determine if code is trustworthy before executing it by comparing the static approximation of its effects to its expected least authority --- a ``logger'' which could write to a $\kwa{Socket}$ is not to be trusted! Despite their benefits, effect systems have seen little use in mainstream programming languages. \citet{rytz12} believe the verbosity of their annotations is the main reason. Successive works reduce developer overhead through techniques such as inference \cite{koka14}. Inference enables developers to rapidly prototype without annotations, incrementally adding them as their safety and precision is needed. It also allows an effect discipline to be slowly imposed on unannotated legacy software.
-
-The benefit of capabilities for inference has received less attention, but because capabilities encapsulate the source of effects, and because capability-safety imposes constraints on how the authority proliferates, the effects of unannotated code can be safely approximated by inspecting what capabilities are passed into it from annotated surroundings. This is the key contribution of this paper: capability-safety facilitates a lightweight, incremental effect discipline.
-
-To demonstrate, we introduce a pair of languages: the operation calculus $\opercalc$ and the capability calculus $\epscalc$. $\opercalc$ is a typed lambda calculus with a simple notion of capabilities and their operations, in which all code is effect-annotated. Relaxing this requirement, we then introduce $\epscalc$, which permits the nesting of unannotated code inside annotated code in a controlled, capability-safe manner. A safe inference about the unannotated code can be made by inspecting the capabilities passed into it from its annotated surroundings. We then show how $\epscalc$ can model practical situations, presenting a range of examples to illustrate the benefits of a capability-flavoured effect system. Throughout this paper we give motivating examples in a capability-safe language very similar to \textit{Wyvern} as presented by Nistor et al.~\cite{nistor13}. A more thorough discussion of the language how it can be translated into the calculi is given in section 4.
+Throughout this paper we give motivating examples in a capability-safe language very similar to \textit{Wyvern} as presented by Nistor et al.~\cite{nistor13}.
+A more thorough discussion of the language and how it can be translated into the calculi is given in section 4.
