@@ -1,39 +1,54 @@
 \section{Operation Calculus ($\opercalc$)}
 
-$\opercalc$ extends the simply-typed lambda calculus with a notion of primitive capabilities and their operations. Every function is annotated with the effects it may incur. Its static rules associate a type and a set of effects to well-formed programs. Defining and proving $\opercalc$ sound will introduce the notations and concepts needed to understand $\epscalc$, which is the more general, interesting language.
+$\opercalc$ extends the simply-typed lambda calculus with a notion of primitive capabilities and their operations.
+Every function is annotated with the effects it may incur.
+Its static rules associate a type and a set of effects to well-formed programs.
+Defining $\opercalc$ will introduce the notations and concepts needed to understand $\epscalc$, which allows developers to omit annotations from some expressions and uses capability-based reasoning to bound the effects of those expressions.
 
-In a capability-safe language, ``only connectivity begets connectivity'' \cite{miller06}: all access to a capability must derive from previous access. To prevent an infinite regress, there are a set of primitive capabilities passed into the program by the system environment. These primitive capabilities present operations to their bearer for manipulating resources in the system environment. For example, $\kwa{File}$ might provide read/write operations on a particular file in the file system. For convenience, we often conflate primitive capabilities with the resources they manipulate, referring to both as resources. An effect in $\opercalc$ is a particular operation invoked on some resource; for example, $\kwa{File.write}$. The pieces of an $\opercalc$ program are (conservatively) annotated with the effects they may incur at runtime. Annotations might be given in accordance with the principle of least authority to specify the maximum authority a component may exercise. When this authority is being exceeded, an effect system like that of $\opercalc$ will reject the program, signalling an unsafe implementation. For example, consider the pair of modules in Figure \ref{fig:opercalc_motivating}: the $\kwa{Logger}$ module possesses a $\File$ capability and exposes a single function $\kwa{log}$. The $\kwa{Client}$ has a single function $\kwa{run}$ which, when passed a $\kwa{Logger}$, will invoke $\kwa{Logger.log}$.
+In a capability-safe language, ``only connectivity begets connectivity'' \cite{miller06}: all access to a capability must derive from previous access.
+To prevent an infinite regress, there are a set of primitive capabilities passed into the program by the system environment.
+These primitive capabilities provide operations for manipulating resources in the system environment.
+For example, $\kwa{File}$ might provide read/write operations on a particular file in the file system.
+For convenience, we often conflate primitive capabilities with the resources they manipulate, referring to both as resources.
+An effect in $\opercalc$ is a particular operation invoked on some resource; for example, $\kwa{File.write}$.
+Functions in an $\opercalc$ program are (conservatively) annotated with the effects they may incur when invoked. Annotations might be given in accordance with the principle of least authority to specify the maximum authority a component may exercise.
+When this authority is exceeded, an effect system like that of $\opercalc$ will reject the program, signaling an unsafe implementation.
+For example, consider the pair of modules\footnote{Our formal grammar, below, does not include this \textit{Wyvern}-like module syntax, but we can model the \kwat{logger} functor as a function and the \kwat{client} module as a record (which is itself encodable using functions).} in Figure \ref{fig:opercalc_motivating}: the $\kwa{logger}$ module possesses a $\File$ capability and exposes a single function $\kwa{log}$.
+The $\kwa{client}$ has a single function $\kwa{run}$ which, when passed a $\kwa{Logger}$, will invoke $\kwa{Logger.log}$.
 
 \begin{figure}[h]
 \vspace{-5pt}
 
 \begin{lstlisting}
-resource module Logger
-require File
+module def logger(f:{File}):Logger
 
 def log(): Unit with {File.append} =
-    File.read
+    f.read
 \end{lstlisting}
 
 \begin{lstlisting}
-module Client
+module client
 
 def run(l: Logger): Unit with {File.append} =
     l.log()
 \end{lstlisting}
 
 \vspace{-7pt}
-\caption{The implementation of $\kwa{Logger.log}$ exceeds its specified authority.}
+\caption{The implementation of $\kwa{logger.log}$ exceeds its specified authority.}
 \label{fig:opercalc_motivating}
 \end{figure}
 
-$\kwa{Client.run}$ and $\kwa{Logger.log}$ are both annotated with $\{ \kwa{File.append} \}$, but the (potentially malicious) implementation of $\kwa{Logger.log}$ incurs the $\kwa{File.read}$ effects. By the end of this section, we will have developed rules for $\opercalc$ that can determine such mismatches between specification and implementation in annotated code.
+$\kwa{client.run}$ and $\kwa{logger.log}$ are both annotated with $\{ \kwa{File.append} \}$, but the (potentially malicious) implementation of $\kwa{logger.log}$ incurs the $\kwa{File.read}$ effects.
+By the end of this section, we will have developed rules for $\opercalc$ that can determine such mismatches between specification and implementation in annotated code.
 
-$\opercalc$ makes some simplifying assumptions. The semantics of particular operations are not modelled --- our only interest is in what operations could be invoked, and by whom. Therefore, we assume all operations are null-ary and return a dummy $\unit$ value; $\kwa{File.write(``hello, world!'')}$ becomes $\kwa{File.write}$. Primitive capabilities and operations are fixed throughout the runtime and cannot be created or destroyed.
+$\opercalc$ makes some simplifying assumptions.
+The semantics of particular operations are not modeled --- our only interest is in what operations could be invoked, and by whom.
+Therefore, we assume all operations are null-ary and return a dummy $\unit$ value; $\kwa{File.write(``hello, world!'')}$ becomes $\kwa{File.write}$.
+Primitive capabilities and operations are fixed throughout run time and cannot be created or destroyed.
 
 \subsection{Grammar ($\opercalc$)}
 
-A grammar for $\opercalc$ programs is given in Figure \ref{fig:opercalc_grammar}. In addition to those from the lambda calculus, there are two new forms. A resource literal $r$ is a variable drawn from a fixed set $R$. Resources model those primitive capabilities into the program from the system environment. $\kwa{File}$ and $\kwa{Socket}$ are examples of resource literals. An operation call $e.\pi$ is the invocation of an operation $\pi$ on $e$. For example, invoking the $\kwa{open}$ operation on the $\kwa{File}$ resource would be $\kwa{File.open}$. Operations are drawn from a fixed set $\Pi$.
+A grammar for $\opercalc$ programs is given in Figure \ref{fig:opercalc_grammar}. In addition to those from the lambda calculus, there are two new forms. A resource literal $r$ is a variable drawn from a fixed set $R$. Resources model the primitive capabilities that the system passes into the program. $\kwa{File}$ and $\kwa{Socket}$ are examples of resource literals. An operation call $e.\pi$ is the invocation of an operation $\pi$ on $e$. For example, invoking the $\kwa{open}$ operation on the $\kwa{File}$ resource would be $\kwa{File.open}$. Operations are drawn from a fixed set $\Pi$.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -51,6 +66,8 @@ e & ::= & ~ & exprs: \\
 	&&\\
 
 \end{array}
+
+	\hspace{5ex}
 
 \begin{array}{lllr}
 
@@ -73,7 +90,9 @@ An effect is a pair $(r, \pi) \in R \times \Pi$. Sets of effects are denoted $\v
 
 \subsection{Substitution ($\opercalc$)}
 
-Figure \ref{fig:opercalc_sub_defn} defines substitution on the new forms of $\opercalc$. We also impose an extra restriction that a variable can only be substituted for a value. This restriction is imposed because if a variable can be replaced with an arbitrary expression, we might also be introducing arbitrary effects, violating the type-and-effect safety of the static rules. The semantics are call-by-value, so this restriction is no problem.
+Figure \ref{fig:opercalc_sub_defn} defines substitution on the new forms of $\opercalc$.
+We don't want substitution to introduce unexpected new effects into an expression, so we restrict substitution to replacing a variable with a  value.
+Thus $\opercalc$ is a call-by-value language.
 
 \begin{figure}[h]
 
@@ -92,7 +111,7 @@ $\kwa{substitution :: e \times v \times v \rightarrow e}$
 
 \subsection{Semantics ($\opercalc$)}
 
-During reduction an operation call may be evaluated. When this happens a runtime effect is said to have taken place. Reflecting this, the form of the single-step reduction judgement is now $e \longrightarrow e~|~\varepsilon$, which means that $e$ reduces to $e'$, incurring the set of effects $\varepsilon$ in the process. In the case of single-step reduction, $\varepsilon$ is at most a single effect. Judgements for single-step reductions are given in Figure \ref{fig:opercalc_singlestep}.
+During reduction an operation call may be evaluated. When this happens we say that a run time effect has taken place. Reflecting this, the form of the single-step reduction judgement is now $e \longrightarrow e~|~\varepsilon$, which means that $e$ reduces to $e'$, incurring the set of effects $\varepsilon$ in the process. In the case of single-step reduction, $\varepsilon$ is at most a single effect. Judgements for single-step reductions are given in Figure \ref{fig:opercalc_singlestep}.
 
 \begin{figure}[h]
 
@@ -105,11 +124,15 @@ During reduction an operation call may be evaluated. When this happens a runtime
 \infer[\textsc{(E-App1)}]
 	{e_1 e_2 \longrightarrow e_1'~ e_2~|~\varepsilon}
 	{e_1 \longrightarrow e_1'~|~\varepsilon}
-	~~~~~~
+    
+	\hspace{5ex}
+    
 \infer[\textsc{(E-App2)}]
 	{v_1 ~ e_2 \longrightarrow v_1 ~ e_2'~|~\varepsilon} 
 	{e_2 \longrightarrow e_2'~|~\varepsilon}
-~~~~~~
+    
+	\hspace{5ex}
+    
 \infer[\textsc{(E-App3)}]
 	{ (\lambda x: \tau. e) v_2 \longrightarrow [ v_2/x] e~|~\varnothing }
 	{}\\[4ex]
@@ -118,7 +141,7 @@ During reduction an operation call may be evaluated. When this happens a runtime
 	{ e.\pi \longrightarrow  e'.\pi~|~\varepsilon }
 	{ e \rightarrow  e'~|~\varepsilon}
 		
-	~~~~~~
+	\hspace{5ex}
 	
 \infer[\textsc{(E-OperCall2)}]
 	{r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \} }
@@ -134,9 +157,12 @@ During reduction an operation call may be evaluated. When this happens a runtime
 \label{fig:opercalc_singlestep}
 \end{figure}
 
-The first three rules are analogous to reductions in the lambda calculus. \textsc{E-App1} and \textsc{E-App2} incur the effects of reducing their subexpressions. \textsc{E-App3} replaces the formal name $x$ with the actual value $v_2$ being passed as an argument, which incurs no effects. The first new rule is \textsc{E-OperCall1}, which reduces the receiver of an operation call; the effects incurred are the effects incurred by reducing the receiver. When an operation $\pi$ is invoked on a resource literal $r$, \textsc{E-OperCall2} will reduce it to $\unit$, incurring $\{ r.\pi \}$ as a result. For example, $\kwa{File.write} \longrightarrow \unit~|~\{ \kwa{File.write} \}$ by \textsc{E-OperCall2}. $\unit$ can be treated as a derived form; an explanation is given in section 4.
+The first three rules are analogous to reductions in the lambda calculus. \textsc{E-App1} and \textsc{E-App2} incur the effects of reducing their subexpressions. \textsc{E-App3} replaces the formal name $x$ with the actual value $v_2$ being passed as an argument, which incurs no effects. The first new rule is \textsc{E-OperCall1}, which reduces the receiver of an operation call; the effects incurred are the effects incurred by reducing the receiver. 
+When an operation $\pi$ is invoked on a resource literal $r$, \textsc{E-OperCall2} will reduce it to $\unit$,
+%\footnote{Our formal grammar does not include $\unit$, but it can be defined as \lambda x: {}. x}
+incurring $\{ r.\pi \}$ as a result. For example, $\kwa{File.write} \longrightarrow \unit~|~\{ \kwa{File.write} \}$ by \textsc{E-OperCall2}. $\unit$ can be treated as a derived form; an explanation is given in section 4.
 
-A multi-step reduction is a sequence of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation \cite[p. 39]{pierce02}.} or more single-step reductions. The resulting set of runtime effects is the union of all the runtime effects from the intermediate single-steps. Judgements for multi-step reductions are given in Figure \ref{fig:opercalc_multistep_defn}. By \textsc{E-MultiStep1}, any expression can ``reduce'' to itself with no runtime effects. By \textsc{E-MultiStep2}, any single-step reduction is also a multi-step reduction. If $e \longrightarrow e'~|~\varepsilon_1$ and $e' \longrightarrow e''~|~\varepsilon_2$ are sequences of reductions, then so is $e \longrightarrow e''~|~\varepsilon_1 \cup \varepsilon_2$, by \textsc{E-MultiStep3}.
+A multi-step reduction is a sequence of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation \cite[p. 39]{pierce02}.} or more single-step reductions. The resulting set of run time effects is the union of all the run time effects from the intermediate single-steps. Judgements for multi-step reductions are given in Figure \ref{fig:opercalc_multistep_defn}. By \textsc{E-MultiStep1}, any expression can ``reduce'' to itself with no run time effects. By \textsc{E-MultiStep2}, any single-step reduction is also a multi-step reduction. If $e \longrightarrow e'~|~\varepsilon_1$ and $e' \longrightarrow e''~|~\varepsilon_2$ are sequences of reductions, then so is $e \longrightarrow e''~|~\varepsilon_1 \cup \varepsilon_2$, by \textsc{E-MultiStep3}.
 
 \begin{figure}[h]
 
@@ -149,11 +175,11 @@ A multi-step reduction is a sequence of zero\footnote{We permit multi-step reduc
 \infer[\textsc{(E-MultiStep1)}]
 	{ e \rightarrow^{*}  e~|~\varnothing}
 	{}
-~~~
+	\hspace{5ex}
 \infer[\textsc{(E-MultiStep2)}]
 	{ e \rightarrow^{*}  e'~|~\varepsilon}
 	{ e \rightarrow  e'~|~\varepsilon}
-~~~	
+	\hspace{5ex}
 \infer[\textsc{(E-MultiStep3)}]
 	{ e \rightarrow^{*}  e''~|~\varepsilon_1 \cup \varepsilon_2}
 	{ e \rightarrow^{*}  e'~|~\varepsilon_1 &  e' \rightarrow^{*}  e''~|~\varepsilon_2}
@@ -167,7 +193,7 @@ A multi-step reduction is a sequence of zero\footnote{We permit multi-step reduc
 
 \subsection{Static Rules ($\opercalc$)}
 
-A grammar for types and type contexts is given in Figure \ref{fig:opercalc_types}. The base types of $\opercalc$ are sets of resources, denoted $\{ \bar r\}$. If an expression $e$ is associated with type $\{ \bar r \}$, it means $e$ will reduce to one of the literals in $\bar r$ (assuming $e$ terminates). The set of empty resources (denoted $\varnothing$) is also a valid type, but has no inhabitants. There is a single type constructor $\rightarrow_{\varepsilon}$, where $\varepsilon$ is a concrete set of effects. $\tau_1 \rightarrow_{\varepsilon} \tau_2$ is the type of a function which takes a $\tau_1$ as input, returns a $\tau_2$ as output, and whose body incurs no more than those effects in $\varepsilon$. $\varepsilon$ is a conservative bound: if an effect $r.\pi \in \varepsilon$, it is not guaranteed to happen at runtime, but if $r.\pi \notin \varepsilon$, it cannot happen at runtime. A typing context $\Gamma$ maps variables to types. 
+A grammar for types and type contexts is given in Figure \ref{fig:opercalc_types}. The base types of $\opercalc$ are sets of resources, denoted $\{ \bar r\}$. If an expression $e$ is associated with type $\{ \bar r \}$, it means $e$ will reduce to one of the literals in $\bar r$ (assuming $e$ terminates). The set of empty resources (denoted $\varnothing$) is also a valid type, but has no inhabitants. There is a single type constructor $\rightarrow_{\varepsilon}$, where $\varepsilon$ is a concrete set of effects. $\tau_1 \rightarrow_{\varepsilon} \tau_2$ is the type of a function which takes a $\tau_1$ as input, returns a $\tau_2$ as output, and whose body incurs no more than those effects in $\varepsilon$. $\varepsilon$ is a conservative bound: if an effect $r.\pi \in \varepsilon$, it is not guaranteed to happen at run time, but if $r.\pi \notin \varepsilon$, it cannot happen at run time. A typing context $\Gamma$ maps variables to types. 
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -183,6 +209,8 @@ A grammar for types and type contexts is given in Figure \ref{fig:opercalc_types
 		&&\\
 \end{array}
 
+	\hspace{5ex}
+    
 \begin{array}{lllr}
 
 \Gamma & ::= & ~ & type~ctx: \\
@@ -215,7 +243,7 @@ Knowing approximately what effects a piece of code may incur helps a developer d
 	{ \Gamma, x:\tau \vdash x: \tau~\kw{with} \varnothing }
 	{}
 	
-	~~~
+	\hspace{5ex}
 	
 \infer[\textsc{($\varepsilon$-Resource)}]
  	{ \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
@@ -226,16 +254,18 @@ Knowing approximately what effects a piece of code may incur helps a developer d
 	{ \Gamma \vdash \lambda x:\tau_2 . e : \tau_2 \rightarrow_{\varepsilon_3} \tau_3~\kw{with} \varnothing }
 	{ \Gamma, x: \tau_2 \vdash e: \tau_3~\kw{with} \varepsilon_3 }
 	
-	~~~
+	\hspace{5ex}
 	
 \infer[\textsc{($\varepsilon$-App)}]
 	{ \Gamma \vdash e_1~e_2 : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
 	{ \Gamma \vdash e_1: \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1 & \Gamma \vdash e_2: \tau_2~\kw{with} \varepsilon_2 } \\[3ex]
 	
 \infer[\textsc{($\varepsilon$-OperCall)}]
-	{ \Gamma \vdash e.\pi: \kw{Unit} \kw{with} \{ \bar r.\pi \} }
-	{ \Gamma \vdash e: \{ \bar r \}}
+	{ \Gamma \vdash e.\pi: \kw{Unit} \kw{with} \varepsilon \cup \{ \bar r.\pi \} }
+	{ \Gamma \vdash e: \{ \bar r \}~ \kw{with} \varepsilon}
 
+	\hspace{5ex}
+    
 \infer[\textsc{($\varepsilon$-Subsume)}]
 	{ \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
 	{ \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[3ex]
@@ -251,7 +281,8 @@ Knowing approximately what effects a piece of code may incur helps a developer d
 
 
 
-\textsc{$\varepsilon$-Var} approximates the runtime effects of a variable as $\varnothing$. \textsc{$\varepsilon$-Resource} does the same for resource literals. Though a resource captures several effects (namely, every possible operation on itself), attempting to ``reduce'' a resource will incur no effects; something must be done with the resource, such as an operation call, in order to have an effect. For a similar reason, \textsc{$\varepsilon$-Abs} approximates the effects of a function literal as $\varnothing$, and ascribes an arrow type annotated with those effects captured by the function. \textsc{$\varepsilon$-App} approximates a lambda application as incurring those effects from evaluating the subexpressions and the effects incurred by executing the body of the function to which the left-hand side evaluates. The effects of the function body are taken from the function's arrow type. An operation call on a resource literal reduces to $\unit$, so \textsc{$\varepsilon$-OperCall} ascribes its type as $\Unit$. The approximate effects of an operation call are: the effects of reducing the subexpression, and then the operation $\pi$ on every possible resource which that subexpression to which that subexpression might reduce. For example, consider $e.\pi$, where $\Gamma \vdash e: \{ \kwa{File, Socket} \}~\kw{with} \varnothing$. Then $e$ could evaluate to $\kwa{File}$, in which case the actual runtime effect is $\kwa{File}.\pi$, or it could evaluate to $\kwa{Socket}$, in which case the actual runtime effect is $\kwa{Socket.\pi}$. Determining which will happen is, in general, undecidable; the safe approximation is to treat them both as happening. The last rule \textsc{$\varepsilon$-Subsume} produces a new judgement by widening the type or approximate effects on an existing one. Subtyping judgement are given in Figure \ref{fig:opercalc_static_rules}.
+\textsc{$\varepsilon$-Var} approximates the run time effects of a variable as $\varnothing$. \textsc{$\varepsilon$-Resource} does the same for resource literals. Though a resource captures several effects (namely, every possible operation on itself), attempting to ``reduce'' a resource will incur no effects; something must be done with the resource, such as an operation call, in order to have an effect. For a similar reason, \textsc{$\varepsilon$-Abs} approximates the effects of a function literal as $\varnothing$, and ascribes an arrow type annotated with those effects captured by the function. \textsc{$\varepsilon$-App} approximates a lambda application as incurring those effects from evaluating the subexpressions and the effects incurred by executing the body of the function to which the left-hand side evaluates. The effects of the function body are taken from the function's arrow type. An operation call on a resource literal reduces to $\unit$, so \textsc{$\varepsilon$-OperCall} ascribes its type as $\Unit$.
+The approximate effects of an operation call are: the effects of reducing the subexpression, and then the operation $\pi$ on every possible resource which that subexpression to which that subexpression might reduce. For example, consider $e.\pi$, where $\Gamma \vdash e: \{ \kwa{File, Socket} \}~\kw{with} \varnothing$. Then $e$ could evaluate to $\kwa{File}$, in which case the actual run time effect is $\kwa{File}.\pi$, or it could evaluate to $\kwa{Socket}$, in which case the actual run time effect is $\kwa{Socket.\pi}$. Determining which will happen is, in general, undecidable; the safe approximation is to treat them both as happening. The last rule \textsc{$\varepsilon$-Subsume} produces a new judgement by widening the type or approximate effects on an existing one. Subtyping judgements are given in Figure \ref{fig:opercalc_static_rules}.
 
 
 \begin{figure}[h]
@@ -265,7 +296,7 @@ Knowing approximately what effects a piece of code may incur helps a developer d
 \infer[\textsc{(S-Arrow)}]
 	{ \tau_1 \rightarrow_{\varepsilon} \tau_2 <: \tau_1' \rightarrow_{\varepsilon'} \tau_2' }
 	{ \tau_1' <: \tau_1 & \tau_2 <: \tau_2' & \varepsilon \subseteq \varepsilon' }
-~~~~~~
+	\hspace{5ex}
 \infer[\textsc{(S-Resource)}]
 	{ \{ \bar r_1 \} <: \{ \bar r_2 \} }
 	{ r \in r_1 \implies r \in r_2 }
@@ -280,7 +311,7 @@ Knowing approximately what effects a piece of code may incur helps a developer d
 
 \textsc{S-Arrow} is the standard rule for arrow types, but also stipulates that the effects on the arrow of the subtype must be contained in the effects on the arrow of the supertype; a valid subtype should not invoke any effects the supertype does not already know about. \textsc{S-Resource} says that a subset of resourcse is a subtype: consider $\{ \bar r_1 \} <: \{ \bar r_2 \}$. Any value with type $\{ \bar r_1 \}$ can reduce to any resource literal in $\bar r_1$, so to be compatible with an interface $\{ \bar r_2 \}$, the resource literals in $\bar r_1$ must also be in $\bar r_2$.
 
-These rules let us determine what sort of effects might be incurred when a piece of code is executed. For example, consider $rw = \lambda x: \{ \kwa{File, Socket} \}.~\kwa{x.write}$, which takes either a $\Socket$ or a $\File$ and writes to it. If $rw$ is applied, it could incur $\kwa{Socket.write}$ or $\kwa{File.read}$, depending on what had been passed. In general, there is no way to statically determine what this will be, so the safe approximation is $\{ \kwa{File.write, Socket.write} \}$. This is the approximation given in a judgement like $\vdash rw~\File: \Unit~\kw{with} \{ \kwa{File.write, Socket.write} \}$. A derivation of this judgement is given in Figure\ref{fig:opercalc_tree}. To fit on the page, all resources and operations have been abbreviated to their first letter. A developer who only expects $rw$ to be incurring $\kwa{File.write}$ can typecheck $rw$, see that it could also be writing to $\kwa{Socket}$, and decide it should not be used. If client code was annotated with $\kwa{ \{ \kwa{File.write} \} }$ and tried to use this function, the type system would reject it.
+These rules let us determine what sort of effects might be incurred when a piece of code is executed. For example, consider $rw = \lambda x: \{ \kwa{File, Socket} \}.~\kwa{x.write}$, which takes either a $\Socket$ or a $\File$ and writes to it. If $rw$ is applied, it could incur $\kwa{Socket.write}$ or $\kwa{File.write}$, depending on what had been passed. In general, there is no way to statically determine what this will be, so the safe approximation is $\{ \kwa{File.write, Socket.write} \}$. This is the approximation given in a judgement like $\vdash rw~\File: \Unit~\kw{with} \{ \kwa{File.write, Socket.write} \}$. A derivation of this judgement is given in Figure~\ref{fig:opercalc_tree}. To fit on the page, all resources and operations have been abbreviated to their first letter. A developer who only expects $rw$ to be incurring $\kwa{File.write}$ can typecheck $rw$, see that it could also be writing to $\kwa{Socket}$, and decide it should not be used. If client code was annotated with $\kwa{ \{ \kwa{File.write} \} }$ and tried to use this function, the type system would reject it.
 
 \begin{figure}[h]
 
@@ -310,13 +341,13 @@ These rules let us determine what sort of effects might be incurred when a piece
 To show the rules of $\opercalc$ are sound requires an appropriate notion of static approximations being safe with respect to the reductions. If a static judgement like $\Gamma \vdash e: \tau~\kw{with} \varepsilon$ were correct, successive reductions on $e$ should never incur effects not in $\varepsilon$. Furthermore, as $e$ is reduced, we learn more about what it is, so approximations on the reduced forms can only get more specific; compare this with how the type of reduced expressions can only get more specific. Adding this to the standard definition of soundness yields the following theorem statement.
 
 \begin{theorem}[$\opercalc$ Single-step Soundness]
-If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $ e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $e, \varepsilon, \tau_B, \varepsilon_B$.
+If $ \Gamma \vdash  e_A:  \tau_A~\kw{with} \varepsilon_A$ and $ e_A$ is not a value, then $e_A \longrightarrow e_B~|~\varepsilon$, where $ \Gamma \vdash e_B:  \tau_B~\kw{with} \varepsilon_B$ and $ \tau_B <:  \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $e_B, \varepsilon, \tau_B, \varepsilon_B$.
 \end{theorem}
 
 Our approach to proving soundness is to show progress and preservation. Noting that the rules for values give $\varnothing$ as their approximate effects, the proof of the progress theorem is routine.
 
 \begin{theorem}[$\opercalc$ Progress]
-If $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$ and $ e$ is not a value or variable, then $ e \longrightarrow  e'~|~\varepsilon$, for some $e', \varepsilon$.
+If $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$ and $ e$ is not a value or variable, then $ e \longrightarrow  e'~|~\varepsilon'$, for some $e', \varepsilon' \subseteq \varepsilon$.
 \end{theorem}
 
 \begin{proof} By induction on derivations of $ \Gamma \vdash  e:  \tau~\kw{with} \varepsilon$.

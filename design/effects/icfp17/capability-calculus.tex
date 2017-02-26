@@ -13,23 +13,21 @@ def someMethod(f: Unit $\rightarrow$ Unit):
 \label{fig:unannotated_reasoning}
 \end{figure}
 
-A capability-safe design can help us: because the only authority which code can exercise is that which is explicitly given to them, the only capabilities that the unannotated code can use must be passed into it. If these capabilities are being passed in from an annotated environment, we know what effects they capture. These effects are therefore a conservative upper bound on what can happen in the unannotated code. To demonstrate, consider a developer who wants to decide whether to use the $\kwa{Logger}$ module in Figure \ref{fig:cc_motivation}. It must be instantiated with two capabilities, $\kwa{File}$ and $\kwa{Socket}$, and provides an unannotated function $\kwa{log}$.
+A capability-safe design can help us: because the only authority code can exercise is that which is explicitly given to it, the only capabilities that the unannotated code can use must be passed into it. If these capabilities are being passed in from an annotated environment, we know what effects they capture. These effects are therefore a conservative upper bound on what can happen in the unannotated code. To demonstrate, consider a developer who wants to decide whether to use the $\kwa{logger}$ functor in Figure \ref{fig:cc_motivation}. It must be instantiated with two capabilities, $\kwa{File}$ and $\kwa{Socket}$, and provides an unannotated function $\kwa{log}$.
 
 \begin{figure}[h]
 \begin{lstlisting}
-resource module Logger
-require File
-require Socket
+module def logger(f:{File},s:{Socket}):Logger
 
 def log(x: Unit): Unit
    ...
 \end{lstlisting}
 \vspace{-7pt}
-\caption{In a capability-safe setting, $\kwa{Logger}$ can only exercise authority over the $\kwa{File}$ and $\kwa{Socket}$ capabilities given to it.}
+\caption{In a capability-safe setting, $\kwa{logger}$ can only exercise authority over the $\kwa{File}$ and $\kwa{Socket}$ capabilities given to it.}
 \label{fig:cc_motivation}
 \end{figure}
 
-What effects will be incurred if $\kwa{Logger.log}$ is invoked? One approach is to manually examine its source code, but this is tedious and error-prone. In many real-world situations, the source code may be obfuscated or unavailable. A capability-based argument can do better: the only authority which $\kwa{Logger}$ can exercise is that which it has been explicitly given. Here, the $\kwa{Logger}$ requires a $\kwa{File}$, so $\kwa{ \{ \kwa{File.*} \} }$ is an upper bound on the effects of $\kwa{Logger}$. Knowing $\kwa{Logger}$ could be performing arbitrary reads and writes to $\kwa{File}$, the developer decides this implementation cannot be trusted and does not use it.
+What effects will be incurred if $\kwa{Logger.log}$ is invoked? One approach is to manually\footnote{or automatically---but if the automation produces an unexpected result we must fall back to manual reasoning to understand why.} examine its source code, but this is tedious and error-prone. In many real-world situations, the source code may be obfuscated or unavailable. A capability-based argument can do better: the only authority which $\kwa{Logger}$ can exercise is that which it has been explicitly given. Here, the $\kwa{Logger}$ requires a $\kwa{File}$, so $\kwa{ \{ \kwa{File.*} \} }$ is an upper bound on the effects of $\kwa{Logger}$. Knowing $\kwa{Logger}$ could be performing arbitrary reads and writes to $\kwa{File}$ (and via similar reasoning, do arbitrary communication with the \kwat{Socket}), the developer decides this implementation cannot be trusted and does not use it.
 
 The reasoning we employed only required us to examine the interface of the unannotated code for the capabilities be passed into it. To model this situation in $\epscalc$, we add a new $\kwa{import}$ expression that selects what authority $\varepsilon$ the unannotated code may exercise. In the above example, the expected least authority of $\kwa{Logger}$ is $\{ \kwa{File.append} \}$, so that is what the corresponding $\kwa{import}$ would select. The type system can then check if the capabilities being passed into the unannotated code exceed its selected authority. If it accepts, then $\varepsilon$ safely approximates the effects of the unannotated code. This is the key result: when unannotated code is nested inside annotated code, capability-safety enables us to make a safe inference about its effects by examining what capabilities are being passed in by the annotated code.
 
