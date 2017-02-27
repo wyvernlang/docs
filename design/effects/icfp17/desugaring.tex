@@ -11,11 +11,11 @@ The expression $\letxpr{x}{\hat e_1}{\hat e_2}$ reduces $\hat e_1$ to a value $\
 \subsection{Modules}
 
 Wyvern's modules are first-class, desugaring into objects --- invoking a module's function is no different from invoking an object's method.
-For the purposes of this paper, Wyvern's objects can be viewed as records, with methods represented as functions.
+%For the purposes of this paper, Wyvern's objects can be viewed as records, with methods represented as functions.
 %There are two kinds of modules: pure and resourceful. For our purposes, a pure module is one with no (transitive) authority over any resources, while a resource module has (transitive) authority over some resource. A pure module may still be given a capability, for example as a function argument, but it may not possess or capture the capability for longer than the duration of the method call.
 Figure \ref{fig:wyv_modules} shows an example of two modules.
 The first defines a single operation \kwat{tick} that takes an argument file and appends to it; the second is actually a \textit{functor} that takes the file as a module-level argument and uses that in the operation defined.
-Modules are declared with the $\kwa{module}$ keyword, and we use \kwat{module def} for functors.
+Modules are declared with the $\kwa{module}$ keyword, and we use \kwat{module} \kwat{def} for functors.
 
 \begin{figure}[h]
 
@@ -41,7 +41,7 @@ def tick():Unit with {File.append}
 Functors must be instantiated with appropriate arguments in order to produce a usable module.
 When they are instantiated they are given the capabilities they require.
 In Figure \ref{fig:wyv_modules}, $\kwa{Ftor}$ requests the use of a $\kwa{File}$ capability.
-Figure \ref{fig:wyv_module_instantiation} demonstrates how the two modules above would be instantiated and used. To prevent infinite regress the $\kwa{File}$ must, at some point, be introduced into the program. This happens in the client program. When the program begins execution, the $\kwa{File}$ capability is passed into the program from the system environment. The program then instantiates all the modules with their capabilities. If a module is annotated, its function signatures will have effect annotations. For example, in Figure \ref{fig:wyv_modules}, $\kwa{Mod.tick}$ has the $\kwa{File.append}$ annotation, meaning it should typecheck as $\kwa{ \{ File \} \rightarrow_{\{\kwa{File.append}\}} \Unit }$. Both $\kwa{Mod}$ and $\kwa{Ftor}$ are annotated. 
+Figure \ref{fig:wyv_module_instantiation} demonstrates how the two modules above would be used. To prevent infinite regress the $\kwa{File}$ must, at some point, be introduced into the program. This happens in the client program. When the program begins execution, the $\kwa{File}$ capability is passed into the program from the system environment. The program then imports modules and instantiates functors with the capabilities they require. If a module is annotated, its function signatures will have effect annotations. For example, in Figure \ref{fig:wyv_modules}, $\kwa{Mod.tick}$ has the $\kwa{File.append}$ annotation, meaning it should typecheck as $\kwa{ \{ File \} \rightarrow_{\{\kwa{File.append}\}} \Unit }$. Both $\kwa{Mod}$ and $\kwa{Ftor}$ are annotated. 
 
 
 \begin{figure}[h]
@@ -60,16 +60,15 @@ Ftor.tick()
 \label{fig:wyv_module_instantiation}
 \end{figure}
 
-Our Wyvern examples are simplified in several ways so they can be expressed in $\epscalc$. The only objects used are modules. The modules only ever contain one function and the capabilities they require; they have no mutable fields. There are no self-referencing modules or recursive functions. Modules do not reference each other cyclically. These simplifications enable us to model each module as a function. Applying the function will be equivalent to applying the single function defined by the module. A collection of modules is desugared into $\epscalc$ as follows. First, a sequence of let-bindings are used to name constructor functions which, when given the capabilities requested by a module, will return the function representing an instance of that module. The constructor for $\kwa{M}$ is called $\kwa{MakeM}$. If the module does not require any capabilities it takes $\Unit$ as its argument. A function is then defined which represents the body of code in the main program. When invoked, this function will instantiate all the modules by invoking their constructors and execute the code in from the main program. Finally, the function representing the program is invoked with the primitive capabilities that are passed in from the system environment.
+Our Wyvern examples are simplified in several ways so they can be expressed in $\epscalc$. The only objects used are modules. The modules only ever contain one function and the capabilities they require; they have no mutable fields. There are no self-referencing modules or recursive functions. Modules do not reference each other cyclically. These simplifications enable us to model each module as a function. Applying the function will be equivalent to applying the single function defined by the module. A collection of modules is desugared into $\epscalc$ as follows. First, a sequence of let-bindings are used to associate the name of a module with the function defined in it, and to associate the name of a functor with a constructor function that, when given the capabilities requested by a functor, will return the function representing a module instance. The constructor for a functor $\kwa{F}$ is called $\kwa{MakeF}$. If the module does not require any capabilities it takes $\Unit$ as its argument. A function is then defined which represents the body of code in the main program. When invoked, this function will instantiate all the functors by invoking their constructors and then will execute the code in from the main program. Finally, the function representing the program is invoked with the primitive capabilities that are passed in from the system environment.
 
-Figure \ref{fig:wyv_tutorial_desugaring} shows how the examples above desugar. Lines 1-3 define the constructor for $\kwa{Mod}$. Since $\kwa{Mod}$ requires no capabilities, the constructor takes $\Unit$ as an argument on line 2. Lines 5-7 define the constructor for $\kwa{Ftor}$. It requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 6. The constructor for the main program is defined on lines 9-14, which instantiates the modules and runs the main program code. Line 16 starts execution by invoking $\kwa{MakeMain}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
+Figure \ref{fig:wyv_tutorial_desugaring} shows how the examples above desugar. Lines 1-2 define the module $\kwa{Mod}$.  Lines 4-6 define the constructor for $\kwa{Ftor}$. It requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 5. The constructor for the main program is defined on lines 8-12, which instantiates \kwat{Ftor} and runs the main program code. Line 14 starts execution by invoking $\kwa{MakeMain}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
 
 \begin{figure}[h]
 
 \begin{lstlisting}
-let MakeMod =
-   $\lambda$x:Unit.
-      $\lambda$f:{File}. f.append in
+let Mod =
+   $\lambda$f:{File}. f.append in
 
 let MakeFtor =
    $\lambda$f:{File}.
@@ -77,12 +76,11 @@ let MakeFtor =
 
 let MakeMain =
    $\lambda$f:{File}.
-      $\lambda$x: Unit.
-         let Mod = (MakeMod unit) in
-         let Ftor = (MakeFtor f) in
-         (Mod unit) in
+      let Ftor = (MakeFtor f) in
+      let r1 = (Mod f) in
+      Ftor unit
 
-(MakeMain File) unit
+MakeMain File
 \end{lstlisting}
 
 \caption{Desugaring of $\kwa{Mod}$ and $\kwa{Ftor}$ into $\epscalc$.}

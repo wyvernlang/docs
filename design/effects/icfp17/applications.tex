@@ -30,7 +30,7 @@ instantiate client(logger)
 client.run()
 \end{lstlisting}
 
-The desugared version is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $17$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
+The desugared version is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
 
 \begin{lstlisting}
 let MakeLogger =
@@ -44,12 +44,11 @@ let MakeClient =
           
 let MakeMain =
    ($\lambda$f: File.
-      $\lambda$x: Unit.
          let loggerModule = MakeLogger f in
          let clientModule = MakeClient loggerModule in
          clientModule unit) in
 
-(MakeMain File) unit
+MakeMain File
 \end{lstlisting}
 
 The interesting part  is on line $7$ where the unannotated code selects $\{ \kwa{File.append} \}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\{\kwa{File.append}\}} \Unit) = \{ \kwa{File.append} \}$. The code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, the unannotated code typechecks by \textsc{$\varepsilon$-Import} with approximate effects $\kwa{\{ \kwa{File.append} \}}$.
@@ -100,7 +99,7 @@ let MakeMain =
       let clientModule = MakeClient loggerModule in
       clientModule unit) in
 
-(MakeMain File) unit
+MakeMain File
 \end{lstlisting}
 
 The only way for this to typecheck would be to annotate $\kwa{client.run}$ as having every effect on $\File$. This demonstrates how the effect-system of $\epscalc$ approximates unannotated code: it simply considers it as having every effect which could be incurred on those resources in scope, which here is $\kwa{File}.*$.
@@ -108,7 +107,7 @@ The only way for this to typecheck would be to annotate $\kwa{client.run}$ as ha
 
 \subsection{Higher-Order Effects}
 
-In this scenario, $\kwa{Main}$ instantiates the $\kwa{plugin}$ module, which imports the $\kwa{malicious}$ module. $\kwa{plugin}$ exposes a function $\kwa{run}$ that should incur no effects. However, the implementation tries to read from $\kwa{File}$ by wrapping the operation inside a function and passing it to $\kwa{malicious}$, which invokes $\kwa{File.read}$ in a higher-order way.
+In this scenario, $\kwa{Main}$ imports the $\kwa{plugin}$ module, which imports the $\kwa{malicious}$ module. $\kwa{plugin}$ exposes a function $\kwa{run}$ that should incur no effects. However, the implementation tries to read from $\kwa{File}$ by wrapping the operation inside a function and passing it to $\kwa{malicious}$, which invokes $\kwa{File.read}$ in a higher-order way.
 
 \begin{lstlisting}
 module malicious
@@ -134,25 +133,22 @@ plugin.run(File)
 
 This example shows how higher-order effects can obfuscate potential security risks. On line 3 of $\kwa{malicious}$, the argument to $\kwa{log}$ has type $\Unit \rightarrow \Unit$. The body of $\kwa{log}$ types with the \textsc{T-}rules, which do not approximate effects. It is not clear from inspecting the unannotated code that a $\kwa{File.read}$ will be incurred. To realise this requires one to examine the source code of both $\kwa{plugin}$ and $\kwa{malicious}$.
 
-A desugared version is given below. On lines 5-6, the $\kwa{malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects the program. To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority. 
+A desugared version is given below. On lines 2-3, the $\kwa{malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects the program. To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority. 
 
 \begin{lstlisting}
-let MakePlugin =
-	($\lambda$x: Unit.
-	   let MakeMalicious =
-	      ($\lambda$x: Unit.
-	         import($\varnothing$) y=unit in
-	            $\lambda$f: {File}. f.append) in
-      let loggerModule = MakeLogger unit in
-      $\lambda$f: {File}. loggerModule f) in
+let malicious =
+   (import($\varnothing$) y=unit in
+      $\lambda$f: {File}. f.append) in
+
+let plugin =
+   ($\lambda$f: {File}.
+      malicious($\lambda$x:Unit. f.read)) in
 
 let MakeMain =
    ($\lambda$f: {File}.
-      $\lambda$x: Unit.
-         let clientModule = MakeClient unit in
-         clientModule f) in
+      plugin(f)) in
 
-(MakeMain File) unit
+MakeMain File
 \end{lstlisting}
 
 
@@ -187,20 +183,17 @@ The desugaring is given below. The unannotated code in $\kwa{malicious}$ is give
 
 
 \begin{lstlisting}
-let MakePlugin =
-	($\lambda$x: Unit.
-	   let MakeMalicious =
-	      ($\lambda$x: Unit.
-	         import($\varnothing$) y=unit in
-	            $\lambda$f: Unit $\rightarrow$ {File}. f().read) in
-      let loggerModule = MakeLogger unit in
-      $\lambda$f: {File}. loggerModule f) in
+let malicious =
+   (import($\varnothing$) y=unit in
+      $\lambda$f: {File}. f.append) in
+
+let plugin =
+   ($\lambda$f: {File}.
+      malicious($\lambda$x:Unit. f)) in
 
 let MakeMain =
    ($\lambda$f: {File}.
-      $\lambda$x: Unit.
-         let clientModule = MakeClient unit in
-         clientModule f) in
+      plugin(f)) in
 
-(MakeMain File) unit
+MakeMain File
 \end{lstlisting}
