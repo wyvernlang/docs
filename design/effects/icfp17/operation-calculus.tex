@@ -13,8 +13,8 @@ For convenience, we often conflate primitive capabilities with the resources the
 An effect in $\opercalc$ is a particular operation invoked on some resource; for example, $\kwa{File.write}$.
 Functions in an $\opercalc$ program are (conservatively) annotated with the effects they may incur when invoked. Annotations might be given in accordance with the principle of least authority to specify the maximum authority a component may exercise.
 When this authority is exceeded, an effect system like that of $\opercalc$ will reject the program, signaling an unsafe implementation.
-For example, consider the pair of modules\footnote{Our formal grammar, below, does not include this \textit{Wyvern}-like module syntax, but we can model the \kwat{logger} functor as a function and the \kwat{client} module as a record (which is itself encodable using functions).} in Figure \ref{fig:opercalc_motivating}: the $\kwa{logger}$ module possesses a $\File$ capability and exposes a single function $\kwa{log}$.
-The $\kwa{client}$ has a single function $\kwa{run}$ which, when passed a $\kwa{Logger}$, will invoke $\kwa{Logger.log}$.
+For example, consider the pair of modules\footnote{Our formal grammar, below, does not include this \textit{Wyvern}-like module syntax, but we can model the \kwat{logger} functor as a function and the \kwat{client} module as a record (which is itself encodable using functions).  See section 4 for details.} in Figure \ref{fig:opercalc_motivating}: the functor $\kwa{logger}$ (declared with \kwat{module} \kwat{def}) must be instantiated with a $\File$ capability, and the resulting module exposes a single function $\kwa{log}$.
+The $\kwa{client}$ module has a single function $\kwa{run}$ which, when passed a $\kwa{Logger}$, will invoke $\kwa{Logger.log}$.
 
 \begin{figure}[h]
 \vspace{-5pt}
@@ -38,8 +38,8 @@ def run(l: Logger): Unit with {File.append} =
 \label{fig:opercalc_motivating}
 \end{figure}
 
-$\kwa{client.run}$ and $\kwa{logger.log}$ are both annotated with $\{ \kwa{File.append} \}$, but the (potentially malicious) implementation of $\kwa{logger.log}$ incurs the $\kwa{File.read}$ effects.
-By the end of this section, we will have developed rules for $\opercalc$ that can determine such mismatches between specification and implementation in annotated code.
+$\kwa{client.run}$ and $\kwa{logger.log}$ are both annotated with $\{ \kwa{File.append} \}$, but the (potentially malicious) implementation of $\kwa{logger.log}$ incurs the $\kwa{File.read}$ effect.
+In this section we develop rules for $\opercalc$ that can determine such mismatches between specification and implementation in annotated code.
 
 $\opercalc$ makes some simplifying assumptions.
 The semantics of particular operations are not modeled --- our only interest is in what operations could be invoked, and by whom.
@@ -111,7 +111,7 @@ $\kwa{substitution :: e \times v \times v \rightarrow e}$
 
 \subsection{Semantics ($\opercalc$)}
 
-During reduction an operation call may be evaluated. When this happens we say that a run time effect has taken place. Reflecting this, the form of the single-step reduction judgement is now $e \longrightarrow e~|~\varepsilon$, which means that $e$ reduces to $e'$, incurring the set of effects $\varepsilon$ in the process. In the case of single-step reduction, $\varepsilon$ is at most a single effect. Judgements for single-step reductions are given in Figure \ref{fig:opercalc_singlestep}.
+During reduction an operation call may be evaluated. When this happens we say that a run time effect has taken place. Reflecting this, the form of the single-step reduction judgement is $e \longrightarrow e~|~\varepsilon$, which means that $e$ reduces to $e'$, incurring the set of effects $\varepsilon$ in the process. In the case of single-step reduction, $\varepsilon$ is at most a single effect. Rules for single-step reductions are given in Figure \ref{fig:opercalc_singlestep}.
 
 \begin{figure}[h]
 
@@ -162,7 +162,9 @@ When an operation $\pi$ is invoked on a resource literal $r$, \textsc{E-OperCall
 %\footnote{Our formal grammar does not include $\unit$, but it can be defined as \lambda x: {}. x}
 incurring $\{ r.\pi \}$ as a result. For example, $\kwa{File.write} \longrightarrow \unit~|~\{ \kwa{File.write} \}$ by \textsc{E-OperCall2}. $\unit$ can be treated as a derived form; an explanation is given in section 4.
 
-A multi-step reduction is a sequence of zero\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation \cite[p. 39]{pierce02}.} or more single-step reductions. The resulting set of run time effects is the union of all the run time effects from the intermediate single-steps. Judgements for multi-step reductions are given in Figure \ref{fig:opercalc_multistep_defn}. By \textsc{E-MultiStep1}, any expression can ``reduce'' to itself with no run time effects. By \textsc{E-MultiStep2}, any single-step reduction is also a multi-step reduction. If $e \longrightarrow e'~|~\varepsilon_1$ and $e' \longrightarrow e''~|~\varepsilon_2$ are sequences of reductions, then so is $e \longrightarrow e''~|~\varepsilon_1 \cup \varepsilon_2$, by \textsc{E-MultiStep3}.
+A multi-step reduction is a sequence of zero
+%\footnote{We permit multi-step reductions of length zero to be consistent with Pierce, who defines multi-step reduction as a reflexive relation \cite[p. 39]{pierce02}.}
+or more single-step reductions. The resulting set of run time effects is the union of all the run time effects from the intermediate single-steps. Judgements for multi-step reductions are given in Figure \ref{fig:opercalc_multistep_defn}. By \textsc{E-MultiStep1}, any expression can ``reduce'' to itself with no run time effects. By \textsc{E-MultiStep2}, any single-step reduction is also a multi-step reduction. If $e \longrightarrow e'~|~\varepsilon_1$ and $e' \longrightarrow e''~|~\varepsilon_2$ are sequences of reductions, then so is $e \longrightarrow e''~|~\varepsilon_1 \cup \varepsilon_2$, by \textsc{E-MultiStep3}.
 
 \begin{figure}[h]
 
@@ -282,7 +284,7 @@ Knowing approximately what effects a piece of code may incur helps a developer d
 
 
 \textsc{$\varepsilon$-Var} approximates the run time effects of a variable as $\varnothing$. \textsc{$\varepsilon$-Resource} does the same for resource literals. Though a resource captures several effects (namely, every possible operation on itself), attempting to ``reduce'' a resource will incur no effects; something must be done with the resource, such as an operation call, in order to have an effect. For a similar reason, \textsc{$\varepsilon$-Abs} approximates the effects of a function literal as $\varnothing$, and ascribes an arrow type annotated with those effects captured by the function. \textsc{$\varepsilon$-App} approximates a lambda application as incurring those effects from evaluating the subexpressions and the effects incurred by executing the body of the function to which the left-hand side evaluates. The effects of the function body are taken from the function's arrow type. An operation call on a resource literal reduces to $\unit$, so \textsc{$\varepsilon$-OperCall} ascribes its type as $\Unit$.
-The approximate effects of an operation call are: the effects of reducing the subexpression, and then the operation $\pi$ on every possible resource which that subexpression to which that subexpression might reduce. For example, consider $e.\pi$, where $\Gamma \vdash e: \{ \kwa{File, Socket} \}~\kw{with} \varnothing$. Then $e$ could evaluate to $\kwa{File}$, in which case the actual run time effect is $\kwa{File}.\pi$, or it could evaluate to $\kwa{Socket}$, in which case the actual run time effect is $\kwa{Socket.\pi}$. Determining which will happen is, in general, undecidable; the safe approximation is to treat them both as happening. The last rule \textsc{$\varepsilon$-Subsume} produces a new judgement by widening the type or approximate effects on an existing one. Subtyping judgements are given in Figure \ref{fig:opercalc_static_rules}.
+The approximate effects of an operation call are: the effects of reducing the subexpression, and then the operation $\pi$ on every possible resource which that subexpression to which that subexpression might reduce. For example, consider $e.\pi$, where $\Gamma \vdash e: \{ \kwa{File, Socket} \}~\kw{with} \varnothing$. Then $e$ could evaluate to $\kwa{File}$, in which case the actual run time effect is $\kwa{File}.\pi$, or it could evaluate to $\kwa{Socket}$, in which case the actual run time effect is $\kwa{Socket.\pi}$. Determining which will happen is, in general, undecidable; the safe approximation is to treat them both as happening. The last rule \textsc{$\varepsilon$-Subsume} produces a new judgement by widening the type or approximate effects on an existing one. Subtyping judgements are given in Figure \ref{fig:opercalc_subtype_rules}.
 
 
 \begin{figure}[h]
@@ -306,7 +308,7 @@ The approximate effects of an operation call are: the effects of reducing the su
 
 \vspace{-7pt}
 \caption{Subtyping judgements of $\opercalc$.}
-\label{fig:opercalc_static_rules}
+\label{fig:opercalc_subtype_rules}
 \end{figure}
 
 \textsc{S-Arrow} is the standard rule for arrow types, but also stipulates that the effects on the arrow of the subtype must be contained in the effects on the arrow of the supertype; a valid subtype should not invoke any effects the supertype does not already know about. \textsc{S-Resource} says that a subset of resourcse is a subtype: consider $\{ \bar r_1 \} <: \{ \bar r_2 \}$. Any value with type $\{ \bar r_1 \}$ can reduce to any resource literal in $\bar r_1$, so to be compatible with an interface $\{ \bar r_2 \}$, the resource literals in $\bar r_1$ must also be in $\bar r_2$.
