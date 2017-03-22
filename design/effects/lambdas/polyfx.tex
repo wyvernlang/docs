@@ -1,0 +1,560 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\unit}[0]{ \kwa{unit} }
+
+\newcommand{\Unit}[0]{ \kwa{Unit} }
+
+\newcommand{\fx}[1]{ \kwa{effects}(#1) }
+
+\newcommand{\hofx}[1]{ \kwa{ho \hyphen effects}(#1) }
+
+\newcommand{\safe}[2]{ \kwa{safe}(#1, #2) }
+
+\newcommand{\hosafe}[2]{ \kwa{ho \hyphen safe}(#1, #2) }
+
+\newcommand{\arr}[3]{
+	#1 \rightarrow_{#3} #2
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = e}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
+}
+
+\newcommand{\import}[4]{
+	\keywadj{import}(#1)~#2 = #3~\kw{in} #4
+}
+
+\newcommand{\annot}[2]{
+	\keywadj{annot}(#1, #2)
+}
+
+\newcommand{\erase}[1]{
+	\keywadj{erase}(#1)
+}
+
+\newcommand{\poly}[3]{
+	\forall #1 : #2 . #3
+}
+
+\newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
+
+
+\begin{document}
+
+\section{Grammar}
+
+\[
+\begin{array}{lll}
+
+\begin{array}{lllr}
+
+e & ::= & ~ & \bf{exprs.} \\
+	& | & x & variable \\
+	& | & v & value \\
+	& | & e ~ e & application \\
+	& | & e.\pi & operation~call \\
+	& | & \poly{t}{\tau}{e} & type~polymorphism \\
+	&&\\
+
+v & ::= & ~ & \bf{values} \\
+	& | & r & resource~literal \\
+	& | & \lambda x: \tau.e & abstraction \\
+	&&\\
+	
+\hat e & ::= & ~ & \bf{annotated~exprs.} \\
+	& | & x & variable \\
+	& | & \hat v & value \\
+	& | & \hat e ~ \hat e & application \\
+	& | & \hat e.\pi & operation~call\\
+	& | & \poly{t}{\hat \tau}{\hat e} & type~polymorphism \\
+	& | & \poly{\epsilon}{\varepsilon}{\hat e} & effect~polymorphism \\
+	& | & \import{\varepsilon_s}{x}{\hat e}{e} & import\\
+	&&\\
+
+\hat v & ::= & ~ & \bf{annotated~values} \\
+	& | & r & resource~literal \\
+	& | & \lambda x: \hat \tau.\hat e & abstraction \\
+	&&\\
+
+\end{array}
+
+& ~~~~~~~~&
+
+\begin{array}{lllr}
+
+\tau & ::= & ~ & \bf{types} \\
+	& | & t & type~variable \\
+	& | & \{ \bar r \} & effect~set \\
+	& | & \tau \rightarrow \tau & arrow \\ \
+	&&\\
+
+\hat \tau & ::= & ~ & \bf{annotated ~types} \\
+		& | & t & type~variable \\
+		& | & \{ \bar r \} & resource~set \\
+		& | & \hat \tau \rightarrow_{\varepsilon} \hat \tau & annotated~arrow\\
+		&&\\
+
+\varepsilon & ::= & ~ &\bf{effects} \\
+	& | & \epsilon & effect~variable \\
+	& | & \{ \overline{r.\pi} \} & effect~set \\
+	&&\\
+
+\Gamma & ::= & ~ & \bf{contexts} \\
+				& | & \varnothing & empty~ctx. \\
+				& | & \Gamma, x: \tau & var.~binding \\
+				& | & \Gamma, t : \tau & type~var.~binding \\
+				&&\\
+				
+\hat \Gamma & ::= & ~ & \bf{annotated~contexts}\\
+				& | & \varnothing & empty~ctx. \\
+				& | & \hat \Gamma, x: \hat \tau & var.~binding \\
+				& | & \hat \Gamma, \epsilon : \varepsilon & effect~var.~binding \\
+				& | & \hat \Gamma, t: \hat \tau & type~var.~binding \\
+				&&\\
+
+\end{array}
+
+\end{array}
+\]
+
+\section{Functions}
+
+\subsection*{Definition ($\kwa{annot :: \tau \times \varepsilon \rightarrow \hat \tau}$)}
+
+\begin{enumerate}
+	\item $\annot{t}{\_} = t$
+	\item $\annot{\{ \bar r \}}{\_} = \{ \bar r \}$
+	\item $\annot{\tau_1 \rightarrow \tau_2}{\varepsilon} = \annot{\tau_1}{\varepsilon} \rightarrow_{\varepsilon} \annot{\tau_2}{\varepsilon}$
+\end{enumerate}
+
+
+\subsection*{Definition ($\kwa{annot :: e \times \varepsilon \rightarrow \hat e}$)}
+
+\begin{enumerate}
+	\item $\kwa{annot}(x, \_) = e$
+	\item $\kwa{annot}(r, \_) = r$
+	\item $\kwa{annot}(\lambda x: \tau.e, \varepsilon) = \lambda x: \kwa{annot}(\tau, \varepsilon) . \kwa{annot}(e, \varepsilon)$
+	\item $\kwa{annot}(e_1~e_2, \varepsilon) = \kwa{annot}(e_1) \kwa{annot}(e_2)$
+	\item $\kwa{annot}(e.\pi, \varepsilon) = \kwa{annot}(e).\pi$
+	\item $\annot{\poly{t}{\tau}{e}}{\varepsilon} = \poly{t}{\annot{\tau}{\varepsilon}}{\annot{e}{\varepsilon}}$
+	\item $\annot{\poly{\epsilon}{\varepsilon'}{e}}{\varepsilon} = \poly{\epsilon}{\varepsilon'}{\annot{e}{\varepsilon}}$
+\end{enumerate}
+
+\subsection*{Definition ($\kwa{annot :: \Gamma \times \varepsilon \rightarrow \hat \Gamma}$)}
+
+\begin{enumerate}
+	\item $\kwa{annot}(\varnothing, \_) = \varnothing$
+	\item $\kwa{annot}((\Gamma, x: \tau), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), x: \kwa{annot}(\tau, \varepsilon)$
+	\item $\kwa{annot}((\Gamma, t: \tau), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), x: \kwa{annot}(\tau, \varepsilon)$
+\end{enumerate}
+
+\subsection*{Definition ($\kwa{erase :: \hat \tau \rightarrow \tau}$)}
+
+\begin{enumerate}
+	\item $\erase{t} = e$
+	\item $\kwa{erase}(\{ \bar r \}, \_) = \{ \bar r \}$
+	\item $\kwa{erase}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{erase}(\hat \tau_1) \rightarrow \kwa{erase}(\hat \tau_2)$
+\end{enumerate}
+
+\subsection*{Definition ($\kwa{erase :: \hat e \rightarrow e}$)}
+
+\begin{enumerate}
+	\item $\kwa{erase}(x) = x$
+	\item $\kwa{erase}(r) = r$
+	\item $\kwa{erase}(\lambda x: \hat \tau.\hat e) = \lambda x: \kwa{erase}(\hat \tau).\kwa{erase}(\hat e)$
+	\item $\kwa{erase}(e_1~e_2) = \kwa{erase}(e_1) \kwa{erase}(e_2)$
+	\item $\kwa{erase}(e.\pi) = \kwa{erase}(e).\pi$
+	\item $\erase{\poly{t}{\hat \tau}{\hat e}} = \poly{t}{\erase{\hat \tau}}{\erase{\hat e}}$
+	\item $\erase{\poly{\epsilon}{\varepsilon}{\hat e}} = \poly{\epsilon}{\varepsilon}{\erase{\hat e}}$
+\end{enumerate}
+
+
+\subsection*{Definition ($\kwa{erase :: \hat \Gamma \rightarrow \Gamma}$)}
+
+\begin{enumerate}
+	\item $\erase{\varnothing} = \varnothing$
+	\item $\erase{\hat \Gamma, x: \hat \tau} = \erase{\hat \Gamma}, x: \erase{\hat \tau}$
+	\item $\erase{\Gamma, t: \hat \tau} = \erase{\Gamma}, x: \erase{\hat \tau}$
+	\item $\erase{\Gamma, \epsilon: \varepsilon} = \erase{\Gamma}$
+\end{enumerate}
+
+
+\subsection*{Definition ($\kwa{effects :: \hat \tau \rightarrow \varepsilon}$)}
+
+\begin{enumerate}
+	\item $\fx{t} = \varnothing$
+	\item $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
+	\item $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{ho \hyphen effects}(\hat \tau_1) \cup \varepsilon \cup \kwa{effects}(\hat \tau_2)$
+\end{enumerate}
+
+\subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \rightarrow \varepsilon}$)}
+
+\begin{enumerate}
+	\item $\hofx{t} = \varnothing$
+	\item $\hofx{\{ \bar r \}} = \varnothing$
+	\item $\hofx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
+\end{enumerate}
+
+\subsection*{Definition ($\kwa{substitution :: \hat e \times \hat v \times \hat v \rightarrow \hat e}$)}
+
+The notation $[\hat v/x]\hat e$ is short-hand for $\kwa{substitution}(\hat e, \hat v, x)$. This function is partial, because the third input must be a variable. We adopt the usual renaming conventions to avoid accidental capture.
+
+\begin{enumerate}
+	\item $[\hat v/y]x = \hat v$, if $x = y$
+	\item $[\hat v/y]x = x$, if $x \neq y$
+	\item $[\hat v/y](\lambda x: \hat \tau.\hat e) = \lambda x: \hat \tau.[\hat v/y]\hat 
+e$, if $y \neq x$ and $y$ does not occur free in $\hat e$
+\item $[\hat v/y](\hat e_1~\hat e_2) = ([\hat v/y]\hat e_1) ([\hat v/y]\hat e_2)$ 
+	\item $[\hat v/y](\hat e.\pi) = ([\hat v/y]\hat e).\pi$
+	\item $[\hat v/y](\poly{t}{\hat \tau}{\hat e}) = \poly{t}{\hat \tau}{[\hat v/y]\hat e}$, if $y \neq t$ and $y$ does not occur free in $\hat e$
+	\item $[\hat v/y](\poly{\epsilon}{\varepsilon}{\hat e}) = \poly{\epsilon}{\varepsilon}{[\hat v/y]\hat e}$, if $y \neq \epsilon$ and $y$ does not occur free in $\hat e$
+	\item $[\hat v/y](\import{\varepsilon_s}{x}{\hat e}{e}) = \import{\varepsilon_s}{x}{[\hat v/y]\hat e}{e}$
+\end{enumerate}
+
+\noindent
+When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2]\hat e$ is used as shorthand for $[\hat v_2/x_2]([\hat v_1/x_1]\hat e)$ (note the order of the variables has been flipped; the substitutions occur as they are written, left-to-right).
+
+
+\section{Static Rules}
+
+\fbox{$\Gamma \vdash e: \tau$}
+
+\[
+\begin{array}{c}
+
+
+\infer[\textsc{(T-Var)}]
+	{\Gamma, x: \tau \vdash x: \tau}
+	{}
+~~~
+\infer[\textsc{(T-Resource)}]
+	{\Gamma, r: \{ r \} \vdash r : \{ r \}}
+	{}
+
+~~~
+\infer[\textsc{(T-Abs)}]
+	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
+	{\Gamma, x: \tau_1 \vdash e: \tau_2}\\[2ex]
+	
+\infer[\textsc{(T-App)}]
+	{\Gamma \vdash e_1~e_2: \tau_3}
+	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}
+~~~
+\infer[\textsc{(T-OperCall)}]
+	{\Gamma \vdash e.\pi: \kwa{Unit}}
+	{\Gamma \vdash e: \{ \bar r \}} \\[2ex]
+
+
+\end{array}
+\]
+
+\noindent
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{($\varepsilon$-Var)}]
+	{ \hat \Gamma, x:\tau \vdash x: \tau~\kw{with} \varnothing }
+	{}
+~~~
+\infer[\textsc{($\varepsilon$-Resource)}]
+ 	{ \hat \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
+ 	{}\\[2ex]
+ 	
+~~~
+	\infer[\textsc{($\varepsilon$-Abs)}]
+	{ \hat \Gamma \vdash \lambda x:\tau_2 . \hat e : \hat \tau_2 \rightarrow_{\varepsilon_3} \hat \tau_3~\kw{with} \varnothing }
+	{ \hat \Gamma, x: \hat \tau_2 \vdash \hat e: \hat \tau_3~\kw{with} \varepsilon_3 }\\[2ex]
+	
+\infer[\textsc{($\varepsilon$-App)}]
+	{ \hat \Gamma \vdash \hat e_1 \hat e_2 : \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
+	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[2ex]
+
+
+\infer[\textsc{($\varepsilon$-OperCall)}]
+	{ \hat \Gamma \vdash \hat e.\pi: \kw{Unit} \kw{with} \{ r.\pi \mid r \in \bar r \} }
+	{ \hat \Gamma \vdash \hat e: \{ \bar r \}}
+	~~~
+
+\infer[\textsc{($\varepsilon$-Subsume)}]
+	{\hat \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
+	{\hat \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[2ex]
+
+\infer[\textsc{($\varepsilon$-Import)}]
+	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
+{{\def\arraystretch{1.4}
+  \begin{array}{c}
+\kwa{effects}(\hat \tau) \cup \hofx{\annot{\tau}{\varnothing}}\subseteq \varepsilon \\
+\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1 ~~~~~~ \kwa{ho \hyphen safe}(\hat \tau, \varepsilon) ~~~~~~ x: \kwa{erase}(\hat \tau) \vdash e: \tau
+  \end{array}}} 
+ 
+ 
+\end{array}
+\]
+
+\noindent
+$\fbox{$\kwa{safe(\tau, \varepsilon)}$}$
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(Safe-Resource)}]
+	{\kwa{safe}(\{ \bar r \}, \varepsilon)}
+	{}
+~~~~~
+\infer[\textsc{(Safe-Unit)}]
+	{\kwa{safe}(\kwa{Unit}, \varepsilon)}
+	{} \\[3ex]
+
+\infer[\textsc{(Safe-Arrow)}]
+	{\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon)}
+	{\varepsilon \subseteq \varepsilon' & \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) & \kwa{safe}(\hat \tau_2, \varepsilon)} \\[3ex]
+
+\end{array}
+\]
+
+\noindent
+$\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(HOSafe-Resource)}]
+	{ \kwa{ho \hyphen safe}( \{ \bar r \}, \varepsilon)} 
+	{}
+	~~~~~~
+\infer[\textsc{(HOSafe-Unit)}]
+	{ \kwa{ho \hyphen safe}( \kwa{Unit}, \varepsilon)} 
+	{}\\[3ex]
+
+\infer[\textsc{(HOSafe-Arrow)}]
+	{ \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon ) }
+	{ \kwa{safe}(\hat \tau_1, \varepsilon)  & \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon) }\\[3ex]
+
+\end{array}
+\]
+
+\noindent
+$\fbox{$\hat \tau <: \hat \tau$}$
+
+\[
+\begin{array}{c}
+
+\infer[(\textsc{S-Effects})]
+	{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2 <: \hat \tau_1' \rightarrow_{\varepsilon'} \hat \tau_2'}
+	{\varepsilon \subseteq \varepsilon' & \hat \tau_2 <: \hat \tau_2' & \hat \tau_1' <: \hat \tau_1}
+~~~
+\infer[(\textsc{S-ResourceSet})]
+	{\{ \bar r_2 \} <: \{ \bar r_1 \}}
+	{r \in \bar r_2 \implies r \in \bar r_1}
+
+
+\end{array}
+\]
+
+\section{Dynamic Rules}
+
+\noindent
+\fbox{$\hat e \longrightarrow \hat e~|~\varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(E-App1)}]
+	{\hat e_1 \hat e_2 \longrightarrow \hat e_1' \hat e_2~|~\varepsilon}
+	{\hat e_1 \longrightarrow \hat e_1'~|~\varepsilon}
+	~~~~~~
+\infer[\textsc{(E-App2)}]
+	{\hat v_1 \hat e_2 \longrightarrow \hat v_1 \hat e_2'~|~\varepsilon} 
+	{\hat e_2 \longrightarrow \hat e_2'~|~\varepsilon}
+~~~~~~
+\infer[\textsc{(E-App3)}]
+	{ (\lambda x: \hat \tau.\hat e) \hat v_2 \longrightarrow [\hat v_2/x]\hat e~|~\varnothing }
+	{}\\[2ex]
+	
+\infer[\textsc{(E-OperCall1)}]
+	{\hat e.\pi \longrightarrow \hat e'.\pi~|~\varepsilon }
+	{\hat e \rightarrow \hat e'~|~\varepsilon}
+		
+	~~~~~~
+	
+\infer[\textsc{(E-OperCall2)}]
+	{r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \} }
+	{r \in R & \pi \in \Pi}
+	 \\[4ex]
+	 
+\infer[\textsc{(E-TypePoly)}]
+	{\poly{t}{\tau}{e} \longrightarrow [\tau/t]e}
+	{}
+	~~~
+\infer[\textsc{(E-FxPoly)}]
+	{\poly{\epsilon}{\varepsilon}{e} \longrightarrow [\varepsilon/\epsilon]e}
+	{} \\[2ex]
+	 
+\infer[\textsc{(E-Import1)}]
+	{\import{\varepsilon_s}{x}{\hat e}{e} \longrightarrow \import{\varepsilon_s}{x}{\hat e'}{e}~|~\varepsilon'}
+	{\hat e \longrightarrow \hat e'~|~\varepsilon'}\\[4ex]
+
+\infer[\textsc{(E-Import2)}]
+	{\import{\varepsilon_s}{x}{\hat e}{e} \longrightarrow [\hat v/x]\annot{e}{\varepsilon_s}~|~\varnothing}
+	{}
+
+\end{array}
+\]
+
+
+\section{Encodings}
+
+\subsection{$\bot$}
+The bottom type is defined as $\kwa{\bot \defn \varnothing}$, which is the literal for an empty set of resources.
+
+\[
+\begin{array}{c}
+
+
+\infer[\textsc{(T-$\bot$)}]
+	{\Gamma \vdash \bot : \varnothing}
+	{}
+~~~~~~
+\infer[\textsc{($\varepsilon$-$\bot$)}]
+	{\Gamma \vdash \bot : \varnothing~\kw{with} \varnothing}
+	{}
+
+\end{array}
+\]
+
+\subsection{$\unit,~\Unit$}
+
+\noindent
+Define $\kwa{unit = \lambda x: \varnothing.x}$, i.e. the function which takes an empty set of resources and returns it. We shall refer to its type, which is $\kwa{\varnothing \rightarrow_{\varnothing} \varnothing}$, as $\Unit$. It has various properties befitting $\unit$.
+
+\begin{enumerate}
+	\item $\unit$ cannot be invoked as $\varnothing$ is uninhabited.
+	\item $\unit$ is a value.
+	\item The only term with type $\Unit$ is $\unit$.
+	\item $\vdash \unit : \Unit$ by using \textsc{$\varepsilon$-Abs} and \textsc{$\varepsilon$-Var}.
+	\item $\kwa{effects}(\Unit) = \kwa{ho \hyphen effects}(\Unit) = \varnothing$
+	\item $\kwa{safe}(\Unit, \varepsilon)$ and $\kwa{ho \hyphen safe}(\Unit, \varepsilon)$
+\end{enumerate}
+
+\[
+\begin{array}{c}
+
+
+\infer[\textsc{(T-Unit)}]
+	{\Gamma \vdash \unit: \Unit}
+	{}
+~~~~~~
+\infer[\textsc{($\varepsilon$-Unit)}]
+	{\Gamma \vdash \unit: \Unit~\kw{with} \varnothing}
+	{}
+
+\end{array}
+\]
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
