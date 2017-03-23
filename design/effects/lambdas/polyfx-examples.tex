@@ -1,0 +1,247 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\unit}[0]{ \kwa{unit} }
+
+\newcommand{\Unit}[0]{ \kwa{Unit} }
+
+\newcommand{\fx}[1]{ \kwa{effects}(#1) }
+
+\newcommand{\hofx}[1]{ \kwa{ho \hyphen effects}(#1) }
+
+\newcommand{\safe}[2]{ \kwa{safe}(#1, #2) }
+
+\newcommand{\hosafe}[2]{ \kwa{ho \hyphen safe}(#1, #2) }
+
+\newcommand{\arr}[3]{
+	#1 \rightarrow_{#3} #2
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = e}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
+}
+
+\newcommand{\import}[4]{
+	\keywadj{import}(#1)~#2 = #3~\kw{in} #4
+}
+
+\newcommand{\annot}[2]{
+	\keywadj{annot}(#1, #2)
+}
+
+\newcommand{\erase}[1]{
+	\keywadj{erase}(#1)
+}
+
+\newcommand{\poly}[2]{
+	\forall #1. #2
+}
+
+\newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
+
+
+\begin{document}
+
+\section{Map Function}
+
+\subsection*{Pseudo-Wyvern}
+\begin{lstlisting}
+def map(f: A $\rightarrow_{\phi}$ B, l: List[A]): List[B] with $\phi$ =
+	if isnil l then []
+	else cons (f (head l)) (map (tail l f))
+\end{lstlisting}
+
+\subsection*{$\lambda$-Calculus}
+\begin{lstlisting}
+map = $\lambda \phi$. $\lambda$A. $\lambda$B.
+  $\lambda$f: A$\rightarrow_{\phi}$B.
+    (fix ($\lambda$map: List[A] $\rightarrow$ List[B]).
+      $\lambda$l: List[A].
+        if isnil l then []
+        else cons (f (head l)) (map (tail l f)))
+\end{lstlisting}
+
+\subsection*{Typing}
+
+\begin{itemize}
+	\item This has the type: $\forall \phi. \forall A. \forall B. (A \rightarrow_{\phi} B)  \rightarrow_{\varnothing} \kwa{List}[A] \rightarrow_{\phi} \kwa{List}[B]~ \kw{with} \varnothing$.
+	\item $\kwa{map}~\varnothing$ is a pure version of map.
+	\item $\kwa{map}~\{ \kwa{File.*} \}$ is a version of map which can perform operations on $\kwa{File}$.
+\end{itemize}
+
+\section{Dependency Injection}
+
+\subsection*{Pseudo-Wyvern}
+
+An HTTPServer module provides a single $\kwa{init}$ method which returns a $\kwa{Server}$ that responds to HTTP requests on the supplied socket.
+\begin{lstlisting}
+module HTTPServer
+
+def init(out: A <: {File, Socket}): $\kwa{Str}\rightarrow_{A.write}\Unit$ with $\varnothing$ =
+   $\lambda$ msg: Str.
+      if (msg == ``POST'') then out.write(``post response'')
+      else if (msg == ``GET'') then out.write(``get response'')
+      else out.write(``client error 400'')
+\end{lstlisting}
+
+\noindent
+The main module calls $\kwa{HTTPServer.init}$ with the $\kwa{Socket}$ it should be writing to.
+
+\begin{lstlisting}
+module Main
+require HTTPServer, Socket
+
+def main(): Unit =
+   HTTPServer.init(Socket) ``GET /index.html''
+\end{lstlisting}
+
+\noindent
+The testing module calls $\kwa{HTTPServer.init}$ with a $\kwa{LogFile}$, perhaps so the responses of the server can be tested offline.
+
+\begin{lstlisting}
+module Testing
+require HTTPServer, LogFile
+
+def testSocket():  =
+   HTTPServer.init(LogFile) ``GET /index.html''
+\end{lstlisting}
+
+
+\subsection*{$\lambda$-Calculus}
+
+\noindent
+The HTTPServer module:
+\begin{lstlisting}
+HTTPServer = $\lambda$x: Unit.
+   $\lambda$A <: {File, Socket}.
+      $\lambda$out: A.
+         $\lambda$msg: Str. A.write
+\end{lstlisting}
+
+\noindent
+The Main module:
+
+\begin{lstlisting}
+Main = $\lambda$hs: HTTPServer. $\lambda$sock: Socket.
+   $\lambda$x: Unit.
+      (hs sock) ``GET /index.html''
+\end{lstlisting}
+
+\noindent
+The Testing module:
+
+\begin{lstlisting}
+Testing = $\lambda$hs: HTTPServer. $\lambda$lf: LogFile.
+   $\lambda$x: Unit.
+      (hs lf) ``GET /index.html''
+\end{lstlisting}
+
+\subsection*{Types}
+
+\begin{itemize}
+	\item $\kwa{HTTPServer.init}$ has the type $\lambda A <: \{ \kwa{File, Socket} \}.~A \rightarrow_{\varnothing} \kwa{Str} \rightarrow_{A.write} \Unit$
+\end{itemize}
+
+%\section{File-Backed Data Structure}
+
+%\section{Accessing Database via Expert}
+
+\end{document}
+
+
+
+
+

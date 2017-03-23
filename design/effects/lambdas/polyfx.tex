@@ -126,8 +126,8 @@
 	\keywadj{erase}(#1)
 }
 
-\newcommand{\poly}[3]{
-	\forall #1 : #2 . #3
+\newcommand{\poly}[2]{
+	\forall #1. #2
 }
 
 \newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
@@ -147,7 +147,8 @@ e & ::= & ~ & \bf{exprs.} \\
 	& | & v & value \\
 	& | & e ~ e & application \\
 	& | & e.\pi & operation~call \\
-	& | & \poly{t}{\tau}{e} & type~polymorphism \\
+	& | & \lambda X. e & type~polymorphism \\
+	& | & e~\tau & type~application \\
 	&&\\
 
 v & ::= & ~ & \bf{values} \\
@@ -160,8 +161,10 @@ v & ::= & ~ & \bf{values} \\
 	& | & \hat v & value \\
 	& | & \hat e ~ \hat e & application \\
 	& | & \hat e.\pi & operation~call\\
-	& | & \poly{t}{\hat \tau}{\hat e} & type~polymorphism \\
-	& | & \poly{\epsilon}{\varepsilon}{\hat e} & effect~polymorphism \\
+	& | & \lambda X. \hat e & type~polymorphism \\
+	& | & \lambda \phi . \hat e & effect~polymorphism \\
+	& | & e~\tau & type~application \\
+	& | & e~\varepsilon & effect~application \\
 	& | & \import{\varepsilon_s}{x}{\hat e}{e} & import\\
 	&&\\
 
@@ -177,33 +180,37 @@ v & ::= & ~ & \bf{values} \\
 \begin{array}{lllr}
 
 \tau & ::= & ~ & \bf{types} \\
-	& | & t & type~variable \\
+	& | & X & type~variable \\
 	& | & \{ \bar r \} & effect~set \\
-	& | & \tau \rightarrow \tau & arrow \\ \
+	& | & \tau \rightarrow \tau & arrow \\
+	& | & \forall X . \tau & universal~type \\
+	& | & \forall \phi . \tau & universal~effect~set\\
 	&&\\
 
 \hat \tau & ::= & ~ & \bf{annotated ~types} \\
 		& | & t & type~variable \\
 		& | & \{ \bar r \} & resource~set \\
 		& | & \hat \tau \rightarrow_{\varepsilon} \hat \tau & annotated~arrow\\
+		& | & \poly{X}{\hat \tau} & universal~type \\
+		& | & \poly{\phi}{\hat \tau} & universal~effect~set \\
 		&&\\
 
 \varepsilon & ::= & ~ &\bf{effects} \\
-	& | & \epsilon & effect~variable \\
+	& | & \phi & effect~variable \\
 	& | & \{ \overline{r.\pi} \} & effect~set \\
 	&&\\
 
 \Gamma & ::= & ~ & \bf{contexts} \\
 				& | & \varnothing & empty~ctx. \\
 				& | & \Gamma, x: \tau & var.~binding \\
-				& | & \Gamma, t : \tau & type~var.~binding \\
+				& | & \Gamma, X & type~var.~binding \\
 				&&\\
 				
 \hat \Gamma & ::= & ~ & \bf{annotated~contexts}\\
 				& | & \varnothing & empty~ctx. \\
 				& | & \hat \Gamma, x: \hat \tau & var.~binding \\
-				& | & \hat \Gamma, \epsilon : \varepsilon & effect~var.~binding \\
-				& | & \hat \Gamma, t: \hat \tau & type~var.~binding \\
+				& | & \hat \Gamma, X & type~var.~binding \\
+				& | & \hat \Gamma, \phi & effect~var.~binding \\
 				&&\\
 
 \end{array}
@@ -216,9 +223,11 @@ v & ::= & ~ & \bf{values} \\
 \subsection*{Definition ($\kwa{annot :: \tau \times \varepsilon \rightarrow \hat \tau}$)}
 
 \begin{enumerate}
-	\item $\annot{t}{\_} = t$
+	\item $\annot{X}{\_} = X$
 	\item $\annot{\{ \bar r \}}{\_} = \{ \bar r \}$
 	\item $\annot{\tau_1 \rightarrow \tau_2}{\varepsilon} = \annot{\tau_1}{\varepsilon} \rightarrow_{\varepsilon} \annot{\tau_2}{\varepsilon}$
+	\item $\annot{\poly{X}{\tau}}{\varepsilon} = \poly{X}{\annot{\tau}{\varepsilon}}$
+	\item $\annot{\poly{\phi}{\tau}}{\varepsilon} = \poly{\phi}{\annot{\tau}{\varepsilon}}$
 \end{enumerate}
 
 
@@ -228,10 +237,10 @@ v & ::= & ~ & \bf{values} \\
 	\item $\kwa{annot}(x, \_) = e$
 	\item $\kwa{annot}(r, \_) = r$
 	\item $\kwa{annot}(\lambda x: \tau.e, \varepsilon) = \lambda x: \kwa{annot}(\tau, \varepsilon) . \kwa{annot}(e, \varepsilon)$
-	\item $\kwa{annot}(e_1~e_2, \varepsilon) = \kwa{annot}(e_1) \kwa{annot}(e_2)$
-	\item $\kwa{annot}(e.\pi, \varepsilon) = \kwa{annot}(e).\pi$
-	\item $\annot{\poly{t}{\tau}{e}}{\varepsilon} = \poly{t}{\annot{\tau}{\varepsilon}}{\annot{e}{\varepsilon}}$
-	\item $\annot{\poly{\epsilon}{\varepsilon'}{e}}{\varepsilon} = \poly{\epsilon}{\varepsilon'}{\annot{e}{\varepsilon}}$
+	\item $\kwa{annot}(e_1~e_2, \varepsilon) = \kwa{annot}(e_1)~\kwa{annot}(e_2)$
+	\item $\kwa{annot}(e.\pi, \varepsilon) = \annot{e}{\varepsilon}.\pi$
+	\item $\annot{\lambda X. e}{\varepsilon} = \lambda X. \annot{e}{\varepsilon}$
+	\item $\annot{e~\tau}{\varepsilon} = \annot{e}{\varepsilon}~\annot{\tau}{\varepsilon}$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{annot :: \Gamma \times \varepsilon \rightarrow \hat \Gamma}$)}
@@ -239,15 +248,16 @@ v & ::= & ~ & \bf{values} \\
 \begin{enumerate}
 	\item $\kwa{annot}(\varnothing, \_) = \varnothing$
 	\item $\kwa{annot}((\Gamma, x: \tau), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), x: \kwa{annot}(\tau, \varepsilon)$
-	\item $\kwa{annot}((\Gamma, t: \tau), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), x: \kwa{annot}(\tau, \varepsilon)$
+	\item $\kwa{annot}((\Gamma, X), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), X$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{erase :: \hat \tau \rightarrow \tau}$)}
 
 \begin{enumerate}
-	\item $\erase{t} = e$
-	\item $\kwa{erase}(\{ \bar r \}, \_) = \{ \bar r \}$
+	\item $\erase{X} = X$
+	\item $\erase{\{ \bar r \}} = \{ \bar r \}$
 	\item $\kwa{erase}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{erase}(\hat \tau_1) \rightarrow \kwa{erase}(\hat \tau_2)$
+	\item $\erase{\forall X. \hat \tau} = \forall X. \erase{\hat \tau}$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{erase :: \hat e \rightarrow e}$)}
@@ -256,10 +266,9 @@ v & ::= & ~ & \bf{values} \\
 	\item $\kwa{erase}(x) = x$
 	\item $\kwa{erase}(r) = r$
 	\item $\kwa{erase}(\lambda x: \hat \tau.\hat e) = \lambda x: \kwa{erase}(\hat \tau).\kwa{erase}(\hat e)$
-	\item $\kwa{erase}(e_1~e_2) = \kwa{erase}(e_1) \kwa{erase}(e_2)$
-	\item $\kwa{erase}(e.\pi) = \kwa{erase}(e).\pi$
-	\item $\erase{\poly{t}{\hat \tau}{\hat e}} = \poly{t}{\erase{\hat \tau}}{\erase{\hat e}}$
-	\item $\erase{\poly{\epsilon}{\varepsilon}{\hat e}} = \poly{\epsilon}{\varepsilon}{\erase{\hat e}}$
+	\item $\kwa{erase}(\hat e_1~\hat e_2) = \kwa{erase}(\hat e_1) \kwa{erase}(\hat e_2)$
+	\item $\kwa{erase}(\hat e.\pi) = \kwa{erase}(\hat e).\pi$
+	\item $\erase{\lambda X. \hat \hat e} = \lambda X. \erase{\hat e}$
 \end{enumerate}
 
 
@@ -268,15 +277,14 @@ v & ::= & ~ & \bf{values} \\
 \begin{enumerate}
 	\item $\erase{\varnothing} = \varnothing$
 	\item $\erase{\hat \Gamma, x: \hat \tau} = \erase{\hat \Gamma}, x: \erase{\hat \tau}$
-	\item $\erase{\Gamma, t: \hat \tau} = \erase{\Gamma}, x: \erase{\hat \tau}$
-	\item $\erase{\Gamma, \epsilon: \varepsilon} = \erase{\Gamma}$
+	\item $\erase{\hat \Gamma, X} = \erase{\hat \Gamma}, X$
 \end{enumerate}
 
 
 \subsection*{Definition ($\kwa{effects :: \hat \tau \rightarrow \varepsilon}$)}
 
 \begin{enumerate}
-	\item $\fx{t} = \varnothing$
+	\item $\fx{X} = \varnothing$
 	\item $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
 	\item $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{ho \hyphen effects}(\hat \tau_1) \cup \varepsilon \cup \kwa{effects}(\hat \tau_2)$
 \end{enumerate}
@@ -300,14 +308,44 @@ The notation $[\hat v/x]\hat e$ is short-hand for $\kwa{substitution}(\hat e, \h
 e$, if $y \neq x$ and $y$ does not occur free in $\hat e$
 \item $[\hat v/y](\hat e_1~\hat e_2) = ([\hat v/y]\hat e_1) ([\hat v/y]\hat e_2)$ 
 	\item $[\hat v/y](\hat e.\pi) = ([\hat v/y]\hat e).\pi$
-	\item $[\hat v/y](\poly{t}{\hat \tau}{\hat e}) = \poly{t}{\hat \tau}{[\hat v/y]\hat e}$, if $y \neq t$ and $y$ does not occur free in $\hat e$
-	\item $[\hat v/y](\poly{\epsilon}{\varepsilon}{\hat e}) = \poly{\epsilon}{\varepsilon}{[\hat v/y]\hat e}$, if $y \neq \epsilon$ and $y$ does not occur free in $\hat e$
+	\item $[\hat v/y](\lambda X. \hat e) = \lambda X. [\hat v/y]\hat e$
+	\item $[\hat v/y](\lambda \phi. \hat e) = \lambda \phi. [\hat v/y]\hat e$
+	\item $[\hat v/y](\hat e~\hat \tau) = [\hat v/y]\hat e~\hat \tau$
+	\item $[\hat v/y](\hat e~\varepsilon) = [\hat v/y]\hat e~\varepsilon$
 	\item $[\hat v/y](\import{\varepsilon_s}{x}{\hat e}{e}) = \import{\varepsilon_s}{x}{[\hat v/y]\hat e}{e}$
 \end{enumerate}
 
 \noindent
 When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2]\hat e$ is used as shorthand for $[\hat v_2/x_2]([\hat v_1/x_1]\hat e)$ (note the order of the variables has been flipped; the substitutions occur as they are written, left-to-right).
 
+\subsection*{Definition ($\kwa{substitution :: \hat \tau \times \hat \tau \times \hat \tau \rightarrow \hat \tau}$)}
+
+\begin{enumerate}
+	\item $[\hat \tau/Y]X = \hat \tau$, if $X = Y$
+	\item $[\hat \tau/Y]X = X$, if $X \neq Y$
+	\item $[\hat \tau/Y]\{ \bar r \} = \{ \bar r \}$
+	\item $[\hat \tau/Y](\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = [\hat \tau/Y]\hat \tau_1 \rightarrow_{\varepsilon} [\hat \tau/Y]\hat \tau_2$ 
+	\item $[\hat \tau/Y](\forall X. \hat \tau_1) = \forall X. [\hat \tau/Y]\tau_1$, if $Y \neq X$ and $Y$ does not occur free in $\tau_1$
+	\item $[\hat \tau/Y](\forall \phi. \hat \tau_1) = \forall \phi. [\hat \tau/Y]\tau_1$
+\end{enumerate}
+
+\subsection*{Definition ($\kwa{substitution :: \varepsilon \times \varepsilon \times \varepsilon \rightarrow \hat \tau}$)}
+
+\begin{enumerate}
+	\item $[\varepsilon/\phi]\Phi = \varepsilon$, if $\phi = \Phi$
+	\item $[\varepsilon/\phi]\Phi = \Phi$, if $\phi \neq \Phi$
+	\item $[\varepsilon/\phi]\{ \overline{r.\pi} \} = \{ \overline{r.\pi} \}$
+\end{enumerate}
+
+\subsection*{Definition ($\kwa{substitution :: \hat \tau \times \varepsilon \times \varepsilon \rightarrow \hat \tau}$)}
+
+\begin{enumerate}
+	\item $[\varepsilon/\phi]X = X$
+	\item $[\varepsilon/\phi]\{ \bar r \} = \{ \bar r \}$
+	\item $[\varepsilon/\phi](\hat \tau_1 \rightarrow_\varepsilon' \hat \tau_2) = [\varepsilon/\phi]\hat \tau_1 \rightarrow_{[\varepsilon/\phi]\varepsilon'} [\varepsilon/\phi]\hat \tau_2$
+	\item $[\varepsilon/\phi](\forall X. \hat \tau) = \forall X. [\varepsilon/\phi]\hat \tau$
+	\item $[\varepsilon/\phi](\forall \Phi. \hat \tau) = \forall \Phi. [\varepsilon/\phi]$, if $\phi \neq \Phi$ and $\phi$ does not occur free in $\hat \tau$
+\end{enumerate}
 
 \section{Static Rules}
 
@@ -326,18 +364,26 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 	{}
 
 ~~~
-\infer[\textsc{(T-Abs)}]
-	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
-	{\Gamma, x: \tau_1 \vdash e: \tau_2}\\[2ex]
-	
-\infer[\textsc{(T-App)}]
-	{\Gamma \vdash e_1~e_2: \tau_3}
-	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}
-~~~
+
 \infer[\textsc{(T-OperCall)}]
 	{\Gamma \vdash e.\pi: \kwa{Unit}}
 	{\Gamma \vdash e: \{ \bar r \}} \\[2ex]
+\infer[\textsc{(T-Abs)}]
+	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
+	{\Gamma, x: \tau_1 \vdash e: \tau_2}
+~~~
 
+\infer[\textsc{(T-App)}]
+	{\Gamma \vdash e_1~e_2: \tau_3}
+	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}\\[2ex]
+~~~
+\infer[\textsc{(T-PolyTypeAbs)}]
+	{\Gamma \vdash \lambda X. e : \tau}
+	{\Gamma, X \vdash e: \tau }
+~~~
+\infer[\textsc{(T-PolyTypeApp)}]
+	{\Gamma \vdash e~\tau' : [\tau'/X]\tau }
+	{\Gamma \vdash e: \forall X.\tau }
 
 \end{array}
 \]
@@ -356,14 +402,6 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
  	{ \hat \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
  	{}\\[2ex]
  	
-~~~
-	\infer[\textsc{($\varepsilon$-Abs)}]
-	{ \hat \Gamma \vdash \lambda x:\tau_2 . \hat e : \hat \tau_2 \rightarrow_{\varepsilon_3} \hat \tau_3~\kw{with} \varnothing }
-	{ \hat \Gamma, x: \hat \tau_2 \vdash \hat e: \hat \tau_3~\kw{with} \varepsilon_3 }\\[2ex]
-	
-\infer[\textsc{($\varepsilon$-App)}]
-	{ \hat \Gamma \vdash \hat e_1 \hat e_2 : \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
-	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[2ex]
 
 
 \infer[\textsc{($\varepsilon$-OperCall)}]
@@ -374,6 +412,24 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 \infer[\textsc{($\varepsilon$-Subsume)}]
 	{\hat \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
 	{\hat \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[2ex]
+
+	\infer[\textsc{($\varepsilon$-Abs)}]
+	{ \hat \Gamma \vdash \lambda x:\tau_2 . \hat e : \hat \tau_2 \rightarrow_{\varepsilon_3} \hat \tau_3~\kw{with} \varnothing }
+	{ \hat \Gamma, x: \hat \tau_2 \vdash \hat e: \hat \tau_3~\kw{with} \varepsilon_3 }
+	~~~
+\infer[\textsc{($\varepsilon$-App)}]
+	{ \hat \Gamma \vdash \hat e_1 \hat e_2 : \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
+	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[2ex]
+
+\infer[\textsc{($\varepsilon$-PolyTypeAbs)}]
+	{ \hat \Gamma \vdash \lambda X. \hat e : \hat \tau ~\kw{with} \varnothing }
+	{ \hat \Gamma, X \vdash \hat e: \hat \tau ~\kw{with} \varepsilon }
+
+~~~
+
+\infer[\textsc{($\varepsilon$-PolyTypeApp)}]
+	{ \hat \Gamma \vdash e~\hat \tau' : [\hat \tau'/X]\hat \tau~\kw{with} \varepsilon_1 \cup \fx{\hat \tau'} }
+	{ \hat \Gamma \vdash e : \forall X.\hat \tau~\kw{with} \varepsilon_1 } \\[2ex]
 
 \infer[\textsc{($\varepsilon$-Import)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
@@ -476,16 +532,26 @@ $\fbox{$\hat \tau <: \hat \tau$}$
 \infer[\textsc{(E-OperCall2)}]
 	{r.\pi \longrightarrow \kwa{unit}~|~\{ r.\pi \} }
 	{r \in R & \pi \in \Pi}
-	 \\[4ex]
+	 \\[2ex]
 	 
-\infer[\textsc{(E-TypePoly)}]
-	{\poly{t}{\tau}{e} \longrightarrow [\tau/t]e}
-	{}
-	~~~
-\infer[\textsc{(E-FxPoly)}]
-	{\poly{\epsilon}{\varepsilon}{e} \longrightarrow [\varepsilon/\epsilon]e}
-	{} \\[2ex]
-	 
+\infer[\textsc{(E-PolyTypeApp1)}]
+	{\hat e~\hat \tau \longrightarrow \hat e'~\hat \tau~|~\varepsilon}
+	{\hat e \longrightarrow \hat e'~|~\varepsilon}
+
+~~~
+
+\infer[\textsc{(E-PolyTypeApp2)}]
+	{(\lambda X. \hat e) \hat \tau \longrightarrow [\hat \tau/X]\hat e~|~\varnothing}
+	{}\\[2ex]
+
+\infer[\textsc{(E-PolyFxApp1)}]
+	{\hat e~\hat \tau \longrightarrow \hat e'~\hat \tau~|~\varepsilon }
+	{\hat e \longrightarrow \hat e'~|~\varepsilon}
+~~~
+\infer[\textsc{(E-PolyFxApp2)}]
+	{(\lambda \phi. \hat e) \varepsilon \longrightarrow [\varepsilon/\phi]\hat e~|~\varnothing}
+	{}\\[2ex]
+
 \infer[\textsc{(E-Import1)}]
 	{\import{\varepsilon_s}{x}{\hat e}{e} \longrightarrow \import{\varepsilon_s}{x}{\hat e'}{e}~|~\varepsilon'}
 	{\hat e \longrightarrow \hat e'~|~\varepsilon'}\\[4ex]
