@@ -153,7 +153,7 @@ e & ::= & ~ & \bf{exprs.} \\
 v & ::= & ~ & \bf{values} \\
 	& | & r & resource~literal \\
 	& | & \lambda x: \tau.e & abstraction \\
-	& | & \lambda X. e & type~polymorphism \\
+	& | & \lambda X <: \tau. e & type~polymorphism \\
 	&&\\
 	
 \hat e & ::= & ~ & \bf{annotated~exprs.} \\
@@ -169,8 +169,8 @@ v & ::= & ~ & \bf{values} \\
 \hat v & ::= & ~ & \bf{annotated~values} \\
 	& | & r & resource~literal \\
 	& | & \lambda x: \hat \tau.\hat e & abstraction \\
-	& | & \lambda X. \hat e & type~polymorphism \\
-	& | & \lambda \phi . \hat e & effect~polymorphism \\
+	& | & \lambda X <: \tau. \hat e & type~polymorphism \\
+	& | & \lambda \phi \subseteq \varepsilon. \hat e & effect~polymorphism \\
 	&&\\
 
 \end{array}
@@ -183,16 +183,15 @@ v & ::= & ~ & \bf{values} \\
 	& | & X & type~variable \\
 	& | & \{ \bar r \} & effect~set \\
 	& | & \tau \rightarrow \tau & arrow \\
-	& | & \forall X . \tau & universal~type \\
-	& | & \forall \phi . \tau & universal~effect~set\\
+	& | & \forall X <: \tau . \tau & universal~type \\
 	&&\\
 
 \hat \tau & ::= & ~ & \bf{annotated ~types} \\
 		& | & t & type~variable \\
 		& | & \{ \bar r \} & resource~set \\
 		& | & \hat \tau \rightarrow_{\varepsilon} \hat \tau & annotated~arrow\\
-		& | & \poly{X}{\hat \tau} & universal~type \\
-		& | & \poly{\phi}{\hat \tau} & universal~effect~set \\
+		& | & \poly{X <: \hat \tau}{\hat \tau} & universal~type \\
+		& | & \poly{\phi \subseteq \varepsilon}{\hat \tau} & universal~effect~set \\
 		&&\\
 
 \varepsilon & ::= & ~ &\bf{effects} \\
@@ -203,14 +202,14 @@ v & ::= & ~ & \bf{values} \\
 \Gamma & ::= & ~ & \bf{contexts} \\
 				& | & \varnothing & empty~ctx. \\
 				& | & \Gamma, x: \tau & var.~binding \\
-				& | & \Gamma, X & type~var.~binding \\
+				& | & \Gamma, X <: \tau & type~var.~binding \\
 				&&\\
 				
 \hat \Gamma & ::= & ~ & \bf{annotated~contexts}\\
 				& | & \varnothing & empty~ctx. \\
 				& | & \hat \Gamma, x: \hat \tau & var.~binding \\
-				& | & \hat \Gamma, X & type~var.~binding \\
-				& | & \hat \Gamma, \phi & effect~var.~binding \\
+				& | & \hat \Gamma, X <: \hat \tau & type~var.~binding \\
+				& | & \hat \Gamma, \phi \subseteq \varepsilon & effect~var.~binding \\
 				&&\\
 
 \end{array}
@@ -226,8 +225,8 @@ v & ::= & ~ & \bf{values} \\
 	\item $\annot{X}{\_} = X$
 	\item $\annot{\{ \bar r \}}{\_} = \{ \bar r \}$
 	\item $\annot{\tau_1 \rightarrow \tau_2}{\varepsilon} = \annot{\tau_1}{\varepsilon} \rightarrow_{\varepsilon} \annot{\tau_2}{\varepsilon}$
-	\item $\annot{\poly{X}{\tau}}{\varepsilon} = \poly{X}{\annot{\tau}{\varepsilon}}$
-	\item $\annot{\poly{\phi}{\tau}}{\varepsilon} = \poly{\phi}{\annot{\tau}{\varepsilon}}$
+	\item $\annot{\poly{X <: \tau_1}{\tau_2}}{\varepsilon} = \poly{X <: \annot{\tau_1}{\varepsilon}}{\annot{\tau_2}{\varepsilon}}$
+	\item $\annot{\poly{\phi \subseteq \varepsilon}{\tau}}{\varepsilon} = \poly{\phi \subseteq \varepsilon}{\annot{\tau}{\varepsilon}}$
 \end{enumerate}
 
 
@@ -239,7 +238,7 @@ v & ::= & ~ & \bf{values} \\
 	\item $\kwa{annot}(\lambda x: \tau.e, \varepsilon) = \lambda x: \kwa{annot}(\tau, \varepsilon) . \kwa{annot}(e, \varepsilon)$
 	\item $\kwa{annot}(e_1~e_2, \varepsilon) = \kwa{annot}(e_1)~\kwa{annot}(e_2)$
 	\item $\kwa{annot}(e.\pi, \varepsilon) = \annot{e}{\varepsilon}.\pi$
-	\item $\annot{\lambda X. e}{\varepsilon} = \lambda X. \annot{e}{\varepsilon}$
+	\item $\annot{\lambda X <: \tau_1. e}{\varepsilon} = \lambda X <: \annot{\tau_1}{\varepsilon}. \annot{e}{\varepsilon}$
 	\item $\annot{e~\tau}{\varepsilon} = \annot{e}{\varepsilon}~\annot{\tau}{\varepsilon}$
 \end{enumerate}
 
@@ -248,7 +247,7 @@ v & ::= & ~ & \bf{values} \\
 \begin{enumerate}
 	\item $\kwa{annot}(\varnothing, \_) = \varnothing$
 	\item $\kwa{annot}((\Gamma, x: \tau), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), x: \kwa{annot}(\tau, \varepsilon)$
-	\item $\kwa{annot}((\Gamma, X), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), X$
+	\item $\kwa{annot}((\Gamma, X <: \tau), \varepsilon) = \kwa{annot}(\Gamma, \varepsilon), X <: \annot{\tau}{\varepsilon}$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{erase :: \hat \tau \rightarrow \tau}$)}
@@ -257,7 +256,7 @@ v & ::= & ~ & \bf{values} \\
 	\item $\erase{X} = X$
 	\item $\erase{\{ \bar r \}} = \{ \bar r \}$
 	\item $\kwa{erase}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{erase}(\hat \tau_1) \rightarrow \kwa{erase}(\hat \tau_2)$
-	\item $\erase{\forall X. \hat \tau} = \forall X. \erase{\hat \tau}$
+	\item $\erase{\forall X <: \hat \tau_1. \hat \tau_2} = \forall X <: \erase{\hat \tau_1}. \erase{\hat \tau_2}$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{erase :: \hat e \rightarrow e}$)}
@@ -268,7 +267,7 @@ v & ::= & ~ & \bf{values} \\
 	\item $\kwa{erase}(\lambda x: \hat \tau.\hat e) = \lambda x: \kwa{erase}(\hat \tau).\kwa{erase}(\hat e)$
 	\item $\kwa{erase}(\hat e_1~\hat e_2) = \kwa{erase}(\hat e_1) \kwa{erase}(\hat e_2)$
 	\item $\kwa{erase}(\hat e.\pi) = \kwa{erase}(\hat e).\pi$
-	\item $\erase{\lambda X. \hat \hat e} = \lambda X. \erase{\hat e}$
+	\item $\erase{\lambda X <: \hat \tau. \hat e} = \lambda X <: \erase{\hat \tau}. \erase{\hat e}$
 \end{enumerate}
 
 
@@ -277,7 +276,7 @@ v & ::= & ~ & \bf{values} \\
 \begin{enumerate}
 	\item $\erase{\varnothing} = \varnothing$
 	\item $\erase{\hat \Gamma, x: \hat \tau} = \erase{\hat \Gamma}, x: \erase{\hat \tau}$
-	\item $\erase{\hat \Gamma, X} = \erase{\hat \Gamma}, X$
+	\item $\erase{\hat \Gamma, X <: \hat \tau} = \erase{\hat \Gamma}, X <: \erase{\hat \tau}$
 \end{enumerate}
 
 
@@ -287,6 +286,8 @@ v & ::= & ~ & \bf{values} \\
 	\item $\fx{X} = \varnothing$
 	\item $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
 	\item $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{ho \hyphen effects}(\hat \tau_1) \cup \varepsilon \cup \kwa{effects}(\hat \tau_2)$
+	\item $\fx{\forall \hat \tau_1. \hat \tau_2} = \hofx{\hat \tau_1} \cup \fx{\hat \tau_2}$
+	\item $\fx{\forall \phi \subseteq \varepsilon. \hat \tau} = \fx{\hat \tau}$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \rightarrow \varepsilon}$)}
@@ -295,6 +296,8 @@ v & ::= & ~ & \bf{values} \\
 	\item $\hofx{t} = \varnothing$
 	\item $\hofx{\{ \bar r \}} = \varnothing$
 	\item $\hofx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
+	\item $\hofx{\forall \hat \tau_1. \hat \tau_2} = \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$
+	\item $\hofx{\forall \phi \subseteq \varepsilon.  \hat \tau} = \varepsilon \cup \hofx{\hat \tau}$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{substitution :: \hat e \times \hat v \times \hat v \rightarrow \hat e}$)}
@@ -378,12 +381,12 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}\\[2ex]
 ~~~
 \infer[\textsc{(T-PolyTypeAbs)}]
-	{\Gamma \vdash \lambda X. e : \tau}
-	{\Gamma, X \vdash e: \tau }
+	{\Gamma \vdash \lambda X <: \tau_1. e : \tau_2}
+	{\Gamma, X <: \tau_1 \vdash e: \tau_2 }
 ~~~
 \infer[\textsc{(T-PolyTypeApp)}]
-	{\Gamma \vdash e~\tau' : [\tau'/X]\tau }
-	{\Gamma \vdash e: \forall X.\tau }
+	{\Gamma \vdash e~\tau' : [\tau'/X]\tau_2}
+	{\Gamma \vdash e: \forall X <: \tau_1.\tau_2  & \tau' <: \tau_1  }
 
 \end{array}
 \]
@@ -422,24 +425,24 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[2ex]
 
 \infer[\textsc{($\varepsilon$-PolyTypeAbs)}]
-	{ \hat \Gamma \vdash \lambda X. \hat e : \hat \tau ~\kw{with} \varnothing }
-	{ \hat \Gamma, X \vdash \hat e: \hat \tau ~\kw{with} \varepsilon }
+	{ \hat \Gamma \vdash \lambda X <: \hat \tau_1. \hat e : \hat \tau_2 ~\kw{with} \varnothing }
+	{ \hat \Gamma, X <: \hat \tau_1 \vdash \hat e: \hat \tau_2 ~\kw{with} \varepsilon }
 
 ~~~
 
 \infer[\textsc{($\varepsilon$-PolyTypeApp)}]
-	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau~\kw{with} \varepsilon_1 \cup \fx{\hat \tau'} }
-	{ \hat \Gamma \vdash \hat e : \forall X.\hat \tau~\kw{with} \varepsilon_1 } \\[2ex]
+	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau_2~\kw{with} \varepsilon_1 \cup \fx{\hat \tau'} }
+	{ \hat \Gamma \vdash \hat e : \forall X <: \hat \tau_1.\hat \tau_2~\kw{with} \varepsilon_1 & \hat \tau' <: \hat \tau_1} \\[2ex]
 
 \infer[\textsc{($\varepsilon$-PolyFxAbs)}]
-	{ \hat \Gamma \vdash \lambda \phi. \hat e : \forall \phi. \hat \tau~\kw{with} \varnothing }
+	{ \hat \Gamma \vdash \lambda \phi \subseteq \varepsilon. \hat e : \forall \phi \subseteq \varepsilon. \hat \tau~\kw{with} \varnothing }
 	{ \hat \Gamma \vdash \hat e : \hat \tau ~\kw{with} \varnothing }
 
 ~~~
 
 \infer[\textsc{($\varepsilon$-PolyFxApp)}]
-	{ \hat \Gamma \vdash \hat e~\varepsilon : [\phi/\varepsilon]\hat \tau~\kw{with} \varepsilon_1 \cup \varepsilon }
-	{ \hat \Gamma \vdash \hat e: \forall X.\phi~\kw{with} \varepsilon_1 } \\[2ex]
+	{ \hat \Gamma \vdash \hat e~\varepsilon : [\varepsilon'/\phi]\hat \tau~\kw{with} \varepsilon_1 \cup \varepsilon }
+	{ \hat \Gamma \vdash \hat e: \forall \phi \subseteq \varepsilon. \hat \tau~\kw{with} \varepsilon_1 } \\[2ex]
 
 \infer[\textsc{($\varepsilon$-Import)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
