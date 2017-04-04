@@ -327,7 +327,7 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 	\item $[\hat \tau/Y]X = \hat \tau$, if $X = Y$
 	\item $[\hat \tau/Y]X = X$, if $X \neq Y$
 	\item $[\hat \tau/Y]\{ \bar r \} = \{ \bar r \}$
-	\item $[\hat \tau/Y](\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = [\hat \tau/Y]\hat \tau_1 \rightarrow_{\varepsilon} [\hat \tau/Y]\hat \tau_2$ 
+	\item $[\hat \tau/Y](\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = [\hat \tau/Y]\hat \tau_1 \rightarrow_{[\hat \tau/Y]\varepsilon} [\hat \tau/Y]\hat \tau_2$ 
 	\item $[\hat \tau/Y](\forall X. \hat \tau_1) = \forall X. [\hat \tau/Y]\tau_1$, if $Y \neq X$ and $Y$ does not occur free in $\tau_1$
 	\item $[\hat \tau/Y](\forall \phi. \hat \tau_1) = \forall \phi. [\hat \tau/Y]\tau_1$
 \end{enumerate}
@@ -381,7 +381,7 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}\\[2ex]
 ~~~
 \infer[\textsc{(T-PolyTypeAbs)}]
-	{\Gamma \vdash \lambda X <: \tau_1. e : \tau_2}
+	{\Gamma \vdash \lambda X <: \tau_1. e : \forall X <: \tau_1. \tau_2}
 	{\Gamma, X <: \tau_1 \vdash e: \tau_2 }
 ~~~
 \infer[\textsc{(T-PolyTypeApp)}]
@@ -390,6 +390,23 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 
 \end{array}
 \]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 \noindent
 \fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$}
@@ -404,13 +421,11 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 \infer[\textsc{($\varepsilon$-Resource)}]
  	{ \hat \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
  	{}\\[2ex]
- 	
-
+ 
 
 \infer[\textsc{($\varepsilon$-OperCall)}]
-	{ \hat \Gamma \vdash \hat e.\pi: \kw{Unit} \kw{with} \{ r.\pi \mid r \in \bar r \} }
-	{ \hat \Gamma \vdash \hat e: \{ \bar r \}}
-	~~~
+	{ \hat \Gamma \vdash \hat e.\pi: \kw{Unit} \kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r \} }
+	{ \hat \Gamma \vdash \hat e: \{ \bar r \}~\kw{with} \varepsilon_1}
 
 \infer[\textsc{($\varepsilon$-Subsume)}]
 	{\hat \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
@@ -424,25 +439,13 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 	{ \hat \Gamma \vdash \hat e_1 \hat e_2 : \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
 	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[2ex]
 
-\infer[\textsc{($\varepsilon$-PolyTypeAbs)}]
-	{ \hat \Gamma \vdash \lambda X <: \hat \tau_1. \hat e : \hat \tau_2 ~\kw{with} \varnothing }
-	{ \hat \Gamma, X <: \hat \tau_1 \vdash \hat e: \hat \tau_2 ~\kw{with} \varepsilon }
-
-~~~
-
 \infer[\textsc{($\varepsilon$-PolyTypeApp)}]
-	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau_2~\kw{with} \varepsilon_1 \cup \fx{\hat \tau'} }
-	{ \hat \Gamma \vdash \hat e : \forall X <: \hat \tau_1.\hat \tau_2~\kw{with} \varepsilon_1 & \hat \tau' <: \hat \tau_1} \\[2ex]
-
-\infer[\textsc{($\varepsilon$-PolyFxAbs)}]
-	{ \hat \Gamma \vdash \lambda \phi \subseteq \varepsilon. \hat e : \forall \phi \subseteq \varepsilon. \hat \tau~\kw{with} \varnothing }
-	{ \hat \Gamma \vdash \hat e : \hat \tau ~\kw{with} \varnothing }
-
-~~~
+	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau_2~\kw{with}  [\hat \tau'/X]\varepsilon \cup \varepsilon_1 }
+	{ \hat \Gamma \vdash \hat e : \poly{X <: \hat \tau_1}{\hat \tau_2}~\kw{caps} \varepsilon~\kw{with} \varepsilon_1 & \hat \tau' <: \hat \tau_1} \\[2ex]
 
 \infer[\textsc{($\varepsilon$-PolyFxApp)}]
-	{ \hat \Gamma \vdash \hat e~\varepsilon : [\varepsilon'/\phi]\hat \tau~\kw{with} \varepsilon_1 \cup \varepsilon }
-	{ \hat \Gamma \vdash \hat e: \forall \phi \subseteq \varepsilon. \hat \tau~\kw{with} \varepsilon_1 } \\[2ex]
+	{ \hat \Gamma \vdash \hat e~\varepsilon : [\varepsilon'/\phi]\hat \tau~\kw{with} [\varepsilon'/\phi]\varepsilon_1 \cup \varepsilon_2 }
+	{ \hat \Gamma \vdash \hat e: \forall \phi \subseteq \varepsilon. \hat \tau~\kw{caps} \varepsilon_1~\kw{with} \varepsilon_2 & \varepsilon' \subseteq \varepsilon } \\[2ex]
 
 \infer[\textsc{($\varepsilon$-Import)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
@@ -455,6 +458,29 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
  
 \end{array}
 \]
+
+
+
+\noindent
+\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{caps} \varepsilon~\kw{with} \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{($\varepsilon$-PolyTypeAbs)}]
+	{ \hat \Gamma \vdash \lambda X <: \hat \tau_1. \hat e : \poly{X <: \hat \tau_1}{\hat \tau_2}~\kw{caps} \varepsilon~\kw{with} \varnothing }
+	{ \hat \Gamma, X <: \hat \tau_1 \vdash \hat e: \hat \tau_2 ~\kw{with} \varepsilon } \\[2ex]
+
+\infer[\textsc{($\varepsilon$-PolyFxAbs)}]
+	{ \hat \Gamma \vdash \lambda \phi \subseteq \varepsilon. \hat e : \forall \phi \subseteq \varepsilon. \hat \tau~\kw{caps} \varepsilon_1~\kw{with} \varnothing }
+	{ \hat \Gamma, \phi \subseteq \varepsilon \vdash \hat e : \hat \tau ~\kw{with} \varepsilon_1 } \\[2ex]
+
+
+\end{array}
+\]
+
+
+
 
 \noindent
 $\fbox{$\kwa{safe(\tau, \varepsilon)}$}$
@@ -498,23 +524,51 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 \end{array}
 \]
 
-\noindent
-$\fbox{$\hat \tau <: \hat \tau$}$
+
+\fbox{$\hat \Gamma \vdash \hat \tau <: \hat \tau$}
 
 \[
 \begin{array}{c}
 
-\infer[(\textsc{S-Effects})]
-	{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2 <: \hat \tau_1' \rightarrow_{\varepsilon'} \hat \tau_2'}
-	{\varepsilon \subseteq \varepsilon' & \hat \tau_2 <: \hat \tau_2' & \hat \tau_1' <: \hat \tau_1}
-~~~
-\infer[(\textsc{S-ResourceSet})]
-	{\{ \bar r_2 \} <: \{ \bar r_1 \}}
-	{r \in \bar r_2 \implies r \in \bar r_1}
 
+\infer[\textsc{(S-Reflexive)}]
+	{\hat \Gamma \vdash \hat \tau <: \hat \tau}
+	{}
+~~~
+\infer[\textsc{(S-Transitive)}]
+	{\hat \Gamma \vdash \hat \tau_1 <: \hat \tau_3}
+	{\hat \Gamma \vdash \hat \tau_1 <: \hat \tau_2 & \hat \Gamma \vdash \hat \tau_2 <: \hat \tau_3} \\[2ex]
+
+\infer[\textsc{(S-ResourceSet)}]
+	{\hat \Gamma \vdash \{ \overline{r_1} \} <: \{ \overline{r_2} \}}
+	{r \in \overline{r_1} \implies r \in \overline{r_2}}
+~~~
+\infer[\textsc{(S-Arrow)}]
+	{\hat \Gamma \vdash \tau_1 \rightarrow_{\varepsilon} \tau_2 <: \tau_1' \rightarrow_{\varepsilon'} \tau_2'}
+	{\hat \Gamma \vdash \hat \tau_1' <: \hat \tau_1 & \hat \Gamma \vdash \hat \tau_2 <: \hat \tau_2' & \varepsilon \subseteq \varepsilon'} \\[2ex]
+
+\infer[\textsc{(S-TypePoly)}]
+	{\hat \Gamma \vdash (\forall X <: \hat \tau_1 . \hat \tau_2) <: (\forall Y <: \hat \tau_1' . \hat \tau_2')}
+	{\hat \Gamma \vdash \hat \tau_1' <: \hat \tau_1 & \hat \Gamma, Y <: \hat \tau_1' \vdash \hat \tau_2 <: \hat \tau_2'}
+~~~
+\infer[\textsc{(S-TypeVar)}]
+	{\hat \Gamma, X <: \hat \tau \vdash X <: \hat \tau}
+	{}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 
 \end{array}
 \]
+
+
+
+
+
+
+
+
+
+
+
+
 
 \section{Dynamic Rules}
 
