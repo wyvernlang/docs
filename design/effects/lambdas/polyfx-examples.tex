@@ -130,10 +130,68 @@
 	\forall #1. #2
 }
 
+\newcommand{\polycap}[3]{
+	\forall #1. #2~ \kw{caps} #3
+}
+
 \newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
 
 
 \begin{document}
+
+
+\section{Basic Effect Polymorphism}
+
+\subsection*{Pseudo-Wyvern}
+\begin{lstlisting}
+def polymorphicWriter(x: T <: {File, Socket}): Unit with T.write =
+    x.write
+ 
+/* below invocation should typecheck with File.write as its only effect */
+polymorphicWriter File
+    
+\end{lstlisting}
+
+\subsection*{$\lambda$-Calculus}
+\begin{lstlisting}
+let pw = $\lambda \phi \subseteq$ {File.write, Socket.write}.
+   $\lambda$f: Unit $\rightarrow_{\phi}$ Unit.
+      f unit
+
+in let makeWriter = $\lambda$r: {File, Socket}.
+   $\lambda$x: Unit. r.write
+
+in (pw {File.write}) (makeWriter File)
+\end{lstlisting}
+
+
+\subsection*{Typing}
+
+To type the definition of $\kwa{polymorphicWriter}$:
+\begin{enumerate}
+	\item By \textsc{$\varepsilon$-App}\\ $\phi \subseteq \{ \kwa{F.w, S.w} \}$, x: $\Unit \rightarrow_{\phi} \Unit \vdash x~\unit: \Unit~\kw{with} \phi$.
+	\item By \textsc{$\varepsilon$-Abs}\\ $\phi \subseteq \{ \kwa{F.w, S.w} \} \vdash \lambda x: \Unit \rightarrow_{\phi} \Unit. x~\unit: (\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit~\kw{with} \varnothing$
+	\item By \textsc{$\varepsilon$-PolyFxAbs}, \\ $\vdash \forall \phi \subseteq \{ \kwa{S.w, F.w} \}. \lambda x: \Unit \rightarrow_{\phi} \Unit. x~\unit:\polycap{\phi \subseteq \{ \kwa{F.w, S.w} \}}{(\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit}{\varnothing}~\kw{with} \varnothing$
+\end{enumerate}
+
+\noindent
+Then $\kwa{(pw~\{ File.write \})}$ can be typed as such:
+
+\begin{enumerate}
+  \setcounter{enumi}{3}
+  \item By \textsc{$\varepsilon$-PolyFxApp}, \\ $\vdash \kwa{pw~\{ F.w \}}: [\{ \kwa{F.w} \}/\phi]( (\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit) ~\kw{with} [\{ \kwa{F.w} \}/\phi]\varnothing \cup \varnothing$
+\end{enumerate}
+
+\noindent
+The judgement can be simplified to:
+
+\begin{enumerate}
+	\setcounter{enumi}{4}
+	\item $\vdash \kwa{pw~\{ F.w \}}: (\Unit \rightarrow_{\{\kwa{F.w}\}} \Unit) \rightarrow_{\{\kwa{F.w}\}} \Unit ~\kw{with} \varnothing$
+\end{enumerate}
+
+\noindent
+Any application of this function, as in $\kwa{(pw~\{File.write\}) (makeWriter~ File)}$, will therefore type as having the single effect $\kwa{F.w}$ by applying \textsc{$\varepsilon$-App} to judgement (5).
 
 \section{Map Function}
 

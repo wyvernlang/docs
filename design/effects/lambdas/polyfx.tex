@@ -130,6 +130,10 @@
 	\forall #1. #2
 }
 
+\newcommand{\polycap}[3]{
+	\forall #1. #2~ \kw{caps} #3
+}
+
 \newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
 
 
@@ -161,7 +165,7 @@ v & ::= & ~ & \bf{values} \\
 	& | & \hat v & value \\
 	& | & \hat e.\pi & operation~call\\
 	& | & \hat e ~ \hat e & application \\
-	& | & e~\tau & type~application \\
+	& | & e~\hat \tau & type~application \\
 	& | & e~\varepsilon & effect~application \\
 	& | & \import{\varepsilon_s}{x}{\hat e}{e} & import\\
 	&&\\
@@ -169,7 +173,7 @@ v & ::= & ~ & \bf{values} \\
 \hat v & ::= & ~ & \bf{annotated~values} \\
 	& | & r & resource~literal \\
 	& | & \lambda x: \hat \tau.\hat e & abstraction \\
-	& | & \lambda X <: \tau. \hat e & type~polymorphism \\
+	& | & \lambda X <: \hat \tau. \hat e & type~polymorphism \\
 	& | & \lambda \phi \subseteq \varepsilon. \hat e & effect~polymorphism \\
 	&&\\
 
@@ -187,11 +191,11 @@ v & ::= & ~ & \bf{values} \\
 	&&\\
 
 \hat \tau & ::= & ~ & \bf{annotated ~types} \\
-		& | & t & type~variable \\
+		& | & X & type~variable \\
 		& | & \{ \bar r \} & resource~set \\
 		& | & \hat \tau \rightarrow_{\varepsilon} \hat \tau & annotated~arrow\\
-		& | & \poly{X <: \hat \tau}{\hat \tau} & universal~type \\
-		& | & \poly{\phi \subseteq \varepsilon}{\hat \tau} & universal~effect~set \\
+		& | & \polycap{X <: \hat \tau}{\hat \tau}{\varepsilon} & universal~type\\
+		& | & \polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon} & universal~effect~set \\
 		&&\\
 
 \varepsilon & ::= & ~ &\bf{effects} \\
@@ -225,8 +229,7 @@ v & ::= & ~ & \bf{values} \\
 	\item $\annot{X}{\_} = X$
 	\item $\annot{\{ \bar r \}}{\_} = \{ \bar r \}$
 	\item $\annot{\tau_1 \rightarrow \tau_2}{\varepsilon} = \annot{\tau_1}{\varepsilon} \rightarrow_{\varepsilon} \annot{\tau_2}{\varepsilon}$
-	\item $\annot{\poly{X <: \tau_1}{\tau_2}}{\varepsilon} = \poly{X <: \annot{\tau_1}{\varepsilon}}{\annot{\tau_2}{\varepsilon}}$
-	\item $\annot{\poly{\phi \subseteq \varepsilon}{\tau}}{\varepsilon} = \poly{\phi \subseteq \varepsilon}{\annot{\tau}{\varepsilon}}$
+	\item $\annot{\poly{X <: \tau_1}{\tau_2}}{\varepsilon} = \polycap{X <: \annot{\tau_1}{\varepsilon}}{\annot{\tau_2}{\varepsilon}}{\varepsilon}$
 \end{enumerate}
 
 
@@ -256,7 +259,7 @@ v & ::= & ~ & \bf{values} \\
 	\item $\erase{X} = X$
 	\item $\erase{\{ \bar r \}} = \{ \bar r \}$
 	\item $\kwa{erase}(\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = \kwa{erase}(\hat \tau_1) \rightarrow \kwa{erase}(\hat \tau_2)$
-	\item $\erase{\forall X <: \hat \tau_1. \hat \tau_2} = \forall X <: \erase{\hat \tau_1}. \erase{\hat \tau_2}$
+	\item $\erase{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon}} = \poly{X <: \erase{\hat \tau_1}}{\erase{\hat \tau_2}}$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{erase :: \hat e \rightarrow e}$)}
@@ -286,68 +289,18 @@ v & ::= & ~ & \bf{values} \\
 	\item $\fx{X} = \varnothing$
 	\item $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
 	\item $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{ho \hyphen effects}(\hat \tau_1) \cup \varepsilon \cup \kwa{effects}(\hat \tau_2)$
-	\item $\fx{\forall \hat \tau_1. \hat \tau_2} = \hofx{\hat \tau_1} \cup \fx{\hat \tau_2}$
-	\item $\fx{\forall \phi \subseteq \varepsilon. \hat \tau} = \fx{\hat \tau}$
+	\item $\fx{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_1}} = \hofx{\hat \tau_1} \cup \fx{\hat \tau_2} \cup \varepsilon_1$
+	\item $\fx{\polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}} = \fx{\hat \tau} \cup \varepsilon_1$
 \end{enumerate}
 
 \subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \rightarrow \varepsilon}$)}
 
 \begin{enumerate}
-	\item $\hofx{t} = \varnothing$
+	\item $\hofx{X} = \varnothing$
 	\item $\hofx{\{ \bar r \}} = \varnothing$
 	\item $\hofx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
-	\item $\hofx{\forall \hat \tau_1. \hat \tau_2} = \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$
-	\item $\hofx{\forall \phi \subseteq \varepsilon.  \hat \tau} = \varepsilon \cup \hofx{\hat \tau}$
-\end{enumerate}
-
-\subsection*{Definition ($\kwa{substitution :: \hat e \times \hat v \times \hat v \rightarrow \hat e}$)}
-
-The notation $[\hat v/x]\hat e$ is short-hand for $\kwa{substitution}(\hat e, \hat v, x)$. This function is partial, because the third input must be a variable. We adopt the usual renaming conventions to avoid accidental capture.
-
-\begin{enumerate}
-	\item $[\hat v/y]x = \hat v$, if $x = y$
-	\item $[\hat v/y]x = x$, if $x \neq y$
-	\item $[\hat v/y](\lambda x: \hat \tau.\hat e) = \lambda x: \hat \tau.[\hat v/y]\hat 
-e$, if $y \neq x$ and $y$ does not occur free in $\hat e$
-\item $[\hat v/y](\hat e_1~\hat e_2) = ([\hat v/y]\hat e_1) ([\hat v/y]\hat e_2)$ 
-	\item $[\hat v/y](\hat e.\pi) = ([\hat v/y]\hat e).\pi$
-	\item $[\hat v/y](\lambda X. \hat e) = \lambda X. [\hat v/y]\hat e$
-	\item $[\hat v/y](\lambda \phi. \hat e) = \lambda \phi. [\hat v/y]\hat e$
-	\item $[\hat v/y](\hat e~\hat \tau) = [\hat v/y]\hat e~\hat \tau$
-	\item $[\hat v/y](\hat e~\varepsilon) = [\hat v/y]\hat e~\varepsilon$
-	\item $[\hat v/y](\import{\varepsilon_s}{x}{\hat e}{e}) = \import{\varepsilon_s}{x}{[\hat v/y]\hat e}{e}$
-\end{enumerate}
-
-\noindent
-When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2]\hat e$ is used as shorthand for $[\hat v_2/x_2]([\hat v_1/x_1]\hat e)$ (note the order of the variables has been flipped; the substitutions occur as they are written, left-to-right).
-
-\subsection*{Definition ($\kwa{substitution :: \hat \tau \times \hat \tau \times \hat \tau \rightarrow \hat \tau}$)}
-
-\begin{enumerate}
-	\item $[\hat \tau/Y]X = \hat \tau$, if $X = Y$
-	\item $[\hat \tau/Y]X = X$, if $X \neq Y$
-	\item $[\hat \tau/Y]\{ \bar r \} = \{ \bar r \}$
-	\item $[\hat \tau/Y](\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = [\hat \tau/Y]\hat \tau_1 \rightarrow_{[\hat \tau/Y]\varepsilon} [\hat \tau/Y]\hat \tau_2$ 
-	\item $[\hat \tau/Y](\forall X. \hat \tau_1) = \forall X. [\hat \tau/Y]\tau_1$, if $Y \neq X$ and $Y$ does not occur free in $\tau_1$
-	\item $[\hat \tau/Y](\forall \phi. \hat \tau_1) = \forall \phi. [\hat \tau/Y]\tau_1$
-\end{enumerate}
-
-\subsection*{Definition ($\kwa{substitution :: \varepsilon \times \varepsilon \times \varepsilon \rightarrow \hat \tau}$)}
-
-\begin{enumerate}
-	\item $[\varepsilon/\phi]\Phi = \varepsilon$, if $\phi = \Phi$
-	\item $[\varepsilon/\phi]\Phi = \Phi$, if $\phi \neq \Phi$
-	\item $[\varepsilon/\phi]\{ \overline{r.\pi} \} = \{ \overline{r.\pi} \}$
-\end{enumerate}
-
-\subsection*{Definition ($\kwa{substitution :: \hat \tau \times \varepsilon \times \varepsilon \rightarrow \hat \tau}$)}
-
-\begin{enumerate}
-	\item $[\varepsilon/\phi]X = X$
-	\item $[\varepsilon/\phi]\{ \bar r \} = \{ \bar r \}$
-	\item $[\varepsilon/\phi](\hat \tau_1 \rightarrow_\varepsilon' \hat \tau_2) = [\varepsilon/\phi]\hat \tau_1 \rightarrow_{[\varepsilon/\phi]\varepsilon'} [\varepsilon/\phi]\hat \tau_2$
-	\item $[\varepsilon/\phi](\forall X. \hat \tau) = \forall X. [\varepsilon/\phi]\hat \tau$
-	\item $[\varepsilon/\phi](\forall \Phi. \hat \tau) = \forall \Phi. [\varepsilon/\phi]$, if $\phi \neq \Phi$ and $\phi$ does not occur free in $\hat \tau$
+	\item $\hofx{\polycap{\hat \tau_1}{\hat \tau_2}{\varepsilon}} = \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$
+	\item $\hofx{\polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}} = \varepsilon \cup \hofx{\hat \tau}$
 \end{enumerate}
 
 \section{Static Rules}
@@ -426,7 +379,7 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 \infer[\textsc{($\varepsilon$-OperCall)}]
 	{ \hat \Gamma \vdash \hat e.\pi: \kw{Unit} \kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \bar r \} }
 	{ \hat \Gamma \vdash \hat e: \{ \bar r \}~\kw{with} \varepsilon_1}
-
+~~~
 \infer[\textsc{($\varepsilon$-Subsume)}]
 	{\hat \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
 	{\hat \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[2ex]
@@ -439,13 +392,21 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 	{ \hat \Gamma \vdash \hat e_1 \hat e_2 : \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
 	{ \hat \Gamma \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon} \hat \tau_3~\kw{with} \varepsilon_1 & \hat \Gamma \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2 } \\[2ex]
 
+\infer[\textsc{($\varepsilon$-PolyTypeAbs)}]
+	{ \hat \Gamma \vdash \lambda X <: \hat \tau_1. \hat e : \poly{X <: \hat \tau_1}{\hat \tau_2}~\kw{caps} \varepsilon_1~\kw{with} \varnothing }
+	{ \hat \Gamma, X <: \hat \tau_1 \vdash \hat e: \hat \tau_2 ~\kw{with} \varepsilon_1 } \\[2ex]
+
+\infer[\textsc{($\varepsilon$-PolyFxAbs)}]
+	{ \hat \Gamma \vdash \lambda \phi \subseteq \varepsilon. \hat e : \forall \phi \subseteq \varepsilon. \hat \tau~\kw{caps} \varepsilon_1~\kw{with} \varnothing }
+	{ \hat \Gamma, \phi \subseteq \varepsilon \vdash \hat e : \hat \tau ~\kw{with} \varepsilon_1 } \\[2ex]
+
 \infer[\textsc{($\varepsilon$-PolyTypeApp)}]
-	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau_2~\kw{with}  [\hat \tau'/X]\varepsilon \cup \varepsilon_1 }
-	{ \hat \Gamma \vdash \hat e : \poly{X <: \hat \tau_1}{\hat \tau_2}~\kw{caps} \varepsilon~\kw{with} \varepsilon_1 & \hat \tau' <: \hat \tau_1} \\[2ex]
+	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau_2~\kw{with}  [\hat \tau'/X]\varepsilon_1 \cup \varepsilon_2 }
+	{ \polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_1}~\kw{with} \varepsilon_2 & \hat \tau' <: \hat \tau_1} \\[2ex]
 
 \infer[\textsc{($\varepsilon$-PolyFxApp)}]
 	{ \hat \Gamma \vdash \hat e~\varepsilon : [\varepsilon'/\phi]\hat \tau~\kw{with} [\varepsilon'/\phi]\varepsilon_1 \cup \varepsilon_2 }
-	{ \hat \Gamma \vdash \hat e: \forall \phi \subseteq \varepsilon. \hat \tau~\kw{caps} \varepsilon_1~\kw{with} \varepsilon_2 & \varepsilon' \subseteq \varepsilon } \\[2ex]
+	{ \hat \Gamma \vdash \hat e: \polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}~\kw{with} \varepsilon_2 & \varepsilon' \subseteq \varepsilon } \\[2ex]
 
 \infer[\textsc{($\varepsilon$-Import)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
@@ -459,25 +420,6 @@ When performing multiple substitutions the notation $[\hat v_1/x_1, \hat v_2/x_2
 \end{array}
 \]
 
-
-
-\noindent
-\fbox{$\hat \Gamma \vdash \hat e: \hat \tau~\kw{caps} \varepsilon~\kw{with} \varepsilon$}
-
-\[
-\begin{array}{c}
-
-\infer[\textsc{($\varepsilon$-PolyTypeAbs)}]
-	{ \hat \Gamma \vdash \lambda X <: \hat \tau_1. \hat e : \poly{X <: \hat \tau_1}{\hat \tau_2}~\kw{caps} \varepsilon~\kw{with} \varnothing }
-	{ \hat \Gamma, X <: \hat \tau_1 \vdash \hat e: \hat \tau_2 ~\kw{with} \varepsilon } \\[2ex]
-
-\infer[\textsc{($\varepsilon$-PolyFxAbs)}]
-	{ \hat \Gamma \vdash \lambda \phi \subseteq \varepsilon. \hat e : \forall \phi \subseteq \varepsilon. \hat \tau~\kw{caps} \varepsilon_1~\kw{with} \varnothing }
-	{ \hat \Gamma, \phi \subseteq \varepsilon \vdash \hat e : \hat \tau ~\kw{with} \varepsilon_1 } \\[2ex]
-
-
-\end{array}
-\]
 
 
 
@@ -625,56 +567,6 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 
 \infer[\textsc{(E-Import2)}]
 	{\import{\varepsilon_s}{x}{\hat e}{e} \longrightarrow [\hat v/x]\annot{e}{\varepsilon_s}~|~\varnothing}
-	{}
-
-\end{array}
-\]
-
-
-\section{Encodings}
-
-\subsection{$\bot$}
-The bottom type is defined as $\kwa{\bot \defn \varnothing}$, which is the literal for an empty set of resources.
-
-\[
-\begin{array}{c}
-
-
-\infer[\textsc{(T-$\bot$)}]
-	{\Gamma \vdash \bot : \varnothing}
-	{}
-~~~~~~
-\infer[\textsc{($\varepsilon$-$\bot$)}]
-	{\Gamma \vdash \bot : \varnothing~\kw{with} \varnothing}
-	{}
-
-\end{array}
-\]
-
-\subsection{$\unit,~\Unit$}
-
-\noindent
-Define $\kwa{unit = \lambda x: \varnothing.x}$, i.e. the function which takes an empty set of resources and returns it. We shall refer to its type, which is $\kwa{\varnothing \rightarrow_{\varnothing} \varnothing}$, as $\Unit$. It has various properties befitting $\unit$.
-
-\begin{enumerate}
-	\item $\unit$ cannot be invoked as $\varnothing$ is uninhabited.
-	\item $\unit$ is a value.
-	\item The only term with type $\Unit$ is $\unit$.
-	\item $\vdash \unit : \Unit$ by using \textsc{$\varepsilon$-Abs} and \textsc{$\varepsilon$-Var}.
-	\item $\kwa{effects}(\Unit) = \kwa{ho \hyphen effects}(\Unit) = \varnothing$
-	\item $\kwa{safe}(\Unit, \varepsilon)$ and $\kwa{ho \hyphen safe}(\Unit, \varepsilon)$
-\end{enumerate}
-
-\[
-\begin{array}{c}
-
-
-\infer[\textsc{(T-Unit)}]
-	{\Gamma \vdash \unit: \Unit}
-	{}
-~~~~~~
-\infer[\textsc{($\varepsilon$-Unit)}]
-	{\Gamma \vdash \unit: \Unit~\kw{with} \varnothing}
 	{}
 
 \end{array}
