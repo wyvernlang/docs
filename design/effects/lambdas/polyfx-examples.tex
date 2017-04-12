@@ -140,6 +140,15 @@
 \begin{document}
 
 
+
+
+
+
+
+
+
+
+
 \section{Basic Effect Polymorphism}
 
 \subsection*{Pseudo-Wyvern}
@@ -193,32 +202,32 @@ The judgement can be simplified to:
 \noindent
 Any application of this function, as in $\kwa{(pw~\{File.write\}) (makeWriter~ File)}$, will therefore type as having the single effect $\kwa{F.w}$ by applying \textsc{$\varepsilon$-App} to judgement (5).
 
-\section{Map Function}
 
-\subsection*{Pseudo-Wyvern}
-\begin{lstlisting}
-def map(f: A $\rightarrow_{\phi}$ B, l: List[A]): List[B] with $\phi$ =
-	if isnil l then []
-	else cons (f (head l)) (map (tail l f))
-\end{lstlisting}
 
-\subsection*{$\lambda$-Calculus}
-\begin{lstlisting}
-map = $\lambda \phi$. $\lambda$A. $\lambda$B.
-  $\lambda$f: A$\rightarrow_{\phi}$B.
-    (fix ($\lambda$map: List[A] $\rightarrow$ List[B]).
-      $\lambda$l: List[A].
-        if isnil l then []
-        else cons (f (head l)) (map (tail l f)))
-\end{lstlisting}
 
-\subsection*{Typing}
 
-\begin{itemize}
-	\item This has the type: $\forall \phi. \forall A. \forall B. (A \rightarrow_{\phi} B)  \rightarrow_{\varnothing} \kwa{List}[A] \rightarrow_{\phi} \kwa{List}[B]~ \kw{with} \varnothing$.
-	\item $\kwa{map}~\varnothing$ is a pure version of map.
-	\item $\kwa{map}~\{ \kwa{File.*} \}$ is a version of map which can perform operations on $\kwa{File}$.
-\end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 \section{Dependency Injection}
 
@@ -333,23 +342,133 @@ Note how the HTTPServer code is identical in the testing and production examples
 
 \subsection*{Typing}
 
+
+\begin{lstlisting}
+let MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
+\end{lstlisting}
+
+\noindent
 To type $\kwa{MakeHTTPServer}$:
 
 \begin{enumerate}
 	\item By \textsc{$\varepsilon$-App}, \\
-	$\kwa{x: Unit,~ Writer <: Str \rightarrow_{\{\kwa{Lf.write, S.write}\}} Unit,~ f: Writer,~ msg: Str}$ \\
-	$\vdash \kwa{f~msg: Unit}$
+	$\kwa{x: Unit,~ \phi \subseteq \{LF.w, S.w\}, f: Str \rightarrow_{\phi} Unit,~ msg: Str}$ \\
+	$\vdash \kwa{f~msg: Unit~\kw{with} \phi}$
+	
+	\item By \textsc{$\varepsilon$-Abs}, \\
+	$\kwa{x: Unit,~ \phi \subseteq \{LF.w, S.w\}, f: Str \rightarrow_{\phi} Unit}$ \\
+	$\vdash \kwa{\lambda msg: Str.~f~msg: Str \rightarrow_{\phi} Unit~\kw{with} \varnothing }$
+
+	\item By \textsc{$\varepsilon$-Abs}, \\
+	$\kwa{x: Unit,~ \phi \subseteq \{LF.w, S.w\}}$ \\
+	$\vdash \kwa{\lambda f: Str \rightarrow_{\phi} Unit.~\lambda msg: Str.~f~msg:}\\
+	\kwa{ (Str \rightarrow_{\phi} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\phi} Unit)~\kw{with} \varnothing }$
+
+	\item By \textsc{$\varepsilon$-PolyFxAbs}, \\
+	$\kwa{x: Unit}$ \\
+	$\vdash \kwa{\lambda \phi \subseteq \{ LF.w, S.w \}.~ \lambda f: Str \rightarrow_{\phi} Unit.~\lambda msg: Str.~f~msg:}$\\
+	$\kwa{\polycap{\phi \subseteq \{ LF.w, S.w\}}{(Str \rightarrow_{\phi} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\phi} Unit)}{\varnothing}~\kw{with} \varnothing}$
+
+	\item By \textsc{$\varepsilon$-Abs}, \\
+	$\vdash \kwa{\lambda x: Unit. ~\lambda \phi \subseteq \{ LF.w, S.w \}.~ \lambda f: Str \rightarrow_{\phi} Unit.~\lambda msg: Str.~f~msg:}$\\
+	$\kwa{Unit} \rightarrow_{\varnothing} \kwa{\polycap{\phi \subseteq \{ LF.w, S.w\}}{(Str \rightarrow_{\phi} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\phi} Unit)}{\varnothing}~\kw{with} \varnothing}$
 \end{enumerate}
 
-\subsection*{Types}
+\noindent
+Note that after two applications of $\kwa{MakeHTTPServer}$, as in $\kwa{MakeHTTPServer~unit~\{Socket.write\}}$, it would type as follows:
+
+\begin{enumerate}
+	\setcounter{enumi}{5}
+	\item By \textsc{$\varepsilon$-PolyFxApp}, \\
+	$\kwa{x: Unit}$\\
+	$\kwa{\vdash MakeHTTPServer~unit~\{S.w\}:}$\\
+	$\kwa{(Str \rightarrow_{\{S.w\}} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\{S.w\}} Unit)~\kw{with} \varnothing}$
+\end{enumerate}
+
+\noindent
+After fixing the polymorphic set of effects, possessing this function only gives you access to the $\kwa{Socket.write}$ effect.
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Map Function}
+
+\subsection*{Pseudo-Wyvern}
+\begin{lstlisting}
+def map(f: A $\rightarrow_{\phi}$ B, l: List[A]): List[B] with $\phi$ =
+	if isnil l then []
+	else cons (f (head l)) (map (tail l f))
+\end{lstlisting}
+
+\subsection*{$\lambda$-Calculus}
+\begin{lstlisting}
+map = $\lambda \phi$. $\lambda$A. $\lambda$B.
+  $\lambda$f: A$\rightarrow_{\phi}$B.
+    (fix ($\lambda$map: List[A] $\rightarrow$ List[B]).
+      $\lambda$l: List[A].
+        if isnil l then []
+        else cons (f (head l)) (map (tail l f)))
+\end{lstlisting}
+
+\subsection*{Typing}
 
 \begin{itemize}
-	\item $\kwa{HTTPServer.init}$ has the type $\lambda A <: \{ \kwa{File, Socket} \}.~A \rightarrow_{\varnothing} \kwa{Str} \rightarrow_{A.write} \Unit$
+	\item This has the type: $\forall \phi. \forall A. \forall B. (A \rightarrow_{\phi} B)  \rightarrow_{\varnothing} \kwa{List}[A] \rightarrow_{\phi} \kwa{List}[B]~ \kw{with} \varnothing$.
+	\item $\kwa{map}~\varnothing$ is a pure version of map.
+	\item $\kwa{map}~\{ \kwa{File.*} \}$ is a version of map which can perform operations on $\kwa{File}$.
 \end{itemize}
+
+
+
+
+
+
+
+
+
+
+
+
 
 %\section{File-Backed Data Structure}
 
 %\section{Accessing Database via Expert}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 \end{document}
 
