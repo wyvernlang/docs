@@ -135,6 +135,20 @@
 
 \begin{document}
 
+\section{Writer}
+
+\begin{lstlisting}
+let abstract_writer = $\lambda \phi \subseteq$ {File.write, Socket.write}.
+   $\lambda$f: Unit $\rightarrow_{\phi}$ Unit.
+       f unit
+
+let file_writer = $\lambda$x: {File}.
+   $\lambda$y: Unit.
+      x.write
+
+in abstract_writer {File} (file_writer File)
+\end{lstlisting}
+
 \section{Map Function}
 
 \subsection*{Pseudo-Wyvern}
@@ -205,29 +219,83 @@ def testSocket():  =
 \noindent
 The HTTPServer module:
 \begin{lstlisting}
-HTTPServer = $\lambda$x: Unit.
-   $\lambda$A <: {File, Socket}.
-      $\lambda$out: A.
-         $\lambda$msg: Str. A.write
+MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
 \end{lstlisting}
 
 \noindent
 The Main module:
 
 \begin{lstlisting}
-Main = $\lambda$hs: HTTPServer. $\lambda$sock: Socket.
+MakeMain = $\lambda$hs: HTTPServer. $\lambda$sock: {Socket}.
    $\lambda$x: Unit.
-      (hs sock) ``GET /index.html''
+      let socketWriter = ($\lambda$s: {Socket}. $\lambda$x: Unit. s.write) sock in
+      let theServer = hs {Socket.write} socketWriter in
+      theServer ``GET/index.html''
 \end{lstlisting}
 
 \noindent
 The Testing module:
 
 \begin{lstlisting}
-Testing = $\lambda$hs: HTTPServer. $\lambda$lf: LogFile.
+MakeTest = $\lambda$hs: HTTPserver. $\lambda$lf: {LogFile}.
    $\lambda$x: Unit.
-      (hs lf) ``GET /index.html''
+      let logFileWriter = ($\lambda$l: {LogFile}. $\lambda$x: Unit. l.write) lf in
+      let theServer = hs {LogFile.write} logFileWriter in
+      theServer ``GET/index.html''
 \end{lstlisting}
+
+\noindent
+A single, desugared program for production would be:
+
+\begin{lstlisting}
+let MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
+
+in let Run = $\lambda$Socket: {Socket}.
+   let HTTPServer = MakeHTTPServer unit in
+   let Main = MakeMain HTTPServer Socket in
+   Main unit
+
+in Run Socket 
+\end{lstlisting}
+
+\noindent
+A single, desugared program for testing would be:
+
+\begin{lstlisting}
+let MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
+
+in let Run = $\lambda$LogFile: {LogFile}.
+   let HTTPServer = MakeHTTPServer unit in
+   let Main = MakeMain HTTPServer LogFile in
+   Main unit
+
+in Run LogFile
+\end{lstlisting}
+
+\noindent
+Note how the HTTPServer code is identical in the testing and production examples.
+
+\subsection*{Typing}
+
+To type $\kwa{MakeHTTPServer}$:
+
+\begin{enumerate}
+	\item By \textsc{$\varepsilon$-App}, \\
+	$\kwa{x: Unit,~ Writer <: Str \rightarrow_{\{\kwa{Lf.write, S.write}\}} Unit,~ f: Writer,~ msg: Str}$ \\
+	$\vdash \kwa{f~msg: Unit}$
+\end{enumerate}
 
 \subsection*{Types}
 
