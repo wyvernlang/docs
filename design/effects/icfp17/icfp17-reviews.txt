@@ -1,0 +1,229 @@
+===========================================================================
+ICFP 2017 Review #37A
+---------------------------------------------------------------------------
+Paper #37: Capabilities: Effects for Free
+---------------------------------------------------------------------------
+
+Overall merit: C. Weak paper, though I will not 
+fight
+strongly against it
+Confidence: X. I am an expert in this area
+
+===== Paper summary =====
+
+The authors present a simple type and effect system for a typed lambda 
+calculus with a fixed set of effect labels.
+
+They embed within it another typed lambda calculus but one that does not 
+have an effect system.
+
+By restricting the free variables of e, a term in the second lambda 
+calculus, to only include variables of the first restricted to providing 
+some effect epsilon, they show (under various conditions) that e can be 
+safely viewed as having an effect at most epsilon.
+
+This is taken to be a demonstration of the power of capability systems, 
+i.e., by restricting the capabilities of e to some set of effectful 
+terms provided by its context, the overall effect of e can be bounded.
+
+A few tiny examples (~10 lines each) are given to illustrate the system.
+
+===== Comments to authors =====
+
+The stated goal of this line of work is interesting: explaining 
+object-capability systems in terms of the formal reasoning principles 
+they provide, e.g., in terms of effect systems, is a worthwhile agenda.
+
+However, although the technical material here seems fine, the advance it 
+makes is rather modest. It's hard to get excited about what is presented 
+here. The setting is extremely simple and the machinery is pretty low 
+tech.
+
+The main non-trivial part seems to be the rule "import" rule, which is 
+presented over 3.5 pages including the description of several failed 
+attempts. That really belabors what are fairly elementary ideas: of 
+course higher order rules decompose by polarity to account for effects 
+from the term or its context. This should come as no surprise to a 
+typical ICFP reader.
+
+The examples presented are also extremely simple. Some of them don't 
+really present the effectiveness of the calculus in a very favorable 
+light. For instance: It's really a stretch to think of a variant of 
+`apply` as a malicious module (5.3, the `log` function). If this program 
+is rejected and requires the user to annotate `apply` to say that it may 
+have any effect whatsoever on Files, then how is this an effect system 
+"for free"? If I have to annotate `apply` with an import, why not just 
+annotate it's function argument with an effectful arrow type? Besides, 
+(lacking effect polymporphism) it's really anti-modular to have to 
+annotate apply with File.* effect, when this module has nothing to do 
+with files at all.
+
+In my view, for this line of work to be considered a significant advance 
+in describing capability systems, much more of the proposed future work 
+need to be done, e.g., modeling object-capabilities, dealing with 
+generative effects, etc.
+
+BTW, the derivation in Fig 8 misses the use of subsumption.
+
+Also, the digression into Wyvern appears out of nowhere in Section 4. I 
+found the examples of Section 5 to be most comprehensible in the formal 
+syntax of OC/CC, rather than having to digest another syntax late in the 
+paper. Why mention Wyvern at all?
+
+===========================================================================
+ICFP 2017 Review #37B
+---------------------------------------------------------------------------
+Paper #37: Capabilities: Effects for Free
+---------------------------------------------------------------------------
+
+Overall merit: A. Good paper, I will champion it
+Confidence: X. I am an expert in this area
+
+===== Paper summary =====
+
+Object-capability systems facilitate lightweight reasoning about what 
+side effects a piece of untrusted code may have. Compliant languages 
+avoid *ambient authority*, where, say, any code could call file I/O 
+routines. Instead, no side effects are allowed by default, and they may 
+only occur by calling methods of objects passed in explicitly to the 
+untrusted code. Formalizing this intuition is not trivial, and this 
+paper does it in the setting of two core calculi, one with a 
+type-and-effect system and the other sporting less expressive types but 
+providing capability safety. We can derive effect bounds on programs 
+automatically based on the types in their free-variable environments.
+
+===== Comments to authors =====
+
+Object-capability systems remain underappreciated even in the ICFP 
+community, with very few languages avoiding ambient authority by 
+default. It's a powerful idea that deserves to be more widely known, 
+including in settings with formal analysis. Those details could help 
+make the case for adopting object capabilities, and the reasoning 
+techniques could be helpful for rigorous proofs of correctness or 
+security.
+
+I think of this paper as (roughly speaking) fitting into a book like 
+Pierce's *Types and Programming Languages*, presenting a pared-down core 
+calculus and showing how it retains the essence of an important idea 
+from programming, demonstrating a central theorem showing in formal 
+terms what the essence of that idea was all along. Capabilities are 
+related to ideas like parametricity that do get attention in the 
+standard references on PL semantics, but really capabilities deserve 
+their own first-class treatment. I support accepting this paper to add 
+this explanation to the research literature -- and maybe we'll see it in 
+the standard PL textbook of 20 years from now.
+
+Most of the details flow well and seem obvious, which seems like a good 
+property for a "formalization pearl." However, the paper structure 
+nicely highlights the key technical discoveries: the side conditions on 
+the rule for embedding an effect-typed term via a free variable in a 
+simply typed term. Several faulty candidates are considered and 
+discarded, thanks to examples showing what goes wrong. These conditions 
+are interesting as a rigorous characterization of our intuitions about 
+capabilities, similar in spirit to Wadler's "free theorem" results via 
+parametricity.
+
+One small suggestion on improving that progression of faulty rules: Page 
+14 begins with the example of the program $\lambda f : \mathtt{File}. \; 
+f.\mathtt{write}$ (wrapped with a dummy import). The program is called 
+out as important to reject, but I don't see why. Yes, its annotated 
+type would need to include the possibility of writing to a file, but 
+this seems like a perfectly legit program in an object-capability 
+discipline. The presence of $\mathtt{File}$ in the function domain 
+warns that the function might actually use the file that it is passed. 
+Is the formal condition being pursued here, then, really a good match 
+with capability intuitions? Could you use an example of a program that 
+is obviously incorrect to accept, rather than just one that is OK but 
+needs to be assigned a different type?
+
+Typos, etc.
+-----------
+
+In Fig. 6, the resource rule (top right) seems to include a typo, with 
+an extraneous $r$ entry in the context. Either that or the rule is an 
+extraneous special case of the variable rule. (The issue recurs in Fig. 
+15.)
+
+The statement of Theorem 2.3 seems incomplete in an important way: 
+$\tau_B$ and $\epsilon_B$ are never related to $e_B$.
+
+The statement of Theorem 2.5 has a confusing typo (I think), with 
+"where" instead of "then". However, the statement still doesn't make 
+sense to me with that fix. It doesn't actually guarantee lack of 
+stuckness anywhere! It just restricts which effects might happen. How 
+about adding "not stuck"?
+
+Page 8 has a typo: "capabilities be passed into it"
+
+Fig. 16 is missing the righthand side of its first equation.
+
+Page 12 typo: "for the rules be safe"
+
+Page 13 typo: "which could given"
+
+Fig. 23 has too little spacing between rule premises.
+
+===========================================================================
+ICFP 2017 Review #37C
+---------------------------------------------------------------------------
+Paper #37: Capabilities: Effects for Free
+---------------------------------------------------------------------------
+
+Overall merit: B. OK paper, but I will not 
+champion
+it
+Confidence: Z. I am not an expert; my 
+evaluation
+is that of an informed outsider
+
+===== Paper summary =====
+
+Access control to resources is one of major topics in program language
+research, and one way to implement it is to use the mechanism of
+capabilities. This paper tackles the problem of checking the
+capability safety of a black box code (or foreign code) under the typing 
+context offering
+some capability-consuming operations. Of course, if we allow arbitrary
+computations inside the black box, we can hardly say anything about it - 
+so
+the paper assumes that the behavior of the black box is written
+with the same language as the one for its outside, except for the
+capability annotation.
+
+===== Comments to authors =====
+
+The main result of this paper is to propose a sound solution to the
+above problem, summarized as e-Import. It is demonstrated that the
+solution suffices to check the capability-safety of translated Wyvern
+programs. The calculus is minimally designed so that we can focus on
+the problem - so its applicability to fully-fledged programming
+languages remains to be seen. Although the topic is slightly
+specialized, this paper identifies an interesting problem and proposes
+a solution. I recommend accepting this paper.
+
+[Comments]
+
+p.6 Fig. 6 e-Resource It is not clear why r : {r} is in the context;
+it is not so in the example derivation in Figure 8.
+
+p.8 l.16 is that which -> is what ?
+
+p.10 l.33 annot :: e x epsilon should be e x 2^{R x Pi}
+
+We supply epsilon to the second argument of annot. epsilon is an
+effect, which is a set of elements in R x Pi, so epsilon is an element
+of 2^{R x Pi}.
+
+p.11 Fig. 15 Rule T-Resource Again, do we need r : {r} in the context?
+
+p.13 l.35 ho-effects (Unit -> ... => ho-effects ((Unit -> ...
+
+p.14 Fig 23. e-Import3-Bad Please put some space after ho-safe(t,e)
+and x:erase(t) |- ...
+
+p.15 Fig 24. Please put some spaces before and after ho-safe(t,e).
+
+p.15 l.28 What is epsilon_s?
+
+p.17 "Desugar" sounds less familiar than "translation".
+
