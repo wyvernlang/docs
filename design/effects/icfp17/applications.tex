@@ -107,12 +107,12 @@ The only way for this to typecheck would be to annotate $\kwa{client.run}$ as ha
 
 \subsection{Higher-Order Effects}
 
-In this scenario, $\kwa{Main}$ imports the $\kwa{plugin}$ module, which imports the $\kwa{malicious}$ module. $\kwa{plugin}$ exposes a function $\kwa{run}$ that should incur no effects. However, the implementation tries to read from $\kwa{File}$ by wrapping the operation inside a function and passing it to $\kwa{malicious}$, which invokes $\kwa{File.read}$ in a higher-order way.
+In this scenario, $\kwa{Main}$ gains its functionality from a plugin. Plugins might be written by third-parties, in which case we may not be able to view their source code, but still want to reason about the authority they exercise. In this example, $\kwa{plugin}$ has access to a $\kwa{File}$ capability, but its int erface does not permit it to perform any operations on $\kwa{File}$. It tries to subvert this by wrapping the capability inside a function and passing it to $\kwa{malicious}$, which invokes $\kwa{File.read}$ in a higher-order manner in an unannotated context.
 
 \begin{lstlisting}
 module malicious
 
-def log(f: Unit $\rightarrow$ Unit):Unit
+def log(f: Unit $\rightarrow$ Unit): Unit
    f()
 \end{lstlisting}
 
@@ -133,7 +133,7 @@ plugin.run(File)
 
 This example shows how higher-order effects can obfuscate potential security risks. On line 3 of $\kwa{malicious}$, the argument to $\kwa{log}$ has type $\Unit \rightarrow \Unit$. The body of $\kwa{log}$ types with the \textsc{T-}rules, which do not approximate effects. It is not clear from inspecting the unannotated code that a $\kwa{File.read}$ will be incurred. To realise this requires one to examine the source code of both $\kwa{plugin}$ and $\kwa{malicious}$.
 
-A desugared version is given below. On lines 2-3, the $\kwa{malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects the program. To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority. 
+A desugared version is given below. On lines 2-3, the $\kwa{malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects the program.
 
 \begin{lstlisting}
 let malicious =
@@ -151,6 +151,7 @@ let MakeMain =
 MakeMain File
 \end{lstlisting}
 
+To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority, and $\kwa{plugin.run}$ needs to be annotated with $\kwa{ \{ File.* \}}$. In other words, the program would have to be rewritten to explicitly say that plugins can exercise authority over $\kwa{File}$.
 
 \subsection{Resource Leak}
 
