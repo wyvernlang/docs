@@ -1,0 +1,93 @@
+Notes by Aaron Below:
+
+>> One small suggestion on improving that progression of faulty rules: Page 
+>> 14 begins with the example of the program $\lambda f : \mathtt{File}. \; 
+>> f.\mathtt{write}$ (wrapped with a dummy import). The program is called 
+>> out as important to reject, but I don't see why. Yes, its annotated 
+>> type would need to include the possibility of writing to a file, but 
+>> this seems like a perfectly legit program in an object-capability 
+>> discipline.
+
+It should reject because the body writes to a file, but the signature/interface doesn't say it has this effect.
+
+> The presence of $\mathtt{File}$ in the function domain 
+> warns that the function might actually use the file that it is passed.
+
+Consider a function like lambda x: {File}. Unit. Even though this has File as an input, it could be correctly given the type Unit --nothing--> Unit since its body doesn't do anything. In general, you need this for confinement: if you say lambda x: {File}. e is always going to have File.* as its effects, regardless of what e is, then you can't ever have a capability which just does something like perform File.append (but not any other operation on File).
+
+AJ
+
+
+-------- Original Message --------
+Subject: Re: ICFP 2017 Reviews in Plain Text
+Local Time: April 19, 2017 12:18 AM
+UTC Time: April 18, 2017 12:18 PM
+From: aaroncraig@protonmail.ch
+To: Alex Potanin <Alex.Potanin@ecs.vuw.ac.nz>
+Aaron Craig <Aaron.Craig@ecs.vuw.ac.nz>, Lindsay Groves <Lindsay.Groves@ecs.vuw.ac.nz>, Jonathan Aldrich <jonathan.aldrich@cs.cmu.edu>
+
+I've gone ahead and fixed up some of those typos. Some thoughts and comments are below on the more technical/stylistic comments.
+
+>> p.14 Fig 23. e-Import3-Bad Please put some space after ho-safe(t,e)
+>> and x:erase(t) |- ...
+
+>> p.15 Fig 24. Please put some spaces before and after ho-safe(t,e).
+
+I'm not sure how to do these. At the moment there is a "~~~~~~~" between them but the spaces don't show up.
+
+>> p.10 l.33 annot :: e x epsilon should be e x 2^{R x Pi}
+
+Both signatures seem valid, depending on whether you view them as being over the grammar of the programming language (CC), or over the mathematical meta-language.
+
+>> In Fig. 6, the resource rule (top right) seems to include a typo, with 
+>> an extraneous $r$ entry in the context. Either that or the rule is an 
+>> extraneous special case of the variable rule. (The issue recurs in Fig. 
+>> 15.)
+
+There are several comments about this. The resource rule is indeed a copy of the variable rule (resource literals being variables drawn from a special set of names) --- but since we've defined them as separate categories in the grammar, there needs to be a separate rule for each.
+
+To defend this design choice, collapsing resource literals and variables into one category requires us to be able to to distinguish one from the other at the point of an operation call e.g. is File.write a well-defined operation call on a resource literal File, or is it a malformed operation call on a variable File? Separating the two prevents us having to worry about it.
+
+> The statement of Theorem 2.3 seems incomplete in an important way: 
+> $\tau_B$ and $\epsilon_B$ are never related to $e_B$.
+
+Fixed, the conclusion of the theorem statement was missing a typing judgement.
+
+> The statement of Theorem 2.5 has a confusing typo (I think), with 
+> "where" instead of "then". However, the statement still doesn't make 
+> sense to me with that fix. It doesn't actually guarantee lack of 
+> stuckness anywhere! It just restricts which effects might happen. How 
+> about adding "not stuck"?1
+
+Seems like a good idea to me. Doing it properly/formally would otherwise require restating progress/preservation for the multi-step relation -->*
+
+> p.15 l.28 What is epsilon_s?
+
+This is explained a few lines up, but the switch in notation is confusing. The change in notation is to avoid name-clashes in the theorem statements (epsilon is the name of the effects produced during runtime in soundness/preservation).
+
+ A solution might be to change all instances of import(epsilon) ..... throughout the document to import(epsilon_s) .....
+
+> Also, the digression into Wyvern appears out of nowhere in Section 4. I 
+> found the examples of Section 5 to be most comprehensible in the formal 
+> syntax of OC/CC, rather than having to digest another syntax late in the 
+> paper. Why mention Wyvern at all?
+
+A defence of this could be to say we need to know the capability calculus can actually form a basis for high-level capability-safe languages.
+
+> For instance: It's really a stretch to think of a variant of 
+> `apply` as a malicious module (5.3, the `log` function). If this program 
+> is rejected and requires the user to annotate `apply` to say that it may 
+> have any effect whatsoever on Files, then how is this an effect system 
+> "for free"? If I have to annotate `apply` with an import, why not just 
+> annotate it's function argument with an effectful arrow type? Besides, 
+> (lacking effect polymporphism) it's really anti-modular to have to 
+> annotate apply with File.* effect, when this module has nothing to do 
+> with files at all.
+
+This is my poor explanation of the scenario being modeled.
+
+In this scenario, plugins and their dependencies are not supposed to have any effects, but this particular plugin is trying to subvert. The type system (rightfully) rejects it. In this case, the plugin relies on a dependency (what he calls "apply") which is not meant to be an actual, useful program. Rather, it is a pathological attempt to exercise a privilege that plugins are not meant to be exercising.
+
+To get this example to typecheck requires you to annotate the Plugin module with File.*, which should be interpreted as an acknowledgement that plugins are allowed to perform arbitrary file operations.
+
+AJ
