@@ -1,21 +1,20 @@
 \section{Applications}
 
-In this section we show how the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. We present several scenarios which demonstrate unsafe behaviour or a particular developer story. This takes the form of writing a Wyvern program, expressing it in $\epscalc$ using the techniques of the last section, and then explaining how the rules of $\epscalc$ apply. 
-
+In this section we show how the capability-based design of $\epscalc$ can assist in reasoning about the effects and behaviour of a program. We present several scenarios which demonstrate unsafe behaviour or a particular developer story. This takes the form of writing a Wyvern program, translating it to $\epscalc$ using the techniques of the previous section, and then explaining how the rules of $\epscalc$ apply. In discussing these examples, we hope to illustrate where the rules of $\epscalc$ may arise in practice, and convince the reader that they adequately capture the intuitive properties of capability-safe languages like Wyvern.
 
 \subsection{Unannotated Client}
 
-There is a single primitive capability $\kwa{File}$. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module possesses the $\kwa{logger}$ module and exposes a function $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not --- if $\kwa{client.run}$ is executed, what effects might it have? Code for this example is given below. 
+There is a single primitive capability $\kwa{File}$. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module, possessing the $\kwa{logger}$ module, exposes a functino $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not --- if $\kwa{client.run}$ is executed, what effects might it have? Code for this example is given below. 
 
 \begin{lstlisting}
-module def logger(f:File):Logger
+module def logger(f: {File}):Logger
 
 def log(): Unit with {File.append} =
     f.append(``message logged'')
 \end{lstlisting}
 
 \begin{lstlisting}
-module def client(logger:Logger)
+module def client(logger: Logger)
 
 def run(): Unit =
    logger.log()
@@ -30,7 +29,7 @@ instantiate client(logger)
 client.run()
 \end{lstlisting}
 
-The desugared version is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
+The translation is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
 
 \begin{lstlisting}
 let MakeLogger =
@@ -53,20 +52,19 @@ MakeMain File
 
 The interesting part  is on line $7$ where the unannotated code selects $\{ \kwa{File.append} \}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\{\kwa{File.append}\}} \Unit) = \{ \kwa{File.append} \}$. The code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, the unannotated code typechecks by \textsc{$\varepsilon$-Import} with approximate effects $\kwa{\{ \kwa{File.append} \}}$.
 
-
 \subsection{Unannotated Library}
 
-The next example inverts the roles of the last scenario: now, the annotated $\kwa{client}$ wants to use the unannotated $\kwa{logger}$. $\kwa{logger}$ captures $\kwa{File}$ and exposes a single function $\kwa{log}$ which incurs the $\kwa{File.append}$ effect. $\kwa{client}$ has a function $\kwa{run}$ which executes $\kwa{logger.log}$, incurring its effects. $\kwa{client.run}$ is annotated with $\varnothing$.
+The next example inverts the roles of the last scenario: now, the annotated $\kwa{client}$ wants to use the unannotated $\kwa{logger}$. $\kwa{logger}$ captures $\kwa{File}$ and exposes a single function $\kwa{log}$ which incurs the $\kwa{File.append}$ effect. $\kwa{client}$ has a function $\kwa{run}$ which executes $\kwa{logger.log}$, incurring its effects. $\kwa{client.run}$ is annotated with $\varnothing$, so the implementation of $\kwa{logger.log}$ violates its interface.
 
 \begin{lstlisting}
-module def logger(f:File):Logger
+module def logger(f: {File}): Logger
 
 def log(): Unit =
     f.append(``message logged'')
 \end{lstlisting}
 
 \begin{lstlisting}
-module def client(logger:Logger)
+module def client(logger: Logger)
 
 def run(): Unit with {File.append} =
    logger.log()
@@ -81,7 +79,7 @@ instantiate client(logger)
 client.run()
 \end{lstlisting}
 
-A desugaring is given below. On lines 3-4, the unannotated code is wrapped in an $\kwa{import}$ expression selecting $\{ \kwa{File.append} \}$ as its authority. The implementation of $\kwa{logger}$ actually abides by this selected authority, but it has the authority to perform any operation on $\kwa{File}$, so it could, in general, invoke any of them. \textsc{$\varepsilon$-Import} rejects this example because the imported capability has the type $\{ \File \}$ and $\fx{\{ \File \}} = \{ \kwa{File}.* \} \not\subseteq \{ \kwa{ File.append } \}$.
+The translation is given below. On lines 3-4, the unannotated code is wrapped in an $\kwa{import}$ expression selecting $\{ \kwa{File.append} \}$ as its authority. The implementation of $\kwa{logger}$ actually abides by this selected authority, but it has the authority to perform any operation on $\kwa{File}$, so it could, in general, invoke any of them. \textsc{$\varepsilon$-Import} rejects this example because the imported capability has the type $\{ \File \}$ and $\fx{\{ \File \}} = \{ \kwa{File}.* \} \not\subseteq \{ \kwa{ File.append } \}$.
 
 \begin{lstlisting}
 let MakeLogger =
@@ -133,7 +131,7 @@ plugin.run(File)
 
 This example shows how higher-order effects can obfuscate potential security risks. On line 3 of $\kwa{malicious}$, the argument to $\kwa{log}$ has type $\Unit \rightarrow \Unit$. The body of $\kwa{log}$ types with the \textsc{T-}rules, which do not approximate effects. It is not clear from inspecting the unannotated code that a $\kwa{File.read}$ will be incurred. To realise this requires one to examine the source code of both $\kwa{plugin}$ and $\kwa{malicious}$.
 
-A desugared version is given below. On lines 2-3, the $\kwa{malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects the program.
+A translation is given below. On lines 2-3, the $\kwa{malicious}$ code selects its authority as $\varnothing$, to be consistent with the annotation on $\kwa{plugin.run}$. This example is rejected by \textsc{$\varepsilon$-Import}. When the unannotated code is annotated with $\varnothing$, it has type $\{ \File \} \rightarrow_{\varnothing} \Unit$. The higher-order effects of this type are $\kwa{File.*}$, which is not contained in the selected authority $\varnothing$ --- hence, \textsc{$\varepsilon$-Import} safely rejects the program.
 
 \begin{lstlisting}
 let malicious =
@@ -180,7 +178,7 @@ import plugin
 plugin.run(File)
 \end{lstlisting}
 
-The desugaring is given below. The unannotated code in $\kwa{malicious}$ is given on lines 5-6. The selected authority is $\varnothing$, to be consistent with the annotation on $\kwa{plugin}$. Nothing is being imported, so the $\kwa{import}$ binds a name $\kwa{y}$ to $\unit$. This example is rejected by \textsc{$\varepsilon$-Import} because the premise $\varepsilon = \fx{\hat \tau} \cup \hofx{\annot{\tau}{\varepsilon}}$ is not satisfied. In this case, $\varepsilon = \varnothing$ and $\tau = \kwa{ (Unit \rightarrow \{ File \}) \rightarrow Unit }$. Then $\annot{\tau}{\varepsilon} = \kwa{ (Unit \rightarrow_{\varnothing} \{ File \}) \rightarrow_{\varnothing} Unit }$ and $\hofx{\annot{\tau}{\varepsilon}} = \{ \kwa{File.*} \}$. Thus, the premise cannot be satisfied and the example is safely rejected.
+The translation is given below. The unannotated code in $\kwa{malicious}$ is given on lines 5-6. The selected authority is $\varnothing$, to be consistent with the annotation on $\kwa{plugin}$. Nothing is being imported, so the $\kwa{import}$ binds a name $\kwa{y}$ to $\unit$. This example is rejected by \textsc{$\varepsilon$-Import} because the premise $\varepsilon = \fx{\hat \tau} \cup \hofx{\annot{\tau}{\varepsilon}}$ is not satisfied. In this case, $\varepsilon = \varnothing$ and $\tau = \kwa{ (Unit \rightarrow \{ File \}) \rightarrow Unit }$. Then $\annot{\tau}{\varepsilon} = \kwa{ (Unit \rightarrow_{\varnothing} \{ File \}) \rightarrow_{\varnothing} Unit }$ and $\hofx{\annot{\tau}{\varepsilon}} = \{ \kwa{File.*} \}$. Thus, the premise cannot be satisfied and the example is safely rejected.
 
 
 \begin{lstlisting}

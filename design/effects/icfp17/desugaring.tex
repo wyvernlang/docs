@@ -1,6 +1,6 @@
-\section{Desugaring}
+\section{Translations}
 
-In this section we develop notation and techniques so our calculi can express the practical examples of the next section. To do this we show how to encode $\unit$ and $\kwa{let}$ in $\epscalc$, make some simplifying assumptions, and show how to express the Wyvern examples in $\epscalc$.
+In this section we develop notation and techniques so our calculi can express the practical examples of the next section. To do this, we show how to encode $\unit$ and $\kwa{let}$ in $\epscalc$, make some simplifying assumptions, and show how Wyvern-like programs can be translated into $\epscalc$. With these, we hope to convince the reader that $\epscalc$ adequately captures the properties of capability-safe languages.
 
 \subsection{Unit, Let}
 
@@ -20,17 +20,17 @@ Modules are declared with the $\kwa{module}$ keyword, and we use \kwat{module} \
 \begin{figure}[h]
 
 \begin{lstlisting}
-module Mod:FileTicker
+module Mod: FileTicker
 
-def tick(f: {File}):Unit with {File.append}
+def tick(f: {File}): Unit with {File.append}
    f.append
 
 \end{lstlisting}
 
 \begin{lstlisting}
-module def Ftor(f: {File}):UnitTicker
+module def Ftor(f: {File}): UnitTicker
 
-def tick():Unit with {File.append}
+def tick(): Unit with {File.append}
    f.append
 \end{lstlisting}
 
@@ -60,22 +60,22 @@ Ftor.tick()
 \label{fig:wyv_module_instantiation}
 \end{figure}
 
-Our Wyvern examples are simplified in several ways so they can be expressed in $\epscalc$. The only objects used are modules. The modules only ever contain one function and the capabilities they require; they have no mutable fields. There are no self-referencing modules or recursive functions. Modules do not reference each other cyclically. These simplifications enable us to model each module as a function. Applying the function will be equivalent to applying the single function defined by the module. A collection of modules is desugared into $\epscalc$ as follows. First, a sequence of let-bindings are used to associate the name of a module with the function defined in it, and to associate the name of a functor with a constructor function that, when given the capabilities requested by a functor, will return the function representing a module instance. The constructor for a functor $\kwa{F}$ is called $\kwa{MakeF}$. If the module does not require any capabilities it takes $\Unit$ as its argument. A function is then defined which represents the body of code in the main program. When invoked, this function will instantiate all the functors by invoking their constructors and then will execute the code in from the main program. Finally, the function representing the program is invoked with the primitive capabilities that are passed in from the system environment.
+Our Wyvern examples are simplified in several ways so they can be expressed in $\epscalc$. The only objects used are modules. The modules only ever contain one function and the capabilities they require; they have no mutable fields. There are no self-referencing modules or recursive functions. Modules do not reference each other cyclically. These simplifications enable us to model each module as a function. Applying the function will be equivalent to applying the single function defined by the module. A collection of modules is translated into $\epscalc$ as follows. First, a sequence of let-bindings are used to associate the name of a module with the function defined in it, and to associate the name of a functor with a constructor function that, when given the capabilities requested by a functor, will return the function representing a module instance. The constructor for a functor $\kwa{F}$ is called $\kwa{MakeF}$. If the module does not require any capabilities it takes $\Unit$ as its argument. A function is then defined which represents the body of code in the main program. When invoked, this function will instantiate all the functors by invoking their constructors and then will execute the code in from the main program. Finally, the function representing the program is invoked with the primitive capabilities that are passed in from the system environment.
 
-Figure \ref{fig:wyv_tutorial_desugaring} shows how the examples above desugar. Lines 1-2 define the module $\kwa{Mod}$.  Lines 4-6 define the constructor for $\kwa{Ftor}$. It requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 5. The constructor for the main program is defined on lines 8-12, which instantiates \kwat{Ftor} and runs the main program code. Line 14 starts execution by invoking $\kwa{MakeMain}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
+Figure \ref{fig:wyv_tutorial_desugaring} shows how the examples above translate. Lines 1-2 define the module $\kwa{Mod}$.  Lines 4-6 define the constructor for $\kwa{Ftor}$. It requires a $\kwa{File}$ capability, so the constructor takes $\kwa{\{File\}}$ as its input type on line 5. The constructor for the main program is defined on lines 8-12, which instantiates \kwat{Ftor} and runs the main program code. Line 14 starts execution by invoking $\kwa{MakeMain}$ with the initial set of capabilities, which in this case is just $\kwa{File}$.
 
 \begin{figure}[h]
 
 \begin{lstlisting}
 let Mod =
-   $\lambda$f:{File}. f.append in
+   $\lambda$f: {File}. f.append in
 
 let MakeFtor =
-   $\lambda$f:{File}.
-      $\lambda$x:Unit. f.append in
+   $\lambda$f: {File}.
+      $\lambda$x: Unit. f.append in
 
 let MakeMain =
-   $\lambda$f:{File}.
+   $\lambda$f: {File}.
       let Ftor = (MakeFtor f) in
       let r1 = (Mod f) in
       Ftor unit
@@ -83,8 +83,8 @@ let MakeMain =
 MakeMain File
 \end{lstlisting}
 
-\caption{Desugaring of $\kwa{Mod}$ and $\kwa{Ftor}$ into $\epscalc$.}
+\caption{Translation of $\kwa{Mod}$ and $\kwa{Ftor}$ into $\epscalc$.}
 \label{fig:wyv_tutorial_desugaring}
 \end{figure}
 
-When an unannotated module is translated into $\epscalc$, the desugared contents will be encapsulated with an $\kwa{import}$ expression. The selected authority on the $\kwa{import}$ expression will be that we expect of the unannotated code according to the principle of least authority in the particular example under consideration. For example, if the client only expects the unannotated code to have the $\kwa{File.append}$ effect, the corresponding $\kwa{import}$ expression will select $\kwa{\{File.append\}}$.
+When an unannotated module is translated into $\epscalc$, the translated contents will be encapsulated with an $\kwa{import}$ expression. The selected authority on the $\kwa{import}$ expression will be that we expect of the unannotated code according to the principle of least authority in the particular example under consideration. For example, if the client only expects the unannotated code to have the $\kwa{File.append}$ effect, the corresponding $\kwa{import}$ expression will select $\kwa{\{File.append\}}$.
