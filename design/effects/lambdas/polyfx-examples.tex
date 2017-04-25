@@ -403,6 +403,7 @@ After fixing the polymorphic set of effects, possessing this function only gives
 
 
 
+
 \section{Map Function}
 
 \subsection*{Pseudo-Wyvern}
@@ -434,6 +435,33 @@ map = $\lambda \phi$. $\lambda$A. $\lambda$B.
 
 
 
+\section{Thread Non-Interference}
+
+Given two threads, we want to know if they can be executed at the same time without interference. The below example demonstrates two threads which are executing non-interfering code. $\kwa{fx1}$ can only have file effects, while $\kwa{fx2}$ can only have socket effects. Even before fixing the set of effects, we can tell executing them will not interfere with the other.
+
+\begin{lstlisting}
+fx1 = $\lambda \phi \subseteq \{\kwa{File.*}\}.~\lambda f: \kwa{Str} \rightarrow_{\phi} \Unit$
+fx2 = $\lambda \phi \subseteq \{\kwa{Socket}.*\}. ~\lambda f: \kwa{Str} \rightarrow_{\phi} \Unit$
+
+spawn (fx1 {File.write} e$_1$ ``data2process'')
+spawn (fx2 {Socket.write} e$_2$ ``data2process'')
+\end{lstlisting}
+
+By contrast, the below example demonstrates how two threads might interfere. $\kwa{Fx}$ is polymorphic in its set of effects, which is bound from above by $\{ \kwa{File.*} \}$. The first two threads have their effect-variable bound to different, disjoint sets of effects; but the second two threads contain a common effect, $\kwa{File.write}$, and so their execution might interfere.
+
+\begin{lstlisting}
+fx = $\lambda \phi \subseteq \{\kwa{File.*}\}.~\lambda f: \kwa{Str} \rightarrow_{\phi} \Unit$
+
+// Non-interfering threads.
+spawn (fx {File.write} e$_1$ ``data2process'')
+spawn (fx {File.append} e$_2$ ``data2process'')
+
+// Potentially interfering threads.
+spawn (fx {File.write} e$_1$ ``data2process'')
+spawn (fx {File.write, File.read} e$_2$ ``data2process'')
+\end{lstlisting}
+
+
 
 
 
@@ -445,6 +473,7 @@ map = $\lambda \phi$. $\lambda$A. $\lambda$B.
 %\section{File-Backed Data Structure}
 
 %\section{Accessing Database via Expert}
+
 
 
 
