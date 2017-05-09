@@ -134,6 +134,18 @@
 	\forall #1. #2~ \kw{caps} #3
 }
 
+\newcommand{\ispoly}[1]{
+	\kwa{is \hyphen poly}(#1)
+}
+
+\newcommand{\lub}[1]{
+	\kwa{lub}(#1)
+}
+
+\newcommand{\ub}[1]{
+	\kwa{ub}(#1)
+}
+
 \newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
 
 
@@ -167,7 +179,7 @@ v & ::= & ~ & \bf{values} \\
 	& | & \hat e ~ \hat e & application \\
 	& | & e~\hat \tau & type~application \\
 	& | & e~\varepsilon & effect~application \\
-	& | & \import{\varepsilon_s}{x}{\hat e}{e} & import\\
+	& | & \kwa{import}(\varepsilon_s)~\overline{x = \hat e}~\kw{in} e\\
 	&&\\
 
 \hat v & ::= & ~ & \bf{annotated~values} \\
@@ -402,18 +414,20 @@ v & ::= & ~ & \bf{values} \\
 
 \infer[\textsc{($\varepsilon$-PolyTypeApp)}]
 	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau_2~\kw{with}  [\hat \tau'/X]\varepsilon_1 \cup \varepsilon_2 }
-	{ \polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_1}~\kw{with} \varepsilon_2 & \hat \tau' <: \hat \tau_1} \\[2ex]
+	{ \hat \Gamma \vdash \hat e: \polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_1}~\kw{with} \varepsilon_2 & \hat \tau' <: \hat \tau_1} \\[2ex]
 
 \infer[\textsc{($\varepsilon$-PolyFxApp)}]
-	{ \hat \Gamma \vdash \hat e~\varepsilon : [\varepsilon'/\phi]\hat \tau~\kw{with} [\varepsilon'/\phi]\varepsilon_1 \cup \varepsilon_2 }
+	{ \hat \Gamma \vdash \hat e~\varepsilon' : [\varepsilon'/\phi]\hat \tau~\kw{with} [\varepsilon'/\phi]\varepsilon_1 \cup \varepsilon_2 }
 	{ \hat \Gamma \vdash \hat e: \polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}~\kw{with} \varepsilon_2 & \varepsilon' \subseteq \varepsilon } \\[2ex]
 
 \infer[\textsc{($\varepsilon$-Import)}]
-	{ \hat \Gamma \vdash \kwa{import}(\varepsilon)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon)~\kw{with} \varepsilon \cup \varepsilon_1 }
+	{ \hat \Gamma \vdash \kwa{import}(\varepsilon_s)~\overline{x = \hat e}~\kw{in} e: \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \bigcup_{i} \varepsilon_i }
 {{\def\arraystretch{1.4}
   \begin{array}{c}
-\kwa{effects}(\hat \tau) \cup \hofx{\annot{\tau}{\varnothing}}\subseteq \varepsilon \\
-\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1 ~~~~~~ \kwa{ho \hyphen safe}(\hat \tau, \varepsilon) ~~~~~~ x: \kwa{erase}(\hat \tau) \vdash e: \tau
+\kwa{effects}(\hat \tau_i) \cup \hofx{\annot{\tau}{\varnothing}}\subseteq \varepsilon_s \\
+\hat \Gamma \vdash \hat e_i: \hat \tau_i~\kw{with} \varepsilon_i  ~~~~~~ x_i: \kwa{erase}(\hat \tau_i) \vdash e: \tau ~~~~~~ \hosafe{\hat \tau_i}{\varepsilon_s}
+%\\
+%\ispoly{\hat \tau_i} \implies \hosafe{\hat \tau_i}{\ub{\hat \tau_i} \cap \fx{\hat \tau_i}}
   \end{array}}} 
  
  
@@ -481,6 +495,26 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 
 \end{array}
 \]
+
+
+%\noindent
+%$\fbox{$\ispoly{\hat \tau}$}$
+
+%\[
+%\begin{array}{c}
+
+%\infer[\textsc{(IsPoly-Fx)}]
+%	{ \ispoly{\polycap{\phi \subseteq \varepsilon_1}{\hat \tau}{\varepsilon_2}} } 
+%	{}
+%	~~~~~~
+%\infer[\textsc{(IsPoly-Type)}]
+%	{ \ispoly{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_2}}} 
+%	{}\\[3ex]
+
+
+%\end{array}
+%\]
+
 
 
 \fbox{$\hat \Gamma \vdash \hat \tau <: \hat \tau$}
@@ -566,7 +600,7 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 ~~~
 
 \infer[\textsc{(E-PolyTypeApp2)}]
-	{(\lambda X. \hat e) \hat \tau \longrightarrow [\hat \tau/X]\hat e~|~\varnothing}
+	{(\lambda X <: \hat \tau_1. \hat e) \hat \tau \longrightarrow [\hat \tau/X]\hat e~|~\varnothing}
 	{}\\[2ex]
 
 \infer[\textsc{(E-PolyFxApp1)}]
@@ -574,7 +608,7 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 	{\hat e \longrightarrow \hat e'~|~\varepsilon}
 ~~~
 \infer[\textsc{(E-PolyFxApp2)}]
-	{(\lambda \phi. \hat e) \varepsilon \longrightarrow [\varepsilon/\phi]\hat e~|~\varnothing}
+	{(\lambda \phi \subseteq \varepsilon_1. \hat e) \varepsilon \longrightarrow [\varepsilon/\phi]\hat e~|~\varnothing}
 	{}\\[2ex]
 
 \infer[\textsc{(E-Import1)}]

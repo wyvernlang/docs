@@ -433,44 +433,100 @@ map = $\lambda \phi$. $\lambda$A. $\lambda$B.
 
 
 
-\section{Higher-Order Examples}
-
-\subsection*{Upper bound on imported polymorphic functions}
+\section{Imports Are an Upper Bound on Polymorphic Capabilities}
 
 If you import a polymorphic function with no upper-bound on its effects, then the collective effects of the other capabilities being imported will be an upper-bound. The following should typecheck.
 
 \begin{lstlisting}
 let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
 
-import({File.write}) 
+import({File.*}) 
    pw = polywriter
    f = File
 in
    pw {File.write} ($\lambda$x: Unit. f.write)
 \end{lstlisting}
 
-\subsection*{Violating polymorphic function with fixed parameter}
+\subsection*{Derivation}
+
+$\hosafe{ \forall \phi \subseteq \{ \kwa{File.write, Socket.write} \}. \Unit \rightarrow_{\phi} \Unit}{\kwa{File.*}}$ \\
+= $\{ \kwa{File.write, Socket.write} \} \subseteq \{ \kwa{File.*} \} \land \safe{\Unit \rightarrow_{\{\kwa{File.write, Socket.write}\}} \Unit}{\kwa{File.*}}$ \\
+
+\noindent
+Both the $\hosafe{\hat \tau_i, \varepsilon_s}$ and $\fx{\hat \tau_i} \subseteq \varepsilon_s$ check fails, because $\{ \kwa{File.write, Socket.write} \} \subseteq \{ \kwa{File.write} \}$ is false. If we were to intersect $\fx{\hat \tau_i}$ with the effects of the capabilities being passed in, we would get a tighter bound on the actual effects of $\hat \tau_i$, and the check would succeed. Similar thing with $\hosafe{\hat \tau_i, \varepsilon_s}$. Recall that $\hosafe{\hat \tau_i, \varepsilon_s}$ is a version of $\hofx{\hat \tau_i} \subseteq \varepsilon_s$ which distributes over the subterms in $\hat \tau_i$. If we intersect the $\hofx{\hat \tau_i}$ with the capabilites passed in, this check would also pass.
+
+How do we define this intersection? Several ways come to mind.
+
+\subsubsection{Extra Argument}
+
+Define a two-variable version of $\kwa{effects}$ which has an extra argument containing all of the imported capabilities. This function will return the effects, but will produce a (potentially) tighter upper-bound using the information from the imported capabilities. This function will be defined the same on non-polymorphic types as the one-variable version, but for polymorphic functions it is defined in the following way:
+
+\begin{itemize}
+	\item $\hofx{\hat \tau_i, \overline{\hat \tau}} = \hofx{\hat \tau_i} \cap \bigcup_{i} \fx{\hat \tau_i, \overline{\hat \tau}}$
+	\item $\fx{\hat \tau_i, \overline{\hat \tau}} = \fx{\hat \tau_i} \cap \bigcup_{i} \hofx{\hat \tau_i, \overline{\hat \tau}}$
+\end{itemize}
+
+Do a similar thing for $\kwa{safe}$ and $\kwa{ho \hyphen safe}$. The premises of \textsc{$\varepsilon$-Import} now use the versions with the extra argument.
+
+\subsubsection{Extra Premises}
+
+Modify the premises of \textsc{$\varepsilon$-Import}. Add a new predicate, $\kwa{is \hyphen poly}(\hat \tau)$ which is true iff $\hat \tau$ is a polymorphic type. The premises are now:
+
+\begin{itemize}
+	\item $\neg \kwa{is \hyphen poly}(\hat \tau) \implies \fx{\hat \tau} \subseteq \varepsilon_s$
+	\item $\kwa{is \hyphen poly}(\hat \tau) \implies \fx{\hat \tau} \cap \bigcup_{i} \fx{\hat \tau_i} \subseteq \varepsilon_s$
+\end{itemize}
+
+How to do the higher-order safety checks though?
+
+\subsubsection{Replacement}
+
+Define $\varepsilon' = \bigcup_i \fx{\hat \tau_i}$, the sum of the effects in scope. Then define $\kwa{replace}(\lambda \phi \subseteq \varepsilon. \hat \tau) = \lambda \phi \subseteq \varepsilon'. \hat \tau$. Then for any polymorphic capability $\hat \tau_i$< instead of doing e.g. $\kwa{effects}(\hat \tau)$, do $\kwa{effects}(\kwa{replace}(\hat \tau, \varepsilon'))$. (How would this work for polymorphic types?)
+
+
+
+
+\section{Violating a polymorphic function that has been fixed}
 
 Malicious code tries to import polywriter, where the effect-set has been fixed to $\{ \kwa{File.write} \}$, and then calls it with $\kwa{ \{Socket.write\} }$. The example should reject.
 
 \begin{lstlisting}
+
 let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
 
-import({File.*})
+import({File.*, Socket.*})
    filewriter = polywriter {File.write}
-   s = Socket
+   s = $\lambda$x: Unit. Socket.write
 in
-   filewriter ($\lambda$x: Unit. s.write)
+   filewriter s
+\end{lstlisting}
+
+Safely rejects because the higher-order safety check is not true (acknowledging that $\kwa{filewriter}$ could be passed a capability exceeding its authority). \\
+
+$\hosafe{(\Unit \rightarrow_{\kwa{\{File.write\}}} \Unit) \rightarrow_{\kwa{\{File.write\}}} \Unit}{\kwa{ \{File.*, Socket.*\} }}$ \\
+
+$= \safe{\Unit \rightarrow_{\kwa{\{File.write\}}} \Unit}{\{\kwa{File.*, Socket.*}\}} \land \hosafe{\Unit}{\{\kwa{File.*, Socket.*}\}}$ \\
+
+$= \safe{\Unit \rightarrow_{\kwa{\{File.write\}}} \Unit}{\{\kwa{File.*, Socket.*}\}}$ \\
+
+$= \{\kwa{File.*, Socket.*}\} \subseteq \{ \kwa{File.*} \}$ \\
+
+which is false.
+
+
+
+\section{Composing polymorphic functions (artificial example)}
+
+\begin{lstlisting}
+$\lambda \phi_1 \subseteq$ { File.write, File.read }.
+   $\lambda \phi_2 \subseteq \phi_1$.
+      $\lambda$f: $\Unit \rightarrow_{ \phi_1 } \Unit$.
+         $\lambda$g: $\Unit \rightarrow_{ \phi_2 } \Unit$.
+            let _ = f unit in g unit 
 \end{lstlisting}
 
 
 
-
-
-
-
-
-%\section{File-Backed Data Structure}
 
 %\section{Accessing Database via Expert}
 
