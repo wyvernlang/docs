@@ -295,6 +295,7 @@ v & ::= & ~ & \bf{values} \\
 \end{enumerate}
 
 
+
 \subsection*{Definition ($\kwa{effects :: \hat \tau \rightarrow \varepsilon}$)}
 
 \begin{enumerate}
@@ -305,6 +306,17 @@ v & ::= & ~ & \bf{values} \\
 	\item $\fx{\polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}} = \fx{[\varepsilon/\phi]\hat \tau} \cup \varepsilon_1$
 \end{enumerate}
 
+
+\subsection*{Defintion ($\kwa{effects :: \hat \tau \times \overline{\hat \tau} \rightarrow \varepsilon}$)}
+
+\begin{enumerate}
+	\item $\kwa{effects}(\hat \tau, \overline{\hat \tau}) = \kwa{effects}(\hat \tau) \cap \bigcup_{i} \kwa{effects}(\hat \tau_i)$, if $\hat \tau$ is polymorphic.
+	\item $\kwa{effects}(\hat \tau, \_) = \fx{\hat \tau}$, otherwise.
+\end{enumerate}
+
+\noindent
+\textbf{Note: the definitions given for non-polymorphic types could also be refined to give a more precise upper-bound on the effects they capture. This definition is also probably deficient when there is another polymorphic function in scope.}
+
 \subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \rightarrow \varepsilon}$)}
 
 \begin{enumerate}
@@ -314,6 +326,25 @@ v & ::= & ~ & \bf{values} \\
 	\item $\hofx{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon}} = \fx{\hat \tau_1} \cup \hofx{[\hat \tau_1/X]\hat \tau_2}$
 	\item $\hofx{\polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}} = \varepsilon \cup \hofx{[\varepsilon/\phi]\hat \tau}$
 \end{enumerate}
+
+
+\subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \times \overline{\hat \tau} \rightarrow \varepsilon}$)}
+
+\begin{enumerate}
+	\item $\kwa{ho \hyphen effects}(\hat \tau, \overline{\hat \tau}) = \kwa{ho \hyphen effects}(\hat \tau) \cap \bigcup_{i} \kwa{ho \hyphen effects}(\hat \tau_i)$, if $\hat \tau$ is polymorphic.
+	\item $\kwa{ho \hyphen effects}(\hat \tau, \_) = \hofx{\hat \tau}$, otherwise.
+\end{enumerate}
+
+\noindent
+\textbf{Note: the definitions given for non-polymorphic types could also be refined to give a more precise upper-bound on the effects they capture. This definition is also probably deficient when there is another polymorphic function in scope.}
+
+
+
+
+
+
+
+
 
 \section{Static Rules}
 
@@ -394,7 +425,7 @@ v & ::= & ~ & \bf{values} \\
 ~~~
 \infer[\textsc{($\varepsilon$-Subsume)}]
 	{\hat \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
-	{\hat \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[2ex]
+	{\hat \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \hat \Gamma \vdash \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[2ex]
 
 	\infer[\textsc{($\varepsilon$-Abs)}]
 	{ \hat \Gamma \vdash \lambda x:\tau_2 . \hat e : \hat \tau_2 \rightarrow_{\varepsilon_3} \hat \tau_3~\kw{with} \varnothing }
@@ -414,7 +445,7 @@ v & ::= & ~ & \bf{values} \\
 
 \infer[\textsc{($\varepsilon$-PolyTypeApp)}]
 	{ \hat \Gamma \vdash \hat e~\hat \tau' : [\hat \tau'/X]\hat \tau_2~\kw{with}  [\hat \tau'/X]\varepsilon_1 \cup \varepsilon_2 }
-	{ \hat \Gamma \vdash \hat e: \polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_1}~\kw{with} \varepsilon_2 & \hat \tau' <: \hat \tau_1} \\[2ex]
+	{ \hat \Gamma \vdash \hat e: \polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_1}~\kw{with} \varepsilon_2 & \hat \Gamma \vdash \hat \tau' <: \hat \tau_1} \\[2ex]
 
 \infer[\textsc{($\varepsilon$-PolyFxApp)}]
 	{ \hat \Gamma \vdash \hat e~\varepsilon' : [\varepsilon'/\phi]\hat \tau~\kw{with} [\varepsilon'/\phi]\varepsilon_1 \cup \varepsilon_2 }
@@ -424,10 +455,8 @@ v & ::= & ~ & \bf{values} \\
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon_s)~\overline{x = \hat e}~\kw{in} e: \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \bigcup_{i} \varepsilon_i }
 {{\def\arraystretch{1.4}
   \begin{array}{c}
-\kwa{effects}(\hat \tau_i) \cup \hofx{\annot{\tau}{\varnothing}}\subseteq \varepsilon_s \\
+\kwa{effects}(\hat \tau_i, \bigcup_{j \neq i} \hat \tau_j) \cup \hofx{\annot{\tau}{\varnothing}}\subseteq \varepsilon_s \\
 \hat \Gamma \vdash \hat e_i: \hat \tau_i~\kw{with} \varepsilon_i  ~~~~~~ x_i: \kwa{erase}(\hat \tau_i) \vdash e: \tau ~~~~~~ \hosafe{\hat \tau_i}{\varepsilon_s}
-%\\
-%\ispoly{\hat \tau_i} \implies \hosafe{\hat \tau_i}{\ub{\hat \tau_i} \cap \fx{\hat \tau_i}}
   \end{array}}} 
  
  
@@ -447,11 +476,7 @@ $\fbox{$\kwa{safe(\tau, \varepsilon)}$}$
 \infer[\textsc{(Safe-Resource)}]
 	{\kwa{safe}(\{ \bar r \}, \varepsilon)}
 	{}
-~~~~~
-\infer[\textsc{(Safe-Unit)}]
-	{\kwa{safe}(\kwa{Unit}, \varepsilon)}
-	{} \\[3ex]
-
+~~~
 \infer[\textsc{(Safe-Arrow)}]
 	{\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon)}
 	{\varepsilon \subseteq \varepsilon' & \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) & \kwa{safe}(\hat \tau_2, \varepsilon)} \\[3ex]
@@ -476,11 +501,7 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 \infer[\textsc{(HOSafe-Resource)}]
 	{ \kwa{ho \hyphen safe}( \{ \bar r \}, \varepsilon)} 
 	{}
-	~~~~~~
-\infer[\textsc{(HOSafe-Unit)}]
-	{ \kwa{ho \hyphen safe}( \kwa{Unit}, \varepsilon)} 
-	{}\\[3ex]
-
+	~~~
 \infer[\textsc{(HOSafe-Arrow)}]
 	{ \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon ) }
 	{ \kwa{safe}(\hat \tau_1, \varepsilon)  & \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon) }\\[3ex]
@@ -621,6 +642,101 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 
 \end{array}
 \]
+
+
+
+
+
+
+
+\section{Substitution Functions}
+
+\subsection*{Definition (sub :: $\hat v \times \hat v \rightarrow \hat e$)}
+
+\begin{enumerate}
+	\item $[\hat v/y]x = x$, if $x \neq y$
+	\item $[\hat v/y]y = \hat v$
+	\item $[\hat v/y]r = r$
+	\item $[\hat v/y](\lambda x: \hat \tau. \hat e) = \lambda x: \hat \tau. [\hat v/y]\hat e$, if $y \neq x$ and $y$ does not occur free in $\hat e$
+	\item $[\hat v/y](\lambda X <: \hat \tau. \hat e) = \lambda X <: \hat \tau. [\hat v/y]\hat e$
+	\item $[\hat v/y](\lambda \phi \subseteq \varepsilon. \hat e) = \lambda \phi \subseteq \varepsilon. [\hat v/y]\hat e$
+	\item $[\hat v/y](\hat e.\pi) = ([\hat v/y]\hat e_1).\pi$
+	\item $[\hat v/y](\hat e_1~\hat e_2) = ([\hat v/y]\hat e_1)~([\hat v/y]\hat e_2)$
+	\item $[\hat v/y](\hat e~\hat \tau) = [\hat v/y]\hat e~\hat \tau$
+	\item $[\hat v/y](\hat e~\varepsilon) = [\hat v/y]\hat e~\hat \varepsilon$
+	\item $[\hat v/y](\kwa{import}(\varepsilon_s)~\overline{x = \hat e}~\kw{in} e) = \kwa{import}(\varepsilon_s)~\overline{x = [\hat v/y]\hat e}~\kw{in} e$
+\end{enumerate}
+
+\subsection*{Definition (sub :: $\hat \tau \times \hat v \rightarrow \hat e$)}
+
+\begin{enumerate}
+	\item $[\hat \tau/Y]x = x$
+	\item $[\hat \tau/Y]r = r$
+	\item $[\hat \tau/Y](\lambda x: \hat \tau_1. \hat e) = \lambda x: [\hat \tau/Y]\hat \tau_1. [\hat \tau/Y]\hat e$
+	\item $[\hat \tau/Y](\lambda X <: \hat \tau_1. \hat e) = \lambda X <: [\hat \tau/Y]\hat \tau_1. [\hat \tau/Y]\hat e$, if $X \neq Y$ and $Y$ does not occur free in $\hat e$
+	\item $[\hat \tau/Y](\lambda \phi \subseteq \varepsilon. \hat e) = \lambda \phi \subseteq \varepsilon. [\hat \tau/Y]\hat e$
+	\item $[\hat \tau/Y](\hat e.\pi) = ([\hat \tau/Y]\hat e_1).\pi$
+	\item $[\hat \tau/Y](\hat e_1~\hat e_2) = ([\hat \tau/Y]\hat e_1)~([\hat \tau/Y]\hat e_2)$
+	\item $[\hat \tau/Y](\hat e~\hat \tau_1) = ([\hat \tau/Y]\hat e)~([\hat \tau/Y]\hat \tau_1)$
+	\item $[\hat \tau/Y](\hat e~\varepsilon) = [\hat \tau/Y]\hat e~\hat \varepsilon$
+	\item $[\hat \tau/Y](\kwa{import}(\varepsilon_s)~\overline{x = \hat e}~\kw{in} e) = \kwa{import}(\varepsilon_s)~\overline{x = [\hat \tau/Y]\hat e}~\kw{in} e$
+\end{enumerate}
+
+\subsection*{Definition (sub :: $\hat \tau \times \hat \tau \rightarrow \hat e$)}
+
+\begin{enumerate}
+	\item $[\hat \tau/Y]Y = \hat \tau$
+	\item $[\hat \tau/Y]X = X$, if $X \neq Y$
+	\item $[\hat \tau/Y]\{ \bar r \} = \{ \bar r \}$
+	\item $[\hat \tau/Y](\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2) = ([\hat \tau/Y]\hat \tau_1) \rightarrow_{\varepsilon} ([\hat \tau/Y]\hat \tau_2)$
+	\item $[\hat \tau/Y](\forall X <: \hat \tau_1. \hat \tau_2) = \forall X <: [\hat \tau/Y]\hat \tau_1.  [\hat \tau/Y]\hat \tau_2$, if $X \neq Y$ and $Y$ does not occur free in $ \hat \tau_2$
+	\item $[\hat \tau/Y](\forall \phi \subseteq \varepsilon_1. \hat e) = \forall \phi \subseteq \varepsilon_1. [\hat \tau/Y]\hat e$
+\end{enumerate}
+
+
+\subsection*{Definition (sub :: $\varepsilon \times \hat v \rightarrow \hat e$)}
+
+\begin{enumerate}
+	\item $[\varepsilon/\psi]\psi = \varepsilon$
+	\item $[\varepsilon/\psi]\phi = \phi$, if $\psi \neq \phi$
+	\item $[\varepsilon/\psi](\lambda x: \hat \tau_1. \hat e) = \lambda x: [\varepsilon/\psi]\hat \tau_1. [\varepsilon/\psi]\hat e$
+	\item $[\varepsilon/\psi](\lambda X <: \hat \tau_1. \hat e) = \lambda X <: [\varepsilon/\psi]\hat \tau_1. [\varepsilon/\psi]\hat e$
+	\item $[\varepsilon/\psi](\lambda \phi \subseteq \varepsilon_1. \hat e) = \lambda \phi \subseteq [\varepsilon/\psi]\varepsilon_1. [\varepsilon/\psi]\hat e$
+	\item $[\varepsilon/\psi](\hat e.\pi) = ([\varepsilon/\psi]\hat e_1).\pi$
+	\item $[\varepsilon/\psi](\hat e_1~\hat e_2) = ([\varepsilon/\psi]\hat e_1)~([\varepsilon/\psi]\hat e_2)$
+	\item $[\varepsilon/\psi](\hat e~\hat \tau) = ([\varepsilon/\psi]\hat e)~([\varepsilon/\psi]\hat \tau)$
+	\item $[\varepsilon/\psi](\hat e~\varepsilon_1) = ([\varepsilon/\psi]\hat e) ~ ([\varepsilon/\psi]\varepsilon_1)$
+	\item $[\varepsilon/\psi](\kwa{import}(\varepsilon_s)~\overline{x = \hat e}~\kw{in} e) = \kwa{import}([\varepsilon/\psi]\varepsilon_s)~\overline{x = [\varepsilon/\psi]\hat e}~\kw{in} e$
+\end{enumerate}
+
+\subsection*{Definition (sub :: $\hat \varepsilon \times \hat \tau \rightarrow \hat e$)}
+
+\begin{enumerate}
+	\item $[\varepsilon/\psi]X = X$
+	\item $[\varepsilon/\psi]\{ \bar r \} = \{ \bar r \}$
+	\item $[\varepsilon/\psi](\hat \tau_1 \rightarrow_{\varepsilon_1} \hat \tau_2) = ([\varepsilon/\psi]\hat \tau_1) \rightarrow_{[\varepsilon/\psi]\varepsilon_1} ([\varepsilon/\psi]\hat \tau_2)$
+	\item $[\varepsilon/\psi](\forall X <: \hat \tau_1. \hat \tau_2) = \forall X <: [\varepsilon/\psi]\hat \tau_1.  [\varepsilon/\psi]\hat \tau_2$
+	\item $[\varepsilon/\psi](\forall \phi \subseteq \varepsilon_1. \hat e) = \forall \phi \subseteq [\varepsilon/\psi]\varepsilon_1. [\varepsilon/\psi]\hat e$, if $\psi \neq \phi$ and $\psi$ does not occur free in $\hat e$
+\end{enumerate}
+\subsection*{Definition (sub :: $\varepsilon \times \varepsilon \rightarrow \hat e$)}
+
+\begin{enumerate}
+	\item $[\varepsilon/\psi]\psi = \varepsilon$
+	\item $[\varepsilon/\psi]\phi = \phi$, if $\phi \neq \psi$
+	\item $[\varepsilon/\psi]\{ \overline{r.\pi} \} = \{ \overline{r.\pi} \}$
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
+
 
 \end{document}
 

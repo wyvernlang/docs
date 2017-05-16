@@ -435,7 +435,7 @@ map = $\lambda \phi$. $\lambda$A. $\lambda$B.
 
 \section{Imports Are an Upper Bound on Polymorphic Capabilities}
 
-If you import a polymorphic function with no upper-bound on its effects, then the collective effects of the other capabilities being imported will be an upper-bound. The following should typecheck.
+\subsection{Example 1}
 
 \begin{lstlisting}
 let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
@@ -444,47 +444,108 @@ import({File.*})
    pw = polywriter
    f = File
 in
-   pw {File.write} ($\lambda$x: Unit. f.write)
+   e
 \end{lstlisting}
+
+\noindent
+In the unannotated code $e$, you can never make $\kwa{pw}$ return a socket-writing function, because there is no socket-writing capability in scope that it could be given. However, this example should fail for a different reason: there is a file capability in scope, and you could pass $\kwa{pw}$ a function which captures any effect on that file, which would violate its signature. For instance:
+
+\begin{lstlisting}
+import({File.*}) 
+   pw = polywriter
+   f = File
+in
+   pw {File.write} ($\lambda$x: Unit. f.read)
+\end{lstlisting}
+
+\noindent
+\textbf{This example should typecheck, since typechecking of the unannotated body strips all annotations from the imported capabilities. However, as of 17/05/2017, there is no way to apply effect-polymorphic types in an unannotated context.}\\
 
 \subsection*{Derivation}
 
-$\hosafe{ \forall \phi \subseteq \{ \kwa{File.write, Socket.write} \}. \Unit \rightarrow_{\phi} \Unit}{\kwa{File.*}}$ \\
-= $\{ \kwa{File.write, Socket.write} \} \subseteq \{ \kwa{File.*} \} \land \safe{\Unit \rightarrow_{\{\kwa{File.write, Socket.write}\}} \Unit}{\kwa{File.*}}$ \\
+For this section we are going to be conflating the name of a variable with its type (so $pw$ really means the type of the variable $pw$, which is the effect-polymorphic type). Firstly, note that $\fx{pw} = \hofx{pw} = \{ \kwa{File.write, Socket.write} \}$. Then: \\
 
 \noindent
-Both the $\hosafe{\hat \tau_i, \varepsilon_s}$ and $\fx{\hat \tau_i} \subseteq \varepsilon_s$ check fails, because $\{ \kwa{File.write, Socket.write} \} \subseteq \{ \kwa{File.write} \}$ is false. If we were to intersect $\fx{\hat \tau_i}$ with the effects of the capabilities being passed in, we would get a tighter bound on the actual effects of $\hat \tau_i$, and the check would succeed. Similar thing with $\hosafe{\hat \tau_i, \varepsilon_s}$. Recall that $\hosafe{\hat \tau_i, \varepsilon_s}$ is a version of $\hofx{\hat \tau_i} \subseteq \varepsilon_s$ which distributes over the subterms in $\hat \tau_i$. If we intersect the $\hofx{\hat \tau_i}$ with the capabilites passed in, this check would also pass.
+ $\kwa{effects}(pw, \{ \{ \kwa{File} \} \})\\
+=  \fx{pw} \cap \fx{\{\kwa{File}\}}\\
+=  \{ \kwa{File.write, Socket.write} \} \cap \{ \kwa{File.*} \}\\
+=  \{ \kwa{File.write} \} \subseteq \varepsilon_s = \{ \kwa{File.*} \}$\\
 
-How do we define this intersection? Several ways come to mind.
+\noindent
+And also: \\
 
-\subsubsection{Extra Argument}
+\noindent
+$\kwa{effects}(\{ \kwa{File} \}, \{ pw \})\\
+= \fx{\{ \kwa{File} \}}\\
+=\{ \kwa{File.*} \} \subseteq \varepsilon_s = \{ \kwa{File.*} \}$\\
 
-Define a two-variable version of $\kwa{effects}$ which has an extra argument containing all of the imported capabilities. This function will return the effects, but will produce a (potentially) tighter upper-bound using the information from the imported capabilities. This function will be defined the same on non-polymorphic types as the one-variable version, but for polymorphic functions it is defined in the following way:
+\noindent
+However, $\hosafe{pw, \varepsilon_s}$ will fail, causing this example to not typecheck. \\
 
-\begin{itemize}
-	\item $\hofx{\hat \tau_i, \overline{\hat \tau}} = \hofx{\hat \tau_i} \cap \bigcup_{i} \fx{\hat \tau_i, \overline{\hat \tau}}$
-	\item $\fx{\hat \tau_i, \overline{\hat \tau}} = \fx{\hat \tau_i} \cap \bigcup_{i} \hofx{\hat \tau_i, \overline{\hat \tau}}$
-\end{itemize}
+\noindent
+$\hosafe{pw}{\varepsilon_s}\\
+= \hosafe{ \polycap{\phi \subseteq \{ \kwa{File.write, Socket.write} \}}{((\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit)}{\varnothing}}{\{ \kwa{File.*} \}}\\
+= \varnothing \subseteq \{ \kwa{File.*} \} \land \safe{((\Unit \rightarrow_{\{F.w, S.w\}} \Unit) \rightarrow_{\{  F.w, S.w \}} \Unit)}{\{\kwa{File.*}\}}\\
+= \{ \kwa{File.*} \} \subseteq \{ \kwa{File.write, Socket.write} \} \land ......$\\
 
-Do a similar thing for $\kwa{safe}$ and $\kwa{ho \hyphen safe}$. The premises of \textsc{$\varepsilon$-Import} now use the versions with the extra argument.
-
-\subsubsection{Extra Premises}
-
-Modify the premises of \textsc{$\varepsilon$-Import}. Add a new predicate, $\kwa{is \hyphen poly}(\hat \tau)$ which is true iff $\hat \tau$ is a polymorphic type. The premises are now:
-
-\begin{itemize}
-	\item $\neg \kwa{is \hyphen poly}(\hat \tau) \implies \fx{\hat \tau} \subseteq \varepsilon_s$
-	\item $\kwa{is \hyphen poly}(\hat \tau) \implies \fx{\hat \tau} \cap \bigcup_{i} \fx{\hat \tau_i} \subseteq \varepsilon_s$
-\end{itemize}
-
-How to do the higher-order safety checks though?
-
-\subsubsection{Replacement}
-
-Define $\varepsilon' = \bigcup_i \fx{\hat \tau_i}$, the sum of the effects in scope. Then define $\kwa{replace}(\lambda \phi \subseteq \varepsilon. \hat \tau) = \lambda \phi \subseteq \varepsilon'. \hat \tau$. Then for any polymorphic capability $\hat \tau_i$< instead of doing e.g. $\kwa{effects}(\hat \tau)$, do $\kwa{effects}(\kwa{replace}(\hat \tau, \varepsilon'))$. (How would this work for polymorphic types?)
+\noindent 
+The last line is not true, because $\{ \kwa{File.*} \} \subseteq \{ \kwa{File.write, Socket.write} \}$ is not true. The inutition here is that it is failing because you might pass some capability into $pw$ which does any file operation --- and $pw$ only permits it to be writing.
 
 
+\subsection{Example 2}
 
+This is a modified version of the above example. Instead of passing in a $\kwa{File}$, we pass in a restricted capability that only endows its bearer with write operations on a $\kwa{File}$. This modified version should safely typecheck. The point is that, although the polymorphic function could theoretically be applied so that it returns a socket-writing function, this can't be done in practice because no socket-writing capability can be given to it. It's therefore safe to leave $\kwa{Socket.write}$ out of the selected authority.
+
+\begin{lstlisting}
+let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
+
+let fwriter = $\lambda$x: Unit. File.write
+
+import({File.write}) 
+   pw = polywriter
+   fw = fwriter
+in
+   pw {File.write} fw
+\end{lstlisting}
+
+\noindent
+Now we can verify that it meets the conditions of \textsc{$\varepsilon$-Import}. Firstly, note that $\fx{pw} = \hofx{pw} = \{ \kwa{File.write, Socket.write} \}$, and $\fx{fw} = \{ \kwa{File.write} \}$ and $\hofx{fw} = \varnothing$.\\
+
+\noindent
+$\kwa{effects}(pw, \{ fw \})\\
+= \fx{pw} \cap \fx{fw}\\
+= \{ \kwa{File.write, Socket.write} \} \cap \{ \kwa{File.write} \}\\
+= \{ \kwa{File.write} \} \subset \varepsilon_s = \{ \kwa{File.write} \}$\\
+
+\noindent
+And also\\
+
+\noindent
+$\kwa{effects}(fw, \{ pw \})\\
+= \fx{fw}\\
+= \{ \kwa{File.write} \} \subseteq \varepsilon_s = \{ \kwa{File.write} \}$\\
+
+\noindent
+Next we shall check that $\hosafe{pw}{\varepsilon_s}$ and $\hosafe{fw}{\varepsilon_s}$.\\
+
+\noindent
+$\hosafe{pw}{\varepsilon_s}\\
+=\hosafe{ \polycap{\phi \subseteq \{ \kwa{File.write, Socket.write} \}}{((\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit)}{\varnothing}}{\{ \kwa{File.write} \}}\\
+=\varnothing \subseteq \{ \kwa{File.write} \} \land \safe{((\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit) \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit)}{\{ \kwa{File.write} \}}\\
+=\safe{((\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit) \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit)}{\{ \kwa{File.write} \}}\\
+= \{ \kwa{File.write} \} \subseteq \{ \kwa{File.write, Socket.write} \} \land \hosafe{\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit }{\{ \kwa{File.write} \}} \land \safe{\Unit}{\{ \kwa{File.write} \}}\\
+= \hosafe{\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit }{\{ \kwa{File.write} \}}\\
+= \safe{\Unit}{\{ \kwa{F.w, S.w} \}}\\
+= \kwa{true}$\\
+
+\noindent
+$\hosafe{fw}{\varepsilon_s}\\
+= \hosafe{\Unit \rightarrow_{\{\kwa{File.write}\}} \Unit}{\{ \kwa{File.write} \}}\\
+= \safe{\Unit}{\{ \kwa{File.write} \}} \land \hosafe{\Unit}{\{ \kwa{File.write} \}}\\
+= \kwa{true}$
+
+\noindent
+So it successfully accepts.
 
 \section{Violating a polymorphic function that has been fixed}
 
