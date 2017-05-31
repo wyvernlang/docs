@@ -6,4 +6,5 @@ http://research.microsoft.com/en-us/um/people/daan/madoko/doc/reference.html
 
 Build with:
 
-madoko --pdf -vv wyvern-guide.mdk
+madoko --tex -vv wyvern-guide.mdk
+pdflatex wyvern-guide.tex
