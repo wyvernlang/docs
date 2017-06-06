@@ -1,0 +1,370 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\unit}[0]{ \kwa{unit} }
+
+\newcommand{\Unit}[0]{ \kwa{Unit} }
+
+\newcommand{\fx}[1]{ \kwa{effects}(#1) }
+
+\newcommand{\hofx}[1]{ \kwa{ho \hyphen effects}(#1) }
+
+\newcommand{\safe}[2]{ \kwa{safe}(#1, #2) }
+
+\newcommand{\hosafe}[2]{ \kwa{ho \hyphen safe}(#1, #2) }
+
+\newcommand{\wf}[1]{ \kwa{WF}(#1) }
+
+\newcommand{\fv}[1]{ \kwa{free \hyphen vars}(#1) }
+
+\newcommand{\arr}[3]{
+	#1 \rightarrow_{#3} #2
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = e}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
+}
+
+\newcommand{\import}[4]{
+	\keywadj{import}(#1)~#2 = #3~\kw{in} #4
+}
+
+\newcommand{\annot}[2]{
+	\keywadj{annot}(#1, #2)
+}
+
+\newcommand{\erase}[1]{
+	\keywadj{erase}(#1)
+}
+
+\newcommand{\poly}[2]{
+	\forall #1. #2
+}
+
+\newcommand{\polycap}[3]{
+	\forall #1. #2~ \kw{caps} #3
+}
+
+\newcommand{\ispoly}[1]{
+	\kwa{is \hyphen poly}(#1)
+}
+
+\newcommand{\lub}[1]{
+	\kwa{lub}(#1)
+}
+
+\newcommand{\ub}[1]{
+	\kwa{ub}(#1)
+}
+
+\newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
+
+
+\begin{document}
+
+
+\noindent
+\textbf{Notation}: $\hat \Gamma \vdash \delta_1, ..., \delta_n$ means $\hat \Gamma \vdash \delta_1$ and $\hat \Gamma \vdash \delta_2$ and ... and $\hat \Gamma \vdash \delta_n$, where each $\delta_i$ is a judgement.
+
+\hrulefill
+
+\begin{lemma}[Narrowing 1 (Subtypes)]
+If $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_1 <: \hat \tau_2$ and $\hat \Gamma \vdash \hat \tau' <: \hat \tau$ then $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_1 <: \hat \tau_2$
+\end{lemma}
+
+\begin{proof}
+
+By induction on $\hat \Gamma, X<: \hat \tau, \hat \Delta \vdash \hat \tau_1 <: \hat \tau_2$. The tricky cases are \textsc{S-TypePoly} and \textsc{S-TypeVar}; the others follow by routine application of the inductive hypothesis to subderivations.\\
+
+\fbox{\textit{Case:} \textsc{S-Reflexive}.} Then $\hat \tau_1 = \hat \tau_2$, and $\hat \tau_1 <: \hat \tau_2$ holds in any context, including $\hat \Gamma, X <: \hat \tau', \hat \Delta$.\\
+
+\fbox{\textit{Case:} \textsc{S-Transitive}.} Let $\hat \tau_1 = \hat \tau_A$ and $\hat \tau_2 = \hat \tau_C$. By inversion, there is some $\hat \tau_B$ such that $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_A <: \hat \tau_B$ and $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_B <: \hat \tau_C$. Applying the inductive assumption, we get the judgements $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_A <: \hat \tau_B$ and $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_B <: \hat \tau_C$. Then by \textsc{S-Transitive}, $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_A <: \hat \tau_C$, which is the same as $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_1 <: \hat \tau_2$.\\
+
+\fbox{\textit{Case:} \textsc{S-ResourceSet}.} Follows immediately, since the premises of this rule have nothing to do with the context. That is, if $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \{ \overline{r_1} \} <: \{ \overline{r_2} \}$, then by inversion, $r \in \overline{r_1} \implies r \in \overline{r_2}$. Then by \textsc{S-ResourceSet}, $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \{ \overline{r_1} \} <: \{ \overline{r_2} \}$.\\
+
+\fbox{\textit{Case:} \textsc{S-Arrow}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_A \rightarrow_{\varepsilon'} \hat \tau_B <: \hat \tau_A' \rightarrow_{\varepsilon} \hat \tau_B'$. By inversion, $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_A' <: \hat \tau_A$ and $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_B <: \hat \tau_B'$ and $\varepsilon' \subseteq \varepsilon$. To these first two judgements, apply the inductive assumption, giving $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_A' <: \hat \tau_A$ and $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_B <: \hat \tau_B'$. Then by \textsc{S-Arrow}, $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_A \rightarrow_{\varepsilon'} \hat \tau_B <: \hat \tau_A' \rightarrow_{\varepsilon} \hat \tau_B'$.\\
+
+\fbox{\textit{Case:} \textsc{S-TypePoly}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash (\forall Y <: \hat \tau_A. \hat \tau_B) <: (\forall Z <: \hat \tau_A'. \hat \tau_B')$. By inversion, we have the following two judgements:
+
+\begin{enumerate}
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_A' <: \hat \tau_A$
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta, Y <: \hat \tau_A' \vdash \hat \tau_B <: \hat \tau_B'$
+\end{enumerate}
+
+Using (1) and the assumption $\hat \Gamma \vdash \hat \tau' <: \hat \tau$, the inductive hypothesis can be used to obtain (3).
+
+\begin{enumerate}
+
+  \setcounter{enumi}{2}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_A' <: \hat \tau_A$
+
+\end{enumerate}
+
+Let $\Delta' = \Delta, Y <:  \hat \tau_A'$. With this, and the assumption $\hat \Gamma \vdash \hat \tau' <: \hat \tau$, we shall apply the inductive hypothesis to obtain (4),
+
+\begin{enumerate}
+	\setcounter{enumi}{3}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta' \vdash \hat \tau_B <: \hat \tau_B'$ 
+\end{enumerate}
+
+Expanding the definition of $\Delta'$, we get (5),
+
+\begin{enumerate}
+	\setcounter{enumi}{4}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta, Y <: \hat \tau_A' \vdash \hat \tau_B <: \hat \tau_B'$
+\end{enumerate}
+
+From (3) and (5), we can use \textsc{S-TypePoly} to obtain (6), which is the theorem conclusion.
+
+\begin{enumerate}
+	\setcounter{enumi}{5}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash (\forall Y <: \hat \tau_A. \hat \tau_B) <: (\forall Z <: \hat \tau_A'. \hat \tau_B')$
+\end{enumerate}
+
+
+\fbox{\textit{Case:} \textsc{S-TypeVar}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash Y <: \hat \tau_B$. There are two cases, depending on whether $X = Y$.\\
+
+\textbf{Subcase 1.} $X = Y$. Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash X <: \hat \tau$. It is also true that (1) $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash X <: \hat \tau'$, by use of \textsc{S-TypeVar}. The assumption $\hat \Gamma \vdash \hat \tau' <: \hat \tau$ can be widened to (2) $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau' <: \hat \tau$. Then by (1) and (2), we can apply \textsc{S-Transitive} to get $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash X <: \hat \tau$. \\
+
+\textbf{Subcase 2.} $X \neq Y$. Then $X <: \hat \tau$ is not used in the derivation of $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash Y <: \hat \tau_B$, so the judgement can be strengthened to $\hat \Gamma, \hat \Delta \vdash Y <: \hat \tau_B$. Then the judgement can be weakened to $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash Y <: \hat \tau_B$.
+
+
+\end{proof}
+
+\hrulefill
+
+\begin{lemma}[Narrowing 2 (Effects)]
+If $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \varepsilon_1 \subseteq \varepsilon_2$ and $\hat \Gamma \vdash \hat \tau' <: \hat \tau$, then $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \varepsilon_1 \subseteq \varepsilon_2$.
+\end{lemma}
+
+\begin{proof} By induction on $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \varepsilon_1 \subseteq \varepsilon_2$.
+
+\end{proof}
+
+\hrulefill
+
+\begin{lemma}[Narrowing 3 (Types)]
+If $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e: \hat \tau_A~\kw{with} \varepsilon$ and $\hat \Gamma \vdash \hat \tau' <: \hat \tau$ then $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e: \hat \tau_A~\kw{with} \varepsilon_A$
+\end{lemma}
+
+\begin{proof} By induction on the derivation of $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e: \hat \tau_A~\kw{with} \varepsilon_A$. \textsc{$\varepsilon$-Abs, $\varepsilon$-PolyTypeAbs, $\varepsilon$-PolyTypeApp, $\varepsilon$-PolyFxAbs, $\varepsilon$-PolyFxApp} are the tricky cases; they require the use of the inductive hypothesis in a slightly more tricky way. The other cases follow by routine induction. \\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-Var}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash x: \hat \tau_A~\kw{with} \varnothing$, where $\hat e = x$. Since $X <: \hat \tau$ is not used in the derivation, we can strengthen the context to get $\hat \Gamma, \hat \Delta \vdash x: \hat \tau_A~\kw{with} \varnothing$. Then by weakening, $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash x: \hat \tau_A~\kw{with} \varnothing$.\\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-Resource}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash r: \{ \bar r \}~\kw{with} \varnothing$, where $\hat e = r$. Since $X <: \hat \tau$ is not used in the derivation, we can strengthen the context to get $\hat \Gamma, \hat \Delta \vdash r: \{ r \}~\kw{with} \varnothing$. Then by weakening, $\hat \Gamma, x <: \hat \tau', \hat \Delta \vdash r: \{ r \}~\kw{with} \varnothing$. \\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-OperCall}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_1.\pi: \Unit~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \overline{r} \}$, and $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_1: \{ \overline{r} \}~\kw{with} \varepsilon_1$. To this second judgement we apply the inductive hypothesis, giving $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_1: \{ \overline{r} \}~\kw{with} \varepsilon_1$. With this new judgement, apply \textsc{$\varepsilon$-OperCall} to get $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_1.\pi: \Unit~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \overline{r} \}$.\\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-Subsume}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e: \hat \tau_A~\kw{with} \varepsilon_A$. By inversion, $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_A <: \hat \tau_B, \varepsilon \subseteq \varepsilon'$. By applying Narrowing Lemma 1 to the first judgement, $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau <: \hat \tau'$. By applying the Narrowing Lemma for effects\footnote{This has yet to be proven}, $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \varepsilon \subseteq \varepsilon'$. With these two judgements, \textsc{$\varepsilon$-Subsume} can be used to obtain the judgement $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e: \hat \tau_A~\kw{with} \varepsilon_A$.\\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-Abs}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \lambda x: \hat \tau_1. \hat e_2 : \hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2~\kw{with} \varnothing$, where $\hat \Gamma, X<: \hat \tau, \hat \Delta, x: \hat \tau_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$. By letting $\hat \Delta' = \hat \Delta, x: \hat \tau_1$, this second judgement can be rewritten as (1),
+
+\begin{enumerate}
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta' \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$. 
+\end{enumerate}
+
+Using (1) and the assumption that $\hat \Gamma \vdash \hat \tau' <: \hat \tau$, apply the inductive hypothesis to obtain (2),
+
+\begin{enumerate}
+	\setcounter{enumi}{1}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta' \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$.
+\end{enumerate}
+
+Using the definition of $\hat \Delta'$, this can be simplified,
+
+\begin{enumerate}
+	\setcounter{enumi}{2}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta, x: \hat \tau_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$.
+\end{enumerate}
+
+Then with (3) we can use \textsc{$\varepsilon$-Abs} to get (4),
+
+\begin{enumerate}
+	\setcounter{enumi}{3}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \lambda x: \hat \tau_1. e_2: \hat \tau_1 \rightarrow_{\varepsilon_2} \hat \tau_2~\kw{with} \varnothing$
+\end{enumerate}
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-App}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_1~\hat e_2: \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$, where the following judgements are true from inversion:
+
+\begin{enumerate}
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon_3} \hat \tau_3 ~\kw{with} \varepsilon_1$
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$
+\end{enumerate}
+
+By applying the inductive assumption to (1) and (2), we get (3) and (4),
+
+\begin{enumerate}
+	\setcounter{enumi}{2}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_1: \hat \tau_2 \rightarrow_{\varepsilon_3} \hat \tau_3 ~\kw{with} \varepsilon_1$
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$
+\end{enumerate}
+
+Then by \textsc{$\varepsilon$-App}, we get $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_1~\hat e_2: \hat \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon_3$.\\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-PolyTypeAbs}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \lambda Y <: \hat \tau_1. \hat e_2: \forall Y <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_2~\kw{with} \varnothing$. From inversion, we have $\hat \Gamma, X <: \hat \tau, \hat \Delta, Y <: \hat \tau_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$. By letting $\Delta' = \Delta, Y <: \hat \tau_1$, the second judgement can be rewritten,
+
+\begin{enumerate}
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta' \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$
+\end{enumerate}
+
+By applying the inductive hypothesis to (1), we get judgement (2), which further simplifies to (3) by simplifying $\hat \Delta'$,
+
+\begin{enumerate}
+	\setcounter{enumi}{1}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta' \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta, Y <: \hat \tau_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$
+\end{enumerate}
+
+Then by \textsc{$\varepsilon$-PolyTypeAbs}, we get $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \lambda Y <: \hat \tau_1. \hat e_2: \forall Y <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_2~\kw{with} \varnothing$.\\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-PolyFxAbs}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \lambda \phi \subseteq \varepsilon. \hat e_1: \forall \phi \subseteq \varepsilon. \hat \tau_1~\kw{caps} \varepsilon_1~\kw{with} \varnothing$. By inversion, $\hat \Gamma, X <: \hat \tau, \hat \Delta, \phi \subseteq \varepsilon \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1$. By letting $\hat \Delta' = \hat \Delta, \phi \subseteq \varepsilon$, the second judgement can be rewritten as (1),
+
+\begin{enumerate}
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta' \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1$
+\end{enumerate}
+
+Using (1) and the assumption that $\hat \Gamma \vdash \hat \tau' <: \hat \tau$, the inductive hypothesis gives judgement (2), which further simplifies to (3) by expanding the definition of $\hat \Delta'$,
+
+\begin{enumerate}
+	\setcounter{enumi}{1}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta' \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1$
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta, \phi \subseteq \varepsilon \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1$
+\end{enumerate}
+
+Then from (2), we can apply \textsc{$\varepsilon$-PolyFxAbs}, giving the judgement $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \lambda \phi \subseteq \varepsilon. \hat e_1: \forall \phi \subseteq \varepsilon. \hat \tau_1~\kw{caps} \varepsilon_1~\kw{with} \varnothing$. \\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-PolyTypeApp}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_A~\hat \tau_1': [\hat \tau_1'/Y]\hat \tau_2~\kw{with} [\hat \tau_1'/Y]\varepsilon_1 \cup \varepsilon_2$, where the following judgements are from inversion:
+
+\begin{enumerate}
+	\item $\hat \Gamma, X<: \hat \tau, \hat \Delta \vdash \hat e_A: \forall Y <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_1~\kw{with} \varepsilon_2$
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau_1' <: \hat \tau_1$
+\end{enumerate}
+
+With the assumption that $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau' <: \hat \tau$ and (1), we can apply the inductive hypothesis to get (3). With the same assumption and (2), we can apply Narrowing Lemma 1 (Subtypes) to get (4),
+
+\begin{enumerate}
+	\setcounter{enumi}{2}
+	\item $\hat \Gamma, X <:  \hat \tau', \hat \Delta \vdash \hat e_A: \forall Y <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_1~\kw{with} \varepsilon_2$
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat \tau_1' <: \hat \tau_1$
+\end{enumerate}
+
+From (3) and (4), \textsc{$\varepsilon$-PolyTypeApp} gives the judgement $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_A~\hat \tau_1': [\hat \tau_1'/Y]\hat \tau_2~\kw{with} [\hat \tau_1'/Y]\varepsilon_1 \cup \varepsilon_2$.\\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-PolyFxApp}.} Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_A~\varepsilon': [\varepsilon'/\phi]\hat \tau_2~\kw{with} [\varepsilon'/\phi]\varepsilon_1 \cup \varepsilon_2$, where the following are true by inversion:
+
+\begin{enumerate}
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_A: \forall \phi \subseteq \varepsilon. \hat \tau_2~\kw{caps} \varepsilon_1~\kw{with} \varepsilon_2$
+	\item $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \varepsilon' \subseteq \varepsilon$
+\end{enumerate}
+
+With the assumption that $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat \tau' <: \hat \tau$ and (1), we can apply the inductive hypothesis to obtain (3). With the same assumption and (2), we can apply the Narrowing Lemma for Effect Judgements\footnote{Doesn't actually exist yet} to get (4),
+
+\begin{enumerate}
+	\setcounter{enumi}{2}
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_A: \forall \phi \subseteq \varepsilon. \hat \tau_2~\kw{caps} \varepsilon_1~\kw{with} \varepsilon_2$
+	\item $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \varepsilon' \subseteq \varepsilon$
+\end{enumerate}
+
+With (3) and (4) we can apply \textsc{$\varepsilon$-PolyFxApp} to get $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_A~\varepsilon': [\varepsilon'/\phi]\hat \tau_2~\kw{with} [\varepsilon'/\phi]\varepsilon_1 \cup \varepsilon_2$. \\
+
+\fbox{\textit{Case:} \textsc{$\varepsilon$-Import}.} (We prove for a single import). Then $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \kwa{import}(\varepsilon_s)~x_1 = \hat e_1~\kw{in} e: \kw{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \varepsilon_1$. By inversion, $\hat \Gamma, X <: \hat \tau, \hat \Delta \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1$. By inductive hypothesis, $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \hat e_1: \hat \tau_1~\kw{with} \varepsilon_1$. This, together with the other premises obtained by inversion, gives the judgement $\hat \Gamma, X <: \hat \tau', \hat \Delta \vdash \kwa{import}(\varepsilon_s)~x_1 = \hat e_1~\kw{in} e: \kw{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \varepsilon_1$.
+
+\end{proof}
+
+
+
+
+\end{document}
