@@ -12,6 +12,9 @@
 \usepackage{calc}
 \usepackage[linewidth=0.5pt]{mdframed}
 \usepackage{changepage}
+\usepackage{mathtools}
+\usepackage{graphicx}
+
 \allowdisplaybreaks
 
 \usepackage{fancyhdr}
@@ -587,15 +590,238 @@ $\lambda \phi_1 \subseteq$ { File.write, File.read }.
 \end{lstlisting}
 
 
+~\\
 
+\section{Stress-Testing Two-Variable Version of Effects}
+
+The intuition behind $\kwa{fx}(\hat \tau_A, \overline{\hat \tau})$ is that we are computing the possible effects of an expression of type $\hat \tau_A$, when only the capabilities in $\overline{\hat \tau}$ are in scope. For example, consider the example of a function which abstracts over any function with effects on $\kwa{File}$:
+
+\begin{lstlisting}
+let pw =
+   $\lambda \phi \subseteq$ {File.*}.
+      $\lambda$f: Unit $\rightarrow_{\phi}$ Unit.
+         f unit
+in ...
+\end{lstlisting}
+
+Consider a function which only writes to a file:
+
+\begin{lstlisting}
+let fw =
+   $\lambda$x: Unit. File.write
+\end{lstlisting}
+
+Then consider the following use of an import construct:
+
+\begin{lstlisting}
+import($\varepsilon_s$)
+   x$_1$ = pw, x$_2$ = fw
+in e
+\end{lstlisting}
+
+What is the smallest, correct $\varepsilon_s$? A conservative answer is to say $\{ \kwa{File.*} \}$ --- indeed, $\kwa{pw}$ is allowed to have any of these effects, provided someone gives it to them. But in the context of $e$, the only effect which can be realised is $\{ \kwa{File.write} \}$, so an even better answer would be $\varepsilon_s$. This is the idea behind the two-variable version of $\kwa{effects}$ --- it attempts to give an upper-bound on the effects something can have by considering the capabilities in scope.
+
+Some terminology: for simplicity, let $\kwa{type}(\hat e)$ be the type obtained by type-checking $\hat e$ in the smallest possible context. In most cases it should be obvious what this is.In pretty much every following example, that is going to be $\varnothing$.
+
+\subsection{1 Poly, 1 Non-Poly}
+
+Consider a context where only the following two capabilites are in scope:
+\begin{enumerate}
+	\item $\kwa{pw = \lambda \phi \subseteq \{\kwa{File.*}\}. ~\lambda f: \Unit \rightarrow_{\phi} \Unit. ~f ~\unit}$
+	\item $\kwa{fw = \lambda x: Unit.~File.write}$
+\end{enumerate}
+
+\noindent
+Their types are the following:
+
+\begin{enumerate}
+	\item $\kwa{\hat \tau_1 = type(pw) = \forall \phi \subseteq \{ File.* \}.~(Unit \rightarrow_{\phi} Unit) \rightarrow_{\phi} Unit~caps~\varnothing~with~\varnothing}$
+	\item $\kwa{\hat \tau_2 = type(fw) = Unit \rightarrow_{\{File.write\}} Unit~with~\varnothing}$
+\end{enumerate}
+
+\noindent
+Their conservative effect approximations are:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw)) = \{File.*\} }$
+	\item $\kwa{effects(type(fw)) = \{File.write\} }$
+\end{enumerate}
+
+\noindent
+The two-variable version of $\kwa{effect}$ gives the following better approximation for the polymorphic type $\kwa{type(pw)}$:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw), \{ type(fw) \}) = effects(type(pw)) \cap effects(type(fw)) = \{File.write\}}$
+\end{enumerate}
+
+\noindent
+Which is a correct, tighter upper bound.
+
+\subsection{2 Poly Imports}
+
+The two capabilities are in scope:
+\begin{enumerate}
+	\item $\kwa{pw = \lambda \phi \subseteq \{\kwa{File.*}\}. ~\lambda f: \Unit \rightarrow_{\phi} \Unit. ~f ~\unit}$
+	\item $\kwa{sw = \lambda \phi \subseteq \{\kwa{Socket.*}\}. ~\lambda f: \Unit \rightarrow_{\phi} \Unit. ~f ~\unit}$
+\end{enumerate}
+
+\noindent
+Their types are the following:
+
+\begin{enumerate}
+	\item $\kwa{\hat \tau_1 = type(pw) = \forall \phi \subseteq \{ File.* \}.~(Unit \rightarrow_{\phi} Unit) \rightarrow_{\phi} Unit~caps~\varnothing~with~\varnothing}$
+	\item $\kwa{\hat \tau_2 = type(sw) = \forall \phi \subseteq \{ Socket.* \}.~(Unit \rightarrow_{\phi} Unit) \rightarrow_{\phi} Unit~caps~\varnothing~with~\varnothing}$
+\end{enumerate}
+
+\noindent
+Which have the following conservative effect approximations:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw)) = \{File.*\} }$
+	\item $\kwa{effects(type(sw)) = \{Socket.*\} }$
+\end{enumerate}
+
+\noindent
+The two-variable version of $\kwa{effect}$ gives the following better approximations:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw), \{ type(sw) \}) = effects(type(pw)) \cap effects(type(sw)) = \{ File.* \} \cap \{ Socket.* \} = \varnothing}$
+	\item $\kwa{effects(type(sw), \{ type(pw) \}) = effects(type(sw)) \cap effects(type(pw)) = \{ Socket.* \} \cap \{ File.* \} = \varnothing}$
+\end{enumerate}
+
+\noindent
+These upper bounds are tighter. They are also correct --- no matter how you fix $\kwa{pw}$ or $\kwa{sw}$, there is no way to pass one to the other in order to invoke an effect.
+
+\subsection{1 Poly, 1 Unusable Non-Poly}
+
+\noindent
+The following two capabilities are in scope. This time, $\kwa{fw}$ writes to both $\kwa{File}$ and $\kwa{Socket}$.
+
+\begin{enumerate}
+	\item $\kwa{pw = \lambda \phi \subseteq \{\kwa{File.*}\}. ~\lambda f: \Unit \rightarrow_{\phi} \Unit. ~f ~\unit}$
+	\item $\kwa{fw = \lambda x: Unit.~File.write;~Socket.write}$
+\end{enumerate}
+
+\noindent
+Their types are the following:
+
+\begin{enumerate}
+	\item $\kwa{\hat \tau_1 = type(pw) = \forall \phi \subseteq \{ File.* \}.~(Unit \rightarrow_{\phi} Unit) \rightarrow_{\phi} Unit~caps~\varnothing~with~\varnothing}$
+	\item $\kwa{\hat \tau_2 = type(fw) = Unit \rightarrow_{\{File.write, Socket.write\}} Unit~with~\varnothing}$
+\end{enumerate}
+
+\noindent
+Their conservative effect approximations are:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw)) = \{File.*\} }$
+	\item $\kwa{effects(type(fw)) = \{File.write, Socket.write\} }$
+\end{enumerate}
+
+\noindent
+The two-variable version of $\kwa{effects}$ will give the following approximation for $\kwa{type(pw)}$:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw), \{ type(fw) \}) = \{File.*\} \cap \{File.write, Socket.write\} = \{File.write\}}$
+\end{enumerate}
+
+\noindent
+This is a better approximation than $\kwa{File.*}$, but it's still not a tight approximation. The tight approximation in this situation is $\varnothing$, because you can never pass $\kwa{fw}$ to any instantiation of $\kwa{pw}$ --- any instantiation of $\kwa{pw}$ can only be passed a function with effects on $\kwa{File}$, but $\kwa{fw}$ has effects on $\kwa{Socket}$. The issue: we only intersect the polymorphic effects with the effects of a capability in scope if that capability's effects are contained in the upper-bound of the polymorphic effects. If not, the maximal set of effects that could be incurred with that capability is $\varnothing$, because it can't be passed to the polymorphic code. The following diagram illustrates:
+
+
+\includegraphics{effects}
+
+The circles represent the effects of the labelled types. So the green circle is $\kwa{effects}(P)$. We currently approximate $\kwa{effects}(p, \{ T_1, T_2, T_3\})$ as $\kwa{effects}(p) \cap (\kwa{effects}(T_1) \cup \kwa{effects}(T_2) \cup \kwa{effects}(T_3))$. This approximation includes those effects in both $\fx{P} \cap \fx{T_3}$ --- but these effects can't ever be used by $p$, since the capability $T_3$ contains more effects than stipulated by the upper-bound of $p$. Therefore we want to exclude $T_3$ from our union, and instead give the approximation as $\kwa{effects}(p) \cap (\kwa{effects}(T_1) \cup \kwa{effects}(T_2))$. That is, we want to exclude $\fx{T_3}$ from our approximation because it contains effects outside of $\fx{P}$.
+
+Here are two proposed amendments to $\kwa{effects}(p, \overline{\hat \tau})$:
+
+\begin{enumerate}
+
+	\item Have two cases based on whether $\kwa{effects}(\hat \tau_i) \subseteq \kwa{effects}(p)$. They might look like the following
+
+  \begin{equation*}
+    \kwa{effects}(p, \{\hat \tau_i\})  = \bigcup_{i}
+    \begin{cases*}
+      \fx{\hat \tau_i} \cap \fx{p}        & if $\fx{\hat \tau_i} \subseteq \fx{P}$ \\
+      \varnothing & otherwise
+    \end{cases*}
+  \end{equation*}
+
+	\item Notice that the result is always going to be a subset of $\kwa{effects}(p)$ (either $\varnothing$ or the intersection of $\kwa{effects}(p)$ with the effects of some capability in scope).
+	
+   \begin{equation*}
+    \kwa{effects}(p, \{\hat \tau_i\})  = \bigcup[\mathcal{P}(p) \cap \bigcup_{i} \{\fx{\hat \tau_i}\}]
+  \end{equation*}
+  
+Now if there is a capability in $\fx{\hat \tau_i} \setminus \fx{p}$ then $\{ \fx{\hat \tau_i} \}$ won't be in $\mathcal{P}(p)$, so the result will be $\varnothing$.
+  
+\end{enumerate}
 
 %\section{Accessing Database via Expert}
 
+\subsection{1 Non-Poly, 1 Poly That Can Be Passed to Another Poly}
 
+Consider the following capabilities:
 
+\begin{lstlisting}
+pw = $\lambda \phi \subseteq$ {File.*, Socket.*}.
+        $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
 
+pa = $\lambda \phi \subseteq$ {File.*}.
+        $\lambda$f: Unit $\rightarrow_{\phi}$ Unit.
+           let _ = Socket.write in f unit
 
+fw = $\lambda$x: Unit. File.write
+\end{lstlisting}
 
+\noindent
+Note how $\kwa{pa}$, when fixed with an effect-set, will ask for a function with those effects and then instrument it with the $\kwa{Socket.write}$ effect.
+
+The maximal set of effects that can be achieved with these capabilities is $\{ File.write, Socket.write \}$, in the following way:
+
+\begin{lstlisting}
+import({File.write, Socket.write})
+   pw = pw, fw = fw, pa = pa
+in
+   let pw2 = pw {File.write, Socket.write} in
+   let pa2 = pw {File.write} in
+   pw2 (pa2 fw) /* incurs File.write, Socket.write */
+\end{lstlisting}
+
+\noindent
+Their types are the following:
+
+\begin{enumerate}
+	\item $\kwa{type(pw) = \forall \phi \subseteq \{ File.*, Socket.* \}.~(Unit \rightarrow_{\phi} Unit) \rightarrow_{\phi} Unit~caps~\varnothing~with~\varnothing}$ 
+	\item $\kwa{type(pa) = \forall \phi \subseteq \{ File.* \}.~(Unit \rightarrow_{\phi} Unit) \rightarrow_{\varnothing} (Unit \rightarrow_{\phi \cup \{Socket.write\}} Unit)}$
+	\item $\kwa{type(fw) = Unit \rightarrow_{\{File.write\}} Unit~with~\varnothing}$
+\end{enumerate}
+
+\noindent
+Their conservative effect approximations are:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw)) = \{File.*, Socket.* \} }$
+	\item $\kwa{effects(type(pa)) = \{File.*, Socket.write \}}$
+	\item $\kwa{effects(type(fw)) = \{File.write\} }$
+\end{enumerate}
+
+\noindent
+If we use the two-variable version of $\kwa{effects}$ to approximate $\kwa{pa}$, then we get the following:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(pw), \{type(pa), type(fw)\}) = \{ File.*, Socket.write \}}$
+\end{enumerate}
+
+\noindent
+Which is correct. It also doesn't matter whether you use the old version of $\kwa{effects}$ or the updated version from the previous section; they give the same answer. However, if you try to apply the two-variable version of $\kwa{effects}$ to approximate $\kwa{pw}$ you get:
+
+\begin{enumerate}
+	\setcounter{enumi}{1}
+	\item $\kwa{effects(type(pw), \{type(pa), type(fw)\}) = \{File.*, Socket.write\}}$
+\end{enumerate}
+
+Which is correct, but not a tight upper-bound. Both versions of $\kwa{effects}$ give this answer. The problem arises from when you intersect the (conservative) effects of $\kwa{pw}$ with the (conservative) effects of $\kwa{pa}$. Both $\fx{pa}$ and $\fx{pw}$ have operations on $\kwa{File}$ which can't ever be invoked, so when their conservative approximations are intersected, we get every operation on $\kwa{File}$ in the result.
 
 
 
