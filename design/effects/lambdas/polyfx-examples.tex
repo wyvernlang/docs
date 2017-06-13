@@ -759,7 +759,7 @@ Now if there is a capability in $\fx{\hat \tau_i} \setminus \fx{p}$ then $\{ \fx
 
 %\section{Accessing Database via Expert}
 
-\subsection{1 Non-Poly, 1 Poly That Can Be Passed to Another Poly}
+\subsection{Instantiate 1 Poly and Pass To Another Poly}
 
 Consider the following capabilities:
 
@@ -823,6 +823,46 @@ Which is correct. It also doesn't matter whether you use the old version of $\kw
 
 Which is correct, but not a tight upper-bound. Both versions of $\kwa{effects}$ give this answer. The problem arises from when you intersect the (conservative) effects of $\kwa{pw}$ with the (conservative) effects of $\kwa{pa}$. Both $\fx{pa}$ and $\fx{pw}$ have operations on $\kwa{File}$ which can't ever be invoked, so when their conservative approximations are intersected, we get every operation on $\kwa{File}$ in the result.
 
+\subsection{Pass Uninstantiated Poly To Another Poly}
+
+Consider the following capabilities:
+
+\begin{lstlisting}
+/* A polymorphic id function over a type A, which incurs an effect $\phi_1$ before returning the input argument */
+pid = $\lambda \Phi_1. \lambda A.$
+   $\lambda$f: Unit$\rightarrow_{\Phi_1}$Unit.
+      $\lambda$a: A. let _ = f unit in a
+
+/* A polymorphic function which takes a polymorphic abstraction $P$ and wraps it in a computation $f$ with effect $\Phi_3$ */
+pp = $\lambda$P <: $\forall \Phi_2. \forall A. (\Unit \rightarrow_{\Phi_2} \Unit) \rightarrow_{\varnothing} A \rightarrow_{\Phi_2} A$
+   $\lambda \Phi_3$. $\lambda f: \Unit \rightarrow_{\Phi_3} \Unit$. $\lambda p: P$.
+      let _ = f unit in p
+
+/* Capabilities which capture the write operation on File and Socket */
+fw = $\lambda$x:Unit. File.write
+sw = $\lambda$x:Unit. Socket.write
+\end{lstlisting}
+
+\noindent
+They have the following conservative effect approximations:
+
+\begin{enumerate}
+	\item $\fx{pp} = \fx{pid} = R \times \Pi$
+	\item $\fx{fw} = \{\kwa{File.write}\}$
+	\item $\fx{sw} = \{\kwa{Socket.write}\}$
+\end{enumerate}
+
+\noindent
+The naive definition does not give a better approximation. For example,\\
+
+\noindent
+$\kwa{effects}(pid, {pp, fw, sw}) =$ \\
+$(\fx{pid} \cap \fx{pp}) \cup (\fx{pid} \cap \fx{fw}) \cup (\fx{pid} \cap \fx{sw}) = $ \\
+$R \times \Pi \cup \{\kwa{File.write}\} \cup \{\kwa{Socket.write}\} =$\\
+$R \times \Pi$
+
+
+
 \subsection{Regular Function Returns Poly}
 
 Consider the following capabilities:
@@ -869,11 +909,6 @@ Their conservative effects:
 
 \noindent
 Note that since $g$ is not polymorphic, any of the approximations of its effects so far will give $\{ \kwa{File.*, Socket.*} \}$.
-
-
-
-
-
 
 
 
