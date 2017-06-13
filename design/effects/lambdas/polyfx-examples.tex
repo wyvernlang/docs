@@ -823,11 +823,52 @@ Which is correct. It also doesn't matter whether you use the old version of $\kw
 
 Which is correct, but not a tight upper-bound. Both versions of $\kwa{effects}$ give this answer. The problem arises from when you intersect the (conservative) effects of $\kwa{pw}$ with the (conservative) effects of $\kwa{pa}$. Both $\fx{pa}$ and $\fx{pw}$ have operations on $\kwa{File}$ which can't ever be invoked, so when their conservative approximations are intersected, we get every operation on $\kwa{File}$ in the result.
 
+\subsection{Regular Function Returns Poly}
 
+Consider the following capabilities:
 
+\begin{lstlisting}
+fw = $\lambda$x: Unit. File.write
 
+sw = $\lambda$x: Unit. Socket.write
 
+pw = $\lambda \Phi \subseteq$ {File.*, Socket.*}.
+         $\lambda$f: Unit $\rightarrow_{\Phi}$ Unit. f unit
 
+g = $\lambda$x: Unit. pw
+\end{lstlisting}
+
+\noindent
+Now consider the following $\kwa{import}$ expression, which only imports $\kwa{fw}$, $\kwa{sw}$, and $\kwa{g}$.
+
+\begin{lstlisting}
+import({File.write, Socket.write})
+   fw = fw, sw = sw, g = g
+in ...
+\end{lstlisting}
+
+\noindent
+The types are the following:
+
+\begin{enumerate}
+   \item $\kwa{type(fw)} = \Unit \rightarrow_{\kwa{\{File.write\}}} \Unit$
+   \item $\kwa{type(sw)} = \Unit \rightarrow_{\kwa{\{Socket.write\}}} \Unit$
+   \item $\kwa{type(pw)} = \lambda \Phi \subseteq \kwa{\{File.*, Socket.*\}}. (\Unit \rightarrow_{\Phi} \Unit) \rightarrow_{\Phi} \Unit$
+   \item $\kwa{type(g)} = \Unit \rightarrow_{\varnothing} \kwa{type(pw)} $
+\end{enumerate}
+
+\noindent
+Their conservative effects:
+
+\begin{enumerate}
+	\item $\kwa{effects(type(fw)) = \{File.write\}}$
+	\item $\kwa{effects(type(sw)) = \{Socket.write\}}$
+	\item $\kwa{effects(type(pw)) = \{File.*, Socket.*\}}$
+	\item $\kwa{effects(type(g)) = \{File.*, Socket.*\}}$
+\end{enumerate}
+
+\noindent
+Note that since $g$ is not polymorphic, any of the approximations of its effects so far will give $\{ \kwa{File.*, Socket.*} \}$.
 
 
 
