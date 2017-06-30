@@ -229,11 +229,6 @@ v & ::= & ~ & \bf{values} \\
 				& | & \hat \Gamma, \phi \subseteq \varepsilon & effect~var.~binding \\
 				&&\\
 
-E & ::= & ~ & \bf{environment}\\
-	& | & \varnothing & empty~env. \\
-	& | & E, \hat \tau & capability \\
-	&&\\
-
 \end{array}
 
 \end{array}
@@ -307,21 +302,9 @@ E & ::= & ~ & \bf{environment}\\
 \begin{enumerate}
 	\item $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
 	\item $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{ho \hyphen effects}(\hat \tau_1) \cup \varepsilon \cup \kwa{effects}(\hat \tau_2)$
-	\item $\fx{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_1}} = \hofx{\hat \tau_1} \cup \fx{[\hat \tau_1/X]\hat \tau_2} \cup \varepsilon_1$
-	\item $\fx{\polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}} = \fx{[\varepsilon/\phi]\hat \tau} \cup \varepsilon_1$
+	\item $\fx{\forall X <: \hat \tau_1. \hat \tau_2 ~\kw{caps} \varepsilon_2} = \varepsilon_2 \cup \fx{[\annot{\erase{\hat \tau_1}}{\varnothing}/X]\hat \tau_2}$
+	\item $\fx{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2} = \varepsilon_2 \cup \fx{[\varnothing/\Phi]\hat \tau_2}$
 \end{enumerate}
-
-
-\subsection*{Defintion ($\kwa{effects :: \hat \tau \times E \rightarrow \varepsilon}$)}
-
-\begin{enumerate}
-	\item $\fx{\{ \bar r \}, \_} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
-	\item $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2, E} = \kwa{ho \hyphen effects}(\hat \tau_1, E') \cup \varepsilon \cup \kwa{effects}(\hat \tau_2, E')$, where $E' = E \cup \hat \tau_1 \cup \hat \tau_2$
-	\item $\fx{\hat \tau, E} = \lozenge\fx{\hat \tau}$, if $\kwa{is \hyphen poly}(\hat \tau)$
-\end{enumerate}
-
-\noindent
-\textbf{Note: the definitions given for non-polymorphic types could also be refined to give a more precise upper-bound on the effects they capture.}
 
 
 \subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \rightarrow \varepsilon}$)}
@@ -329,24 +312,9 @@ E & ::= & ~ & \bf{environment}\\
 \begin{enumerate}
 	\item $\hofx{\{ \bar r \}} = \varnothing$
 	\item $\hofx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
-	\item $\hofx{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon}} = \fx{\hat \tau_1} \cup \hofx{[\hat \tau_1/X]\hat \tau_2}$
-	\item $\hofx{\polycap{\phi \subseteq \varepsilon}{\hat \tau}{\varepsilon_1}} = \varepsilon \cup \hofx{[\varepsilon/\phi]\hat \tau}$
+	\item $\hofx{\forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_2} = \fx{\hat \tau_1} \cup \hofx{[\hat \tau_1/X]\hat \tau_2}$
+	\item $\hofx{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2} = \varepsilon_1 \cup \hofx{[\varepsilon_1/\Phi]\hat \tau_2}$
 \end{enumerate}
-
-
-\subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \times E \rightarrow \varepsilon}$)}
-
-\begin{enumerate}
-	\item $\hofx{\{ \bar r \}, \_} = \varnothing$
-	\item $\hofx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2, E} = \kwa{effects}(\hat \tau_1, E') \cup \kwa{ho \hyphen effects}(\hat \tau_2, E')$, where $E' = E \cup \hat \tau_1 \cup \hat \tau_2$
-	\item $\hofx{\hat \tau, E} = \lozenge\hofx{\hat \tau}$, if $\kwa{is \hyphen poly}(\hat \tau)$
-\end{enumerate}
-
-
-\noindent
-\textbf{Note: the definitions given for non-polymorphic types could also be refined to give a more precise upper-bound on the effects they capture.}
-
-
 
 
 
@@ -463,7 +431,7 @@ E & ::= & ~ & \bf{environment}\\
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon_s)~\overline{x = \hat e}~\kw{in} e: \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \bigcup_{i} \varepsilon_i }
 {{\def\arraystretch{1.4}
   \begin{array}{c}
-\kwa{effects}(\hat \tau_i, \bigcup_{j \neq i} \hat \tau_j) \cup \hofx{\annot{\tau}{\varnothing}}\subseteq \varepsilon_s \\
+\kwa{effects}(\hat \tau_i) \cup \hofx{\annot{\tau}{\varnothing}}\subseteq \varepsilon_s \\
 \hat \Gamma \vdash \hat e_i: \hat \tau_i~\kw{with} \varepsilon_i  ~~~~~~ x_i: \kwa{erase}(\hat \tau_i) \vdash e: \tau ~~~~~~ \hosafe{\hat \tau_i}{\varepsilon_s}
   \end{array}}} 
  
@@ -490,12 +458,12 @@ $\fbox{$\kwa{safe(\tau, \varepsilon)}$}$
 	{\varepsilon \subseteq \varepsilon' & \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) & \kwa{safe}(\hat \tau_2, \varepsilon)} \\[3ex]
 
 \infer[\textsc{(Safe-PolyFx)}]
-	{\safe{\polycap{\phi \subseteq \varepsilon_1}{\hat \tau}{\varepsilon_2}}{\varepsilon}}
-	{\varepsilon_1 \subseteq \varepsilon & \safe{[\varepsilon_1/\phi]\hat \tau}{\varepsilon}} ~~~
+	{\safe{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon} }
+	{\varepsilon_2 \subseteq \varepsilon & \hosafe{\hat \tau_1}{\varepsilon} & \safe{[\varepsilon_1/\phi]\hat \tau_2}{\varepsilon}} ~~~
 
 \infer[\textsc{(Safe-PolyType)}]
 	{\safe{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_2}}{\varepsilon}}
-	{\hosafe{\hat \tau_1}{\varepsilon} & \safe{[\hat \tau_1/X]\hat \tau_2}{\varepsilon} & \varepsilon \subseteq \varepsilon_1}
+	{\varepsilon_2 \subseteq \varepsilon & \hosafe{\hat \tau_1}{\varepsilon} & \safe{[\hat \tau_1/X]\hat \tau_2}{\varepsilon}}
 
 \end{array}
 \]
@@ -515,12 +483,12 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 	{ \kwa{safe}(\hat \tau_1, \varepsilon)  & \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon) }\\[3ex]
 
 \infer[\textsc{(HOSafe-PolyFx)}]
-	{\hosafe{\polycap{\phi \subseteq \varepsilon_1}{\hat \tau}{\varepsilon_2}}{\varepsilon}}
-	{\varepsilon_1 \subseteq \varepsilon & \safe{[\varepsilon_1/\phi]\hat \tau}{\varepsilon} } ~~~
+	{\hosafe{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon}}
+	{\varepsilon \subseteq \varepsilon_1 & \hosafe{[\varepsilon_1/\Phi]\hat \tau_2}{\varepsilon}}
 
 \infer[\textsc{(HOSafe-PolyType)}]
-	{\hosafe{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_2}}{\varepsilon}}
-	{ \safe{\hat \tau_1}{\varepsilon} & \hosafe{[\hat \tau_1/X]\hat \tau_2}{\varepsilon} }
+	{\hosafe{\forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon}}
+	{\safe{\hat \tau_1}{\varepsilon} & \hosafe{[\hat \tau_1/X]\hat \tau_2}{\varepsilon}}
 
 \end{array}
 \]
