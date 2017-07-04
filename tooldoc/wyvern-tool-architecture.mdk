@@ -223,6 +223,26 @@ to keep track of the types of things, and of how type variables
 are translated into nominal type members.  The `getILType`
 function translates types to the intermediate language.
 
+At the module and declaration level, the primary starting point
+for translation into the IL is `ModuleResolver.load`.  When
+compiling a module, this function invokes
+`ModuleDeclaration.topLevelGen`.  Here, we divide the declarations
+into 3 lists: module parameters (in `reqSeq`), import and
+instantiate declarations (in `impInstSeq`), and body declarations
+(in `normalSeq`).  The body is translated by calls to `wrapLet`,
+`wrapLetWithIterator`, and then `wrapLetCtxWithIterator`, which
+wraps the body with the imports and instantiates declarations in
+let statements.  Finally, `innerTranslate` is called to translate
+the body declarations.  It defers to `Sequence.generateModuleIL`,
+which groups declarations into blocks and then translates them
+using `Sequence.genTopLevel`.  In the case of mutually recursive
+`def` and `type` blocks (represented by `DefDeclaration`,
+`TypeVarDecl` (for structural types), and `TypeAbbrevDeclaration`
+(for type abbreviations like `type T = T1`)), the relevant
+implementation is in `DeclSequence.genTopLevel`, which builds up
+a context that includes all members of the recursive block and
+then invokes `topLevelGen` on each members of the block.
+
 Intermediate code generation is illustrated in the test case
 `wyvern.tools.tests.ILTests.testFieldRead()` and the code that
 it invokes.
@@ -237,18 +257,20 @@ and returns the type of the expression.
 
 Interpreting Wyvern
 ===================
+This section is under construction.
+Some useful notes: `TailCallVisitor` helps implement tail calls.
+`PlatformSpecializationVisitor` takes a Wyvern program that is platform independent and links it against the libraries from a particular platform like Java or Python.
 
-Lowering to a Class-Based IR
-============================
+Lowering to a Class-Based IR and generating Python Code
+=======================================================
+`EmitOIRVisitor` is used to output a lower level intermediate representation that is used when compiling to Python.
 
-Generating Pyton Code
-=====================
 
 Miscellaneous Locations
 =======================
 
-The standard prelude is defined in wyvern.stdlib.Globals
+The standard prelude is defined in `wyvern.stdlib.Globals`
 
-The relationship between Java types and Wyvern types is defined in wyvern.target.corewyvernIL.support.GenUtil
+The relationship between Java types and Wyvern types is defined in `wyvern.target.corewyvernIL.support.GenUtil`
 
 
