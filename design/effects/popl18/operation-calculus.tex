@@ -161,7 +161,8 @@ or more single-step reductions. The resulting set of run time effects is the uni
 \infer[\textsc{(E-MultiStep2)}]
 	{ e \rightarrow^{*}  e'~|~\varepsilon}
 	{ e \rightarrow  e'~|~\varepsilon}
-	\hspace{5ex}
+%	\hspace{5ex}
+\\
 \infer[\textsc{(E-MultiStep3)}]
 	{ e \rightarrow^{*}  e''~|~\varepsilon_1 \cup \varepsilon_2}
 	{ e \rightarrow^{*}  e'~|~\varepsilon_1 &  e' \rightarrow^{*}  e''~|~\varepsilon_2}
@@ -298,35 +299,33 @@ The approximate effects of an operation call are: the effects of reducing the su
 
 \textsc{S-Arrow} is the standard rule for arrow types, but also stipulates that the effects on the arrow of the subtype must be contained in the effects on the arrow of the supertype: a valid subtype should not invoke any effects the supertype does not already know about. \textsc{S-Resource} says that a subset of resources is a subtype. To illustrate, consider $\{ \bar r_1 \} <: \{ \bar r_2 \}$ --- any value with type $\{ \bar r_1 \}$ can reduce to any resource literal in $\bar r_1$, so to be compatible with an interface $\{ \bar r_2 \}$, the resource literals in $\bar r_1$ must also be in $\bar r_2$.
 
-These rules let us determine what sort of effects might be incurred when a piece of code is executed. For example, consider $rw = \lambda x: \{ \kwa{File, Socket} \}.~\kwa{x.write}$, which takes either a $\File$ or a $\Socket$ and writes to it. If $rw$ is applied, it could incur $\kwa{Socket.write}$ or $\kwa{File.write}$, depending on what had been passed. In general, there is no way to statically determine what this will be, so the safe approximation is $\{ \kwa{File.write, Socket.write} \}$. This is the approximation given by a judgement like $\vdash rw~\File: \Unit~\kw{with} \{ \kwa{File.write, Socket.write} \}$. A derivation of this judgement is given in Figure~\ref{fig:opercalc_tree}. To fit on the page, all resources and operations have been abbreviated to their first letter. A developer who only expects $rw$ to be incurring $\kwa{File.write}$ can typecheck $rw$, see that it could also be writing to $\kwa{Socket}$, and decide it should not be used. If client code was annotated with $\kwa{ \{ \kwa{File.write} \} }$ and tried to use this function, the type system would reject it.
+These rules let us determine what sort of effects might be incurred when a piece of code is executed. For example, consider $rw = \lambda x: \{ \kwa{File, Socket} \}.~\kwa{x.write}$, which takes either a $\File$ or a $\Socket$ and writes to it. If $rw$ is applied, it could incur $\kwa{Socket.write}$ or $\kwa{File.write}$, depending on what had been passed. In general, there is no way to statically determine what this will be, so the safe approximation is $\{ \kwa{File.write, Socket.write} \}$. This is the approximation given by a judgement like $\vdash rw~\File: \Unit~\kw{with} \{ \kwa{File.write, Socket.write} \}$. A derivation of this judgement is given in Figure~\ref{fig:opercalc_tree}. To fit on the page, all resources and operations have been abbreviated to their first letter and \textsc{$\varepsilon$-Subsume} assumes that by \textsc{$\varepsilon$-Resource} we have $\vdash \kwa{F}: \{ \kwa{F} \}~\kw{with} \varnothing$. A developer who only expects $rw$ to be incurring $\kwa{File.write}$ can typecheck $rw$, see that it could also be writing to $\kwa{Socket}$, and decide it should not be used. If client code was annotated with $\kwa{ \{ \kwa{File.write} \} }$ and tried to use this function, the type system would reject it.
+
+%\Infer0[\textsc{($\varepsilon$-Res)}]{\vdash \kwa{F}: \{ \kwa{F} \}~\kw{with} \varnothing}
 
 \begin{figure}[h]
 
+\begin{prooftree}
 
-    \begin{prooftree*}
+\Infer0[\textsc{($\varepsilon$-Var)}]{x: \{ \kwa{F}, \kwa{S} \} \vdash x: \{ \kwa{F}, \kwa{S} \}}
+    		
+\Infer1[\textsc{($\varepsilon$-OpCall)}]{x: \{ \kwa{F}, \kwa{S} \} \vdash \kwa{x.w} : \Unit~\kw{with} \{ \kwa{F.w, S.w} \}}
+    		
+\Infer1[\textsc{($\varepsilon$-Abs)}]{ \lambda x: \{ \kwa{F}, \kwa{S} \}.~\kwa{x.w} : \{ \kwa{F, S} \} \rightarrow_{\{\kwa{F.w, S.w}\}} \Unit~\kw{with} \varnothing}
 
-    		\Infer0[\textsc{($\varepsilon$-Var)}]{x: \{ \kwa{F}, \kwa{S} \} \vdash x: \{ \kwa{F}, \kwa{S} \}}
+\Hypo{F \in \{ F, S \}}
+    
+\Infer1[\textsc{(S-Res)}]{\{ F \} <: \{ F, S \}}
+    
+\Infer1[\textsc{($\varepsilon$-Subsume)}]{\vdash \kwa{F}: \{ \kwa{F, S} \}}
+    
+\Infer2[\textsc{($\varepsilon$-App)}]{ \vdash (\lambda x: \{ \kwa{F, S} \}. ~\kwa{x.w})~\kwa{F} : \Unit~\kw{with} \{ \kwa{F.w, S.w} \}  }
     		
-    		\Infer1[\textsc{($\varepsilon$-OperCall)}]{x: \{ \kwa{F}, \kwa{S} \} \vdash \kwa{x.w} : \Unit~\kw{with} \{ \kwa{F.w, S.w} \} }
-    		
-    		\Infer1[\textsc{($\varepsilon$-Abs)}]{ \lambda x: \{ \kwa{F}, \kwa{S} \}.~\kwa{x.w} : \{ \kwa{F, S} \} \rightarrow_{\{\kwa{F.w, S.w}\}} \Unit~\kw{with} \varnothing }
-    		
-    
-       \Infer0[\textsc{($\varepsilon$-Resource)}]{\vdash \kwa{F}: \{ \kwa{F} \}~\kw{with} \varnothing}
-    
-    \Hypo{F \in \{ F, S \}}
-    
-    \Infer1[\textsc{(S-Resource)}]{\{ F \} <: \{ F, S \}}
-    
-    \Infer2[\textsc{($\varepsilon$-Subsume)}]{\vdash \kwa{F}: \{ \kwa{F, S} \}}
-    
-    		\Infer2[\textsc{($\varepsilon$-App)}]{ \vdash (\lambda x: \{ \kwa{F, S} \}. ~\kwa{x.w})~\kwa{F} : \Unit~\kw{with} \{ \kwa{F.w, S.w} \}  }
-    		
- 	\end{prooftree*}
+\end{prooftree}
  	
-\vspace{-12pt}
 \caption{Derivation tree for $\vdash rw~\File: \Unit~\kw{with} \{ \kwa{File.write, Socket.write} \}$.}
 \label{fig:opercalc_tree}
+
 \end{figure}
 
 \subsection{Soundness ($\opercalc$)}
