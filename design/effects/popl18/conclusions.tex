@@ -16,11 +16,35 @@ Miller's model has been applied to more heavyweight systems: \citet{drossopoulou
 
 The original effect system by \citet{lucassen88} was used to determine what expressions could safely execute in parallel. Subsequent applications include determining what functions a program might invoke \cite{tang94} and what regions in memory might be accessed or updated during execution \cite{talpin94}. In these systems, ``effects'' are performed upon ``regions''; in ours, ``operations'' are performed upon ``resources'''. $\epscalc$ also distinguishes between unannotated and annotated code: only the latter will type-and-effect-check. Another capability-based effect system is the one by \citet{devriese16}, who use effect polymorphism and possible world semantics to express behavioural invariants on data structures. $\epscalc$ is not as expressive, since it only topographically inspects how capabilities can be passed around a program, but the resulting formalism and theory is much more lightweight.
 
+\subsection{Polymorphic Effects}
+
+The current theory contains no effect polymorphism, whereby a function's type is parameterised by a set of effects. We are currently exploring the next step in our calculi - $\kwa{PolyC}$ - that allows for type parameters and effect parameters on expressions. In a fully annotated polymorphic setting we are able to track the possible effects in a fully annotated expression by capturing all the possible effects in a type while assuming that the effect parameters are empty. This means that any effect-parameterised module will clearly specify it's possible effects and any additional effects that would arise by instantiating the effect parameters would have to come from the current module and will be subject to the capabilities it has access to. However, when allowing for effect-parameterised module to be imported by the unannotated code it would make it possible for the effect parameter to be instantiated with an unauthorised effect thus annulling any guarantees claimed by the fully annotated module. For instance:
+
+\begin{lstlisting}
+let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
+
+import({File.*}) 
+   pw = polywriter
+   f = File
+in
+   e
+\end{lstlisting}
+
+In the unannotated code $e$, you can never make $\kwa{pw}$ return a socket-writing function, because there is no socket-writing capability in scope that it could be given. However, this example should fail for a different reason --- there is a file capability in scope, and you could pass $\kwa{pw}$ a function which captures any effect on that file, which would violate its signature:
+
+\begin{lstlisting}
+import({File.*}) 
+   pw = polywriter
+   f = File
+in
+   pw {File.write} ($\lambda$x: Unit. f.read)
+\end{lstlisting}
+
+% The current theory contains no effect polymorphism, whereby a function's type is parameterised by a set of effects. The only way for such a function to typecheck in $\epscalc$ would be to approximate it as having every effect, in which case all precision has been lost. A polymorphic effect system which considers such a function as having an effect parameterised type could give more meaningful approximations.
+
 \subsection{Future Work}
 
 Our effects model only the use of capabilities which manipulate system resources. This definition could be generalised to track other sorts of effects, such as stateful updates. In our model, resources and operations are fixed throughout runtime; it would be interesting to consider the theory when they can be created and destroyed at runtime.
-
-The current theory contains no effect polymorphism, whereby a function's type is parameterised by a set of effects. The only way for such a function to typecheck in $\epscalc$ would be to approximate it as having every effect, in which case all precision has been lost. A polymorphic effect system which considers such a function as having an effect parameterised type could give more meaningful approximations.
 
 Many believe in the value of the object capability model, but we do not fully understand its formal benefits. We hope to extend the ideas in this paper to the point where they might be used in capability-safe languages to help authority-safe design and development. Implementing these ideas in a general-purpose, capability-safe language would do much towards that end.
 

@@ -1,0 +1,875 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage{filecontents}
+\usepackage{calc}
+\usepackage[linewidth=0.5pt]{mdframed}
+\usepackage{changepage}
+\usepackage{mathtools}
+\usepackage{graphicx}
+
+\allowdisplaybreaks
+
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\pagestyle{fancy}
+ \fancyhf{}
+\rhead{\thepage}
+
+\lstset{tabsize=3, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=5pt,escapeinside={(@}{@)}, morekeywords=[1]{objtype,module,import,let,in,fn,var,type,rec,fold,unfold,letrec,alloc,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword,unit,def}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\newcommand{\kw}[1]{\keyw{ #1 }}
+\newcommand{\kwa}[1]{\keywadj{ #1 }}
+\newcommand{\reftt}{\mathtt{ref}~}
+\newcommand{\Reftt}{\mathtt{Ref}~}
+\newcommand{\inttt}{\mathtt{int}~}
+\newcommand{\Inttt}{\mathtt{Int}~}
+\newcommand{\stepsto}{\leadsto}
+\newcommand{\todo}[1]{\textbf{[#1]}}
+\newcommand{\intuition}[1]{#1}
+\newcommand{\hyphen}{\hbox{-}}
+
+%\newcommand{\intuition}[1]{}
+
+\newlist{pcases}{enumerate}{1}
+\setlist[pcases]{
+  label=\fbox{\textit{Case}}\protect\thiscase\textit{:}~,
+  ref=\arabic*,
+  align=left,
+  labelsep=0pt,
+  leftmargin=0pt,
+  labelwidth=0pt,
+  parsep=0pt
+}
+\newcommand{\pcase}[1][]{
+
+  \if\relax\detokenize{#1}\relax
+    \def\thiscase{}
+  \else
+    \def\thiscase{~\fbox{#1:}}
+  \fi
+  \item
+}
+
+\newcommand{\thm}[3]{
+	\begin{large}
+		\bf{#1}
+	\end{large} \\\\
+	\fbox{Statement.} ~ #2
+	\fbox{Proof.}~ #3 \qed
+}
+
+\newcommand{\proofcase}[2]{
+	\begin{adjustwidth}{1.5em}{0pt}
+		\fbox{Case.}~~#1. \\ ~#2
+	\end{adjustwidth}
+}
+
+\newcommand{\subcase}[1] {
+	\begin{adjustwidth}{2.2em}{0pt}
+		\underline{Subcase.} #1
+	\end{adjustwidth}
+}
+
+\newcommand{\stmt}[1] {
+
+\begin{adjustwidth}{2.5em}{0pt}
+	#1
+\end{adjustwidth}
+
+}
+\newcommand{\type}[2]{
+	#1~\keyw{with} #2
+}
+
+\newcommand{\unit}[0]{ \kwa{unit} }
+
+\newcommand{\Unit}[0]{ \kwa{Unit} }
+
+\newcommand{\fx}[1]{ \kwa{effects}(#1) }
+
+\newcommand{\hofx}[1]{ \kwa{ho \hyphen effects}(#1) }
+
+\newcommand{\safe}[2]{ \kwa{safe}(#1, #2) }
+
+\newcommand{\hosafe}[2]{ \kwa{ho \hyphen safe}(#1, #2) }
+
+\newcommand{\arr}[3]{
+	#1 \rightarrow_{#3} #2
+}
+
+\newcommand{\newd}[0]{
+	\keywadj{new}_d~x \Rightarrow \overline{d = e}
+}
+
+\newcommand{\newsig}[0]{
+	\keywadj{new}_\sigma~x \Rightarrow \overline{\sigma = e}
+}
+
+\newcommand{\import}[4]{
+	\keywadj{import}(#1)~#2 = #3~\kw{in} #4
+}
+
+\newcommand{\annot}[2]{
+	\keywadj{annot}(#1, #2)
+}
+
+\newcommand{\erase}[1]{
+	\keywadj{erase}(#1)
+}
+
+\newcommand{\poly}[2]{
+	\forall #1. #2
+}
+
+\newcommand{\polycap}[3]{
+	\forall #1. #2~ \kw{caps} #3
+}
+
+\newcommand\defn{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}
+
+
+\begin{document}
+
+
+
+
+
+
+
+
+
+
+
+\section{Basic Effect Polymorphism}
+
+\subsection*{Pseudo-Wyvern}
+\begin{lstlisting}
+def polymorphicWriter(x: T <: {File, Socket}): Unit with T.write =
+    x.write
+ 
+/* below invocation should typecheck with File.write as its only effect */
+polymorphicWriter File
+    
+\end{lstlisting}
+
+\subsection*{$\lambda$-Calculus}
+\begin{lstlisting}
+let pw = $\lambda \phi \subseteq$ {File.write, Socket.write}.
+   $\lambda$f: Unit $\rightarrow_{\phi}$ Unit.
+      f unit
+
+in let makeWriter = $\lambda$r: {File, Socket}.
+   $\lambda$x: Unit. r.write
+
+in (pw {File.write}) (makeWriter File)
+\end{lstlisting}
+
+
+\subsection*{Typing}
+
+To type the definition of $\kwa{polymorphicWriter}$:
+\begin{enumerate}
+	\item By \textsc{$\varepsilon$-App}\\ $\phi \subseteq \{ \kwa{F.w, S.w} \}$, x: $\Unit \rightarrow_{\phi} \Unit \vdash x~\unit: \Unit~\kw{with} \phi$.
+	\item By \textsc{$\varepsilon$-Abs}\\ $\phi \subseteq \{ \kwa{F.w, S.w} \} \vdash \lambda x: \Unit \rightarrow_{\phi} \Unit. x~\unit: (\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit~\kw{with} \varnothing$
+	\item By \textsc{$\varepsilon$-PolyFxAbs}, \\ $\vdash \forall \phi \subseteq \{ \kwa{S.w, F.w} \}. \lambda x: \Unit \rightarrow_{\phi} \Unit. x~\unit:\polycap{\phi \subseteq \{ \kwa{F.w, S.w} \}}{(\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit}{\varnothing}~\kw{with} \varnothing$
+\end{enumerate}
+
+\noindent
+Then $\kwa{(pw~\{ File.write \})}$ can be typed as such:
+
+\begin{enumerate}
+  \setcounter{enumi}{3}
+  \item By \textsc{$\varepsilon$-PolyFxApp}, \\ $\vdash \kwa{pw~\{ F.w \}}: [\{ \kwa{F.w} \}/\phi]( (\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit) ~\kw{with} [\{ \kwa{F.w} \}/\phi]\varnothing \cup \varnothing$
+\end{enumerate}
+
+\noindent
+The judgement can be simplified to:
+
+\begin{enumerate}
+	\setcounter{enumi}{4}
+	\item $\vdash \kwa{pw~\{ F.w \}}: (\Unit \rightarrow_{\{\kwa{F.w}\}} \Unit) \rightarrow_{\{\kwa{F.w}\}} \Unit ~\kw{with} \varnothing$
+\end{enumerate}
+
+\noindent
+Any application of this function, as in $\kwa{(pw~\{File.write\}) (makeWriter~ File)}$, will therefore type as having the single effect $\kwa{F.w}$ by applying \textsc{$\varepsilon$-App} to judgement (5).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Dependency Injection}
+
+\subsection*{Pseudo-Wyvern}
+
+An HTTPServer module provides a single $\kwa{init}$ method which returns a $\kwa{Server}$ that responds to HTTP requests on the supplied socket.
+\begin{lstlisting}
+module HTTPServer
+
+def init(out: A <: {File, Socket}): $\kwa{Str}\rightarrow_{A.write}\Unit$ with $\varnothing$ =
+   $\lambda$ msg: Str.
+      if (msg == ``POST'') then out.write(``post response'')
+      else if (msg == ``GET'') then out.write(``get response'')
+      else out.write(``client error 400'')
+\end{lstlisting}
+
+\noindent
+The main module calls $\kwa{HTTPServer.init}$ with the $\kwa{Socket}$ it should be writing to.
+
+\begin{lstlisting}
+module Main
+require HTTPServer, Socket
+
+def main(): Unit =
+   HTTPServer.init(Socket) ``GET /index.html''
+\end{lstlisting}
+
+\noindent
+The testing module calls $\kwa{HTTPServer.init}$ with a $\kwa{LogFile}$, perhaps so the responses of the server can be tested offline.
+
+\begin{lstlisting}
+module Testing
+require HTTPServer, LogFile
+
+def testSocket():  =
+   HTTPServer.init(LogFile) ``GET /index.html''
+\end{lstlisting}
+
+
+\subsection*{$\lambda$-Calculus}
+
+\noindent
+The HTTPServer module:
+\begin{lstlisting}
+MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
+\end{lstlisting}
+
+\noindent
+The Main module:
+
+\begin{lstlisting}
+MakeMain = $\lambda$hs: HTTPServer. $\lambda$sock: {Socket}.
+   $\lambda$x: Unit.
+      let socketWriter = ($\lambda$s: {Socket}. $\lambda$x: Unit. s.write) sock in
+      let theServer = hs {Socket.write} socketWriter in
+      theServer ``GET/index.html''
+\end{lstlisting}
+
+\noindent
+The Testing module:
+
+\begin{lstlisting}
+MakeTest = $\lambda$hs: HTTPserver. $\lambda$lf: {LogFile}.
+   $\lambda$x: Unit.
+      let logFileWriter = ($\lambda$l: {LogFile}. $\lambda$x: Unit. l.write) lf in
+      let theServer = hs {LogFile.write} logFileWriter in
+      theServer ``GET/index.html''
+\end{lstlisting}
+
+\noindent
+A single, desugared program for production would be:
+
+\begin{lstlisting}
+let MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
+
+in let Run = $\lambda$Socket: {Socket}.
+   let HTTPServer = MakeHTTPServer unit in
+   let Main = MakeMain HTTPServer Socket in
+   Main unit
+
+in Run Socket 
+\end{lstlisting}
+
+\noindent
+A single, desugared program for testing would be:
+
+\begin{lstlisting}
+let MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
+
+in let Run = $\lambda$LogFile: {LogFile}.
+   let HTTPServer = MakeHTTPServer unit in
+   let Main = MakeMain HTTPServer LogFile in
+   Main unit
+
+in Run LogFile
+\end{lstlisting}
+
+\noindent
+Note how the HTTPServer code is identical in the testing and production examples.
+
+\subsection*{Typing}
+
+
+\begin{lstlisting}
+let MakeHTTPServer = $\lambda$x: Unit.
+   $\lambda \phi \subseteq \{ \kwa{LogFile.write, Socket.write} \}$.
+      $\lambda$f: Str $\rightarrow_{\phi}$ Unit.
+         $\lambda$msg: Str.
+            f msg
+\end{lstlisting}
+
+\noindent
+To type $\kwa{MakeHTTPServer}$:
+
+\begin{enumerate}
+	\item By \textsc{$\varepsilon$-App}, \\
+	$\kwa{x: Unit,~ \phi \subseteq \{LF.w, S.w\}, f: Str \rightarrow_{\phi} Unit,~ msg: Str}$ \\
+	$\vdash \kwa{f~msg: Unit~\kw{with} \phi}$
+	
+	\item By \textsc{$\varepsilon$-Abs}, \\
+	$\kwa{x: Unit,~ \phi \subseteq \{LF.w, S.w\}, f: Str \rightarrow_{\phi} Unit}$ \\
+	$\vdash \kwa{\lambda msg: Str.~f~msg: Str \rightarrow_{\phi} Unit~\kw{with} \varnothing }$
+
+	\item By \textsc{$\varepsilon$-Abs}, \\
+	$\kwa{x: Unit,~ \phi \subseteq \{LF.w, S.w\}}$ \\
+	$\vdash \kwa{\lambda f: Str \rightarrow_{\phi} Unit.~\lambda msg: Str.~f~msg:}\\
+	\kwa{ (Str \rightarrow_{\phi} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\phi} Unit)~\kw{with} \varnothing }$
+
+	\item By \textsc{$\varepsilon$-PolyFxAbs}, \\
+	$\kwa{x: Unit}$ \\
+	$\vdash \kwa{\lambda \phi \subseteq \{ LF.w, S.w \}.~ \lambda f: Str \rightarrow_{\phi} Unit.~\lambda msg: Str.~f~msg:}$\\
+	$\kwa{\polycap{\phi \subseteq \{ LF.w, S.w\}}{(Str \rightarrow_{\phi} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\phi} Unit)}{\varnothing}~\kw{with} \varnothing}$
+
+	\item By \textsc{$\varepsilon$-Abs}, \\
+	$\vdash \kwa{\lambda x: Unit. ~\lambda \phi \subseteq \{ LF.w, S.w \}.~ \lambda f: Str \rightarrow_{\phi} Unit.~\lambda msg: Str.~f~msg:}$\\
+	$\kwa{Unit} \rightarrow_{\varnothing} \kwa{\polycap{\phi \subseteq \{ LF.w, S.w\}}{(Str \rightarrow_{\phi} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\phi} Unit)}{\varnothing}~\kw{with} \varnothing}$
+\end{enumerate}
+
+\noindent
+Note that after two applications of $\kwa{MakeHTTPServer}$, as in $\kwa{MakeHTTPServer~unit~\{Socket.write\}}$, it would type as follows:
+
+\begin{enumerate}
+	\setcounter{enumi}{5}
+	\item By \textsc{$\varepsilon$-PolyFxApp}, \\
+	$\kwa{x: Unit}$\\
+	$\kwa{\vdash MakeHTTPServer~unit~\{S.w\}:}$\\
+	$\kwa{(Str \rightarrow_{\{S.w\}} Unit) \rightarrow_{\varnothing} (Str \rightarrow_{\{S.w\}} Unit)~\kw{with} \varnothing}$
+\end{enumerate}
+
+\noindent
+After fixing the polymorphic set of effects, possessing this function only gives you access to the $\kwa{Socket.write}$ effect.
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Map Function}
+
+\subsection*{Pseudo-Wyvern}
+\begin{lstlisting}
+def map(f: A $\rightarrow_{\phi}$ B, l: List[A]): List[B] with $\phi$ =
+	if isnil l then []
+	else cons (f (head l)) (map (tail l f))
+\end{lstlisting}
+
+\subsection*{$\lambda$-Calculus}
+\begin{lstlisting}
+map = $\lambda \phi$. $\lambda$A. $\lambda$B.
+  $\lambda$f: A$\rightarrow_{\phi}$B.
+    (fix ($\lambda$map: List[A] $\rightarrow$ List[B]).
+      $\lambda$l: List[A].
+        if isnil l then []
+        else cons (f (head l)) (map (tail l f)))
+\end{lstlisting}
+
+\subsection*{Typing}
+
+\begin{itemize}
+	\item This has the type: $\forall \phi. \forall A. \forall B. (A \rightarrow_{\phi} B)  \rightarrow_{\varnothing} \kwa{List}[A] \rightarrow_{\phi} \kwa{List}[B]~ \kw{with} \varnothing$.
+	\item $\kwa{map}~\varnothing$ is a pure version of map.
+	\item $\kwa{map}~\{ \kwa{File.*} \}$ is a version of map which can perform operations on $\kwa{File}$.
+\end{itemize}
+
+
+
+\section{Imports Are an Upper Bound on Polymorphic Capabilities}
+
+\subsection{Example 1}
+
+\begin{lstlisting}
+let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
+
+import({File.*}) 
+   pw = polywriter
+   f = File
+in
+   e
+\end{lstlisting}
+
+\noindent
+In the unannotated code $e$, you can never make $\kwa{pw}$ return a socket-writing function, because there is no socket-writing capability in scope that it could be given. However, this example should fail for a different reason: there is a file capability in scope, and you could pass $\kwa{pw}$ a function which captures any effect on that file, which would violate its signature. For instance:
+
+\begin{lstlisting}
+import({File.*}) 
+   pw = polywriter
+   f = File
+in
+   pw {File.write} ($\lambda$x: Unit. f.read)
+\end{lstlisting}
+
+\noindent
+\textbf{This example should typecheck, since typechecking of the unannotated body strips all annotations from the imported capabilities. However, as of 17/05/2017, there is no way to apply effect-polymorphic types in an unannotated context.}\\
+
+\subsection*{Derivation}
+
+For this section we are going to be conflating the name of a variable with its type (so $pw$ really means the type of the variable $pw$, which is the effect-polymorphic type). Firstly, note that $\fx{pw} = \hofx{pw} = \{ \kwa{File.write, Socket.write} \}$. Then: \\
+
+\noindent
+ $\kwa{effects}(pw, \{ \{ \kwa{File} \} \})\\
+=  \fx{pw} \cap \fx{\{\kwa{File}\}}\\
+=  \{ \kwa{File.write, Socket.write} \} \cap \{ \kwa{File.*} \}\\
+=  \{ \kwa{File.write} \} \subseteq \varepsilon_s = \{ \kwa{File.*} \}$\\
+
+\noindent
+And also: \\
+
+\noindent
+$\kwa{effects}(\{ \kwa{File} \}, \{ pw \})\\
+= \fx{\{ \kwa{File} \}}\\
+=\{ \kwa{File.*} \} \subseteq \varepsilon_s = \{ \kwa{File.*} \}$\\
+
+\noindent
+However, $\hosafe{pw, \varepsilon_s}$ will fail, causing this example to not typecheck. \\
+
+\noindent
+$\hosafe{pw}{\varepsilon_s}\\
+= \hosafe{ \polycap{\phi \subseteq \{ \kwa{File.write, Socket.write} \}}{((\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit)}{\varnothing}}{\{ \kwa{File.*} \}}\\
+= \varnothing \subseteq \{ \kwa{File.*} \} \land \safe{((\Unit \rightarrow_{\{F.w, S.w\}} \Unit) \rightarrow_{\{  F.w, S.w \}} \Unit)}{\{\kwa{File.*}\}}\\
+= \{ \kwa{File.*} \} \subseteq \{ \kwa{File.write, Socket.write} \} \land ......$\\
+
+\noindent 
+The last line is not true, because $\{ \kwa{File.*} \} \subseteq \{ \kwa{File.write, Socket.write} \}$ is not true. The inutition here is that it is failing because you might pass some capability into $pw$ which does any file operation --- and $pw$ only permits it to be writing.
+
+
+\subsection{Example 2}
+
+This is a modified version of the above example. Instead of passing in a $\kwa{File}$, we pass in a restricted capability that only endows its bearer with write operations on a $\kwa{File}$. This modified version should safely typecheck. The point is that, although the polymorphic function could theoretically be applied so that it returns a socket-writing function, this can't be done in practice because no socket-writing capability can be given to it. It's therefore safe to leave $\kwa{Socket.write}$ out of the selected authority.
+
+\begin{lstlisting}
+let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
+
+let fwriter = $\lambda$x: Unit. File.write
+
+import({File.write}) 
+   pw = polywriter
+   fw = fwriter
+in
+   pw {File.write} fw
+\end{lstlisting}
+
+\noindent
+Now we can verify that it meets the conditions of \textsc{$\varepsilon$-Import}. Firstly, note that $\fx{pw} = \hofx{pw} = \{ \kwa{File.write, Socket.write} \}$, and $\fx{fw} = \{ \kwa{File.write} \}$ and $\hofx{fw} = \varnothing$.\\
+
+\noindent
+$\kwa{effects}(pw, \{ fw \})\\
+= \fx{pw} \cap \fx{fw}\\
+= \{ \kwa{File.write, Socket.write} \} \cap \{ \kwa{File.write} \}\\
+= \{ \kwa{File.write} \} \subset \varepsilon_s = \{ \kwa{File.write} \}$\\
+
+\noindent
+And also\\
+
+\noindent
+$\kwa{effects}(fw, \{ pw \})\\
+= \fx{fw}\\
+= \{ \kwa{File.write} \} \subseteq \varepsilon_s = \{ \kwa{File.write} \}$\\
+
+\noindent
+Next we shall check that $\hosafe{pw}{\varepsilon_s}$ and $\hosafe{fw}{\varepsilon_s}$.\\
+
+\noindent
+$\hosafe{pw}{\varepsilon_s}\\
+=\hosafe{ \polycap{\phi \subseteq \{ \kwa{File.write, Socket.write} \}}{((\Unit \rightarrow_{\phi} \Unit) \rightarrow_{\phi} \Unit)}{\varnothing}}{\{ \kwa{File.write} \}}\\
+=\varnothing \subseteq \{ \kwa{File.write} \} \land \safe{((\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit) \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit)}{\{ \kwa{File.write} \}}\\
+=\safe{((\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit) \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit)}{\{ \kwa{File.write} \}}\\
+= \{ \kwa{File.write} \} \subseteq \{ \kwa{File.write, Socket.write} \} \land \hosafe{\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit }{\{ \kwa{File.write} \}} \land \safe{\Unit}{\{ \kwa{File.write} \}}\\
+= \hosafe{\Unit \rightarrow_{\{ \kwa{F.w, S.w} \}} \Unit }{\{ \kwa{File.write} \}}\\
+= \safe{\Unit}{\{ \kwa{F.w, S.w} \}}\\
+= \kwa{true}$\\
+
+\noindent
+$\hosafe{fw}{\varepsilon_s}\\
+= \hosafe{\Unit \rightarrow_{\{\kwa{File.write}\}} \Unit}{\{ \kwa{File.write} \}}\\
+= \safe{\Unit}{\{ \kwa{File.write} \}} \land \hosafe{\Unit}{\{ \kwa{File.write} \}}\\
+= \kwa{true}$
+
+\noindent
+So it successfully accepts.
+
+\section{Violating a polymorphic function that has been fixed}
+
+Malicious code tries to import polywriter, where the effect-set has been fixed to $\{ \kwa{File.write} \}$, and then calls it with $\kwa{ \{Socket.write\} }$. The example should reject.
+
+\begin{lstlisting}
+
+let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
+
+import({File.*, Socket.*})
+   filewriter = polywriter {File.write}
+   s = $\lambda$x: Unit. Socket.write
+in
+   filewriter s
+\end{lstlisting}
+
+Safely rejects because the higher-order safety check is not true (acknowledging that $\kwa{filewriter}$ could be passed a capability exceeding its authority). \\
+
+$\hosafe{(\Unit \rightarrow_{\kwa{\{File.write\}}} \Unit) \rightarrow_{\kwa{\{File.write\}}} \Unit}{\kwa{ \{File.*, Socket.*\} }}$ \\
+
+$= \safe{\Unit \rightarrow_{\kwa{\{File.write\}}} \Unit}{\{\kwa{File.*, Socket.*}\}} \land \hosafe{\Unit}{\{\kwa{File.*, Socket.*}\}}$ \\
+
+$= \safe{\Unit \rightarrow_{\kwa{\{File.write\}}} \Unit}{\{\kwa{File.*, Socket.*}\}}$ \\
+
+$= \{\kwa{File.*, Socket.*}\} \subseteq \{ \kwa{File.*} \}$ \\
+
+which is false.
+
+
+\section{Polywriter Can Only File.write}
+
+Imported capabilities:
+\begin{itemize}
+	\item $\kwa{fw = \lambda x: Unit.~File.write}$
+	\item $\kwa{pw = \lambda \Phi \subseteq \{ File.* \}.~ (\lambda f: Unit \rightarrow_{\Phi} \Unit. ~f unit)}$
+	\item $\varepsilon_s = \{\kwa{File.write}\}$
+\end{itemize}
+
+\noindent
+Types:
+\begin{itemize}
+	\item $\kwa{type(fw) = \Unit \rightarrow_{\{F.w\}} \Unit}$
+	\item $\kwa{type(pw) = \forall \Phi \subseteq \{F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi} Unit) ~\kw{caps} \varnothing}$
+\end{itemize}
+
+\noindent
+Effects
+\begin{itemize}
+	\item $\kwa{effects(type(fw)) = \{F.w\}}$
+	\item $\kwa{effects(type(pw))}$ \\
+	$\kwa{= \varnothing \cup effects((Unit \rightarrow_{\varnothing} Unit) \rightarrow_{\varnothing} Unit)}$\\
+	$\kwa{= \varnothing}$
+	\item $\kwa{effects(\hat \tau_i) \subseteq \varepsilon_s = True}$
+\end{itemize}
+
+\noindent
+Higher-Order Safety
+\begin{itemize}
+	\item $\hosafe{\kwa{type(fw)}}{\varepsilon_s}$\\
+		$\hosafe{\kwa{Unit \rightarrow_{\kwa\{{F.w\}}} Unit}}{\kwa{\{F.w\}}}$\\
+		$= \kwa{True}$
+	\item $\hosafe{\kwa{type(pw)}}{\varepsilon_s}$\\
+		$= \hosafe{\kwa{ \forall \Phi \subseteq \{F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi} Unit) ~\kw{caps} \varnothing }}{\{\kwa{F.w}\}}$\\
+		$= \{ \kwa{F.w} \} \subseteq \{ \kwa{F.*}\} \land \hosafe{ \kwa{ (Unit \rightarrow_{\{\kwa{F.*}\}} Unit) \rightarrow_{\{\kwa{F.*}\}} Unit} }{\{\kwa{F.w}\}} $\\
+		$= \safe{\kwa{Unit \rightarrow_{\{\kwa{F.*}\}} Unit}}{\{\kwa{F.w}\}} \land \hosafe{\Unit}{\{\kwa{F.w}\}}$\\
+		$= \{ \kwa{F.w} \} \subseteq \{ \kwa{F.*} \}$\\
+		$= \kwa{True}$
+\end{itemize}
+
+\section{Polywriter Captures an Effect}
+
+Imported capabilities:
+\begin{itemize}
+	\item $\kwa{fw = \lambda x: Unit.~File.write}$
+	\item $\kwa{pw = \lambda \Phi \subseteq \{ File.* \}.~ (\lambda f: Unit \rightarrow_{\Phi} \Unit. ~Socket.write;~f ~unit)}$
+	\item $\varepsilon_s = \{\kwa{File.write, Socket.write}\}$
+\end{itemize}
+
+\noindent
+Types:
+\begin{itemize}
+	\item $\kwa{type(fw) = \Unit \rightarrow_{\{F.w\}} \Unit}$
+	\item $\kwa{type(pw) = \forall \Phi \subseteq \{F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi \cup \{S.w\}} Unit) ~\kw{caps} \varnothing}$
+\end{itemize}
+
+\noindent
+Effects
+\begin{itemize}
+	\item $\kwa{effects(type(fw)) = \{F.w\}}$
+	\item $\kwa{effects(type(pw))}$ \\
+	$\kwa{= \varnothing \cup effects((Unit \rightarrow_{\varnothing} Unit) \rightarrow_{\{ \kwa{S.w} \}} Unit)}$\\
+	$= \{\kwa{S.w}\}$
+	\item $\kwa{effects(\hat \tau_i) \subseteq \varepsilon_s = True}$
+\end{itemize}
+
+\noindent
+Higher-Order Safety
+\begin{itemize}
+	\item $\hosafe{\kwa{type(fw)}}{\varepsilon_s}$\\
+		$\hosafe{\kwa{Unit \rightarrow_{\kwa\{{F.w\}}} Unit}}{\kwa{\{F.w, S.w\}}}$\\
+		$= \kwa{True}$
+		
+	\item $\hosafe{\kwa{type(pw)}}{\varepsilon_s}$\\
+		$= \hosafe{\kwa{ \forall \Phi \subseteq \{F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi \cup \{ \kwa{S.w} \}} Unit) ~\kw{caps} \varnothing }}{\{\kwa{F.w, S.w}\}}$\\
+		$= \{ \kwa{F.w, S.w} \} \not\subseteq \{ \kwa{F.*}\}$\\
+		$= \kwa{False}$
+\end{itemize}
+
+\noindent
+So this example is not higher-order safe. The problem is when you have an example like this:
+
+\begin{lstlisting}
+
+/* Make a unit $\rightarrow$ unit that incurs F.w and S.w */ 
+let tricky = $\lambda$x:Unit. (pw {F.w} fw)
+
+/* Annotated version of pw only allowed to receive a function that does at most F.*.
+   But tricky does {F.w, S.w}, and this will typecheck as unannotated code. */
+in (pw {F.w} tricky)
+\end{lstlisting}
+
+\noindent
+To get it to typecheck, you need to update the upper-bound on $\kwa{pw}$ to be:
+
+\begin{itemize}
+	\item $\kwa{pw = \lambda \Phi \subseteq \{\kwa{S.w, F.*} \}. (\lambda f: Unit \rightarrow_{\Phi} Unit. ~Socket.write; ~f~ unit)}$
+	\item $\kwa{type(pw) = \forall \Phi \subseteq \{S.w, F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi \cup \{S.w\}} Unit) ~\kw{caps} \varnothing}$
+	\item $\kwa{fx(type(pw)) = \{S.w\}}$
+	\item $\hosafe{\kwa{type(pw)}}{\kwa{\{S.w\}}}$
+\end{itemize}
+
+
+\section{Fixing Polywriter Incurs Effect}
+
+Imported capabilities:
+\begin{itemize}
+	\item $\kwa{fw = \lambda x: Unit.~File.write}$
+	\item $\kwa{pw = \lambda \Phi \subseteq \{ File.* \}.~Socket.write;~ (\lambda f: Unit \rightarrow_{\Phi} \Unit. ~f ~unit)}$
+	\item $\varepsilon_s = \{\kwa{File.write, Socket.write}\}$
+\end{itemize}
+
+\noindent
+Types:
+\begin{itemize}
+	\item $\kwa{type(fw) = \Unit \rightarrow_{\{F.w\}} \Unit}$
+	\item $\kwa{type(pw) = \forall \Phi \subseteq \{F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi} Unit) ~\kw{caps} \{S.w\}}$
+\end{itemize}
+
+\noindent
+Effects
+\begin{itemize}
+	\item $\kwa{effects(type(fw)) = \{F.w\}}$
+	\item $\kwa{effects(type(pw))}$ \\
+	$\kwa{= \{ S.w \} \cup effects((Unit \rightarrow_{\varnothing} Unit) \rightarrow_{\{ \varnothing \}} Unit)}$\\
+	$= \{\kwa{S.w}\}$
+	\item $\kwa{effects(\hat \tau_i) \subseteq \varepsilon_s = True}$
+\end{itemize}
+
+\noindent
+Higher-Order Safety
+\begin{itemize}
+	\item $\hosafe{\kwa{type(pw)}}{\varepsilon_s}$\\
+		$= \hosafe{\kwa{\forall \Phi \subseteq \{F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi} Unit) ~\kw{caps} \{S.w\}}}{\{\kwa{F.w, S.w}\}}$\\
+		$= \{ \kwa{F.w, S.w} \} \not\subseteq \{ \kwa{F.*}\}$\\
+\end{itemize}
+
+\noindent
+Fails for same reason as in previous example. To get it to typecheck, you need to include $\kwa{S.w}$ in the upper bound of the polymorphic abstraction.
+
+\begin{itemize}
+	\item $\kwa{pw = \lambda \Phi \subseteq \{\kwa{S.w, F.*} \}.~Socket.write; (\lambda f: Unit \rightarrow_{\Phi} Unit.  ~f~ unit)}$
+	\item $\kwa{type(pw) = \forall \Phi \subseteq \{S.w, F.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi} Unit) ~\kw{caps} \{ \kwa{S.w} \}}$
+	\item $\kwa{fx(type(pw)) = \{S.w\}}$
+	\item $\hosafe{\kwa{type(pw)}}{\kwa{\{S.w\}}}$
+\end{itemize}
+
+\section{Instantiate 1 Poly and Pass To Another Poly}
+
+Imported capabilities. Note that the upper-bound on $\kwa{pw}$ needs to have at least $\kwa{S.w}$, or it won't pass the higher-order safety check.
+
+\begin{itemize}
+	\item $\kwa{fw = \lambda x: Unit.~File.write}$
+	\item $\kwa{pw = \lambda \Phi \subseteq \{ F.*, S.* \}.~ (\lambda f: Unit \rightarrow_{\Phi} \Unit. ~f ~unit)}$
+	\item $\kwa{pa = \lambda \Phi \subseteq \{F.*, S.* \}.~(\lambda f: Unit \rightarrow_{\Phi} Unit.~S.w;~f~unit)}$
+	\item $\varepsilon_s = \{\kwa{File.write, Socket.write}\}$
+\end{itemize}
+
+\noindent
+Types:
+\begin{itemize}
+	\item $\kwa{type(fw) = \Unit \rightarrow_{\{F.w\}} \Unit}$
+	\item $\kwa{type(pw) = \forall \Phi \subseteq \{F.*, S.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi} Unit) ~\kw{caps} \varnothing}$
+	\item $\kwa{type(pa) = \forall \Phi \subseteq \{F.*, S.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi \cup \kwa{ \{ S.w \} }} Unit) ~\kw{caps} \varnothing}$
+\end{itemize}
+
+\noindent
+Effects
+\begin{itemize}
+	\item $\kwa{effects(type(fw)) = \{F.w\}}$
+	\item $\kwa{effects(type(pw))} = \varnothing$
+	\item $\kwa{effects(type(pa)) = \{S.w\}}$
+	\item $\kwa{effects(\hat \tau_i) \subseteq \varepsilon_s = True}$
+\end{itemize}
+
+\noindent
+Higher-Order Safety
+\begin{itemize}
+	\item $\hosafe{\kwa{type(pw)}}{\varepsilon_s}$\\
+		$= \hosafe{\kwa{\forall \Phi \subseteq \{F.*, S.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi} Unit) ~\kw{caps} \varnothing}}{\{\kwa{F.w, S.w}\}}$\\
+		$= \{ \kwa{F.w, S.w} \} \subseteq \{ \kwa{F.*, S.*}\} \land \hosafe{(\Unit \rightarrow_{\{ \kwa{F.*, S.*} \}} \Unit) \rightarrow_{\{ \kwa{F.*, S.*} \}} \Unit}{\{ \kwa{F.w, S.w} \}}$\\
+		$= \safe{\Unit \rightarrow_{\{ \kwa{F.*, S.*} \}} \Unit}{\{ \kwa{F.w, S.w} \}} \land \hosafe{\Unit}{\{ \kwa{F.w, S.w} \}}$ \\
+		$= \{ \kwa{F.w, S.w} \} \subseteq \{ \kwa{F.*, S.*} \}$ \\
+		$= \kwa{True}$
+		
+	\item $\hosafe{\kwa{type(pa)}}{\varepsilon_s}$\\
+	$= \hosafe{\kwa{\forall \Phi \subseteq \{F.*, S.*\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi \cup \kwa{ \{ S.w \} }} Unit) ~\kw{caps} \varnothing}}{\{ \kwa{F.w, S.w}\}}$\\
+	$= \{ \kwa{F.w, S.w} \} \subseteq \{ \kwa{F.*, S.*} \} \land \hosafe{ \kwa{ (Unit \rightarrow_{\{F.*, S.*\}} Unit) \rightarrow_{ \{ \{\kwa{F.*, S.*}\} } Unit}}{\{ \kwa{F.w, S.w} \}}$\\
+	$= \safe{\kwa{Unit \rightarrow_{\{F.*, S.*\}} Unit}}{\kwa{F.w, S.w}}$ \\
+	$= \{ \kwa{F.w, S.w} \} \subseteq \{ \kwa{F.*, S.*} \}$
+\end{itemize}
+
+\section{Regular Function Returns Poly}
+
+
+Imported capabilities:
+
+\begin{itemize}
+	\item $\kwa{fw = \lambda x: Unit.~File.write}$
+	\item $\kwa{g = \lambda x: Unit.~ (\lambda \Phi \subseteq \{F.*, S.w \}.~(\lambda f: Unit \rightarrow_{\Phi} Unit.~S.w;~f~unit))}$
+\end{itemize}
+
+\noindent
+Types:
+\begin{itemize}
+	\item $\kwa{type(fw) = \Unit \rightarrow_{\{F.w\}} \Unit}$
+	\item $\kwa{type(g) = Unit \rightarrow_{\varnothing} (\forall \Phi \subseteq \{F.*, S.w\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi \cup \{ \kwa{S.w} \}} Unit) ~\kw{caps} \varnothing)}$
+\end{itemize}
+
+\noindent
+Effects
+\begin{itemize}
+	\item $\kwa{effects(type(fw)) = \{F.w\}}$
+	\item $\kwa{effects(type(g))}$\\
+		$= \fx{\kwa{\forall \Phi \subseteq \{F.*, S.w\}. ((Unit \rightarrow_{\Phi} Unit) \rightarrow_{\Phi \cup \{\kwa{S.w}\}} Unit) ~\kw{caps} \varnothing}}$\\
+		$= \fx{\kwa{(Unit \rightarrow_{\varnothing} Unit) \rightarrow_{\{\kwa{S.w}\}} Unit}}$\\
+		$= \{ \kwa{S.w}\}$
+\end{itemize}
+
+\noindent
+Higher-Order Safety
+\begin{itemize}
+	\item $\hosafe{\kwa{g}}{\{\kwa{F.w,S.w}\}} \land \hosafe{\kwa{fw}}{\{\kwa{F.w,S.w}\}}$
+\end{itemize}
+
+\section{Type Polymorphism (Contrived Example)}
+
+\begin{itemize}
+	\item $\kwa{tp = \lambda G <: Unit \rightarrow_{\{F.w\}} Unit.~ (\lambda g: G.~g~unit;~S.w})$
+	\item $\kwa{type(tp) = \forall G <: Unit \rightarrow_{\{F.w\}} Unit.~(G \rightarrow_{\{S.w\}} Unit)~\kw{caps} \varnothing}$
+\end{itemize}
+
+\noindent
+To compute the effects of a type-polymorphic abstraction, sum up the effects incurred in evaluating the abstraciton body, and the effects captured in the return type of the abstraction body when the lower bound on the type is passed in. So in this case, you would be assuming that $\kwa{X = Unit \rightarrow_{\varnothing} Unit}$.
+
+For higher-order effects, you sum up the effects captured by the upper-bound, and the effects captured by the return type of the abstraction body when the upper bound of the type is passed in. so in this case, you would be assuming that $\kwa{X = Unit \rightarrow_{\kwa{\{F.w\}}} Unit}$.
+
+\begin{itemize}
+	\item $\fx{\kwa{type(tp)}} = \{ \kwa{F.w, S.w} \}$
+	\item $\hofx{\kwa{type(tp)}} = \{ \kwa{F.w} \}$
+\end{itemize}
+
+\noindent
+But if you rewrite $\kwa{tp}$ like this:
+
+\begin{itemize}
+	\item $\kwa{tp = \lambda \Phi \subseteq \{\kwa{F.w}\}.~(\lambda g: Unit \rightarrow_{\Phi} Unit. ~g~unit;~S.w)}$
+	\item $\kwa{type(tp) = \forall \Phi \subseteq \{\kwa{F.w}\}. (Unit \rightarrow_{\Phi} Unit) \rightarrow_{\{\kwa{S.w}\} \cup \Phi} Unit~caps~\varnothing}$
+\end{itemize}
+
+\noindent
+Then you get a tighter approximation on $\kwa{effects(type(tp))}$:
+
+\begin{itemize}
+	\item $\fx{\kwa{type(tp)}} = \{ \kwa{S.w} \}$
+	\item $\hofx{\kwa{type(tp)}} = \{ \kwa{F.w} \}$
+\end{itemize}
+
+\noindent
+Since we only have functions and resource sets, we could omit type polymorphism and still have the same expresiveness. But if we extended the system with more types, such as $\mathbb{N, Z, C}$, then you would lose expresiveness because you can't e.g. define a polymorphic plus function with the effect polymorphism construct.
+
+Another approach: when you have an abstraction over a fucntion and its effects, rewrite that as abstracting over a type variable which ranges over the function's effects. This would possibly have to be a source code transformation, as it changes the types.
+
+\section{Poly Which Takes a Poly}
+
+Imported capabilities:
+\begin{itemize}
+	\item $\kwa{fw = \lambda x: Unit.~File.write}$
+	\item $\kwa{sw = \lambda x: Unit. ~Socket.write}$
+	\item $\kwa{pid = \lambda \Phi_1. ~\lambda A. ~(\lambda f:Unit \rightarrow_{\Phi_1} Unit.~ (\lambda a:A.~f~unit;~a))}$
+	\item $\kwa{pp = \lambda P <: type(pid). ~\lambda \Phi_2.~(\lambda f:Unit \rightarrow_{\Phi_2} Unit.~(\lambda p: P.~ f~ unit;~ p))}$
+\end{itemize}
+
+\noindent
+Types:
+\begin{itemize}
+	\item $\kwa{type(fw) = \Unit \rightarrow_{\{F.w\}} \Unit}$
+	\item $\kwa{type(sw) = \Unit \rightarrow_{\{S.w\}} \Unit}$
+	\item $\kwa{type(pid) = \forall \Phi_1.~\forall A.~(Unit \rightarrow_{\Phi_1} Unit) \rightarrow_{\varnothing} (A \rightarrow_{\Phi_1} A)}$
+	\item $\kwa{type(pp) = \forall P <: type(pid).~\forall \Phi_2.~(Unit \rightarrow_{\Phi_2} Unit) \rightarrow_{\varnothing} (P \rightarrow_{\Phi_2} P)}$
+\end{itemize}
+
+
+
+
+
+
+
+
+\end{document}
+
+
+
+
+
