@@ -674,7 +674,7 @@ For any $\hat \Gamma$, define $\kwa{dom}(\hat \Gamma)$ as follows:
 
 \hrulefill
  
-\begin{lemma}[Reverse Narrowing 1]
+\begin{lemma}[Abstraction (Subsetting)]
 If $\hat \Gamma \vdash [\varepsilon/\Phi](\varepsilon_1 \subseteq \varepsilon_2)$ and $\Phi \notin \kwa{dom}(\hat \Gamma)$ then $\hat \Gamma, \Phi \subseteq \varepsilon \vdash \varepsilon_1 \subseteq \varepsilon_2$.
 \end{lemma}
 
@@ -692,7 +692,7 @@ If $\hat \Gamma \vdash [\varepsilon/\Phi](\varepsilon_1 \subseteq \varepsilon_2)
 
 \hrulefill
 
-\begin{lemma}[Reverse Narrowing 2]
+\begin{lemma}[Abstraction (Subtyping)]
 If $\hat \Gamma \vdash [\varepsilon/\Phi](\hat \tau_1 <: \hat \tau_2)$ and $\Phi \notin \kwa{dom}(\hat \Gamma)$ then $\hat \Gamma, \Phi \subseteq \varepsilon \vdash \hat \tau_1 <: \hat \tau_2$.
 \end{lemma}
 
@@ -791,6 +791,38 @@ With (4,7,8), we can apply \textsc{S-PolyFx} to get $\hat \Gamma, \Phi \subseteq
 
 \hrulefill
 
+\begin{lemma}[Abstraction (Typing)]
+If $\hat \Gamma \vdash [\varepsilon'/\Phi]\hat e : [\varepsilon'/\Phi]\hat \tau~\kw{with} [\varepsilon'/\Phi]\varepsilon$ and $\Phi \notin \kw{dom}(\hat \Gamma)$ then $\hat \Gamma, \Phi \subseteq \varepsilon' \vdash \hat e: \hat \tau~\kw{with} \varepsilon$.
+\end{lemma}
+
+\begin{proof} By induction on the derivation of $\hat \Gamma \vdash [\varepsilon'/\Phi]\hat e: [\varepsilon'/\Phi]\hat \tau~\kw{with} [\varepsilon'/\Phi]\varepsilon$. \\
+
+\fbox{\textsc{$\varepsilon$-Var}.} Then $\hat \Gamma, x: [\varepsilon'/\Phi]\hat \tau \vdash [\varepsilon'/\Phi]x: [\varepsilon'/\Phi]\hat \tau~\kw{with} [\varepsilon'/\Phi]\varnothing$. Then $\hat \Gamma, x: \hat \tau \vdash x: \hat \tau~\kw{with} \varnothing$ by \textsc{$\varepsilon$-Var}.\\
+
+\fbox{\textsc{$\varepsilon$-Resource}.} Then $\hat \Gamma \vdash [\varepsilon'/\Phi]r: [\varepsilon'/\Phi]\{ \overline{r} \}~\kw{with} [\varepsilon'/\Phi]\varnothing$. By \textsc{$\varepsilon$-Resource}, $\hat \Gamma, \Phi \subseteq \varepsilon' \vdash r: \{ \overline{r} \}~\kw{with} \varnothing$.\\
+
+\fbox{\textsc{$\varepsilon$-OperCall}.} Then $\hat \Gamma \vdash [\varepsilon'/\Phi](\hat e_1.\pi): [\varepsilon'/\Phi]\Unit~\kw{with} [\varepsilon'/\Phi](\varepsilon_1 \cup \{ r.\pi \mid r \in \{ \overline{r} \}, \pi \in \Pi \})$. By inversion, $\hat \Gamma \vdash [\varepsilon'/\Phi]\hat e_1: [\varepsilon'/\Phi]\{ \overline{r} \}~\kw{with} [\varepsilon'/\Phi]\varepsilon_1$. Applying the inductive assumption, we get $\hat \Gamma, \Phi \subseteq \varepsilon' \vdash \hat e_1: \{ \overline{r} \}~\kw{with} \varepsilon_1$. Then by \textsc{$\varepsilon$-OperCall}, $\hat \Gamma, \Phi \subseteq \varepsilon' \vdash \hat e_1.\pi: \Unit~\kw{with} \varepsilon_1 \cup \{ r.\pi \mid r \in \{ \overline{r} \}, \pi \in \Pi \}$.\\
+
+\fbox{\textsc{$\varepsilon$-Subsume}.} Then $\hat \Gamma \vdash [\varepsilon'/\Phi]\hat e: [\varepsilon'/\Phi]\hat \tau~\kw{with} [\varepsilon'/\Phi]\varepsilon$. By inversion, $\hat \Gamma \vdash [\varepsilon'/\Phi]\hat e: \hat \tau_B~\kw{with} \varepsilon_B$, where $\hat \Gamma \vdash \hat \tau_B <: [\varepsilon'/\Phi]\hat \tau$ and $\hat \Gamma \vdash \varepsilon_B \subseteq [\varepsilon'/\Phi]\varepsilon$.\\
+
+\fbox{\textsc{$\varepsilon$-Abs}.}
+
+\fbox{\textsc{$\varepsilon$-App}.}
+
+\fbox{\textsc{$\varepsilon$-PolyTypeAbs}.}
+
+\fbox{\textsc{$\varepsilon$-PolyFxAbs}.}
+
+\fbox{\textsc{$\varepsilon$-PolyTypeApp}.}
+
+\fbox{\textsc{$\varepsilon$-PolyFxApp}.}
+
+\fbox{\textsc{$\varepsilon$-Import}.}
+
+\end{proof}
+
+\hrulefill
+
 \begin{lemma}
 $[\varnothing/\Phi]\varepsilon \subseteq \varepsilon$.
 \end{lemma}
@@ -848,16 +880,36 @@ If $\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$ and $\hofx{\hat 
 	\item $\hosafe{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon_s} = \varepsilon_1 \subseteq \varepsilon_s \land \hosafe{[\varnothing/\Phi]\hat \tau_2}{\varepsilon_s}$
 \end{enumerate} 
 
-\noindent
-Based on the form of $\hat e$, the typing judgement can be rewritten as (4). By inversion on \textsc{$\varepsilon$-FxAbs}, we know that (5) is true.
+By inversion on the typing judgement, we know (4). By the substitution lemma for effect variables, we have (5). With this typing judgement and (2) and (3), we can apply the inductive assumption to $[\varnothing/\Phi]\hat e_2$ to obtain (6).
 
 \begin{enumerate}
 	\setcounter{enumi}{3}
-	\item $\hat \Gamma \vdash \lambda \Phi \subseteq \varepsilon_1. \hat e_2 : \forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{with} \varepsilon_2$
 	\item $\hat \Gamma, \Phi \subseteq \varepsilon_1 \vdash \hat e_2: \hat \tau_2~\kw{with} \varepsilon_2$
+	\item $\hat \Gamma \vdash [\varnothing/\Phi]\hat e_2: [\varnothing/\Phi]\hat \tau_2~\kw{with} [\varnothing/\Phi]\varepsilon_2$
+	\item $\hat \Gamma \vdash [\varnothing/\Phi]\hat \tau_2 <: \annot{\erase{[\varnothing/\Phi]\hat \tau_2}}{\varepsilon_s}$
 \end{enumerate}
 
-\textbf{Apply narrowing lemma to (5), use (2,3,5) to obtain a typing judgement with $[\varnothing/\Phi]\hat \tau_2$, then apply the inductive assumption, then apply reverse narrowing and widening to get the desired conclusion.}
+Now clearly, $\erase{[\varnothing/\Phi]\hat \tau_2} = \erase{\hat \tau_2}$, so (6) can be rewritten as (7). 
+
+\begin{enumerate}
+	\setcounter{enumi}{6}
+	\item $\hat \Gamma \vdash [\varnothing/\Phi]\hat \tau_2 <: \annot{\erase{\hat \tau_2}}{\varepsilon_s}$
+\end{enumerate}
+
+Because annotating replaces every annotation on the type, then $\kwa{freevars}(\annot{\erase{\hat \tau_2}}{\varepsilon_s}) = \varnothing$, so substituting $\varnothing$ for $\Phi$ in that type will leave it unchanged. Therefore, we can rewrite (7) as (8), which further simplifies to (9).
+
+\begin{enumerate}
+	\setcounter{enumi}{7}
+	\item $\hat \Gamma \vdash [\varnothing/\Phi]\hat \tau_2 <: [\varnothing/\Phi]\annot{\erase{\hat \tau_2}}{\varepsilon_s}$
+	\item $\hat \Gamma \vdash [\varnothing/\Phi](\hat \tau_2 <: \annot{\erase{\hat \tau_2}}{\varepsilon_s}$
+\end{enumerate}
+
+By the convention of $\alpha$-conversion, it is assumed that abstractions only introduce previously unseen variables. Therefore, the original binding for $\Phi$ is the first occurrence of $\Phi$ seen so far. Any subderivation can therefore be performed without a bniding for $\Phi$, so we can assume without loss of generality that $\Phi \notin \kwa{dom}(\hat \Gamma)$. By applying the abstraction lemma to (9), we obtain (10).
+
+\begin{enumerate}
+	\setcounter{enumi}{9}
+	\item $\hat \Gamma, \Phi \subseteq \varnothing \vdash \hat \tau_2 <: \annot{\erase{\hat \tau_2}}{\varepsilon_s}$
+\end{enumerate}
 
 \end{proof}
 
