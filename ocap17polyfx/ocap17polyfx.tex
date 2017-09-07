@@ -1,4 +1,4 @@
-%% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
+% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 %% \documentclass[sigplan,10pt,review,anonymous]{acmart}
 %% \settopmatter{printfolios=true,printccs=false,printacmref=false}
 %% For double-blind review submission, w/ CCS and ACM Reference
@@ -150,7 +150,7 @@ escapeinside={(@}{@)}, morekeywords=[1]{def, if, then, else, with, val, module, 
 \email{alex@ecs.vuw.ac.nz}          %% \email is recommended
 
 %% Author with two affiliations and emails.
-\author{Darya Melicher, Jonathan Aldrich}
+\author{Jonathan Aldrich}
 %\authornote{with author2 note}          %% \authornote is optional;
                                         %% can be repeated if necessary
 %\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
@@ -181,13 +181,13 @@ escapeinside={(@}{@)}, morekeywords=[1]{def, if, then, else, with, val, module, 
 %% Abstract
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
-\begin{abstract}
-Capabilities are increasingly used to reason informally about the properties of secure systems. Can capabilities also aid in \textit{formal} reasoning? To answer this question, we examine a calculus that uses effects to capture resource use and extend it with a rule that captures the essence of capability-based reasoning. We demonstrate that capabilities provide a way to reason for free about effects: we can bound the effects of an expression based on the capabilities to which it has access.  This reasoning is ``free'' in that it relies only on type-checking (not effect-checking); does not require the programmer to add effect annotations within the expression; nor does it require the expression to be analysed for its effects. Our result sheds light on the essence of what capabilities provide and suggests useful ways of integrating lightweight capability-based reasoning into languages.
-
-In this OCAP 2017 talk we will describe our progress on effect inference and how it can benefit from capabilities as well as discuss our later work on polymorphic effect inference.
-
-%Wyvern is a new web programming language designed from the ground up with security being the highest priority in any language design decisions~\cite{darya-modules}. Wyvern has object capabilities~\cite{miller-thesis,newspeak,risk-trust} and a simple object-oriented core~\cite{maspeghi} that lends itself to easy formal reasoning about its features. We recently explored the benefits of capabilities when reasoning about effects~\cite{aaron-popl-submission} which greatly simplifies effect inference for the unannotated parts of the system by utilising the access restrictions imposed by capabilities. In this talk we present how exactly effects benefit from capabilities and show some ideas of how these benefits can be extended to polymorphic effects or richer systems that include first-class modules and type members.
-\end{abstract}
+%\begin{abstract}
+%Capabilities are increasingly used to reason informally about the properties of secure systems. Can capabilities also aid in \textit{formal} reasoning? To answer this question, we examine a calculus that uses effects to capture resource use and extend it with a rule that captures the essence of capability-based reasoning. We demonstrate that capabilities provide a way to reason for free about effects: we can bound the effects of an expression based on the capabilities to which it has access.  This reasoning is ``free'' in that it relies only on type-checking (not effect-checking); does not require the programmer to add effect annotations within the expression; nor does it require the expression to be analysed for its effects. Our result sheds light on the essence of what capabilities provide and suggests useful ways of integrating lightweight capability-based reasoning into languages.
+%
+%In this OCAP 2017 talk we will describe our progress on effect inference and how it can benefit from capabilities as well as discuss our later work on polymorphic effect inference.~\footnote{This paper is a cut down version of our larger publication under consideration for another ACM conference and thus will not be published but only presented at the workshop for the discussion purposes.}
+%
+%%Wyvern is a new web programming language designed from the ground up with security being the highest priority in any language design decisions~\cite{darya-modules}. Wyvern has object capabilities~\cite{miller-thesis,newspeak,risk-trust} and a simple object-oriented core~\cite{maspeghi} that lends itself to easy formal reasoning about its features. We recently explored the benefits of capabilities when reasoning about effects~\cite{aaron-popl-submission} which greatly simplifies effect inference for the unannotated parts of the system by utilising the access restrictions imposed by capabilities. In this talk we present how exactly effects benefit from capabilities and show some ideas of how these benefits can be extended to polymorphic effects or richer systems that include first-class modules and type members.
+%\end{abstract}
 
 %% 2012 ACM Computing Classification System (CSS) concepts
 %% Generate at 'http://dl.acm.org/ccs/ccs.cfm'.
@@ -222,42 +222,44 @@ In this OCAP 2017 talk we will describe our progress on effect inference and how
 
 \section{Introduction}
 
-Capabilities have been recently gaining new attention as a promising mechanism for controlling access to resources in systems and languages~\cite{miller03,drossopoulou07,dimoulas14,devriese16}.
-A \textit{capability} is an unforgeable token that can be used by its bearer to perform some operation on a resource \cite{dennis66}.
-In a \textit{capability-safe} language, all resources must be accessed through capabilities, and a resource-access capability must be obtained from a source that already has it: ``only connectivity begets connectivity'' \cite{miller03}.
-For example, a \kwat{logger} component that provides a logging service would need to be initialised with a capability providing the ability to append to the log file.
+%Capabilities have been recently gaining new attention as a promising mechanism for controlling access to resources in systems and languages~\cite{miller03,drossopoulou07,dimoulas14,devriese16}.
+%A \textit{capability} is an unforgeable token that can be used by its bearer to perform some operation on a resource \cite{dennis66}.
+%In a \textit{capability-safe} language, all resources must be accessed through capabilities, and a resource-access capability must be obtained from a source that already has it: ``only connectivity begets connectivity'' \cite{miller03}.
+%For example, a \kwat{logger} component that provides a logging service would need to be initialised with a capability providing the ability to append to the log file.
 
-Capability-safe languages thus prohibit the \textit{ambient authority}~\cite{miller06} that is present in non-capability-safe languages.
+Capability-safe languages prohibit the \textit{ambient authority}~\cite{miller06} that is present in non-capability-safe languages.
 An implementation of a \kwat{logger} in OCaml or Java, for example, does not need to be passed a capability at initialisation time; it can simply import the appropriate file-access library and open the log file for appending itself.
 Critically, a malicious implementation of such a component could also delete the log, read from another file, or exfiltrate logging information over the network.
-Other mechanisms such as sandboxing can be used to limit the effects of such malicious components, but recent work has found that Java's sandbox (for example) is difficult to use and is therefore often misused~\cite{coker15, maass16}.
+Other mechanisms such as sandboxing can be used to limit the effects of such malicious components, but recent work has found that Java's sandbox (for example) is difficult to use and is therefore often misused~\cite{coker15}. %, maass16}.
 
-In practice, reasoning about resource use in capability-based systems is mostly done informally.
-%% TODO: Cite with some evidence? Lindsay says.
-But if capabilities are useful for \textit{informal} reasoning, shouldn't they also aid in \textit{formal} reasoning?
-Recent work by \citet{drossopoulou07} sheds some light on this question by presenting a logic that formalizes capability-based reasoning about trust between objects.
+%In practice, reasoning about resource use in capability-based systems is mostly done informally.
+%%% TODO: Cite with some evidence? Lindsay says.
+%But i
+
+If capabilities are useful for \textit{informal} reasoning, shouldn't they also aid in \textit{formal} reasoning?
+Work by \citet{drossopoulou07} sheds some light on this question by presenting a logic that formalizes capability-based reasoning about trust between objects.
 Two other trains of work, rather than formalise capability-based reasoning itself, reason about how capabilities may be used.
 \citet{dimoulas14} developed a formalism for reasoning about which components may use a capability and which may influence (perhaps indirectly) the use of a capability.
 \citet{devriese16} formulate an effect parametricity theorem that limits the effects of an object based on the capabilities it possesses, and then use logical relations to reason about capability use in higher-order settings.
 Overall, this prior work presents new formal systems for reasoning about capability use, or reasoning about new properties using capabilities.
 
-We are interested in a different question: can capabilities be used to enhance formal reasoning that is currently done without relying on capabilities?
+We are interested in a different question: \textit{can capabilities be used to enhance formal reasoning that is currently done without relying on capabilities?}
 In other words, what value do capabilities add to existing formal reasoning?
 
 To answer this question, we decided to pick a simple and practical formal reasoning system, and see if capability-based reasoning could help.
-A natural choice for our investigation is effect systems~\cite{nielson99}.
-Effect systems are a relatively simple formal reasoning approach, and keeping things simple will help to highlight the difference made by capabilities.% more obvious.
+A natural choice for our investigation is effect systems~\cite{nielson99} --- a relatively simple formal reasoning approach that can make the difference made by capabilities more obvious.
 Furthermore, effects have an intuitive link to capabilities: in a system that uses capabilities to protect resources, an expression can only have an effect on a resource if it is given a capability to do so.
 
 How could capabilities help with effects?
 One challenge to the wider adoption of effect systems is their annotation overhead~\cite{rytz12}.
-For example, Java's checked exception system is a kind of effect system, and is often criticised for being cumbersome~\cite{Kiniry2006}.
-Effect inference can be used to reduce the annotations required~\cite{koka14}, but this has significant drawbacks: understanding error messages that arise through effect inference requires a detailed understanding of the internal structure of the code, not just its interface.
+%For example, Java's checked exception system is a kind of effect system, and is often criticised for being cumbersome~\cite{Kiniry2006}.
+Effect inference can be used to reduce the annotations required
+%~\cite{koka14}
+, but this has significant drawbacks: understanding error messages that arise through effect inference requires a detailed understanding of the internal structure of the code, not just its interface.
 Capabilities are a promising alternative for reducing the overhead of effect annotations, as suggested by the following example:
 
 \begin{lstlisting}
-import log:Str->Unit with effect File.write
-
+import log : String -> Unit with effect File.write
 e
 \end{lstlisting}
 
@@ -267,7 +269,7 @@ Note that this reasoning requires nothing about \kwat{e} other than that it obey
 Also note that \kwat{e} might be arbitrarily large, perhaps consisting of an entire program that we have downloaded from a source that we trust enough to allow it to write to a log, but that we don't trust to access any other resources.
 Thus in this scenario, capabilities can be used to reason ``for free'' about the effect of a large body of code based on a few annotations on the components it imports.
 
-The central intuition that we formalise in this paper is this: the effect of an unannotated expression can be given a bound based on the effects latent in variables that are in scope.
+The central intuition is this: the effect of an unannotated expression can be given a bound based on the effects latent in variables that are in scope.
 Of course, there are challenges to solve on the way, most notably involving higher-order programs: how can we generalise this intuition if \kwat{log} takes a higher-order argument?
 If \kwat{e} evaluates not to unit but to a function, what can we infer about that function's effects?
 
@@ -277,23 +279,21 @@ If \kwat{e} evaluates not to unit but to a function, what can we infer about tha
 
 \section{Unannotated Client}
 
-There is a single primitive capability $\kwa{File}$. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module, possessing the $\kwa{logger}$ module, exposes a functino $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not --- if $\kwa{client.run}$ is executed, what effects might it have? Code for this example is given below. 
+Consider the following example. There is a single primitive capability $\kwa{File}$. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module, possessing the $\kwa{logger}$ module, exposes a functino $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not --- if $\kwa{client.run}$ is executed, what effects might it have?
+
+%\newpage
 
 \begin{lstlisting}
 module def logger(f: {File}):Logger
 
 def log(): Unit with {File.append} =
     f.append(``message logged'')
-\end{lstlisting}
 
-\begin{lstlisting}
 module def client(logger: Logger)
 
 def run(): Unit =
    logger.log()
-\end{lstlisting}
 
-\begin{lstlisting}
 require File
 
 instantiate logger(File)
@@ -302,7 +302,7 @@ instantiate client(logger)
 client.run()
 \end{lstlisting}
 
-The translation is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
+Our proposal simplifies and translates the Wyvern code above to a set of simple nested functions following Newspeak-style object capabilities as follows. The first two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
 
 \begin{lstlisting}
 let MakeLogger =
@@ -323,7 +323,9 @@ let MakeMain =
 MakeMain File
 \end{lstlisting}
 
-The interesting part  is on line $7$ where the unannotated code selects $\{ \kwa{File.append} \}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\{\kwa{File.append}\}} \Unit) = \{ \kwa{File.append} \}$. The code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, the unannotated code typechecks by \textsc{$\varepsilon$-Import} with approximate effects $\kwa{\{ \kwa{File.append} \}}$.
+The resulting simpler code can be reasoned about with interesting part on line $7$ where the \textit{unannotated code} selects $\{ \kwa{File.append} \}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\{\kwa{File.append}\}} \Unit) = \{ \kwa{File.append} \}$. This code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, we are able to type check the unannotated code with approximate effects $\kwa{\{ \kwa{File.append} \}}$.
+
+In our talk we will present at least four different examples demonstrating the effects (including higher-order effects) inference made possible by object capabilities.
 
 %\subsection{Unannotated Library}
 %
@@ -423,51 +425,51 @@ The interesting part  is on line $7$ where the unannotated code selects $\{ \kwa
 %
 %To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority, and $\kwa{plugin.run}$ needs to be annotated with $\kwa{ \{ File.* \}}$. In other words, the program would have to be rewritten to explicitly say that plugins can exercise authority over $\kwa{File}$.
 
-\section{Resource Leak}
-
-This is another example which obfuscates an unsafe effect by invoking it in a higher-order manner. The setup is the same, except the function which $\kwa{plugin}$ passes to $\kwa{malicious}$ now returns $\kwa{File}$ when invoked. $\kwa{malicious}$ uses this function to obtain $\kwa{File}$ and directly invokes $\kwa{read}$ upon it, violating the supposed purity of $\kwa{plugin}$.
-
-\begin{lstlisting}
-module malicious
-
-def log(f: Unit $\rightarrow$ File):Unit
-   f().read
-\end{lstlisting}
-
-\begin{lstlisting}
-module plugin
-import malicious
-
-def run(f: {File}): Unit with $\varnothing$
-   malicious.log($\lambda$x:Unit. f)
-\end{lstlisting}
-
-\begin{lstlisting}
-require File
-
-import plugin
-
-plugin.run(File)
-\end{lstlisting}
-
-The translation is given below. The unannotated code in $\kwa{malicious}$ is given on lines 5-6. The selected authority is $\varnothing$, to be consistent with the annotation on $\kwa{plugin}$. Nothing is being imported, so the $\kwa{import}$ binds a name $\kwa{y}$ to $\unit$. This example is rejected by \textsc{$\varepsilon$-Import} because the premise $\varepsilon = \fx{\hat \tau} \cup \hofx{\annot{\tau}{\varepsilon}}$ is not satisfied. In this case, $\varepsilon = \varnothing$ and $\tau = \kwa{ (Unit \rightarrow \{ File \}) \rightarrow Unit }$. Then $\annot{\tau}{\varepsilon} = \kwa{ (Unit \rightarrow_{\varnothing} \{ File \}) \rightarrow_{\varnothing} Unit }$ and $\hofx{\annot{\tau}{\varepsilon}} = \{ \kwa{File.*} \}$. Thus, the premise cannot be satisfied and the example is safely rejected.
-
-
-\begin{lstlisting}
-let malicious =
-   (import($\varnothing$) y=unit in
-      $\lambda$f: Unit $\rightarrow$ {File}. f().read) in
-
-let plugin =
-   ($\lambda$f: {File}.
-      malicious($\lambda$x:Unit. f)) in
-
-let MakeMain =
-   ($\lambda$f: {File}.
-      plugin f) in
-
-MakeMain File
-\end{lstlisting}
+%\section{Resource Leak}
+%
+%This is another example which obfuscates an unsafe effect by invoking it in a higher-order manner. The setup is the same, except the function which $\kwa{plugin}$ passes to $\kwa{malicious}$ now returns $\kwa{File}$ when invoked. $\kwa{malicious}$ uses this function to obtain $\kwa{File}$ and directly invokes $\kwa{read}$ upon it, violating the supposed purity of $\kwa{plugin}$.
+%
+%\begin{lstlisting}
+%module malicious
+%
+%def log(f: Unit $\rightarrow$ File):Unit
+%   f().read
+%\end{lstlisting}
+%
+%\begin{lstlisting}
+%module plugin
+%import malicious
+%
+%def run(f: {File}): Unit with $\varnothing$
+%   malicious.log($\lambda$x:Unit. f)
+%\end{lstlisting}
+%
+%\begin{lstlisting}
+%require File
+%
+%import plugin
+%
+%plugin.run(File)
+%\end{lstlisting}
+%
+%The translation is given below. The unannotated code in $\kwa{malicious}$ is given on lines 5-6. The selected authority is $\varnothing$, to be consistent with the annotation on $\kwa{plugin}$. Nothing is being imported, so the $\kwa{import}$ binds a name $\kwa{y}$ to $\unit$. This example is rejected by \textsc{$\varepsilon$-Import} because the premise $\varepsilon = \fx{\hat \tau} \cup \hofx{\annot{\tau}{\varepsilon}}$ is not satisfied. In this case, $\varepsilon = \varnothing$ and $\tau = \kwa{ (Unit \rightarrow \{ File \}) \rightarrow Unit }$. Then $\annot{\tau}{\varepsilon} = \kwa{ (Unit \rightarrow_{\varnothing} \{ File \}) \rightarrow_{\varnothing} Unit }$ and $\hofx{\annot{\tau}{\varepsilon}} = \{ \kwa{File.*} \}$. Thus, the premise cannot be satisfied and the example is safely rejected.
+%
+%
+%\begin{lstlisting}
+%let malicious =
+%   (import($\varnothing$) y=unit in
+%      $\lambda$f: Unit $\rightarrow$ {File}. f().read) in
+%
+%let plugin =
+%   ($\lambda$f: {File}.
+%      malicious($\lambda$x:Unit. f)) in
+%
+%let MakeMain =
+%   ($\lambda$f: {File}.
+%      plugin f) in
+%
+%MakeMain File
+%\end{lstlisting}
 
 %\section{Conclusions}
 %
@@ -489,13 +491,15 @@ MakeMain File
 
 \section{Polymorphic Effects}
 
-$\epscalc$ inspects the capabilities passed into a piece of code to determine what effects it might incur. The same reasoning could be applied to types which are polymorphic over a set of effects, such as the function below, which is polymorphic over the $\{ \kwa{File.write, Socket.write} \}$ effects. After fixing the particular set of effects, it asks for a function with those effects and then incurs them.
+Our formal calculus shows how to inspect the capabilities passed into a piece of code to determine what effects might incur. The same reasoning could be applied to types which are \textit{polymorphic} over a set of effects, such as the function below, which is polymorphic over the $\{ \kwa{File.write, Socket.write} \}$ effects. After fixing the particular set of effects, it asks for a function with those effects and then incurs them.
 
 \begin{lstlisting}
-polywriter = $\lambda \Phi \subseteq \{ \kwa{File.write, Socket.write} \}$. ($\lambda$f: Unit $\rightarrow_{\Phi}$ Unit. f unit)
+polywriter =
+  $\lambda \Phi \subseteq \{ \kwa{File.write, Socket.write} \}$.
+    ($\lambda$f: Unit $\rightarrow_{\Phi}$ Unit. f unit)
 \end{lstlisting}
 
-If a piece of unannotated code were given a $\kwa{polywriter}$, it would be safe to approximate its effects as being the polymorphic upper bound $\{ \kwa{File.write, Socket.write} \}$. But in many situations, we can do better: if no capability for $\kwa{Socket.write}$ is passed in with the $\kwa{polywriter}$, then despite fixing $\kwa{polywriter}$ to accept functions which incur $\kwa{Socket.write}$, it will never be able to obtain one. The example below shows such a situation:
+If a piece of unannotated code were given a $\kwa{polywriter}$, it would be safe to approximate its effects as being the polymorphic upper bound $\{ \kwa{File.write, Socket.write} \}$. But we can do better: if no capability for $\kwa{Socket.write}$ is passed in with the $\kwa{polywriter}$, then despite fixing $\kwa{polywriter}$ to accept functions which incur $\kwa{Socket.write}$, it will never be able to obtain one. The example below shows such a situation:
 
 \begin{lstlisting}
 import({File.*}) 
@@ -505,9 +509,9 @@ in
    e
 \end{lstlisting}
 
-Since only a file-writing capability is passed in with $\kwa{polywriter}$, it can never be made to incur $\kwa{Socket.write}$, so a better approximation of $e$ would be $\{ \kwa{File.write} \}$.
+Since only a file-writing capability is passed in with $\kwa{poly}$ $\kwa{writer}$, it can never be made to incur $\kwa{Socket.write}$, so a better approximation of $e$ would be $\{ \kwa{File.write} \}$.
 % We hope to use this sort of reasoning to incorporate effect-polymorphism and polymorphic types into our work.
-While a full exploration of capability rules for effect polymorphism is beyond the scope of this paper, the discussion above suggests the potential to extend the ideas here to a polymorphic setting.
+While a full exploration of capability rules for effect polymorphism is still being finalised, the discussion above suggests the potential to extend the ideas here to a polymorphic setting.
 
 %The current theory contains no effect polymorphism, whereby a function's type is parameterised by a set of effects.
 %%We are currently exploring the next step in our calculi - $\kwa{PolyC}$ - that allows for type parameters and effect parameters on expressions.
