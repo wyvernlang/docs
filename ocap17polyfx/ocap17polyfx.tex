@@ -258,14 +258,14 @@ Effect inference can be used to reduce the annotations required, but this has si
 Capabilities are a promising alternative for reducing the overhead of effect annotations, as suggested by the following example:
 
 \begin{lstlisting}
-import log : String -> Unit with effect File.write
+import log : String -> Unit with {File.write} in
 e
 \end{lstlisting}
 
-In the code above, written in a capability-safe language, what can we infer about the effects on resources (e.g. the file system or network) of evaluating \kwat{e}?
-Since we are in a capability-safe language, \kwat{e} has no ambient authority, and so the only way it can have any effect on resources is via the \kwat{log} function it imports.
+In a capability-safe language, what can we infer about the effects on resources (e.g. the file system or network) when evaluating the unannotated code \kwat{e}?
+Since we are in a capability-safe language, \kwat{e} has no ambient authority, and so the only way it can have any effect on resources is via the \kwat{log} function it imports from its annotated surroundings.
 Note that this reasoning requires nothing about \kwat{e} other than that it obeys the rules of a capability-safe language; in particular, we don't require any effect annotations within \kwat{e}, and we don't need to analyse its structure as an effect inference would have to do.
-Also note that \kwat{e} might be arbitrarily large, perhaps consisting of an entire program that we have downloaded from a source that we trust enough to allow it to write to a log, but that we don't trust to access any other resources.
+\kwat{e} could also be arbitrarily large, perhaps consisting of an entire program that we have downloaded from a source that we trust enough to allow it to write to a log, but that we don't trust to access any other resources.
 Thus in this scenario, capabilities can be used to reason ``for free'' about the effect of a large body of code based on a few annotations on the components it imports.
 
 The central intuition is this: the effect of an unannotated expression can be given a bound based on the effects latent in variables that are in scope.
@@ -278,30 +278,26 @@ If \kwat{e} evaluates not to unit but to a function, what can we infer about tha
 
 \section{Unannotated Client}
 
-Consider the following example. There is a single primitive capability $\kwa{File}$. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module, possessing the $\kwa{logger}$ module, exposes a functino $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not --- if $\kwa{client.run}$ is executed, what effects might it have?
+Consider the following example. There is a single primitive capability $\kwa{File}$, exposing some operations to a system resource. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module, possessing the $\kwa{logger}$ module, exposes a function $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not. If $\kwa{client.run}$ is executed, what effects might it have?
 
 %\newpage
 
 \begin{lstlisting}
 module def logger(f: {File}):Logger
-
-def log(): Unit with {File.append} =
-    f.append(``message logged'')
+   def log(): Unit with {File.append} =
+      f.append(``message logged'')
 
 module def client(logger: Logger)
-
-def run(): Unit =
-   logger.log()
+   def run(): Unit =
+      logger.log()
 
 require File
-
 instantiate logger(File)
 instantiate client(logger)
-
 client.run()
 \end{lstlisting}
 
-Our proposal simplifies and translates the Wyvern code above to a set of simple nested functions following Newspeak-style object capabilities as follows. The first two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities --- which, in this case, is just $\kwa{File}$.
+Our proposal translates the Wyvern code above to a set of simple nested functions following Newspeak-style object capabilities, as shown below. The first two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-14 define $\kwa{MakeMain}$ which returns a function that, when executed, instantiates all other modules and executes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where the initial capabilities are passed into $\kwa{Main}$ --- in this case, just $\kwa{File}$.
 
 \begin{lstlisting}
 let MakeLogger =
@@ -322,9 +318,7 @@ let MakeMain =
 MakeMain File
 \end{lstlisting}
 
-The resulting simpler code can be reasoned about with interesting part on line $7$ where the \textit{unannotated code} selects $\{ \kwa{File.append} \}$ as its authority. This is exactly the effects of the logger, i.e. $\kwa{effects}(\Unit \rightarrow_{\{\kwa{File.append}\}} \Unit) = \{ \kwa{File.append} \}$. This code also satisfies the higher-order safety predicates, and the body of the $\kwa{import}$ expression typechecks in the empty context. Therefore, we are able to type check the unannotated code with approximate effects $\kwa{\{ \kwa{File.append} \}}$.
-
-In our talk we will present at least four different examples demonstrating the effects (including higher-order effects) inference made possible by object capabilities.
+On line 7, an import expression \textit{selects} the authority\\ $\{\kwa{File.append}\}$ for its unannotated body on line 8. This is a well-typed example, as the body can be typechecked using only those free variables imported, and the authority passed in via the $\kwa{logger}$ function does not exceed $\{\kwa{File.append}\}$. It is therefore safe to assume that $\{\kwa{File.append}\}$ is an upper-bound on the effects incurred from evaluating the body; indeed, a lambda abstraction has no effect, though it could be used to incur one later. But since it was defined inside the import expression (or passed into it), it must also have the effects contained in $\{\kwa{File.append}\}$, so we can effect-check it as such without having to annotate or infer its parts.
 
 %\subsection{Unannotated Library}
 %
@@ -490,18 +484,18 @@ In our talk we will present at least four different examples demonstrating the e
 
 \section{Polymorphic Effects}
 
-Our formal calculus shows how to inspect the capabilities passed into a piece of code to determine what effects might incur. The same reasoning could be applied to types which are \textit{polymorphic} over a set of effects, such as the function below, which is polymorphic over the $\{ \kwa{File.write, Socket.write} \}$ effects. After fixing the particular set of effects, it asks for a function with those effects and then incurs them.
+The previous example shows how capability safety can be used to infer the effects in unannotated code by inspecting the capabilites we pass into it. We saw an example where functions with a fixed set of effects were imported, but the same reasoning also applies to types which are \textit{polymorphic} over a set of effects, such as the function below, which is polymorphic over the $\{ \kwa{File.write, Socket.write} \}$ effects. After fixing a particular subset $\Phi$ of these effects, it asks for a function with those effects and then incurs them.
 
 \begin{lstlisting}
 polywriter =
-  $\lambda \Phi \subseteq \{ \kwa{File.write, Socket.write} \}$.
-    ($\lambda$f: Unit $\rightarrow_{\Phi}$ Unit. f unit)
+   $\lambda \Phi \subseteq \{ \kwa{File.write, Socket.write} \}$.
+      ($\lambda$f: Unit $\rightarrow_{\Phi}$ Unit. f unit)
 \end{lstlisting}
 
-If a piece of unannotated code were given a $\kwa{polywriter}$, it would be safe to approximate its effects as being the polymorphic upper bound $\{ \kwa{File.write, Socket.write} \}$. But we can do better: if no capability for $\kwa{Socket.write}$ is passed in with the $\kwa{polywriter}$, then despite fixing $\kwa{polywriter}$ to accept functions which incur $\kwa{Socket.write}$, it will never be able to obtain one. The example below shows such a situation:
+If a piece of unannotated code were given a $\kwa{polywriter}$, it would be safe to approximate its effects as the polymorphic upper bound $\{ \kwa{File.write, Socket.write} \}$. But we can do better: if no capability for $\kwa{Socket.write}$ is passed in with the $\kwa{polywriter}$, then although it could theoretically accept functions which incur $\kwa{Socket.write}$, it will never be able to obtain one. The example below shows such a situation:
 
 \begin{lstlisting}
-import({File.*}) 
+import({File.write}) 
    pw = polywriter
    fw = ($\lambda$f: Unit. File.write)
 in
