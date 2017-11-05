@@ -37,6 +37,9 @@
 \newcommand{\intuition}[1]{#1}
 \newcommand{\hyphen}{\hbox{-}}
 
+% Used to denote a partial function.
+\newcommand\pto{\mathrel{\ooalign{\hfil$\mapstochar$\hfil\cr$\to$\cr}}}
+
 
 %\newcommand{\intuition}[1]{}
 
@@ -102,6 +105,8 @@
 \newcommand{\safe}[2]{ \kwa{safe}(#1, #2) }
 
 \newcommand{\hosafe}[2]{ \kwa{ho \hyphen safe}(#1, #2) }
+
+\newcommand{\reannot}[2]{ \kwa{reannot}(#1, #2) }
 
 \newcommand{\arr}[3]{
 	#1 \rightarrow_{#3} #2
@@ -295,24 +300,53 @@ v & ::= & ~ & \bf{values} \\
 	\item $\erase{\hat \Gamma, X <: \hat \tau} = \erase{\hat \Gamma}, X <: \erase{\hat \tau}$
 \end{enumerate}
 
-
-
-\subsection*{Definition ($\kwa{effects :: \hat \tau \rightarrow \varepsilon}$)}
+\subsection*{Definition ($\kwa{reannot :: \hat \tau \times \varepsilon \rightarrow \hat \tau}$)}
 
 \begin{enumerate}
-	\item $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
-	\item $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{ho \hyphen effects}(\hat \tau_1) \cup \varepsilon \cup \kwa{effects}(\hat \tau_2)$
-	\item $\fx{\forall X <: \hat \tau_1. \hat \tau_2 ~\kw{caps} \varepsilon_2} = \varepsilon_2 \cup \fx{[\annot{\erase{\hat \tau_1}}{\varnothing}/X]\hat \tau_2}$
-	\item $\fx{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2} = \varepsilon_2 \cup \fx{[\varnothing/\Phi]\hat \tau_2}$
+	\item $\reannot{\hat \tau}{\varepsilon} = \annot{\erase{\hat \tau}}{\varepsilon}$
 \end{enumerate}
 
 
-\subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \tau \rightarrow \varepsilon}$)}
+\subsection*{Definition ($\kwa{reannot :: \hat e \times \varepsilon \rightarrow \hat e}$)}
 
 \begin{enumerate}
-	\item $\hofx{\{ \bar r \}} = \varnothing$
-	\item $\hofx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \kwa{effects}(\hat \tau_1) \cup \kwa{ho \hyphen effects}(\hat \tau_2)$
-	\item $\hofx{\forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_2} = \fx{\hat \tau_1} \cup \hofx{[\hat \tau_1/X]\hat \tau_2}$
+	\item $\reannot{\hat e}{\varepsilon} = \annot{\erase{\hat e}}{\varepsilon}$
+\end{enumerate}
+
+% Effects function
+\subsection*{Definition ($\kwa{effects :: \hat \Gamma \times \hat \tau \pto \varepsilon}$)}
+
+\begin{enumerate}
+
+	% Resource set.
+	\item $\fx{\rule{1.5ex}{.4pt}, \{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
+
+	% Arrow type.
+	\item $\fx{\hat \Gamma, \hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \hofx{\hat \Gamma, \varepsilon_1} \cup \varepsilon \cup \fx{\hat \Gamma, \varepsilon_2}$, if $\hat \Gamma \vdash \varepsilon$
+
+	% Type polymorphism.
+	\item $\fx{\hat \Gamma, \forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_3} = \varepsilon_3 \cup \fx{\hat \Gamma, [\reannot{\hat \tau_1}{\varnothing}/X]\hat \tau_2}$, if $\hat \Gamma \vdash \varepsilon_3$
+
+	% Effect polymorphism.
+	\item $\fx{\hat \Gamma, \forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_3} = \varepsilon_3 \cup \fx{\hat \Gamma, [\varnothing/\Phi]\hat \tau_2}$, if $\hat \Gamma \vdash \varepsilon_3$
+
+\end{enumerate}
+
+% Ho-Effects function
+\subsection*{Definition ($\kwa{ho \hyphen effects :: \hat \Gamma \times \hat \tau \pto \varepsilon}$)}
+
+\begin{enumerate}
+
+	% Resource set.
+	\item $\hofx{\rule{1.5ex}{.4pt}, \{ \bar r \}} = \varnothing$
+
+	% Arrow type.
+	\item $\hofx{\hat \Gamma, \hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \fx{\hat \Gamma, \hat \tau_1} \cup \hofx{\hat \Gamma, \hat \tau_2}$, if $\hat \Gamma \vdash \varepsilon$
+
+	% Type polymorphism.
+	\item $\hofx{\hat \Gamma, \forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_3} = \fx{\hat \Gamma, \hat \tau_1} \cup \hofx{\hat \Gamma, [\reannot{\hat \tau_1}{\varnothing}/X]\hat \tau_2}$, if $\hat \Gamma \vdash \varepsilon_3$
+
+	% Effect polymorphism.
 	\item $\hofx{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2} = \varepsilon_1 \cup \hofx{[\varnothing/\Phi]\hat \tau_2}$
 \end{enumerate}
 
@@ -322,7 +356,7 @@ v & ::= & ~ & \bf{values} \\
 
 
 
-\section{Static Rules}
+\section{Typing Judgements}
 
 \fbox{$\Gamma \vdash e: \tau$}
 
@@ -443,6 +477,8 @@ v & ::= & ~ & \bf{values} \\
 
 
 
+\section{Safety Judgements}
+
 \noindent
 $\fbox{$\kwa{safe(\tau, \varepsilon)}$}$
 
@@ -450,20 +486,21 @@ $\fbox{$\kwa{safe(\tau, \varepsilon)}$}$
 \begin{array}{c}
 
 \infer[\textsc{(Safe-Resource)}]
-	{\kwa{safe}(\{ \bar r \}, \varepsilon)}
+	{\hat \Gamma \kwa{safe}(\{ \bar r \}, \varepsilon_s)}
 	{}
 ~~~
 \infer[\textsc{(Safe-Arrow)}]
-	{\kwa{safe}(\hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon)}
-	{\varepsilon \subseteq \varepsilon' & \kwa{ho \hyphen safe}(\hat \tau_1, \varepsilon) & \kwa{safe}(\hat \tau_2, \varepsilon)} \\[3ex]
+	{\hat \Gamma \vdash \safe{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2}{\varepsilon_s}}
+	{\hat \Gamma \vdash \varepsilon_s \subseteq \varepsilon & \hat \Gamma \vdash \hosafe{\hat \tau_1}{\varepsilon_s} & \hat \Gamma \vdash \safe{\hat \tau_2}{\varepsilon_s}} \\[3ex]
 
 \infer[\textsc{(Safe-PolyFx)}]
-	{\safe{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon} }
-	{\varepsilon_2 \subseteq \varepsilon & \safe{[\varnothing/\Phi]\hat \tau_2}{\varepsilon}} \\[3ex]
+	{\hat \Gamma \vdash \safe{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon_s} }
+	{\hat \Gamma \vdash \varepsilon_2 \subseteq \varepsilon_s
+	& \hat \Gamma, \Phi \subseteq \varepsilon_1 \vdash \safe{\hat \tau_2}{\varepsilon_s}} \\[3ex]
 
 \infer[\textsc{(Safe-PolyType)}]
-	{\safe{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_2}}{\varepsilon}}
-	{\varepsilon_2 \subseteq \varepsilon & \hosafe{\hat \tau_1}{\varepsilon} & \safe{[\annot{\erase{\hat \tau_1}}{\varnothing}/X]\hat \tau_2}{\varepsilon}}
+	{\hat \Gamma \vdash \safe{\polycap{X <: \hat \tau_1}{\hat \tau_2}{\varepsilon_2}}{\varepsilon_s}}
+	{\hat \Gamma \vdash \varepsilon_2 \subseteq \varepsilon_s & \hat \Gamma \vdash \hosafe{\hat \tau_1}{\varepsilon_s} & \hat \Gamma, X <: \hat \tau_1 \vdash \safe{\hat \tau_2}{\varepsilon_s}}
 
 \end{array}
 \]
@@ -475,20 +512,20 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 \begin{array}{c}
 
 \infer[\textsc{(HOSafe-Resource)}]
-	{ \kwa{ho \hyphen safe}( \{ \bar r \}, \varepsilon)} 
+	{ \hat \Gamma \vdash \kwa{ho \hyphen safe}( \{ \bar r \}, \varepsilon_s)} 
 	{}
 	~~~
 \infer[\textsc{(HOSafe-Arrow)}]
-	{ \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon ) }
-	{ \kwa{safe}(\hat \tau_1, \varepsilon)  & \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon) }\\[3ex]
+	{ \hat \Gamma \vdash \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2, \varepsilon_s ) }
+	{ \hat \Gamma \vdash \kwa{safe}(\hat \tau_1, \varepsilon_s)  & \hat \Gamma \vdash \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon_s) }\\[3ex]
 
 \infer[\textsc{(HOSafe-PolyFx)}]
-	{\hosafe{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon}}
-	{\varepsilon \subseteq \varepsilon_1 & \hosafe{[\varnothing/\Phi]\hat \tau_2}{\varepsilon}}\\[3ex]
+	{\hat \Gamma \vdash \hosafe{\forall \Phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon_s}}
+	{\hat \Gamma \vdash \varepsilon_s \subseteq \varepsilon_1 & \hat \Gamma, \Phi \subseteq \varepsilon_1 \vdash \hosafe{\hat \tau_2}{\varepsilon_s}}\\[3ex]
 
 \infer[\textsc{(HOSafe-PolyType)}]
-	{\hosafe{\forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon}}
-	{\safe{\hat \tau_1}{\varepsilon} & \hosafe{[\annot{\erase{\hat \tau_1}}{\varnothing}/X]\hat \tau_2}{\varepsilon}}
+	{\hat \Gamma \vdash \hosafe{\forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_2}{\varepsilon_s}}
+	{\hat \Gamma \vdash \safe{\hat \tau_1}{\varepsilon_s} & \hat \Gamma, X <: \hat \tau_1 \vdash \hosafe{\hat \tau_2}{\varepsilon_s}}
 
 \end{array}
 \]
@@ -512,6 +549,8 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 %\end{array}
 %\]
 
+
+\section{Subtyping Judgements}
 
 
 \fbox{$\hat \Gamma \vdash \hat \tau <: \hat \tau$}
@@ -584,14 +623,59 @@ $\fbox{$\kwa{ho \hyphen safe(\hat \tau, \varepsilon)}$}$
 \]
 
 
+\section{Well-Formedness Judgements}
+
+
+\fbox{$\hat \Gamma \vdash \varepsilon$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(Wf-$\varepsilon$-Var)}]
+	{\hat \Gamma, \phi \subseteq \varepsilon \vdash \phi}
+	{}
+
+~~~
+
+\infer[\textsc{(Wf-$\varepsilon$-Set)}]
+	{\hat \Gamma \vdash \{ \overline{r.\pi} \}}
+	{}
+
+\end{array}
+\]
+
+\fbox{$\hat \Gamma \vdash \hat \tau$}
+
+\[
+\begin{array}{c}
+
+\infer[\textsc{(Wf-$\hat \tau$-ResourceSet)}]
+	{\hat \Gamma \vdash \{ \overline{r.\pi} \}}
+	{}
+~~~
+\infer[\textsc{(Wf-$\hat \tau$-Arrow)}]
+	{\hat \Gamma \vdash \hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2}
+	{\hat \Gamma \vdash \hat \tau_1 & \hat \Gamma \vdash \varepsilon & \hat \Gamma \vdash \hat \tau_2}
+
+\\[2ex]
+
+\infer[\textsc{(Wf-$\hat \tau$-PolyType)}]
+	{\hat \Gamma \vdash \forall X <: \hat \tau_1. \hat \tau_2~\kw{caps} \varepsilon_3}
+	{\hat \Gamma \vdash \hat \tau_1 & \hat \Gamma \vdash \varepsilon_3 & \hat \Gamma, X <: \hat \tau_1 \vdash \hat \tau_2}
+~~~
+\infer[\textsc{(Wf-$\hat \tau$-PolyEffect)}]
+	{\hat \Gamma \vdash \forall \phi \subseteq \varepsilon_1. \hat \tau_2~\kw{caps} \varepsilon_3}
+	{\hat \Gamma \vdash \varepsilon_1 & \hat \Gamma \vdash \varepsilon_3 & \hat \Gamma, \phi \subseteq \varepsilon_1 \vdash \hat \tau_2}
+
+\end{array}
+\]
 
 
 
 
 
 
-
-\section{Dynamic Rules}
+\section{Reduction Judgements}
 
 \noindent
 \fbox{$\hat e \longrightarrow \hat e~|~\varepsilon$}
