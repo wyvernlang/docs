@@ -156,30 +156,45 @@ Note that `factorial(15)` would overflow in languages such
 as Java in which the default integer types is represented using only
 32 bits.  In Wyvern, `Int` means an arbitrary precision integer.
 
-Wyvern provides a nicer way to write the `if` statement above, if we
-are willing to import a library that includes a type-specific language
-for then-else clauses:
-
-    import metadata wyvern.IfTSL
-    val iff = (x:Boolean, y:IfTSL.IfExprR) => IfTSL.doifR(x, y)
+Wyvern provides two nicer ways to write the `if` statement above:
 
     def fact(n:Int):Int
-        iff (n < 2, ~)
-            then
+        if (n < 2)
                 1
             else
                 n * fact(n-1)
+                
+    def fact2(n:Int):Int
+        if (n < 2) { 1 } else { n * fact2(n-1) }
+
+In the first case, we put the `then` computation on a new, indented line,
+followed by `else` (also indented, but not as much), and then the `else`
+computation.  In the second case, we put it all on one line of code, but put
+the `then` and `else` computations in curly braces to set them off.
+
+It turns out that both versions of the `if` function can be user-defined.
+In the first case, Wyvern takes all the indented code and passes it as an
+argument to the `if` function.  In the second case, Wyvern passes the code
+in each set of curly braces as a separate argument to the `if...else...`
+function.
+
+If you'd like to see how these `if` functions are actually user-defined,
+look in the Wyvern standard prelude (`stdlib/prelude.wyv`):
+
+    import metadata wyvern.IfTSL
+    val ifelseARG = (cond:Boolean, tt:IfTSL.FnExpr, ff:IfTSL.FnExpr) => IfTSL.doif(cond, tt, ff)
+    val if = (cond:Boolean, blocks:IfTSL.Blocks) => IfTSL.doifblk(cond, blocks)
 
 The import statement loads the `IfTSL` module from the `wyvern` package.
 The `metadata` keyword indicates that the library defines new syntax,
-in this case for `then` and `else` clauses.  We define an `iff` shorthand
-for calling the `doifR` function from that library.  Then we can just use
-`then` and `else` keywords and indent blocks of code below each one.  Note
-that because of the way type-specific languages (TSLs) work in Wyvern, it's
-not possible to put `then` and `else` on a single line.
+in this case for `then` and `else` clauses of an `if` statement.  We define
+an `if` shorthand for calling the `doifblk` function from that library.
+The `ifelseARG` function is how `if...else...` is written: keywords separated
+by a single argument are concatenated, and whenever more than one argument
+separates keywords (or comes after them all) `ARG` is added to the name.
+Parsers associated with the `IfTSL.FnExpr` and `IfTSL.Blocks` are defined
+in `stdlib/wyvern/IfTSL.wyv`.
 
-We hope to make this even a bit cleaner in the future.
-                
 
 Objects and Object Types in Wyvern
 ==================================
@@ -329,14 +344,15 @@ Wyvern files that define a type use a `.wyt` extension (for Wyvern Type),
 and you can find the above definition at `examples/modules/TCell.wyt`.
 
 
-Resource Modules
-================
+Functors
+========
 
-Just as objects with state must be given a resource type, stateful
-modules have a resource type.  A `resource` module is one that captures
-state in its implementation.  The `cell` module is not a `resource`
-module; although it can be used to create stateful `Cell`s, the module
-itself does not capture state.  Here is a module that does (`examples/modules/cellAsModule.wyv`):
+Although modules are objects, they cannot contain any state and they cannot
+encapsulate system resources.  How can we express designs similar to those
+in other languages, in which modules do these things?  We can do so by
+defining *functors*.  A functor is a module that is defined as a function:
+it takes zero or more arguments and returns an object.  For example, we can
+define a functor that returns a stateful `Cell` object (`examples/modules/cellAsModule.wyv`):
 
 	module def cellAsModule()
 
@@ -350,10 +366,10 @@ often causes problems in software development.  So `cellAsModule` does
 not evaluate to an object, but rather a function that, when invoked,
 yields a fresh object with its own copy of the internal state defined
 by the module.  The `module def` syntax indicates this; it is reminiscent
-of the `def` syntax for defining functions.  We will call functions that
-produce modules functors, after Standard ML (and inspired by category
-theory, for the mathematically inclined).  We can use `cellAsModule` in
-a program as follows (`examples/modules/cellModuleClient.wyv`):
+of the `def` syntax for defining functions.  The word *functor* that we
+used from this is based on a similar construct in Standard ML (and inspired
+by category theory, for the mathematically inclined).  We can use
+`cellAsModule` in a program as follows (`examples/modules/cellModuleClient.wyv`):
 
 	import modules.cellAsModule
 	
@@ -364,15 +380,14 @@ a program as follows (`examples/modules/cellModuleClient.wyv`):
 	m1.get() // evalutes to 1
 	m2.get() // evalutes to 2
 
-In this example you can see that we have instantiated the `resource`
-module `cellAsModule` twice, and each instance of the module has its
-own internal state.
+In this example you can see that we have called the functor `cellAsModule`
+twice, and each resulting object instance has its own internal state.
 
 	
 Module Parameters
 =================
 
-If resource modules are produced by functors (module functions), we
+If objects are produced by functors (module functions), we
 expect to be able to pass
 parameters--and so we can.  First let's define the type that
 `cellAsModule` returns.  For convenience, we will put this type in a
@@ -414,10 +429,10 @@ of any type, and any type is a subtype of `Dyn`.  (Note that subtyping
 is not transitive where `Dyn` is involved, as this would effectively
 collapse the type system to a single type.)
 
-We recommend avoiding `Dyn` where possible, and gradually transitioning
-existing `Dyn` code to remove use of this construct.  If we do keep this
-in the long term, we need to think about how it interacts with resource
-types.
+We recommend avoiding `Dyn` where possible, and now that parameterized
+types work well, we are gradually transitioning existing `Dyn` code to
+remove use of this construct.  If we do keep this in the long term, we
+need to think about how it interacts with resource types.
 
 
 Declaration Sequences and Mutual Recursion
@@ -468,10 +483,10 @@ recursively defined values.
 Some More Examples
 ==================
 
-The Wyvern standard library files are in subdirectories of `stdlib`.  For example, earlier we used the `IfTSL` library, defined in `stdlib/wyvern/IfTSL.wyv`.
+The Wyvern standard library files are in subdirectories of `stdlib`.  For example, earlier we used the `IfTSL` library, defined in `stdlib/wyvern/IfTSL.wyv`.  When importing files from the standard library, leave out `stdlib`; i.e. in the example above, just use `import wyvern.IfTSL`
 
 Platform-specific definitions are in the `platform` subdirectory of `stdlib`, in a sub-subdirectory named after the platform (e.g. `java`).
-For example, `stdout` is defined in `stdlib/platform/java/stdout.wyv` for the `java` platform; there is an analogous definition for the `python` platform too.  The definition of `stdout` for `java` uses some Java helper code defined in the Java class `wyvern.stdlib.support.Stdio`.
+For example, `stdout` is defined in `stdlib/platform/java/stdout.wyv` for the `java` platform; there is an analogous definition for the `python` platform too.  The definition of `stdout` for `java` uses some Java helper code defined in the Java class `wyvern.stdlib.support.Stdio`.  These libraries should be imported without using `stdlib.platform.java`.
 
 An example of a utility library that provides a small part of a regular expression package is in `wyvern/util/matching/regex.wyv`.  The design approximately follows the corresponding Scala library.
 
