@@ -1,0 +1,688 @@
+
+
+\section{Syntax}
+
+\begin{figure}[h]
+\[
+\begin{array}{lllll}
+\begin{array}{llr}
+t 		& ::= 														&\text{\bf{Term}} \\
+		& x 														&\text{\emph{variable}}\\
+		& \texttt{new} \ \{z \Rightarrow \overline{d}\}	&\text{\emph{new instance}}\\
+		& \lambda x:\tau.t 										&\text{\emph{lambda}}\\
+		& t\ t 													&\text{\emph{application}}\\
+		& t.m 														&\text{\emph{method invocation}}\\
+&&\\
+v 		& ::= 														&\\
+		& \lambda x:\tau.t										&\\
+		& x 										&\\
+ \end{array}\\
+& ~~~~~~
+&\\
+\begin{array}{llr}
+\tau 	& ::= 														&\text{\bf{Type}} \\
+%		& \{z \Rightarrow \overline{\sigma}\}				&\text{\emph{record}}\\
+		& \{z \Rightarrow \overline{\sigma}\}			&\text{\emph{self type}}\\
+		& \tau^x \rightarrow \tau 							&\text{\emph{arrow}}\\
+		& p.L 														&\text{\emph{selection}}\\
+		& \top 													&\text{\emph{top}}\\
+		& \bot 													&\text{\emph{bottom}}\\
+&&\\
+d 		& ::= 														&\text{\bf{Declaration}} \\
+  		& \text{\texttt{def}} \ m : = t 				&\text{\emph{method}}\\
+  		& \text{\texttt{type}} \ L = \tau					&\text{\emph{type}}\\
+&&\\
+\sigma	& ::= 														&\text{\bf{Decl Type}}\\
+		& \text{\texttt{def}} \ m:\tau						&\text{\emph{method}}\\
+  		& \text{\texttt{type}} \ L \leqslant  \tau			&\text{\emph{type}}\\
+  		& \text{\texttt{type}} \ L \geqslant  \tau			&\text{\emph{type}}\\
+\end{array}\\
+& ~~~~~~
+&\\
+\begin{array}{llr}
+\Gamma	& :: = 													&\text{\bf{Environment}} \\
+		& \varnothing 											&\\
+		& \Gamma,\ x : \tau 									&\\
+%&&\\
+%\mu 	& :: = 													& \text{\bf{Store}}\\
+%		& \varnothing 											&\\
+%		& \mu,\ l \mapsto \{z \Rightarrow \overline{d}\}	&\\
+%&&\\
+%	& :: = 													&\text{\bf{Store Type}}\\
+%		& \varnothing 											&\\
+%		& ,\ l : \{\texttt{z} \Rightarrow \overline{\sigma}\}	&\\
+&&\\
+E 		& :: = 													& \text{\bf{Eval Context}}\\
+		& \bigcirc 												&\\
+		& E.m 														&\\
+		& E\ t 													&\\
+		& p\ E 													&\\
+		& E \unlhd \tau											&\\
+\end{array}\\
+\end{array}
+\]
+\caption{Syntax}
+\label{f:syntax}
+\end{figure}
+
+In Figure \ref{f:leadsto}:
+\begin{itemize}
+\item
+$v = l$: return the location.
+\item
+$v = v' \unlhd \{\ldots\}$: find the structural equivalent path of $v'$ and keep the upcast.
+\item
+$v = v' \unlhd p.L$: if the type of $v'$ is not equivalent to $p.L$, then our structural equivalent path is just the structural equivalent of $v'$ upcast to the lower bound and then the upper bound.
+\item
+$v = v' \unlhd p.L$: if the type of $v'$ ($\tau$) is equivalent to $p.L$, then the structural equivalent path is the structural equivalent path of $v'$ upcast to the upper bound. This is because we know (by \textsc{S-Path}) that the upper bound of $p.L$ must be a super type of the upper bound of $\tau$.
+\end{itemize}
+Since in the two cases for selection types, the subderivations are not strictly smaller, the finiteness of this derivation is based upon the finiteness of the expansion of all types. (Problem for induction?)
+
+
+\section{Semantics}
+
+
+\begin{figure}[h]
+\begin{mathpar}
+\inferrule
+  {}
+  {p \equiv p}
+  \quad (\textsc{Eq-Refl})
+  \and
+\inferrule
+  {p_1 \equiv p_2}
+  {p_2 \equiv p_1}
+  \quad (\textsc{Eq-Sym})
+  \and
+\inferrule
+  {p_1 \equiv p_2 \\
+   p_2 \equiv p_3}
+  {p_1 \equiv p_3}
+  \quad (\textsc{Eq-Trans})
+  \and
+\inferrule
+  {p_1 \equiv p_2}
+  {p_1 \equiv p_2 \unlhd T}
+  \quad (\textsc{Eq-Path})
+\end{mathpar}
+\caption{Path Equivalence}
+\label{f:path_equiv}
+\end{figure}
+
+
+%\begin{figure}[h]
+%\begin{mathpar}
+%\inferrule
+%  {
+%  \overline{\sigma}_1 \equiv \overline{\sigma}_2
+%  }
+%  {\{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}}
+%  \quad (\textsc{Eq-Struct})
+%  \and
+%\inferrule
+%  {
+%  	p_1 \equiv p_2
+%   }
+%  {p_1.L \equiv p_2.L}
+%  \quad (\textsc{Eq-Select})
+%  \and
+%\inferrule
+%  {}
+%  {\vdash \top \equiv \top}
+%  \quad (\textsc{Eq-Top})
+%  \and
+%\inferrule
+%  {}
+%  {\bot \equiv \bot}
+%  \quad (\textsc{Eq-Bottom})
+%\end{mathpar}
+%\caption{Type Path Equivalence}
+%\label{f:type_equiv}
+%\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash \tau_1 <: \tau_2$}
+\begin{mathpar}
+\inferrule
+	{\Gamma, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\ \overline{\sigma}_2}
+	{\Gamma \vdash \{z \Rightarrow \overline{\sigma}_1\}\ <:\ \{z \Rightarrow \overline{\sigma}_2\}}
+	\quad (\textsc {S-Struct})
+	\and
+\inferrule
+	{\Gamma \vdash \tau_1'\ <:\ \tau_1 \\
+	 \Gamma, x : \tau_1' \vdash [x \unlhd \tau_1/x]\tau_2\ <:\ \tau_2'}
+	{\Gamma \vdash \tau_1 \rightarrow\ \tau_2^x <:\ \tau_1' \rightarrow\ \tau_2'^x}
+	\quad (\textsc {S-Arrow})
+	\and
+\inferrule
+	{
+	 }
+	{\Gamma \vdash x.L\ <:\ x.L}
+	\quad (\textsc {S-Refl})
+	\and
+\inferrule
+	{\Gamma \vdash p \ni \text{\texttt{type}} \ L : \tau_1 \ldots  \tau_2\\
+	 \Gamma \vdash \tau_2 <: \tau}
+	{\Gamma \vdash p.L\ <:\ \tau}
+	\quad (\textsc {S-Select-Upper})
+	\and
+\inferrule
+	{\Gamma \vdash p \ni \text{\texttt{type}} \ L : \tau_1 \ldots  \tau_2\\
+	 \Gamma \vdash \tau <: \tau_1}
+	{\Gamma \vdash \tau \ <:\ p.L}
+	\quad (\textsc {S-Select-Lower})
+	\and
+\inferrule
+	{}
+	{\Gamma \vdash \tau\ <:\ \top}
+	\quad (\textsc {S-Top})
+	\and
+\inferrule
+	{}
+	{\Gamma \vdash \bot\ <:\ \tau}
+	\quad (\textsc {S-Bottom})
+\end{mathpar}
+\hfill \fbox{$\Gamma \vdash \sigma <: \sigma'$}
+\begin{mathpar}
+\inferrule
+	{\Gamma \vdash \tau_1 <: \tau_2}
+	{\Gamma \vdash \texttt{def} \ m:\tau_1 <: \texttt{def} \ m:\tau_2}
+	\quad (\textsc {S-Decl-Def})
+	\and
+\inferrule
+	{\Gamma \vdash \tau_1' <: \tau_1 \\
+	 \Gamma \vdash \tau_2 <: \tau_2'}
+	{\Gamma \vdash \text{\texttt{type}} \ L : \tau_1 \ldots \tau_2 \ <:\ \text{\texttt{type}} \ L : \tau_1' \ldots \tau_2'}
+	\quad (\textsc {S-Decl-Type})
+\end{mathpar}
+\caption{Subtyping}
+\label{f:subtype}
+\end{figure}
+
+%\begin{figure}[h]
+%\hfill \fbox{$A\Gamma \vdash T \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {A\Gamma \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%  	A\Gamma \vdash \texttt{type} \ L : S \ldots  U \ \textbf{wf} }
+%  {A\Gamma \vdash p.L \ \textbf{wf}}
+%  \quad (\textsc {WF-Sel})
+%	\and
+%\inferrule
+%  {A\Gamma,z:\{z \Rightarrow \overline{\sigma}\} \vdash \overline{\sigma} \ \textbf{wf} \\
+%  	\forall j \neq i, \ dom(\sigma_j) \neq dom(\sigma_i)}
+%  {A\Gamma \vdash \{z \Rightarrow \overline{\sigma}\} \ \textbf{wf}}
+%  \quad (\textsc {WF-Struct})
+%%	\and
+%%\inferrule
+%%  {\Gamma \vdash S \  \textbf{wf} \\
+%%  	\Gamma \vdash T \  \textbf{wf}}
+%%  {\Gamma \vdash S \rightarrow T \  \textbf{wf}}
+%%  \quad (\textsc {WF-Func})
+%	\and
+%\inferrule
+%  {}
+%  {A\Gamma \vdash \top \  \textbf{wf}}
+%  \quad (\textsc {WF-Top})
+%	\and
+%\inferrule
+%  {}
+%  {A\Gamma \vdash \bot \  \textbf{wf}}
+%  \quad (\textsc {WF-Bottom})
+%\end{mathpar}
+%\hfill \fbox{$A\Gamma \vdash \sigma \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {A\Gamma \vdash T : \textbf{wf}}
+%  {A\Gamma \vdash \texttt{val} \ f:T \  \textbf{wf}}
+%  \quad (\textsc {WF-Val})
+%	\and
+%\inferrule
+%  {A\Gamma \vdash T : \textbf{wf} \\
+%  	A\Gamma \vdash S : \textbf{wf}}
+%  {A\Gamma \vdash \texttt{def} \ m:S \rightarrow T \  \textbf{wf}}
+%  \quad (\textsc {WF-Def})
+%	\and
+%\inferrule
+%  {A\Gamma \vdash S : \textbf{wfe} \ \vee \ S = \bot\\
+%  	A\Gamma \vdash U : \textbf{wfe} \\
+%  	A\Gamma \vdash S <: U}
+%  {A\Gamma \vdash \texttt{type} \ L : S \ldots  U \ \textbf{wf}}
+%  \quad (\textsc {WF-Type})
+%\end{mathpar}
+%\hfill \fbox{$A \vdash \Gamma \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {\forall x \in dom(\Gamma), A\Gamma \vdash \Gamma(x) \ \textbf{wf}}
+%  { \vdash \Gamma \  \textbf{wf}}
+%  \quad (\textsc {WF-Environment})
+%\end{mathpar}
+%\hfill \fbox{$ \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {\forall l \in dom(), \varnothing\varnothing \vdash (l) \ \textbf{wf}}
+%  { \  \textbf{wf}}
+%  \quad (\textsc {WF-Store-Context})
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+%  {\forall l \in dom(\mu), \varnothing\varnothing \vdash \mu(l) : (l)}
+%  {\mu : }
+%  \quad (\textsc {WF-Store})
+%\end{mathpar}
+%\caption{Well-Formedness}
+%\label{f:wf}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\Gamma \vdash T \  \textbf{wfe}$}
+%\begin{mathpar}
+%\inferrule
+%  {\Gamma \vdash T \ \textbf{wf} \\
+%  	\Gamma \vdash T \prec \overline{\sigma}}
+%  {\Gamma \vdash T \ \textbf{wfe}}
+%  \quad (\textsc {WFE})
+%\end{mathpar}
+%\caption{Well-Formed and Expanding Types}
+%\label{f:wfe}
+%\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash \sigma^z \in \tau$}
+\begin{mathpar}
+\inferrule
+	{\sigma \in \overline{\sigma}}
+	{\Gamma \vdash \sigma^z \in \{z \Rightarrow \overline{\sigma}\}}
+	\quad (\textsc {MT-Struct})
+	\and
+\inferrule
+	{\Gamma \vdash p \ni \text{\texttt{type}} \ L : \tau_1 \ldots \tau_2 \\
+	 \Gamma \vdash \sigma^z \in \tau_2}
+	{\Gamma \vdash ([z \unlhd \tau_2/z]\sigma)^z \in p.L}
+	\quad (\textsc {MT-Sel})
+\end{mathpar}
+\caption{Type Membership}
+\label{f:exp}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash t \ni \sigma$}
+\begin{mathpar}
+\inferrule
+  {\Gamma \vdash p : \tau \\
+  	\Gamma \vdash \sigma^z \in \tau}
+  {\Gamma \vdash p \ni [p/z]\sigma}
+  \quad (\textsc {M-Path})
+	\and
+\inferrule
+  {\Gamma \vdash t : \tau \\
+  	\Gamma \vdash \sigma^z \in \tau \\
+  	z \notin \sigma}
+  {\Gamma \vdash t \ni \sigma}
+  \quad (\textsc {M-Exp})
+\end{mathpar}
+\caption{Term Membership}
+\label{f:mem}
+\end{figure}
+
+%\subsubsection{Typing}
+
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash e:T$}
+\begin{mathpar}
+\inferrule
+  {x \in dom(\Gamma)}
+  {\Gamma \vdash x : \Gamma(x)}
+  \quad (\textsc {T-Var})
+	\and
+\inferrule
+  {	l \in dom()}
+  {\Gamma \vdash l : (l)}
+  \quad (\textsc {T-Loc})
+	\and
+\inferrule
+  {	\Gamma, x : \tau_1 \vdash t : \tau_2}
+  {\Gamma \vdash (\lambda x:\tau_1.t) : \tau_1 \rightarrow \tau_2^x}
+  \quad (\textsc {T-Lambda})
+	\and
+\inferrule
+  {	\Gamma \vdash t : (x:\tau_1) \rightarrow \tau_2 \\
+   x \not\in \tau_2 \\
+   \Gamma \vdash t' : \tau_1}
+  {\Gamma \vdash t\ t': \tau_2}
+  \quad (\textsc {T-App})
+	\and
+\inferrule
+  {	\Gamma \vdash t : (x:\tau_1) \rightarrow \tau_2 \\
+   \Gamma \vdash p : \tau_1}
+  {\Gamma \vdash t\ p: [p/x]\tau_2}
+  \quad (\textsc {T-App-Free})
+	\and
+\inferrule
+  {\Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
+  \vdash \overline{d} : \overline{\sigma}}
+  {\Gamma \vdash \texttt{new} \ \{z \Rightarrow \overline{d}\} : 
+  \{z \Rightarrow \overline{\sigma}\}}
+  \quad (\textsc {T-New})
+	\and
+\inferrule
+  {\Gamma \vdash t \ni \texttt{def} \ m:\tau}
+  {\Gamma \vdash t.m : \tau}
+  \quad (\textsc {T-Meth})
+	\and
+\inferrule
+  {\Gamma \vdash t :\tau_t \\
+   \Gamma \vdash \tau_t\ <:\ \{z \Rightarrow \text{\texttt{def}}\ m:\ \tau\}}
+  {\Gamma \vdash t.m : \tau}
+  \quad (\textsc {T-Meth'})
+	\and
+\inferrule
+  {\Gamma \vdash t : \tau' \\
+   \Gamma \vdash \tau' <: \tau}
+  {\Gamma \vdash t \unlhd \tau : \tau}
+  \quad (\textsc {T-Cast})
+\end{mathpar}
+\caption{Term Typing}
+\label{f:t_typ}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash d:\sigma$}
+\begin{mathpar}
+\inferrule
+  {\Gamma \vdash t : \tau}
+  {\Gamma \vdash \texttt{def} \ m: \tau = t : \texttt{def} \ m:\tau}
+  \quad (\textsc {T-Decl-Def})
+	\and
+\inferrule
+  {}
+  {\Gamma \vdash \text{\texttt{type}} \ L = \tau : \text{\texttt{type}} \ L : \tau \ldots \tau}
+  \quad (\textsc {T-Decl-Type})
+\end{mathpar}
+\caption{Declaration Typing}
+\label{f:d_typ}
+\end{figure}
+
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v \leadsto l$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\mu \vdash l \leadsto l }
+%  \quad (\textsc {P-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v'}
+%  {\mu \vdash v \unlhd T \leadsto v' \unlhd T}
+%  \quad (\textsc {L-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v' \\
+%   \mu \vdash v' \leadsto_{f} v_f}
+%  {\mu \vdash v.f \leadsto v_f}
+%  \quad (\textsc {L-Path})
+%\end{mathpar}
+%\hfill \fbox{$\mu \vdash d_v \leadsto d$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu \vdash v \leadsto v'}
+%  {\mu \vdash \texttt{val} \ f : T = v \leadsto \texttt{def} \ m : S \rightarrow T}
+%  \quad (\textsc {L-Val})
+%	\and
+%\inferrule
+%  {}
+%  {\mu \vdash \texttt{def} \ m : S(x:T) = e \leadsto \texttt{def} \ m(x:S) = e : T}
+%  \quad (\textsc {L-Def})
+%	\and
+%\inferrule
+%  {}
+%  {\mu \vdash \texttt{type} \ L : S \ldots  U \leadsto \texttt{type} \ L : S \ldots  U}
+%  \quad (\textsc {L-Type})
+%\end{mathpar}
+%\caption{Path Leads-to Judgement}
+%\label{f:path}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v \leadsto_{f} v$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\mu \vdash l \leadsto l }
+%  \quad (\textsc {P-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v'}
+%  {\mu \vdash v \unlhd T \leadsto v' \unlhd T}
+%  \quad (\textsc {L-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v' \\
+%   \mu \vdash v' \leadsto_{f} v_f}
+%  {\mu \vdash v.f \leadsto v_f}
+%  \quad (\textsc {L-Path})
+%\end{mathpar}
+%\caption{Path Leads-to Judgement}
+%\label{f:path}
+%\end{figure}
+%
+% 
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v_1 \leadsto v_2$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\mu \vdash l \leadsto l}
+%  \quad (\textsc {L-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash {v_1}^{p'_z} \leadsto v_2}
+%  {\mu \vdash v_1^{p'_z} \unlhd \{z \Rightarrow \overline{\sigma}\}_{p_z} \leadsto v_2 \unlhd \{z \Rightarrow [p_z/z]\overline{\sigma}\}}
+%  \quad (\textsc {L-Type})
+%	\and
+%\inferrule
+%  {\varnothing\varnothing \vdash v_1 : p'.L \\
+%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%  	p \not\equiv p' \\
+%  	\mu \vdash v_1 \unlhd S \unlhd U \leadsto v_2}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%  \quad (\textsc {L-Type-Select-Lower})
+%	\and
+%\inferrule
+%  {\varnothing\varnothing \vdash v_1 : p'.L \\
+%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%  	p \equiv p' \\
+%  	\mu \vdash v_1 \unlhd U \leadsto v_2}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%  \quad (\textsc {L-Type-Select-Upper})
+%%	\and
+%%\inferrule
+%%  {\varnothing\varnothing \vdash v_1 : p'.L \\
+%%   p' \equiv p \\
+%%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%%  	\mu \vdash v_1 \unlhd U \leadsto v_2}
+%%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%%  \quad (\textsc {L-Type-Select-Refl})
+%\end{mathpar}
+%\caption{Leadsto Judgement}
+%\label{f:leadsto}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v_1 \leadsto_{f} v_2$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu(l) = \{z \Rightarrow \ldots , \texttt{val} \ f : T = v, \ldots \}}
+%  {\mu \vdash l \leadsto_{f} [l/z]v \unlhd T}
+%  \quad (\textsc {L\textsubscript{$f$}-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \leadsto_{f} v_2 \\
+%  \texttt{val} \ f:T \in \overline{\sigma}}
+%  {\mu \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{f} v_2 \unlhd [v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} / z]T}
+%  \quad (\textsc {L\textsubscript{$f$}-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2 \\
+%   \mu \vdash v_2 \leadsto_{f} v_3}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto_{f} v_3}
+%  \quad (\textsc {L\textsubscript{$f$}-Type-Select})
+%%	\and
+%%\inferrule
+%%  {\varnothing\varnothing \vdash v_1 : T \\
+%%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%%  	\varnothing\varnothing \not\vdash T <: U \\
+%%  	\mu \vdash v_1 \unlhd S \unlhd U \leadsto v_2}
+%%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%%  \quad (\textsc {L\textsubscript{$f$}-Type-Select-Lower})
+%%	\and
+%%\inferrule
+%%  {\varnothing\varnothing \vdash v_1 : T \\
+%%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%%  	\varnothing\varnothing \vdash T <: U \\
+%%  	\mu \vdash v_1 \unlhd U \leadsto v_2}
+%%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%%  \quad (\textsc {L\textsubscript{$f$}-Type-Select-Upper})
+%%	\and
+%%\inferrule
+%%  {\mu \vdash v_1 \leadsto_{f_1} v_2 \\
+%%   v_2 \neq v_1.f_1 \\
+%%  	\mu \vdash v_2 \leadsto_{f_2} v_3}
+%%  {\mu \vdash v_1.f_1 \leadsto_{f_2} v3}
+%%  \quad (\textsc {L\textsubscript{$f$}-Field})
+%%	\and
+%%\inferrule
+%%  {\mu \vdash v_1 \leadsto_{f_1} v_1.f_1}
+%%  {\mu \vdash v_1.f_1 \leadsto_{f_2} v_1.f_1.f_2}
+%%  \quad (\textsc {L\textsubscript{$f$}-Field-Stop})
+%\end{mathpar}
+%\caption{Field Leadsto Judgement}
+%\label{f:field_leadsto}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v_1 \leadsto_{m(v_2)} e$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu(l) = \{z \Rightarrow \ldots , \texttt{def} \ m (x : S) = e : T, \ldots \}}
+%  {\mu \vdash l \leadsto_{m(v_2)} [v_2 \unlhd S/x, l/z]e \unlhd T}
+%  \quad (\textsc {L\textsubscript{$m$}-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \leadsto_{m(v_2 \unlhd S)} e \\
+%  \texttt{def} \ m : S \rightarrow T \in \overline{\sigma}}
+%  {\mu \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{m(v_2)} e \unlhd T}
+%  \quad (\textsc {L\textsubscript{$m$}-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2 \\
+%   \mu \vdash v_2 \leadsto_{m(v_2)} v_3}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto_{m} v_3}
+%  \quad (\textsc {L\textsubscript{$m$}-Type-Select})
+%%	\and
+%%\inferrule
+%%  {\mu \vdash v_1 \leadsto_{f} v_2 \\
+%%  	\mu \vdash v_2 \leadsto_{m} v_3}
+%%  {\mu \vdash v_1.f \leadsto_{m} v3}
+%%  \quad (\textsc {L\textsubscript{$m$}-Field})
+%\end{mathpar}
+%\caption{Method Leadsto Judgement}
+%\label{f:meth_leadsto}
+%\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$ \vdash v \leadsto v'$}
+\begin{mathpar}
+\inferrule
+	{}
+	{ \vdash l \leadsto l}
+	\quad(\textsc{L-Loc})
+	\and
+\inferrule
+	{ \vdash v \leadsto v'}
+	{ \vdash v \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto v' \unlhd \{z \Rightarrow \overline{\sigma}\}}
+	\quad(\textsc{L-Struct})
+	\and
+\inferrule
+	{\emptyset \vdash v : \tau \\
+	 \tau \not\equiv p.L \\
+	 \emptyset \vdash p \ni \text{\texttt{type}}\ L: \tau_1 \ldots \tau_2 \\
+	  \vdash v \unlhd \tau_1 \unlhd \tau_2 \leadsto v'}
+	{ \vdash v \unlhd p.L \leadsto v'}
+	\quad(\textsc{L-Select})
+	\and
+\inferrule
+	{\emptyset \vdash v : \tau \\
+	 \tau \equiv p.L \\
+	 \emptyset \vdash p \ni \text{\texttt{type}}\ L: \tau_1 \ldots \tau_2 \\
+	  \vdash v \unlhd \tau_2 \leadsto v'}
+	{ \vdash v \unlhd p.L \leadsto v'}
+	\quad(\textsc{L-Select-Path-Equiv})
+\end{mathpar}
+\caption{Leadsto}
+\label{f:leadsto}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$\mu \vdash v \leadsto_m t$}
+\begin{mathpar}
+\inferrule
+	{\mu(l) = \{z \Rightarrow \ldots, \text{\texttt{def}}\ m : \tau = t, \ldots\}}
+	{\mu \vdash l \leadsto_m [l/z](t \unlhd \tau)}
+	\quad(\textsc{ML-Loc})
+	\and
+\inferrule
+	{\mu \vdash v \leadsto_m t \\
+	 \text{\texttt{def}}\ m : \tau \in \overline{\sigma}}
+	{\mu \vdash v \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_m t \unlhd [v \unlhd \{z \Rightarrow \overline{\sigma}\}/z]\tau}
+	\quad(\textsc{ML-Struct})
+\end{mathpar}
+\caption{Method Leadsto}
+\label{f:mleadsto}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$v \leadsto_\lambda t^x$}
+\begin{mathpar}
+\inferrule
+	{}
+	{\lambda x:\tau.t \leadsto_\lambda ([x \unlhd \tau/x]t)^x}
+	\quad(\lambda\textsc{L-Loc})
+	\and
+\inferrule
+	{v \leadsto_\lambda t^x}
+	{v \unlhd \tau_1 \rightarrow \tau_2^x \leadsto_\lambda ([x \unlhd \tau_1/x](t \unlhd \tau_2))^x}
+	\quad(\lambda\textsc{L-Struct})
+\end{mathpar}
+\caption{Lambda Leadsto}
+\label{f:lamleadsto}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$\mu \ | \ t \ \rightarrow \mu' \ | \ t'$}
+\begin{mathpar}
+\inferrule
+  {l \notin dom(\mu) \\
+  	\mu' = \mu, l \mapsto \{\texttt{z} \Rightarrow \overline{d}\}}
+  {\mu \ | \ \texttt{new} \ \{\texttt{z} \Rightarrow \overline{d}\} \ \rightarrow \mu' \ | \ l}
+  \quad (\textsc {R-New})
+  \and
+\inferrule
+  {\mu :  \\
+    \vdash v \leadsto v' \\ 
+  	\mu \vdash v' \leadsto_m t}
+  {\mu \ | \ v.m \rightarrow \mu \ | t}
+  \quad (\textsc {R-Meth})
+  \and
+\inferrule
+  {v_1 \leadsto_\lambda t^x}
+  {\mu \ | \ v_1\ v_2 \rightarrow \mu \ | \ [v_2/x]t}
+  \quad (\textsc {R-App})
+  \and
+\inferrule
+  {	\mu \ | \ t \ \rightarrow \ \mu' \ | \ t'}
+  {\mu \ | \ E[t] \ \rightarrow \mu' \ | \ E[t']}
+  \quad (\textsc {R-Context})
+\end{mathpar}
+\caption{Term Reduction}
+\label{f:red}
+\end{figure}
