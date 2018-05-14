@@ -963,7 +963,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | sd_nil : forall G G', G vdash dt_nil <;;; dt_nil dashv G'
   | sd_con : forall G d1 ds1 d2 ds2 G', G vdash d1 <;; d2 dashv G' -> 
                                    G vdash ds1 <;;; ds2 dashv G' ->
-                                   G vdash (dt_con d1 ds2) <;;; (dt_con d2 ds2) dashv G'
+                                   G vdash (dt_con d1 ds1) <;;; (dt_con d2 ds2) dashv G'
 
                                      where "G1 'vdash' d1 '<;;;' d2 'dashv' G2" := (sub_ds G1 d1 d2 G2).
 
@@ -3787,136 +3787,118 @@ Qed.
     assert (Hrewrite2 :((t1' [i]ljump_t n) :: (G5 [dec i 1]ljump_e n)) =
                        ((t1' :: G5) [dec (inc i 1) 1] ljump_e n));
       [crush|rewrite app_comm_cons, Hrewrite2].
-    apply H0; auto.
-    
-    rewrite lshift_ljump_type.
-    assert (Hrewrite3 : (c_ 0) = (c_ 0 [inc i 1] ljump_p n));
-      [crush; destruct (Nat.ltb_lt 0 (length G1 +1)) as [Htemp Hltb1]; clear Htemp;
-       rewrite Hltb1; crush|rewrite Hrewrite3].
-    assert (Hrewrite4 : (((c_ 0) [inc i 1]ljump_p n) cast ((struct d1' d2' lshift_t 1) [inc i 1]ljump_t n)) =
-                        (((c_ 0) cast ((struct d1' d2' lshift_t 1))) [inc i 1] ljump_p n)); [auto|rewrite Hrewrite4].
-    rewrite <- ljump_subst_decl.
-    rewrite <- ljump_subst_decl.
-    assert (Hrewrite5 :((struct d1 d2 [i]ljump_t n) :: (G1 [dec i 1]ljump_e n)) =
-                       (((struct d1 d2) :: G1) [dec (inc i 1) 1] ljump_e n));
-      [crush|rewrite app_comm_cons, Hrewrite5].
-    apply H; auto.
+    apply H0; auto;
+      try solve [apply ge_cons; inversion H3; auto];
+      try solve [apply ge_cons; inversion H4; auto];
+      try solve [inversion H3; subst; apply ge_lt_n_type with (n:=1); auto];
+      try solve [inversion H4; subst; apply ge_lt_n_type with (n:=1); auto];
+      try solve [subst; auto; crush].
 
-    apply ge_cons; auto.
-    apply ge_subst_decl; auto.
-    inversion H2; subst.
-    apply ge_lt_n_decl with (n:=1); auto.
-    apply ge_subst_decl; auto.
-    inversion H3; subst;
-    apply ge_lt_n_decl with (n:=1); auto.
-    crush.
-    crush.
-    apply ge_cast; [crush|].
-    apply ge_shift_type; auto.
-    crush.
-    
-    
     apply s_refl.
-    fold left_jump_p.
-    admit. (*obvious*)
 
-    apply s_lower with (s:= s [i0] ljump_t n);
-    fold left_jump_p.
-    assert (Hsubst : (type l sup (s [i0]ljump_t n)) = ((type l sup s) [i0]ljump_d n)); auto.
-    rewrite Hsubst; apply has_weakening with (G:=G); crush.
-    inversion H2; auto.
-    admit. (*obvious*)
+    apply s_lower with (s:=s [i] ljump_t n); auto.
+    apply has_weakening with (G1:=G5)(G2:=G6)(G':=G'0)(i:=i)(n:=n) in h; subst; auto.
+    destruct x; crush.
     apply H; auto.
-    apply ge_has with (n:=0) in h; auto.
-    inversion h; subst; auto.
-    inversion H2; auto.
-
-    apply s_upper with (u:= u [i] ljump_t n);
-    fold left_jump_p.
-    assert (Hsubst : (type l ext (u [i]ljump_t n)) = ((type l ext u) [i]ljump_d n)); auto.
-    rewrite Hsubst; apply has_weakening with (G:=G); crush.
-    inversion H1; auto.
-    apply H; auto.
-    apply ge_has with (n:=0) in h; auto.
-    inversion h; subst; auto.
-    inversion H1; auto.
-
-    apply s_struct;
-      fold left_jump_d.
-    assert (Hrewrite1 : (struct (d1' [inc i 1]ljump_d n) (d2' [inc i 1]ljump_d n)) = ((struct d1' d2') [i] ljump_t n));
-      [auto|rewrite Hrewrite1].
-    assert (Hrewrite2 : (struct (d1 [inc i 1]ljump_d n) (d2 [inc i 1]ljump_d n)) = ((struct d1 d2) [i] ljump_t n));
-      [auto|rewrite Hrewrite2].
-    rewrite lshift_ljump_type.
-    assert (Hrewrite3 : (c_ 0) = (c_ 0 [inc i 1] ljump_p n));
-      [crush; destruct (Nat.ltb_lt 0 (length G1 +1)) as [Htemp Hltb1]; clear Htemp;
-       rewrite Hltb1; crush|rewrite Hrewrite3].
-    assert (Hrewrite4 : (((c_ 0) [inc i 1]ljump_p n) cast ((struct d1' d2' lshift_t 1) [inc i 1]ljump_t n)) =
-                        (((c_ 0) cast ((struct d1' d2' lshift_t 1))) [inc i 1] ljump_p n)); [auto|rewrite Hrewrite4].
-    rewrite <- ljump_subst_decl.
-    rewrite <- ljump_subst_decl.
-    assert (Hrewrite5 :((struct d1 d2 [i]ljump_t n) :: (G1 [dec i 1]ljump_e n)) =
-                       (((struct d1 d2) :: G1) [dec (inc i 1) 1] ljump_e n));
-      [crush|rewrite app_comm_cons, Hrewrite5].
-    apply H; auto.
-
-    apply ge_cons; auto.
-    apply ge_subst_decl; auto.
-    inversion H2; subst.
-    apply ge_lt_n_decl with (n:=1); auto.
-    apply ge_subst_decl; auto.
-    inversion H3; subst;
-    apply ge_lt_n_decl with (n:=1); auto.
-    crush.
-    crush.
-    apply ge_cast; [crush|].
-    apply ge_shift_type; auto.
-    crush.
-
+    apply ge_has with (n:=0) in h; try solve [inversion h; destruct x; crush].
     
+    apply s_upper with (u:=u [i] ljump_t n); auto.
+    apply has_weakening with (G1:=G3)(G2:=G4)(G':=G0)(i:=i)(n:=n) in h; simpl in h; subst; auto.
+    destruct x; crush.
+    apply H; auto.    
+    apply ge_has with (n:=0) in h; try solve [inversion h; destruct x; crush].
 
-    assert (Hrewrite1 : (struct (d1' [inc i 1]ljump_d n) (d2' [inc i 1]ljump_d n)) = ((struct d1' d2') [i] ljump_t n));
-      [auto|rewrite Hrewrite1].
-    assert (Hrewrite2 : (struct (d1 [inc i 1]ljump_d n) (d2 [inc i 1]ljump_d n)) = ((struct d1 d2) [i] ljump_t n));
-      [auto|rewrite Hrewrite2].
-    rewrite lshift_ljump_type.
-    assert (Hrewrite3 : (c_ 0) = (c_ 0 [inc i 1] ljump_p n));
-      [crush; destruct (Nat.ltb_lt 0 (length G1 +1)) as [Htemp Hltb1]; clear Htemp;
-       rewrite Hltb1; crush|rewrite Hrewrite3].
-    assert (Hrewrite4 : (((c_ 0) [inc i 1]ljump_p n) cast ((struct d1' d2' lshift_t 1) [inc i 1]ljump_t n)) =
-                        (((c_ 0) cast ((struct d1' d2' lshift_t 1))) [inc i 1] ljump_p n)); [auto|rewrite Hrewrite4].
-    rewrite <- ljump_subst_decl.
-    rewrite <- ljump_subst_decl.
-    assert (Hrewrite5 :((struct d1 d2 [i]ljump_t n) :: (G1 [dec i 1]ljump_e n)) =
-                       (((struct d1 d2) :: G1) [dec (inc i 1) 1] ljump_e n));
-      [crush|rewrite app_comm_cons, Hrewrite5].
+    apply s_struct; fold left_jump_d_tys.
+    assert (Hsub : (((str ds1)::G3) [dec (inc i 1) 1]ljump_e n) ++ G0 ++ G4 vdash ds1 [inc i 1]ljump_dts n <;;; ds2 [inc i 1]ljump_dts n
+                                     dashv (((str ds2)::G5) [dec (inc i 1) 1]ljump_e n) ++ G'0 ++ G6);
+      [apply H;
+       try solve [apply ge_cons; auto];
+       try solve [inversion H2; subst; apply ge_lt_n_decl_tys with (n:=1); auto];
+       try solve [inversion H3; subst; apply ge_lt_n_decl_tys with (n:=1); auto];
+       try solve [subst; auto; simpl; rewrite <- plus_n_Sm; rewrite <- plus_n_O; try (inversion H8; subst; rewrite H5); auto];
+       subst; auto|rewrite dec_inc_n in Hsub; auto].
+
+    apply sd_low; fold left_jump_t.
+    apply H; subst; auto.
+    inversion H3; auto.
+    inversion H2; auto.
+
+    apply sd_upp; fold left_jump_t.
+    apply H; subst; auto.
+    inversion H2; auto.
+    inversion H3; auto.
+
+    apply sd_val; fold left_jump_t.
+    apply H; subst; auto.
+    inversion H2; auto.
+    inversion H3; auto.
+
+    inversion H3; inversion H4; subst.
+    apply sd_con; fold left_jump_d_ty; fold left_jump_d_tys.
+    apply H; auto.
     apply H0; auto.
+  Qed.
 
-    apply ge_cons; auto.
-    apply ge_subst_decl; auto.
-    inversion H2; subst.
-    apply ge_lt_n_decl with (n:=1); auto.
-    apply ge_subst_decl; auto.
-    inversion H3; subst;
-    apply ge_lt_n_decl with (n:=1); auto.
-    crush.
-    crush.
-    apply ge_cast; [crush|].
-    apply ge_shift_type; auto.
-    crush.
+  Lemma sub_weakening_type :
+    (forall G1 t1 t2 G2 , G1 vdash t1 <; t2 dashv G2 ->
+                     ge_env G1 0 ->
+                     ge_env G2 0 ->
+                     ge_type t1 0 ->
+                     ge_type t2 0 ->
+                     (forall G3 G4
+                        G5 G6, G1 = G3 ++ G4 ->
+                               G2 = G5 ++ G6 ->
+                               forall G G'
+                                 i n, i = Some (length G3) ->
+                                      n = length G ->
+                                      i = Some (length G5) ->
+                                      n = length G' ->
+                                      (G3 [dec i 1] ljump_e n) ++ G ++ G4 vdash (t1 [i] ljump_t n) <;
+                                                         (t2 [i] ljump_t n) dashv (G5 [dec i 1] ljump_e n) ++ G' ++ G6)).
+  Proof.
+    destruct sub_weakening_mutind; auto.
+  Qed.
+  
+  Lemma sub_weakening_decl_ty :
+    (forall G1 d1 d2 G2 , G1 vdash d1 <;; d2 dashv G2 ->
+                     ge_env G1 0 ->
+                     ge_env G2 0 ->
+                     ge_decl_ty d1 0 ->
+                     ge_decl_ty d2 0 ->
+                     (forall G3 G4
+                        G5 G6, G1 = G3 ++ G4 ->
+                               G2 = G5 ++ G6 ->
+                               forall G G'
+                                 i n, i = Some (length G3) ->
+                                      n = length G ->
+                                      i = Some (length G5) ->
+                                      n = length G' ->
+                                      (G3 [dec i 1] ljump_e n) ++ G ++ G4 vdash (d1 [i] ljump_dt n) <;;
+                                                         (d2 [i] ljump_dt n) dashv (G5 [dec i 1] ljump_e n) ++ G' ++ G6)).
+  Proof.
+    destruct sub_weakening_mutind; crush.
+  Qed.
 
-    apply sd_lower; fold left_jump_t.
-    apply H; auto.
-    inversion H2; auto.
-    inversion H1; auto.
-    admit. (*obvious*)
+  Lemma sub_weakening_decl_tys :
+    (forall G1 ds1 ds2 G2 , G1 vdash ds1 <;;; ds2 dashv G2 ->
+                       ge_env G1 0 ->
+                       ge_env G2 0 ->
+                       ge_decl_tys ds1 0 ->
+                       ge_decl_tys ds2 0 ->
+                     (forall G3 G4
+                        G5 G6, G1 = G3 ++ G4 ->
+                               G2 = G5 ++ G6 ->
+                               forall G G'
+                                 i n, i = Some (length G3) ->
+                                      n = length G ->
+                                      i = Some (length G5) ->
+                                      n = length G' ->
+                                      (G3 [dec i 1] ljump_e n) ++ G ++ G4 vdash (ds1 [i] ljump_dts n) <;;;
+                                                         (ds2 [i] ljump_dts n) dashv (G5 [dec i 1] ljump_e n) ++ G' ++ G6)).
+  Proof.
+    destruct sub_weakening_mutind; crush.
+  Qed.
 
-    apply sd_upper; fold left_jump_t.
-    apply H; auto.
-    inversion H1; auto.
-    inversion H2; auto.
-    admit. (*obvious*)
-  Admitted.
 
   
 
@@ -4094,6 +4076,27 @@ Qed.
     
   Qed.
 
+  Lemma in_dty_subst :
+    forall d ds, in_dty d ds -> forall x n, in_dty ([x /dt n] d) ([x /dts n] ds).
+  Proof.
+    intros d ds Hin; induction Hin; intros.
+    apply in_head_dty.
+    apply in_tail_dty; auto.
+  Qed.
+
+  Lemma wf_dty_unique :
+    forall d1 ds, in_dty d1 ds -> forall G, G vdash ds wf_ds -> forall d2, in_dty d2 ds -> id d1 = id d2 -> d1 = d2.
+  Proof.
+    intros d1 ds Hin; induction Hin; intros.
+    inversion H; subst; auto.
+    inversion H0; subst; auto.
+
+    apply H7 in H5; contradiction H5; auto.
+
+    inversion 
+    
+  Qed.
+
   Lemma has_contains_unique_mutind :
     (forall G x d, G vdash x ni d -> G vdash x wf_v -> G wf_e -> forall d', G vdash x ni d' -> id d' = id d -> d' = d) /\
     (forall G t d, G vdash d cont t -> G vdash t wf_t -> G wf_e -> forall d', G vdash d' cont t -> id d' = id d -> d' = d).
@@ -4103,7 +4106,27 @@ Qed.
     inversion H2; subst.
     apply typing_unique with (t:=t) in H4; auto; subst.
     apply H in H5; subst; auto.
-    
+
+    admit.
+
+    destruct d0; destruct d; simpl in H3; simpl; inversion H3; auto.
+    inversion H1; subst.
+    inversion H; subst.
+    inversion H4; subst.
+    inversion i; subst; simpl in H8; inversion H8.
+
+    destruct ds as [|d' ds'];
+      [inversion i|simpl in H3; inversion H3; subst].
+    inversion i; subst.
+    inversion H5; subst; auto.
+    apply in_dty_subst with (x:=c_ 0)(n:=0) in H12.
+    apply H10 in H12.
+    destruct d0; destruct d'; simpl in H2; inversion H2; subst; simpl in H12; contradiction H12.
+    inversion H5; subst; auto.
+    apply in_dty_subst with (x:=c_ 0)(n:=0) in H12.
+    apply H10 in H12.
+    destruct d; destruct d'; simpl in H2; inversion H2; subst; simpl in H12; contradiction H12.
+    inversion H5; subst; auto.
     
   Qed.
         
