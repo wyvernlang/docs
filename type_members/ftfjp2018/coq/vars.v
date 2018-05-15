@@ -486,10 +486,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   contains : env -> ty -> decl_ty -> Prop :=
   | c_struct1 : forall G d ds, in_dty d ds ->
                           G vdash (d rshift_dt 1) cont (str ds)
-  | c_select : forall G p l l' t d, G vdash p ni (type l' ext t) ->
-                               G vdash d cont t ->
-                               G vdash d cont(sel p l)
-                                 where "G 'vdash' d 'cont' t" := (contains G t d). 
+  | c_select : forall G p l t d, G vdash p ni (type l ext t) ->
+                            G vdash d cont t ->
+                            G vdash d cont(sel p l)
+  where "G 'vdash' d 'cont' t" := (contains G t d). 
 
   Hint Constructors has contains.
   
@@ -700,7 +700,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Inductive wf_env : env -> Prop :=
   | wf_nil_env : nil wf_e
   | wf_con_env : forall G t, G vdash t wf_t ->
-                     t::G wf_e
+                        G wf_e ->
+                        t::G wf_e
 
   where "G 'wf_e'" := (wf_env G).
   
@@ -3401,7 +3402,7 @@ Qed.
     apply c_struct1; auto.
     inversion H0; apply ge_in_dty with (ds:=ds); auto.
     
-    apply c_select with (l':=l')(t:=t [Some (length G1)] ljump_t (length G')).
+    apply c_select with (t:=t [Some (length G1)] ljump_t (length G')).
     apply H; auto.
     inversion H2; auto.
     
@@ -4092,10 +4093,236 @@ Qed.
     inversion H0; subst; auto.
 
     apply H7 in H5; contradiction H5; auto.
+    
+    inversion H0; subst.
+    inversion H; subst.
+    apply H7 in Hin; contradiction Hin.
+    apply IHHin with (G:=G); auto. 
+    inversion H; auto.
+  Qed.
 
-    inversion 
+  Lemma wf_ge_O_mutind :
+    (forall G t, G vdash t wf_t -> ge_type t 0) /\
+    (forall G d, G vdash d wf_d -> ge_decl_ty d 0) /\
+    (forall G ds, G vdash ds wf_ds -> ge_decl_tys ds 0).
+  Proof.
+    apply wf_mutind; intros; auto.
+
+    apply ge_sel; destruct x; crush.
+
+    apply ge_sel; destruct x; crush.
+
+    apply ge_str.
+    apply ge_notin_Sn_decl_tys; auto.
+    apply subst_ge_decl_tys with (v:=c_ 0)(x:=0); auto.
+        
+  Qed.
+
+  Lemma wf_ge_O_type :
+    (forall G t, G vdash t wf_t -> ge_type t 0).
+  Proof.
+    destruct wf_ge_O_mutind; crush.
+  Qed.
+
+  Lemma wf_ge_O_decl_ty :
+    (forall G d, G vdash d wf_d -> ge_decl_ty d 0).
+  Proof.
+    destruct wf_ge_O_mutind; crush.
+  Qed.
+
+  Lemma wf_ge_O_decl_tys :
+    (forall G ds, G vdash ds wf_ds -> ge_decl_tys ds 0).
+  Proof.
+    destruct wf_ge_O_mutind; crush.
+  Qed.
+    
+
+  Lemma wf_env_implies_ge_O :
+    forall G, G wf_e -> ge_env G 0.
+  Proof.
+    intro G; induction G as [|t' G']; intros; auto.
+
+    apply ge_nil.
+
+    apply ge_cons.
+    inversion H; subst.
+    apply wf_ge_O_type with (G:=G'); auto.
+    apply IHG'; inversion H; auto.
     
   Qed.
+    
+  Lemma wf_get_lshift :
+    forall n G t, get n G = Some t -> G wf_e -> G vdash (t lshift_t (S n)) wf_t.
+  Proof.
+    intro n; induction n as [|n']; intros.
+    destruct G as [|t' G']; simpl in H; inversion H; subst.
+
+    inversion H0; subst.
+    apply wf_weakening_type with (G':=t::nil) in H3; auto.
+    apply wf_env_implies_ge_O; auto.
+
+    destruct G as [|t' G']; simpl in H; [inversion H|].
+    apply IHn' in H.
+    apply wf_weakening_type with (G':=t'::nil) in H; simpl in H.
+    rewrite lshift_add_type in H.
+    rewrite plus_Sn_m in H;
+      rewrite plus_comm in H;
+      simpl in H; auto.
+
+    apply wf_env_implies_ge_O; inversion H0; auto.
+    inversion H0; auto.
+  Qed.
+
+  Lemma wf_typing :
+    forall G x t, G vdash x hasType t -> G wf_e -> G vdash t wf_t.
+  Proof.
+    intros; destruct x; inversion H; subst.
+
+    apply wf_get_lshift; auto.
+    
+  Qed.
+
+  Lemma wf_decl_tys_unique :
+    forall G ds, G vdash ds wf_ds -> forall d1 d2, in_dty d1 ds -> in_dty d2 ds -> id d1 = id d2 -> d1 = d2.
+  Proof.
+    intros G ds Hwf; induction Hwf; intros.
+    inversion H.
+
+    inversion H1; inversion H2; subst; [auto| | |].
+
+    apply H0 in H9; contradiction H9; auto.
+    apply H0 in H6; contradiction H6; auto.
+    apply IHHwf; auto.
+  Qed.
+
+  Lemma subst_in_dty :
+    forall d ds, in_dty d ds -> forall x y, in_dty ([x /dt y] d) ([x /dts y] ds).
+  Proof.
+    intros d ds Hin; induction Hin; intros.
+
+    simpl; apply in_head_dty.
+
+    simpl; apply in_tail_dty; auto.
+    
+  Qed.
+  
+  Hint Resolve subst_in_dty.
+
+  Lemma subst_equals_var :
+    (forall v1 n, ge_var v1 n -> forall v2, ge_var v2 n ->
+                                 forall x, x < n -> forall m, ([c_ x /v m] v1) = ([c_ x /v m] v2) ->
+                                                   v1 =v2).
+  Proof.
+    intros; destruct v1 as [r1|r1]; destruct v2 as [r2|r2]; crush.
+    
+    destruct (eq_nat_dec m r2); subst;
+      [rewrite <- beq_nat_refl in H2|].
+    inversion H2; subst.
+    inversion H; crush.
+    apply (Nat.eqb_neq) in n0;
+      rewrite n0 in H2;
+      inversion H2.
+    
+    destruct (eq_nat_dec m r1); subst;
+      [rewrite <- beq_nat_refl in H2|].
+    inversion H2; subst.
+    inversion H0; crush.
+    apply (Nat.eqb_neq) in n0;
+      rewrite n0 in H2;
+      inversion H2.
+
+    destruct (eq_nat_dec m r1);
+      destruct (eq_nat_dec m r2); subst;
+        [rewrite <- beq_nat_refl in H2|
+         rewrite <- beq_nat_refl in H2|
+         rewrite <- beq_nat_refl in H2|]; auto.
+    apply Nat.eqb_neq in n0; rewrite n0 in H2;
+      inversion H2.
+    apply Nat.eqb_neq in n0; rewrite n0 in H2;
+      inversion H2.
+    apply Nat.eqb_neq in n0; apply Nat.eqb_neq in n1;
+      rewrite n0 in H2; rewrite n1 in H2.
+      inversion H2; auto.
+    
+  Qed.
+
+  Lemma subst_equals_mutind :
+    (forall t1 n, ge_type t1 n -> forall t2, ge_type t2 n ->
+                                  forall x, x < n -> forall m, ([c_ x /t m] t1) = ([c_ x /t m] t2) ->
+                                                    t1 =t2) /\
+    (forall d1 n, ge_decl_ty d1 n -> forall d2, ge_decl_ty d2 n ->
+                                     forall x, x < n -> forall m, ([c_ x /dt m] d1) = ([c_ x /dt m] d2) ->
+                                                       d1 = d2) /\
+    (forall ds1 n, ge_decl_tys ds1 n -> forall ds2, ge_decl_tys ds2 n ->
+                                         forall x, x < n -> forall m, ([c_ x /dts m] ds1) = ([c_ x /dts m] ds2) ->
+                                                           ds1 =ds2).
+  Proof.
+    apply ge_mutind; intros.
+    
+    destruct t2; simpl in H1; inversion H1; auto.
+    
+    destruct t2; simpl in H1; inversion H1; auto.
+
+    destruct t0; simpl in H3; inversion H3; subst.
+    rewrite H with (t2:=t0_1)(m:=m)(x:=x); crush.
+    rewrite H0 with (t3:=t0_2)(m:=S m)(x:=S x); crush.
+    inversion H1; auto.
+    inversion H1; auto.
+
+    destruct t2; simpl in H1; inversion H1; subst.
+    apply subst_equals_var with (n:=n) in H3; subst; auto.
+    inversion H; auto.
+
+    destruct t2; simpl in H2; inversion H2; subst.
+    apply H in H4; subst; crush.
+    inversion H0; auto.
+
+    destruct d2; simpl in H2; inversion H2; subst.
+    apply H in H5; subst; crush.
+    inversion H0; auto.
+
+    destruct d2; simpl in H2; inversion H2; subst.
+    apply H in H5; subst; crush.
+    inversion H0; auto.
+
+    destruct d2; simpl in H2; inversion H2; subst.
+    apply H in H5; subst; crush.
+    inversion H0; auto.
+
+    destruct ds2; simpl in H1; inversion H1; subst; auto.
+
+    destruct ds2; simpl in H3; inversion H3; subst.
+    apply H in H5; subst; crush.
+    apply H0 in H6; subst; crush.
+    inversion H1; auto.
+    inversion H1; auto.
+    
+  Qed.
+
+  Lemma subst_equals_type :
+    (forall t1 n, ge_type t1 n -> forall t2, ge_type t2 n ->
+                                  forall x, x < n -> forall m, ([c_ x /t m] t1) = ([c_ x /t m] t2) ->
+                                                    t1 =t2).
+  Proof.
+    destruct subst_equals_mutind; crush.
+  Qed.
+
+  Lemma subst_equals_decl_ty :
+    (forall d1 n, ge_decl_ty d1 n -> forall d2, ge_decl_ty d2 n ->
+                                     forall x, x < n -> forall m, ([c_ x /dt m] d1) = ([c_ x /dt m] d2) ->
+                                                       d1 = d2).
+  Proof.
+    destruct subst_equals_mutind; crush.
+  Qed.
+
+  Lemma subst_equals_decl_tys :
+    (forall ds1 n, ge_decl_tys ds1 n -> forall ds2, ge_decl_tys ds2 n ->
+                                         forall x, x < n -> forall m, ([c_ x /dts m] ds1) = ([c_ x /dts m] ds2) ->
+                                                           ds1 =ds2).
+  Proof.
+    destruct subst_equals_mutind; crush.
+  Qed.
+  
 
   Lemma has_contains_unique_mutind :
     (forall G x d, G vdash x ni d -> G vdash x wf_v -> G wf_e -> forall d', G vdash x ni d' -> id d' = id d -> d' = d) /\
@@ -4106,28 +4333,35 @@ Qed.
     inversion H2; subst.
     apply typing_unique with (t:=t) in H4; auto; subst.
     apply H in H5; subst; auto.
-
-    admit.
-
+    apply wf_typing with (x:=p); auto.
     destruct d0; destruct d; simpl in H3; simpl; inversion H3; auto.
+
     inversion H1; subst.
     inversion H; subst.
-    inversion H4; subst.
-    inversion i; subst; simpl in H8; inversion H8.
+    apply wf_decl_tys_unique with (d1:=[c_ 0 /dt 0]d0)(d2:=[c_ 0 /dt 0]d) in H4; auto.
+    apply subst_equals_decl_ty with (n:=1) in H4; subst; auto.
+    apply ge_in_dty with (ds:=ds); auto.
+    apply ge_notin_Sn_decl_tys; auto.
+    apply subst_ge_decl_tys with (v:=c_ 0)(x:=0).
+    apply wf_ge_O_decl_tys with (G:=str ds ::G).
+    inversion H; subst; auto.
+    apply ge_in_dty with (ds:=ds); auto.
+    apply ge_notin_Sn_decl_tys; auto.
+    apply subst_ge_decl_tys with (v:=c_ 0)(x:=0).
+    apply wf_ge_O_decl_tys with (G:=str ds ::G).
+    inversion H; subst; auto.
+    destruct d0; destruct d; simpl in H2; auto.
 
-    destruct ds as [|d' ds'];
-      [inversion i|simpl in H3; inversion H3; subst].
-    inversion i; subst.
-    inversion H5; subst; auto.
-    apply in_dty_subst with (x:=c_ 0)(n:=0) in H12.
-    apply H10 in H12.
-    destruct d0; destruct d'; simpl in H2; inversion H2; subst; simpl in H12; contradiction H12.
-    inversion H5; subst; auto.
-    apply in_dty_subst with (x:=c_ 0)(n:=0) in H12.
-    apply H10 in H12.
-    destruct d; destruct d'; simpl in H2; inversion H2; subst; simpl in H12; contradiction H12.
-    inversion H5; subst; auto.
-    
+    inversion H3; subst.
+    apply H in H8; auto.
+    inversion H8; subst.
+    apply H0 in H10; auto.
+    admit. (*has_contains_wf_mutind*)
+    inversion h; subst.
+    inversion H6; subst.
+    apply wf_variable.
+    admit. (**)
+
   Qed.
         
 
