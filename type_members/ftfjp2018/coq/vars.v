@@ -627,9 +627,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Inductive notin_env : nat -> env -> Prop :=
   | ni_nil : forall n, n notin_e nil
-  | ni_cons : forall n G t, n notin_t t ->
-                       n notin_e G ->
-                       n notin_e (t::G)
+  | ni_cons_O : forall G t, O notin_e (t::G)
+  | ni_cons_S : forall n G t, n notin_t t ->
+                         n notin_e G ->
+                         (S n) notin_e (t::G)
                          where "n 'notin_e' G" := (notin_env n G).
 
   Reserved Notation "G 'vdash' t 'wf_t'" (at level 80).
@@ -4322,7 +4323,82 @@ Qed.
   Proof.
     destruct subst_equals_mutind; crush.
   Qed.
-  
+
+  Lemma subst_wf_mutind :
+    (forall G t, G vdash t wf_t -> forall G1 tg G2, G = G1++tg::G2 ->
+                                     forall n, n = length G1 ->
+                                          n notin_e G1 ->
+                                           forall t', t = ([c_ n /t n] t') ->
+                                                 forall  x, G2 vdash x hasType tg ->
+                                                       G1++G2 vdash [x /t n] t' wf_t) /\
+    (forall G d, G vdash d wf_d -> forall G1 tg G2, G = G1++tg::G2 ->
+                                     forall n, n = length G1 ->
+                                          n notin_e G1 ->
+                                           forall d', d = ([c_ n /dt n] d') ->
+                                                 forall  x, G2 vdash x hasType tg ->
+                                                       G1++G2 vdash [x /dt n] d' wf_d) /\
+    (forall G ds, G vdash ds wf_ds -> forall G1 tg G2, G = G1++tg::G2 ->
+                                        forall n, n = length G1 ->
+                                             n notin_e G1 ->
+                                             forall ds', ds = ([c_ n /dts n] ds') ->
+                                                    forall  x, G2 vdash x hasType tg ->
+                                                          forall i, i = Some n ->
+                                                               (G1 [i] rjump_e ++G2 vdash [x /dts n] ds' wf_ds).
+  Proof.
+
+  Qed.
+
+                             t2, t1 = ([c_ 0 /t 0] t2) ->
+                                 forall t' G', G = t'::G' ->
+                                          forall x, G' vdash x hasType t' ->
+                                               G' vdash [x /t 0] t2 wf_t) /\
+    (forall G d1, G vdash d1 wf_d -> forall d2, d1 = ([c_ 0 /dt 0] d2) ->
+                                 forall t' G', G = t'::G' ->
+                                          forall x, G' vdash x hasType t' ->
+                                               G' vdash [x /dt 0] d2 wf_d) /\
+    (forall G ds1, G vdash ds1 wf_ds -> forall ds2, ds1 = ([c_ 0 /dts 0] ds2) ->
+                                 forall t' G', G = t'::G' ->
+                                          forall x, G' vdash x hasType t' ->
+                                               G' vdash [x /dts 0] ds2 wf_ds).
+
+  Lemma subst_wf_mutind :
+    (forall G t1, G vdash t1 wf_t -> forall t2, t1 = ([c_ 0 /t 0] t2) ->
+                                 forall t' G', G = t'::G' ->
+                                          forall x, G' vdash x hasType t' ->
+                                               G' vdash [x /t 0] t2 wf_t) /\
+    (forall G d1, G vdash d1 wf_d -> forall d2, d1 = ([c_ 0 /dt 0] d2) ->
+                                 forall t' G', G = t'::G' ->
+                                          forall x, G' vdash x hasType t' ->
+                                               G' vdash [x /dt 0] d2 wf_d) /\
+    (forall G ds1, G vdash ds1 wf_ds -> forall ds2, ds1 = ([c_ 0 /dts 0] ds2) ->
+                                 forall t' G', G = t'::G' ->
+                                          forall x, G' vdash x hasType t' ->
+                                               G' vdash [x /dts 0] ds2 wf_ds).
+  Proof.
+    apply wf_mutind; intros; auto.
+
+    destruct t2; simpl in H; inversion H; simpl; auto.
+
+    destruct t2; simpl in H; inversion H; simpl; auto.
+
+    destruct t0; simpl in H1; inversion H1.
+    simpl; apply wf_arr.
+    apply H with (t':=t'); auto.
+    apply H0.
+  Qed.
+
+  Lemma has_contains_wf_mutind :
+    (forall G p d, G vdash p ni d -> G wf_e -> G vdash d wf_d) /\
+    (forall G t d, G vdash d cont t -> G wf_e -> G vdash t wf_t -> forall p, G vdash p hasType t -> G vdash [p /dt 0]d wf_d).
+  Proof.
+    apply has_contains_mutind; intros; auto.
+
+    apply H; auto.
+    apply wf_typing with (x:=p); auto.
+
+    inversion H0; subst.
+    
+  Qed.
 
   Lemma has_contains_unique_mutind :
     (forall G x d, G vdash x ni d -> G vdash x wf_v -> G wf_e -> forall d', G vdash x ni d' -> id d' = id d -> d' = d) /\
@@ -4360,7 +4436,8 @@ Qed.
     inversion h; subst.
     inversion H6; subst.
     apply wf_variable.
-    admit. (**)
+    apply get_some_index with (t:=t2); auto.
+
 
   Qed.
         
