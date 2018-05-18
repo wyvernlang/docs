@@ -1,36 +1,78 @@
 \section{Introduction}
 
-Capabilities have been recently gaining new attention as a promising mechanism for controlling access to resources in systems and languages~\cite{miller03,drossopoulou07,dimoulas14,devriese16}.
-A \textit{capability} is an unforgeable token that can be used by its bearer to perform some operation on a resource \cite{dennis66}.
-In a \textit{capability-safe} language, all resources must be accessed through capabilities, and a resource-access capability must be obtained from a source that already has it: ``only connectivity begets connectivity'' \cite{miller03}.
-For example, a \kwat{logger} component that provides a logging service would need to be initialised with a capability providing the ability to append to the log file.
+Capabilities have been recently gaining new attention as a promising
+mechanism for controlling access to resources, particularly in
+object-oriented languages and
+systems~\cite{miller03,drossopoulou07,dimoulas14,devriese16}.  A
+\textit{capability} is an unforgeable token that can be used by its
+bearer to perform some operation on a resource \cite{dennis66}.  In a
+\textit{capability-safe} language, all resources must be accessed
+through object capabilities, and a resource-access capability must be
+obtained from an object that already has it: ``only connectivity
+begets connectivity'' \cite{miller03}.  For example, a \kwat{logger}
+component that provides a logging service would need to be initialised
+with an object capability providing the ability to append to the log
+file.
 
-Capability-safe languages thus prohibit the \textit{ambient authority} that is present in non-capability-safe languages.
-An implementation of a \kwat{logger} in OCaml or Java, for example, does not need to be passed a capability at initialisation time; it can simply import the appropriate file-access library and open the log file for appending itself.
-Critically, a malicious implementation of such a component could also delete the log, read from another file, or exfiltrate logging information over the network.
-Other mechanisms such as sandboxing can be used to limit the effects of such malicious components, but recent work has found that Java's sandbox (for example) is difficult to use and is therefore often misused~\cite{coker15,maass16}.
+Capability-safe languages thus prohibit the \textit{ambient
+  authority}~\cite{miller06} that is present in non-capability-safe
+languages.  An implementation of a \kwat{logger} in Java, for example,
+does not need to be passed a capability at initialisation time; it can
+simply import the appropriate file-access library and open the log
+file for appending itself.  Critically, a malicious implementation of
+such a component could also delete the log, read from another file, or
+exfiltrate logging information over the network.  Other mechanisms
+such as sandboxing can be used to limit the effects of such malicious
+components, but recent work has found that Java's sandbox (for
+example) is difficult to use and is therefore often
+misused~\cite{coker15,maass16}.
 
-In practice, reasoning about resource use in capability-based systems is mostly done informally.
-But if capabilities are useful for \textit{informal} reasoning, shouldn't they also aid in \textit{formal} reasoning?
-Recent work by \cite{drossopoulou07} sheds some light on this question by presenting a logic that formalizes capability-based reasoning about trust between objects.
-Two other trains of work, rather than formalise capability-based reasoning itself, reason about how capabilities may be used.
-\cite{dimoulas14} developed a formalism for reasoning about which components may use a capability and which may influence (perhaps indirectly) the use of a capability.
-\cite{devriese16} formulate an effect parametricity theorem that limits the effects of an object based on the capabilities it possesses, and then use logical relations to reason about capability use in higher-order settings.
-Overall, this prior work presents new formal systems for reasoning about capability use, or reasoning about new properties using capabilities.
+In practice, reasoning about resource use in capability-based systems
+is mostly done informally.
+%% TODO: Cite with some evidence? Lindsay says.
+But if capabilities are useful for \textit{informal} reasoning,
+shouldn't they also aid in \textit{formal} reasoning?  Recent work
+sheds some light on this question by presenting a logic that
+formalizes capability-based reasoning about trust between
+objects~\cite{drossopoulou07}.  Two other trains of work, rather than
+formalise capability-based reasoning itself, reason about how
+capabilities may be used.  Dimoulas et al. developed a formalism for
+reasoning about which components may use a capability and which may
+influence (perhaps indirectly) the use of a
+capability~\cite{dimoulas14}.  Devriese et al. formulate an effect
+parametricity theorem that limits the effects of an object based on
+the capabilities it possesses, and then use logical relations to
+reason about capability use in higher-order settings~\cite{devriese16}
+.  Overall, this prior work presents new formal systems for reasoning
+about capability use, or reasoning about new properties using
+capabilities.
 
-We are interested in a different question: can capabilities be used to enhance formal reasoning that is currently done without relying on capabilities?
-In other words, what value do capabilities add to existing formal reasoning?
+We are interested in a different question: can capabilities be used to
+enhance formal reasoning that is currently done without relying on
+capabilities?  In other words, what value do capabilities add to
+existing formal reasoning approaches?
 
-To answer this question, we decided to pick a simple and practical formal reasoning system, and see if capability-based reasoning could help.
-A natural choice for our investigation is effect systems~\cite{nielson99}.
-Effect systems are a relatively simple formal reasoning approach, and keeping things simple will help to make the difference made by capabilities more obvious.
-Furthermore, effects have an intuitive link to capabilities: in a system that uses capabilities to protect resources, an expression can only have an effect on a resource if it is given a capability to do so.
+To answer this question, we decided to pick a simple and practical
+formal reasoning system, and see if capability-based reasoning could
+help.  A natural choice for our investigation is effect
+systems~\cite{nielson99}.  Effect systems are a relatively simple
+formal reasoning approach, and keeping things simple will help to
+highlight the difference made by capabilities.  Finally, effects have
+an intuitive link to capabilities: in a system that uses capabilities
+to protect resources, an expression can only have an effect on a
+resource if it is given a capability to do so.
 
-How could capabilities help with effects?
-One challenge to the wider adoption of effect systems is their annotation overhead~\cite{rytz12}.
-For example, Java's checked exception system is a kind of effect system, and is often criticised for being cumbersome~\cite{Kiniry2006}.
-Effect inference can be used to reduce the annotations required~\cite{koka14}, but this has significant drawbacks: understanding error messages that arise through effect inference requires a detailed understanding of the internal structure of the code, not just its interface.
-Capabilities are a promising alternative for reducing the overhead of effect annotations, as suggested by the following example:
+How could capabilities help with effects?  One challenge to the wider
+adoption of effect systems is their annotation overhead~\cite{rytz12}.
+For example, Java's checked exception system is a kind of effect
+system, and is often criticised for being
+cumbersome~\cite{Kiniry2006}.  Effect inference can be used to reduce
+the annotations required~\cite{koka14}, but this has significant
+drawbacks: understanding error messages that arise through effect
+inference requires a detailed understanding of the internal structure
+of the code, not just its interface.  Capabilities are a promising
+alternative for reducing the overhead of effect annotations, as
+suggested by the following example:
 
 \begin{lstlisting}
 import log : String -> Unit with effect File.write
@@ -38,25 +80,54 @@ import log : String -> Unit with effect File.write
 e
 \end{lstlisting}
 
-In the code above, written in a capability-safe language, what can we infer about the effects on resources (e.g. the file system or network) of evaluating \kwat{e}?
-Since we are in a capability-safe language, \kwat{e} has no ambient authority, and so the only way it can have any effect on resources is via the \kwat{log} function it imports.
-Note that this reasoning requires nothing about \kwat{e} other than that it obeys the rules of a capability-safe language; in particular, we don't require any effect annotations within \kwat{e}, and we don't need to analyse its structure as an effect inference would have to do.
-Also note that \kwat{e} might be arbitrarily large, perhaps consisting of an entire program that we have downloaded from a source that we trust enough to allow it to write to a log, but that we don't trust to access any other resources.
-Thus in this scenario, capabilities can be used to reason ``for free'' about the effect of a large body of code based on a few annotations on the components it imports.
+In the code above, written in a capability-safe language, what can we
+infer about the effects on resources (e.g. the file system or network)
+of evaluating \kwat{e}?  Since we are in a capability-safe language,
+\kwat{e} has no ambient authority, and so the only way it can have any
+effect on resources is via the \kwat{log} function it imports.  Note
+that this reasoning requires nothing about \kwat{e} other than that it
+obeys the rules of a capability-safe language; in particular, we don't
+require any effect annotations within \kwat{e}, and we don't need to
+analyse its structure as an effect inference would have to do.  Also
+note that \kwat{e} might be arbitrarily large, perhaps consisting of
+an entire program that we have downloaded from a source that we trust
+enough to allow it to write to a log, but that we don't trust to
+access any other resources.  Thus in this scenario, capabilities can
+be used to reason ``for free'' about the effect of a large body of
+code based on a few annotations on the components it imports.
 
-The central intuition that we formalise in this paper is this: the effect of an unannotated expression can be given a bound based on the effects latent in variables that are in scope.
-Of course, there are challenges to solve on the way, most notably involving higher-order programs: how can we generalise this intuition if \kwat{log} takes a higher-order argument?
-If \kwat{e} evaluates not to unit but to a function, what can we infer about that function's effects?
+The central intuition that we formalise in this paper is this: the
+effect of an unannotated expression can be given a bound based on the
+effects latent in variables that are in scope.  Of course, there are
+challenges to solve on the way, most notably involving higher-order
+programs: how can we generalise this intuition if \kwat{log} takes a
+higher-order argument?  If \kwat{e} evaluates not to unit but to a
+function, what can we infer about that function's effects?
 
-In the remainder of this paper, we will formalise these ideas and explore these questions.
-To demonstrate, we introduce a pair of languages: the operation calculus $\opercalc$ (Section 3) and the capability calculus $\epscalc$ (Section 4).
-$\opercalc$ is a typed lambda calculus with a simple notion of capabilities and their operations, in which all code is effect-annotated.
-Relaxing this requirement, we then introduce $\epscalc$, which permits the nesting of unannotated code inside annotated code in a controlled, capability-safe manner.
-A safe inference about the unannotated code can be made by inspecting the capabilities passed into it from its annotated surroundings.
-We then show how $\epscalc$ can model practical situations, presenting a range of examples to illustrate the benefits of a capability-flavoured effect system.
+In the remainder of this paper, we will formalise these ideas and
+explore these questions.  To demonstrate, we introduce a language
+called the capability calculus $\epscalc$ (Section~\ref{s:cc}).
+Although the current resurgence of interest in capabilities is
+primarily focused on object-oriented languages, for simplicity our
+formal definitions build on a typed lambda calculus with a simple
+notion of capabilities and their operations. $\epscalc$, permits the
+nesting of unannotated code inside annotated code in a controlled,
+capability-safe manner. One can reason about the effects of the
+unannotated code by inspecting the capabilities passed into it from
+its annotated surroundings.  We then show how $\epscalc$ can model
+practical situations, presenting a range of examples to illustrate the
+benefits of a capability-flavoured effect system.
 
-Throughout this paper we give motivating examples in a capability-safe language very similar to \textit{Wyvern} as presented by \cite{nistor13}. Wyvern features a first-class module system which distinguishes between pure and resourceful modules \cite{kurilova16}. We give several examples in Wyvern of interacting modules --- some annotated, some unannotated --- and demonstrate how they can be translated into our calculi to show how our type-and-effect system captures the properties of capability-based languages, and how it can aid in modular reasoning. A more thorough discussion of this translation is given in section 4. Several examples follow in section 5.
+% Finally we explore adding effect polymorphism to our system and how
+% it can increase the expressiveness of our system.
 
-
-
-
+Throughout this paper we give motivating examples in a capability-safe
+language % very similar to \textit{Wyvern} as presented by \cite{nistor13}.
+that supports first-class, object-like modules, similar to
+\textit{Wyvern}~\cite{kurilova16}. We give several examples of
+interacting modules --- some annotated, some unannotated --- and
+demonstrate how they can be translated into our calculi to show how
+our type-and-effect system captures the properties of capability-based
+languages, and how it can aid in modular reasoning. A more thorough
+discussion of this translation is given in an accomponying technical
+report~\cite{ecs:2018:aaron-tr}.

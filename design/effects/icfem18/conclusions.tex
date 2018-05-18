@@ -16,13 +16,65 @@ Miller's model has been applied to more heavyweight systems: \cite{drossopoulou0
 
 The original effect system by \cite{lucassen88} was used to determine what expressions could safely execute in parallel. Subsequent applications include determining what functions a program might invoke \cite{tang94} and what regions in memory might be accessed or updated during execution \cite{talpin94}. In these systems, ``effects'' are performed upon ``regions''; in ours, ``operations'' are performed upon ``resources'''. $\epscalc$ also distinguishes between unannotated and annotated code: only the latter will type-and-effect-check. Another capability-based effect system is the one by \cite{devriese16}, who use effect polymorphism and possible world semantics to express behavioural invariants on data structures. $\epscalc$ is not as expressive, since it only topographically inspects how capabilities can be passed around a program, but the resulting formalism and theory is much more lightweight.
 
+
+%\subsection{Polymorphic Effects}
+%
+%$\epscalc$ inspects the capabilities passed into a piece of code to determine what effects it might incur. The same reasoning could be applied to types which are polymorphic over a set of effects, such as the function below, which is polymorphic over the $\{ \kwa{File.write, Socket.write} \}$ effects. After fixing the particular set of effects, it asks for a function with those effects and then incurs them.
+%
+%\begin{lstlisting}
+%polywriter = $\lambda \Phi \subseteq \{ \kwa{File.write, Socket.write} \}$. ($\lambda$f: Unit $\rightarrow_{\Phi}$ Unit. f unit)
+%\end{lstlisting}
+%
+%If a piece of unannotated code were given a $\kwa{polywriter}$, it would be safe to approximate its effects as being the polymorphic upper bound $\{ \kwa{File.write, Socket.write} \}$. But in many situations, we can do better: if no capability for $\kwa{Socket.write}$ is passed in with the $\kwa{polywriter}$, then despite fixing $\kwa{polywriter}$ to accept functions which incur $\kwa{Socket.write}$, it will never be able to obtain one. The example below shows such a situation:
+%
+%\begin{lstlisting}
+%import({File.*}) 
+%   pw = polywriter
+%   fw = ($\lambda$f: Unit. File.write)
+%in
+%   e
+%\end{lstlisting}
+%
+%Since only a file-writing capability is passed in with $\kwa{polywriter}$, it can never be made to incur $\kwa{Socket.write}$, so a better approximation of $e$ would be $\{ \kwa{File.write} \}$.
+%% We hope to use this sort of reasoning to incorporate effect-polymorphism and polymorphic types into our work.
+%While a full exploration of capability rules for effect polymorphism is beyond the scope of this paper, the discussion above suggests the potential to extend the ideas here to a polymorphic setting.
+
+%%The current theory contains no effect polymorphism, whereby a function's type is parameterised by a set of effects.
+%%%We are currently exploring the next step in our calculi - $\kwa{PolyC}$ - that allows for type parameters and effect parameters on expressions.
+%%In a fully annotated polymorphic setting one would be able to track the possible effects in a fully annotated expression by capturing all the possible effects in a type while assuming that the effect parameters are empty. This means that any effect-parameterised module will clearly specify it's possible effects and any additional effects that would arise by instantiating the effect parameters would have to come from the current module and will be subject to the capabilities it has access to. However, a major issue with polymorphic effects happens when one allows for effect-parameterised module to be imported by the unannotated code. This would make it possible for the effect parameter to be instantiated with an unauthorised effect thus annulling any guarantees claimed by the fully annotated module. For instance:
+%%
+%%\begin{lstlisting}
+%%let polywriter = $\lambda \phi \subseteq \{ \kwa{File.write, Socket.write} \}$. $\lambda$f: Unit $\rightarrow_{\phi}$ Unit. f unit
+%%
+%%import({File.*}) 
+%%   pw = polywriter
+%%   f = File
+%%in
+%%   e
+%%\end{lstlisting}
+%%
+%%In the unannotated code $e$, you can never make $\kwa{pw}$ return a socket-writing function, because there is no socket-writing capability in scope that it could be given. However, this example should fail for a different reason --- there is a file capability in scope, and you could pass $\kwa{pw}$ a function which captures any effect on that file, which would violate its signature:
+%%
+%%\begin{lstlisting}
+%%import({File.*}) 
+%%   pw = polywriter
+%%   f = File
+%%in
+%%   pw {File.write} ($\lambda$x: Unit. f.read)
+%%\end{lstlisting}
+%%
+%%The main observation is that when an unannotated block of code imports an effect-polymorphic function, the presence of that function does not give the unannotated code access to any new effects.  However, we must be sure that any effect available to the unannotated code can be safely passed to the effect-polymorphic function.  A full exploration of capability rules for effect polymorphism is beyond the scope of this paper, but the discussion above suggests the potential to extend the ideas here to a polymorphic setting.
+%
+%% The current theory contains no effect polymorphism, whereby a function's type is parameterised by a set of effects.
+%
+%% The main observation is that for polymorphic effect functions to type check in $\epscalc$ it would be necessary to approximate them as having every effect, in which case all precision would be lost. A polymorphic effect system which considers such functions as having an effect parameterised type or give bounds in terms of resources if not at the level of individual operations could give more meaningful approximations.
+
+
 \subsection{Future Work}
 
 Our effects model only the use of capabilities which manipulate system resources. This definition could be generalised to track other sorts of effects, such as stateful updates. In our model, resources and operations are fixed throughout runtime; it would be interesting to consider the theory when they can be created and destroyed at runtime.
 
-The current theory contains no effect polymorphism, whereby a function's type is parameterised by a set of effects. The only way for such a function to typecheck in $\epscalc$ would be to approximate it as having every effect, in which case all precision has been lost. A polymorphic effect system which considers such a function as having an effect parameterised type could give more meaningful approximations.
-
-Many believe in the value of the object capability model, but we do not fully understand its formal benefits. We hope to extend the ideas in this paper to the point where they might be used in capability-safe languages to help authority-safe design and development. Implementing these ideas in a general-purpose, capability-safe language would do much towards that end.
+Many believe in the value of the object capability model, but we do not fully understand its formal benefits. We hope to extend the ideas in this paper to the point where they might be used in capability-safe languages to help authority-safe design and development. Implementing these ideas in a general-purpose, capability-safe language such as \textit{Wyvern} (where an effect system is currently being designed) would do much towards that end.
 
 While we have captured the most obvious and basic form of capability-based reasoning about effects, the ideas here could potentially be useful in other kinds of formal reasoning system.
 Furthermore, there may be other kinds of reasoning about capabilities---e.g. those being explored by \cite{drossopoulou07}---that also provide benefit in a broad set of formal tools.
