@@ -1,0 +1,1336 @@
+\documentclass{llncs}
+
+\usepackage{listings}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+\usepackage{amsmath}
+%\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{color,soul}
+\usepackage{graphicx}
+
+%\theoremstyle{definition}
+%%\newtheorem{case1}{Case1}
+\spnewtheorem{casethm}{Case}[theorem]{\itshape}{\rmfamily}
+\spnewtheorem{subcase}{Subcase}{\itshape}{\rmfamily}
+\numberwithin{subcase}{casethm}
+\numberwithin{casethm}{theorem}
+\numberwithin{casethm}{lemma}
+
+
+
+
+
+\lstdefinestyle{custom_lang}{
+  xleftmargin=\parindent,
+  showstringspaces=false,
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries
+}
+
+\lstset{emph={%  
+    val, def, type, new, z%
+    },emphstyle={\bfseries \tt}%
+}
+
+\begin{document}
+
+
+
+
+
+\section{Type Members}
+Type members are object members that are types. 
+In the same way that an object can have value or 
+method members, type members define types. Similar 
+to traditional method member declarations, type 
+members can be either abstract or concrete. That is, 
+types can include type members without specifying 
+a concrete type for that type member. Using a 
+familiar Java-like syntax, this can be seen below.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Pair = {
+  type F;
+  type S;
+  val F fst;
+  val S snd;
+
+  public void setFst(F fst){
+    this.fst = fst;
+  }
+  public void setSnd(S snd){
+    this.snd = snd;
+  }
+}
+\end{lstlisting}
+We have not specified a concrete type for \texttt{F},
+yet we can still use \texttt{F} to assign a value to 
+\texttt{fst}.
+As seen above, type members 
+can be used in much the same way as traditional Java 
+generic type parameters. The above example could be 
+written in Java Generics like this.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class Pair<F,S>{
+  F fst;
+  S snd;
+
+  public Pair(F fst, S snd){
+    this.fst = fst;
+    this.snd = snd;
+  }
+
+  public void setFst(F fst){
+    this.fst = fst;
+  }
+  public void setSnd(S snd){
+    this.snd = snd;
+  }
+}
+\end{lstlisting}
+So then what are the differences between type members 
+and type parameters?
+
+\subsection{Type members vs Type Parameters}
+When we use generic type parameters in the above example, 
+if we want to use Pair, we declare  
+concrete types for \texttt{F} and \texttt{S}.
+\begin{lstlisting}[mathescape, style=custom_lang]
+Pair<Double, Double> p1 = new Pair<Double, Double>(1, 2);
+\end{lstlisting}
+Because of issues with contra-variance and co-variance, 
+generic type parameters are required to be invariant with 
+regard to subtyping. So the example below would result in 
+an error at compile time. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+Pair<Integer, Integer> p2 = new Pair<Integer, Integer>(1, 2);
+p1 = p2; \\ Compile time error
+\end{lstlisting}
+If we didn't restrict this, we could make the following 
+ill-typed call on \texttt{p1}.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+p1 = p2;
+p1.setFst(1.1);
+\end{lstlisting}
+We can construct this example using type members.
+\begin{lstlisting}[mathescape, style=custom_lang]
+DoublePair = {
+  type F = Double;
+  type S = Double;
+  val F fst;
+  val S snd;
+
+  public void setFst(F fst){
+    this.fst = fst;
+  }
+  public void setSnd(S snd){
+    this.snd = snd;
+  }
+}
+IntegerPair = {
+  type F = Integer;
+  type S = Integer;
+  val F fst;
+  val S snd;
+
+  public void setFst(F fst){
+    this.fst = fst;
+  }
+  public void setSnd(S snd){
+    this.snd = snd;
+  }
+}
+...
+DoublePair p1 = new DoublePair{val fst = 1; val fst = 2};
+IntegerPair p2 = new IntegerPair{val fst = 1; val fst = 2};
+...
+\end{lstlisting}
+We can allow a co-variant subtyping relationship 
+on type members because type members allow us to 
+maintain type information at run time \cite{Bruce:1998}. So now %cite: A Statically Safe Alternative to Virtual Types
+\begin{lstlisting}[mathescape, style=custom_lang]
+p1 = p2;
+\end{lstlisting}
+is allowed, but if we subsequently make an ill-typed 
+write
+\begin{lstlisting}[mathescape, style=custom_lang]
+p1.setFst(1.1); \\ Runtime error
+\end{lstlisting}
+it can be caught at run time because objects maintain 
+generic type information in the form of type members.
+This allows us to write more expressive code. For example 
+we could construct a list of pairs without declaring 
+a concrete type that all pair elements should conform to.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class PairList{
+  ...
+  public void add(p : Pair){...}
+  public Pair get(i : integer){...}
+  ...
+}
+\end{lstlisting}
+Using type parameters we would have to declare all 
+types as the same (e.g. \texttt{List<Pair<Integer,Integer>>}) 
+which restricts us to elements only of that type. Otherwise 
+we could make all elements the top level type (\texttt{Object} 
+in Java) which doesn't allow us access to the members 
+of our elements.
+
+Type members also allow us to refer to generic types without explicitly 
+bringing them into scope, or know the actual concrete type 
+being used. As an example, suppose we want to write a method that copies  
+pairs.
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+public Pair copyPair(p : Pair){
+  return new Pair{type F = p.F; 
+                  type F = p.F;
+                  val fst = p.fst; 
+                  val snd = p.snd;}
+}
+...
+\end{lstlisting}
+If we were to try to do the same using generic type parameters
+we get
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+public Pair<F,S> copyPair(p : Pair<F,S>){
+  return new Pair<F,S>(p.fst, p.snd);
+}
+...
+\end{lstlisting}
+Here we have to explicitly introduce a type parameter to the 
+method signature for each unknown generic type explicitly.
+So we can see how type parameters can result in large 
+numbers of type parameters  \cite{odersky:2009} %cite: http://www.artima.com/weblogs/viewpost.jsp?thread=270195
+depending on the unknown type variables being used.
+
+\subsection{Type Members in Wyvern}
+Wyvern is a structurally typed object oriented language. We 
+include type members in the Wyvern type system to provide 
+generic polymorphism. Type members in Wyvern are based on 
+those in Scala \cite{Amin:2012}\cite{Amin:2014}.
+
+\section{Counter Examples to Preservation}
+	\label{s:examples}
+
+\subsection{Term Membership Restriction}
+	\label{s:term_mem}
+Figure \ref{f:mem} gives the \emph{Membership} judgement. 
+$\Gamma \vdash e \ni \sigma$ says that an expression $e$ 
+has $\sigma_i$ as a member of its type in environment $\Gamma$. 
+There are two rules for membership. By \textsc{M-Path} a 
+variable $x$ has a member of type $[x/\texttt{z}]\sigma_i$ 
+if $\sigma_i$ is a member of the type of $x$. By \textsc{M-Exp}
+an expression $e$ has member $\sigma_i$ if $\sigma_i$ is 
+a member of $e$'s type, and \texttt{z} does not occur 
+within $\sigma_i$.
+
+This is reasonable since we cannot substitute a non-value 
+expression into a selection type such as $\texttt{z}.L$. 
+This does however present a counter-example to preservation. 
+Given two types $X$ and $Y$,
+
+\begin{lstlisting}[mathescape, style=custom_lang]
+Y = {z $\Rightarrow$
+     val l : $\top$
+     def m : Y(y:Y){
+       val a = new {};
+       y
+     }
+    }
+\end{lstlisting}
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     type L : $\top$ .. $\top$
+     val l : z.L
+     def m : Y(y:Y){
+       y
+     }
+    }
+\end{lstlisting}
+
+the following expression is well typed.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val x = new X(l = z);
+val y = new Y(l = (val z = new {}; z));
+y.m(x).l
+\end{lstlisting}
+We can see that this is well-typed, and in particular that membership 
+holds for \texttt{y.m(x)} and \texttt{l}. This reduces to 
+\begin{lstlisting}[mathescape, style=custom_lang]
+(val a = new {}; x).l
+\end{lstlisting}
+which is not well-typed since \texttt{val a = new {}; x} has type 
+\texttt{X}, and \texttt{X.l} contains a \texttt{z} reference 
+\texttt{z.L}.
+
+After patching we allow expressions to maintain original type. 
+Expressions are then typed with respect to the original type.
+This is given in Figure \ref{f:syntax} as $e \unlhd T$ where 
+$T$ is the original type. The patched reduction is given in 
+Figure \ref{f:red}. The amended method reduction \textsc{R-Meth} is 
+shown below.
+\begin{mathpar}
+\inferrule
+  {\mu \vdash v_1 \leadsto l \\
+  	\mu(l) = \{\texttt{z} \Rightarrow ...,m:T(x:S)=e,...\}}
+  {\mu \; | \; v_1.m_U(v_2) \;\rightarrow \mu \; | \; [l/\texttt{z},v_2 \unlhd S/x]e \unlhd U}
+  \quad (\textsc {R-Meth})
+\end{mathpar}
+This is very similar to the standard method reduction. The two main 
+differences are the introduction of the $path$ function, and the 
+inclusion of the original types in the returned expression. For now 
+ignore the $path$ function, this is explained in \ref{s:patheq}.
+
+We retrieve the method for the receiver from the store, and substitute 
+the method parameter into the body. The method parameter retains it's 
+original type ($v_2 \unlhd S$) as does the entire returned body 
+$[v_1/\texttt{z},v_2 \unlhd S/x]e \unlhd T$. Using this rule we 
+can attempt to evaluate our original example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val x = new X(l = z);
+val y = new Y(l = (val z = new {}; z));
+y.m(x).l
+\end{lstlisting}
+reduces to
+\begin{lstlisting}[mathescape, style=custom_lang]
+((val a = new {}; (x $\unlhd$ Y))$\unlhd$ Y).l
+\end{lstlisting}
+Now we can treat the method body as having type \texttt{Y} and 
+we can determine membership of \texttt{l} for \texttt{Y} rather 
+than \texttt{X}.
+
+\subsection{Expansion Lost}
+For preservation to hold, we need to ensure that types are expandable 
+to lists of declarations. This is captured in Figure \ref{f:wfe}. It is 
+possible for expansion to be lost due to a combination of environment 
+narrowing and intersection types.
+First we informally define what we mean by intersection types. An intersection 
+type is the subtype intersection of two types. That is
+$S \wedge T <: S$ and $S \wedge T <: T$. Structurally this means 
+$S \wedge T$ contains a union of the members of $S$ and $T$ taking the 
+highest common subtype of any common members. 
+Loss of expansion is 
+shown in \cite{Amin:2012}, but is briefly covered again below along with 
+an example of our proposed fix.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X = {z $\Rightarrow$
+     type A : $\bot$ .. z.B
+     type B : $\bot$ .. $\top$
+    }
+Y = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. z.A
+    }
+\end{lstlisting}
+While both these types are expandable, their intersection is not.
+\begin{lstlisting}[mathescape, style=custom_lang]
+X $\wedge$ Y = {z $\Rightarrow$
+         type A : $\bot$ .. z.B
+         type B : $\bot$ .. z.A
+        }
+\end{lstlisting}
+While we could not type this normally, we can create this 
+scenario during environmental narrowing that results in 
+an a type without an expansion, providing a counter-example 
+to preservation.
+\begin{lstlisting}[mathescape, style=custom_lang]
+W = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+     type B : $\bot$ .. $\top$
+    }
+\end{lstlisting}
+Now we demonstrate how we can construct a well-typed expression 
+that becomes ill-formed as the result of evaluation.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val x = new {z $\Rightarrow$ type K : $\bot$ .. X};
+val y = new {z $\Rightarrow$ type L : $\bot$ .. Y};
+\end{lstlisting}
+We do this by first constructing two objects from the 
+\texttt{X} and \texttt{Y} types we previously defined.
+Now we construct another object using these types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val c = new {z $\Rightarrow$
+         def meth1 : $\top$ (i : {z $\Rightarrow$ type L : $\bot$ .. W}){
+           new {z $\Rightarrow$
+                  def meth2 : $\top$ (j : i.L $\wedge$ x.K){j}
+               }
+         }
+        };
+c.meth1(y)
+\end{lstlisting}
+Looking at the previous expression, we can see it is well-typed, 
+and the type \texttt{i.L} $\wedge$ \texttt{x.K} in particular is 
+well-formed and expanding.
+Evaluating the above expression results in the following.
+\begin{lstlisting}[mathescape, style=custom_lang]
+new {z $\Rightarrow$ def meth2 : $\top$ (j : y.L $\wedge$ x.K){j}}
+\end{lstlisting}
+Now the type \texttt{y.L} $\wedge$ \texttt{x.K} gives us the loss of 
+expansion we were attempting to construct. In our new patched calculus, 
+this problem does not occur because the original type of the \texttt{i} 
+parameter is maintained. So if we re-evaluate the original expression 
+with our type system, we get the following.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val d = new {z $\Rightarrow$
+             def meth2 : $\top$ (j : (y $\unlhd$ {z $\Rightarrow$ type L : $\bot$ .. W}).L $\wedge$ x.K){j}}
+\end{lstlisting}
+The type \texttt{(y} $\unlhd$ \texttt{\{z} $\Rightarrow$ 
+\texttt{type L :} $\bot$ \texttt{.. W\}).L} $\wedge$ \texttt{x.K} is now 
+both well-formed and expanding because it is the original type 
+from our original expression.
+
+
+
+%\subsection{Expansion Lost Redux}
+%	\label{s:term_mem2}
+%First we define the following types.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%X = {z $\Rightarrow$
+%     def m(x : $\top$){var y = new {z $\Rightarrow$}}:$\top$
+%    }
+%Y = {z $\Rightarrow$
+%     type L : $\bot$ .. $\top$
+%     def m(x : $\top$){var y = new {z $\Rightarrow$}}:z.L
+%    }
+%\end{lstlisting}
+%Then we attempt to evaluate the following expression.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%var a = new {z $\Rightarrow$
+%              def meth(x:$\top$){val b = new Y}:X
+%            };
+%val c = new {z $\Rightarrow$};
+%a.meth(c).m(c)
+%\end{lstlisting}
+%This reduces to \texttt{a.meth(c).m(c)} which has type $\top$. 
+%Applying \textsc{R-Meth} we get \texttt{(val b = new Y $\unlhd$ X).m(c)}
+%which has type $\top$ and so is still well typed. This eventually reduces 
+%to \texttt{[z/b $\unlhd$ X](var y = new \{z $\Rightarrow$\}) $\unlhd$ z.L}.
+%Since during reduction on a method call of the form $v \unlhd T$
+%we retrieve the return type of the object ($v$) and 
+%not the type ($T$), the reduced expression has type \texttt{b $\unlhd$ X.L}. 
+%This type is allowed since \texttt{b $\unlhd$ X} is a path, but 
+%it does present a case of narrowing.
+
+\subsection{Well-Formedness Lost}
+
+We can also show that the combination of environment narrowing 
+and intersection types can result in a loss of type well-formedness. 
+For obvious reasons we enforce a subtype relationship on the lower 
+and upper bounds of type members. Environment narrowing 
+can cause perfectly well-formed types to become ill-formed by breaking 
+this subtype relationship during evaluation. First lets define a few 
+simple types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+S = {z $\Rightarrow$
+     type A : $\bot$ .. List
+    }
+T = {z $\Rightarrow$
+     type A : Integer .. $\top$
+    }
+\end{lstlisting}
+If we try and use the intersection of \texttt{S} and \texttt{T}
+we get. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+S $\wedge$ T = {z $\Rightarrow$
+         type A : Integer .. List
+        }
+\end{lstlisting}
+Clearly this is ill-formed. We might use it to conclude 
+that \texttt{Integer} subtypes \texttt{List}. We now show how 
+we can construct an example that appears to be well-formed, but 
+through evaluation we end up the this exact type. First define 
+three more types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+U = {z $\Rightarrow$
+     type A : $\bot$ .. $\top$
+    }
+X = {z $\Rightarrow$
+     type B : $\bot$ .. U
+    }
+Y = {z $\Rightarrow$
+     type B : $\bot$ .. S
+    }
+\end{lstlisting}
+Since \texttt{S} subtypes \texttt{U}, it follows that 
+\texttt{Y} subtypes \texttt{X}.
+Now consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val a = new {z $\Rightarrow$
+              def badNarrow(x : X){
+                new {z $\Rightarrow$ type L : $\bot$ .. x.B $\wedge$ T}
+              }
+            };
+val y = new Y;
+a.badNarrow(y);
+\end{lstlisting}
+Initially \texttt{x.B $\wedge$ T} is well-formed when \texttt{x} 
+has type \texttt{X}. After a few steps of evaluation we end up with 
+\begin{lstlisting}[mathescape, style=custom_lang]
+new {z $\Rightarrow$ type L : $\bot$ .. y.B $\wedge$ T}
+\end{lstlisting}
+\texttt{y.B $\wedge$ T} now gives us the ill-formed type of 
+our earlier example.
+
+
+\subsection{Path Equality}
+\label{s:patheq}
+The example below illustrates the problem with path equality.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val b = new {z $\Rightarrow$
+             type L : $\top$ .. $\top$
+             val l : z.L = b};
+val a = new {z $\Rightarrow$
+             val i : {z $\Rightarrow$
+                      type L : $\bot$ .. $\top$
+                      val l : z.L} = b
+             def meth : $\top$ (x : z.i.L){x}};
+a.meth(a.i.l)
+\end{lstlisting}
+\texttt{a.i.l} reduces to \texttt{b.l} which has type \texttt{b.L}. 
+There is no way for us to ensure that \texttt{b.L} <: \texttt{a.i.L}.
+This presents a path equality problem for preservation.
+
+Typing paths correctly requires that we maintain some information 
+about the original paths. For this reason we don't evaluate paths 
+in the calculus. We still however need to retrieve the correct object 
+the path is pointing to during method reduction and object initialization. 
+This is done by the \emph{path} function given in Figure \ref{f:path}. 
+With a path and a store, we can find the object referenced by that path.
+Below is the evaluation of the above example without evaluating paths.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val b = new {z $\Rightarrow$
+             type L : $\top$ .. $\top$
+             val l : z.L = b};
+val a = new {z $\Rightarrow$
+             val i : {z $\Rightarrow$
+                      type L : $\bot$ .. $\top$
+                      val l : z.L} = b
+             def meth : $\top$ (x : z.i.L){x}};
+a.meth(a.i.l)
+\end{lstlisting}
+Reduces to \texttt{a.meth(a.i.l)} which type checks. \texttt{a.meth(a.i.l)}
+reduces to \texttt{a.i.l}
+
+\subsection{Path Equality Redux}
+\begin{lstlisting}[mathescape, style=custom_lang]
+val n = new {z $\Rightarrow$ type X : $\top$ .. $\top$};
+val a = new {z $\Rightarrow$
+             type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+             val i : z.Y = n};
+val b = new {z $\Rightarrow$
+             type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
+                                          {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+                                 val i : z.Y}
+             val j : z.L = a};
+val c = new {z $\Rightarrow$
+             val k : {z $\Rightarrow$
+                      type L : $\bot$ .. {z $\Rightarrow$ type Y : {z $\Rightarrow$ type X : $\bot$ .. $\top$} .. 
+                                                   {z $\Rightarrow$ type X : $\bot$ .. $\top$}
+                                          val i : z.Y}
+                      val j : z.L} = b
+             def m : $\top$ (x : z.k.L){
+                 val y = new {z $\Rightarrow$ val l : x.Y = x.i 
+                            val m : x.i.X = new {z $\Rightarrow$}}; y
+             }};
+c.m(b.j)
+\end{lstlisting}
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%c.m(c.k.j) $\rightarrow$ c.m(b.j)
+%\end{lstlisting} 
+\texttt{b.j} has type \texttt{b.L}, therefore we need 
+$\texttt{b.L} <: \texttt{c.k.L}$
+\begin{lstlisting}[mathescape, style=custom_lang]
+c.m(b.j) $\rightarrow$ c.m(a)
+c.m(a) $\rightarrow$ (val y = new {z $\Rightarrow$ val l : (a $\unlhd$ c.k.L).Y = (a $\unlhd$ c.k.L).i 
+                            val m : (a $\unlhd$ c.k.L).i.X = new {z $\Rightarrow$}}; y) $\unlhd$ $\top$
+\end{lstlisting}
+
+
+\newpage
+
+
+While \emph{Java} does not support Type Members, \emph{Scala} does.
+This can be seen as an extension of the mechanisms already used in 
+a language such as Java. In Java we can define abstract method members, but 
+are unable to pass a method as a parameter. We can pass values as 
+parameters, but are unable to define abstract field members. We can pass 
+types as parameters, but are unable to define abstract type members.
+In Scala, all three can either be defined as members of a type, or 
+can be passed as parameters. 
+
+\subsection{Why Type Members?}
+We use type members in Wyvern to allow for polymorphic types. 
+Languages like Java and C\# allow for type parameters to create 
+"generic" types that define an interface for a collection of types. 
+Below is a basic version of the common \texttt{List} example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+public class List<T>{
+  public boolean add(elem : T){
+    ...
+  }
+
+  public T get(){
+    ...
+  }
+}
+\end{lstlisting}
+Here we define a generic class for a collection of \texttt{List} 
+types. Now we can use it to initialize lists of \texttt{String} or 
+\texttt{Integer} types.
+\begin{lstlisting}[mathescape, style=custom_lang]
+List<String> stringList = new List<String>();
+List<Integer> integerList = new List<Integer>();
+
+stringList.add("One");
+integerList.add(1);
+integerList.add("One"); \\Compilation Error
+\end{lstlisting}
+Below we use type members in place of type parametrization. 
+\begin{lstlisting}[mathescape, style=custom_lang]
+...
+type List : $\bot$ .. {z $\Rightarrow$ type T : $\bot$ .. $\top$
+                       def $\top$ add(elem : z.T){ ...}
+                       get z.L(){...}}
+
+def $\top$ createLists(){
+  stringList = new {z $\Rightarrow$ type T : String .. String
+                         def $\top$ add(elem : z.T){ ...}
+                         get z.L(){...}};
+
+  intergerList = new {z $\Rightarrow$ type T : Integer .. Integer
+                           def $\top$ add(elem : z.T){ ...}
+                           get z.L(){...}};
+
+  stringList.add("One");
+  integerList.add(1);
+  integerList.add("One"); \\Compilation Error
+}
+...
+\end{lstlisting}
+
+
+\subsection{Path Dependent Types}
+
+
+\subsection{Wyvern Type Members}
+
+In this document we present a a structurally typed language with type 
+members. In a structural type system, types are defined by their structure 
+as opposed to their name in nominal type systems. Normally this means the 
+field and method definitions they contain. When adding type members 
+we extend this to include types. This work is based on and extends 
+similar work done on type members in Scala \cite{Amin:2012}.
+While Amin et. al.\cite{Amin:2014} developed a big step semantics and 
+proved it sound, we hope to develop an altered type system in order to maintain 
+a small step semantics while providing sound type members. 
+
+Using Java Generics, we can define an upper bound in order to restrict 
+possible types used. We could easily conceive a similar bound being 
+used for type members. Below is an example using the syntax of the language 
+presented in this document.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var o = new {z => type L : S .. U}
+\end{lstlisting}
+We have created a new object \texttt{o} that has a single member, a type member 
+\texttt{L}. \texttt{L} is restricted by two bounds, a lower bound \texttt{S} 
+and an upper bound \texttt{U} (Where \texttt{S} and \texttt{U} are some types). 
+Using an access on \texttt{o} we can now refer to 
+\texttt{L}: \texttt{o.L}.
+We could allow type member accesses to not only be made on  
+an object, but a path \texttt{p} constructed from a series of field accesses.
+Below we can see that the type member \texttt{L} refers to 
+depends entirely on the path taken to retrieve it.
+\begin{lstlisting}[mathescape, style=custom_lang]
+var o1 = new {z => type L : S .. U}
+var o2 = new {z => type L : S' .. U'}
+\end{lstlisting}
+Clearly \texttt{o1.L} $\neq$ \texttt{o2.L}
+
+
+\subsection{Type Members in Wyvern}
+Wyvern is a structurally typed programming language being 
+developed concurrently with this work. Wyvern puts an emphasis 
+on secure web applications. The type members described here 
+is intended to be integrated into the wider development of the 
+Wyvern Programming language.
+
+
+
+
+\section{Type Members Examples}
+
+%\subsection{Removing Environment Narrowing}
+%
+%A central issue in similar type systems thus far is maintaining 
+%type soundness in the presence of environment narrowing. Our 
+%proposed solution is to remove environment narrowing altogether.
+%
+%An environment is narrowed when during reduction a variable is 
+%found to have a more precise type than originally assumed. This 
+%is common when passing arguments to a method, or when returning 
+%from a method call. In fact these are the two areas that environment 
+%narrowing must be removed. Below is a small example where we attempt to 
+%remove environment narrowing.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%Food = {z $\Rightarrow$ type IsFood : $\bot$ ... $\top$}
+%
+%Recipe = {z $\Rightarrow$ type F : $\bot$ .. Food;
+%               def cook(){ ... } : z.F;}
+%               
+%Sushi = {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
+%              type IsSushi : $\bot$ .. $\top$}
+%
+%SushiRecipe = {z $\Rightarrow$ type F : $\bot$ .. Sushi;
+%                    def cook()
+%                    {
+%                      new {z $\Rightarrow$ type IsFood : $\bot$ .. $\top$
+%                                type IsSushi : $\bot$ .. $\top$}
+%                    } : z.F;}
+%\end{lstlisting}
+%Above we have defined several types. In our current syntax 
+%it is not possible to define types like this, we just use this 
+%as short hand during the following examples for brevity. Bellow 
+%is an example using the above types, demonstrating the evaluation 
+%of method calls.
+%\begin{lstlisting}[mathescape, style=custom_lang]
+%...
+%def prepareFood (r : Recipe){
+%  r.cook();
+%} : Food;
+%
+%def main(){
+%  prepareFood(new SushiRecipe());
+%}: $\top$;
+%...
+%\end{lstlisting}
+%We now look at the evaluation of above \texttt{main} method.
+%\begin{center}
+%\texttt{prepareFood(new SushiRecipe());} $\rightarrow$ \texttt{prepareFood($l$);}
+%\end{center}
+%where $l$ is the location in 
+%the store containing the newly created \texttt{SushiRecipe} object.
+%\begin{center}
+%\texttt{prepareFood($l$);} $\rightarrow$ ($l\unlhd$\texttt{Recipe.cook()}) 
+%$\unlhd$ \texttt{Food}
+%\end{center}
+%Here we have substituted the argument of the \texttt{prepareFood} method 
+%into the method body. We attach a persistent upcast to $l$ of the original 
+%argument type to avoid narrowing. We also do this to the entire returned body 
+%of the method
+\subsection{Path Equality}
+
+\newpage
+
+%---------------------------------------------------------------------------%
+\begin{figure}[h]
+\hfill \fbox{$\Sigma; \Gamma \vdash S <: T$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash T \texttt{<:} T}
+  \quad (\textsc {S-Refl})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash S \prec^{\uparrow}_z \overline{\sigma} \\
+	\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}' \\
+	\Gamma, (z : S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'}
+  {\Gamma; \Sigma \vdash S <: T}
+  \quad (\textsc {S-Exp})
+	\and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \bot\; \texttt{<:}\; T}
+  \quad (\textsc {S-Bottom})
+\end{mathpar}
+\hfill \fbox{$\Gamma; \Sigma \vdash \sigma <: \sigma'$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T}
+  \quad (\textsc {S-Decl-Val})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash T <: T' \\
+  	\Gamma; \Sigma \vdash S' <: S}
+  {\Gamma; \Sigma \vdash \texttt{def} \; m:S \rightarrow T <: \texttt{def} \; m:S' \rightarrow T'}
+  \quad (\textsc {S-Decl-Def})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash S' <: S \\
+  	\Gamma; \Sigma \vdash U <: U'}
+  {\Gamma; \Sigma \vdash \texttt{type} \; L : S .. U \; <:\; \texttt{type} \; L : S' .. U'}
+  \quad (\textsc {S-Decl-Type})
+\end{mathpar}
+\caption{Subtyping}
+\label{f:subtype_basics}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$\Gamma; \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma}$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\uparrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\uparrow$}-Rec})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash U \prec^{\uparrow}_z \overline{\sigma}}
+  {\Gamma; \Sigma \vdash p.L \prec^{\uparrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\uparrow$}-Sel})
+	\and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \top \prec^{\uparrow}_z \varnothing}
+  \quad (\textsc {E\textsuperscript{$\uparrow$}-Top})
+\end{mathpar}
+\caption{Upper Expansion}
+\label{f:up_exp}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}$}
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\downarrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\downarrow$}-Rec})
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash S \prec^{\downarrow}_z \overline{\sigma}}
+  {\Gamma; \Sigma \vdash p.L \prec^{\downarrow}_z \overline{\sigma}}
+  \quad (\textsc {E\textsuperscript{$\downarrow$}-Sel})
+	\and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \top \prec^{\downarrow}_z \varnothing}
+  \quad (\textsc {E\textsuperscript{$\downarrow$}-Top})
+\end{mathpar}
+\caption{Lower Expansion}
+\label{f:low_exp}
+\end{figure}
+
+\begin{lemma}\label{lem:expansion_subtype} 
+If 	$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}, 
+                          T \prec^{\uparrow}_z \overline{\sigma}'$ then
+	$\Gamma, (z:T); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'$.
+\end{lemma}
+\begin{proof}
+By induction on $\Gamma; \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma}$.
+\begin{casethm}[\textsc {E\textsuperscript{$\uparrow$}-Rec}]
+\begin{mathpar}
+\inferrule
+  {T = \{z \Rightarrow \overline{\sigma}\}}
+  {}
+  \and
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\uparrow}_z \overline{\sigma}}
+\end{mathpar}
+By inversion on 
+$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}$ we get
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma; \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec^{\downarrow}_z \overline{\sigma}}
+\end{mathpar}
+By reflexivity we have 
+$\Gamma, (z:\{z \Rightarrow \overline{\sigma}\}); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}$
+\end{casethm}
+\begin{casethm}[\textsc {E\textsuperscript{$\uparrow$}-Sel}]
+\begin{mathpar}
+\inferrule
+  {T = p.L}
+  {}
+	\and
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash U \prec^{\uparrow}_z \overline{\sigma}'}
+  {\Gamma; \Sigma \vdash p.L \prec^{\uparrow}_z \overline{\sigma}'}
+\end{mathpar}
+By inversion on 
+$\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}$ we get
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash p \ni \texttt{type} \; L : S..U \\
+  	\Gamma; \Sigma \vdash S \prec^{\downarrow}_z \overline{\sigma}}
+  {\Gamma; \Sigma \vdash p.L \prec^{\downarrow}_z \overline{\sigma}}
+\end{mathpar}
+From the well-formedness of $\texttt{type} \; L : S..U$ 
+we know $\Gamma; \Sigma \vdash S <: U$. We can now perfom a 
+case analysis on the derivation of $\Gamma; \Sigma \vdash S <: U$
+\begin{subcase}[S-Refl]
+\begin{mathpar}
+\inferrule
+  {S = U}
+  {}
+\end{mathpar}
+We assume by our induction hypothesis that 
+if $\Gamma; \Sigma \vdash U \prec^{\downarrow}_z \overline{\sigma}''$, 
+then $\Gamma (z : U); \Sigma \vdash \vdash \overline{\sigma}'' <: \overline{\sigma}$.
+Since $S = U$ and we have 
+$\Gamma; \Sigma \vdash S \prec^{\downarrow}_z \overline{\sigma}$, and thus
+\begin{mathpar}
+\inferrule
+  {\Gamma (z : S); \Sigma \vdash \vdash \overline{\sigma} <: \overline{\sigma}'}
+  {}
+\end{mathpar}
+\end{subcase}
+\begin{subcase}[S-Exp]
+\hl{Narrowing!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!}
+\end{subcase}
+\begin{subcase}[S-Bottom]
+\begin{mathpar}
+\inferrule
+  {S = \bot}
+  {}
+\end{mathpar}
+Since there is no expansion of $\bot$, this resolves trivially.
+\end{subcase}
+\end{casethm}
+\begin{casethm}[\textsc {E\textsuperscript{$\uparrow$}-Top}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \top \\
+	\Gamma; \Sigma \vdash \top \prec^{\uparrow}_z \varnothing}
+\end{mathpar}
+\end{casethm}
+Trivial since the lower expansion of $\top$ is 
+also $\varnothing$.
+\end{proof}
+\qed
+
+\begin{lemma}\label{lem:subtype:decl} 
+If 	$\Gamma; \Sigma \vdash S <: T, S \prec^{\uparrow}_z \overline{\sigma}, 
+	T \prec^{\uparrow}_z \overline{\sigma}'$ then
+	$\Gamma, (z:S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'$.
+\end{lemma}
+\begin{proof}
+By induction on the derivation of $\Gamma; \Sigma \vdash S <: U$.
+\begin{casethm}[\textsc{S-Refl}]
+\begin{mathpar}
+\inferrule
+  {S = T}
+  {}
+\end{mathpar}
+Trivial.
+\end{casethm}
+\begin{casethm}[\textsc{S-Exp}]
+\hl{Narrowing!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!}
+\begin{mathpar}
+\inferrule
+  {\Gamma; \Sigma \vdash S \prec^{\uparrow}_z \overline{\sigma} \\
+	\Gamma; \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}'' \\
+	\Gamma, (x : S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}''}
+  {\Gamma; \Sigma \vdash S <: T}
+\end{mathpar}
+By Lemma \ref{lem:expansion_subtype} we 
+can show that 
+$\Gamma, (x : T); \Sigma \vdash \overline{\sigma}'' <: \overline{\sigma}$.  
+By \hl{Narrowing} we can show that 
+$\Gamma, (x : S); \Sigma \vdash \overline{\sigma}'' <: \overline{\sigma}$.
+Now \hl{transitivity} gives us 
+$\Gamma, (x : S); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'$
+\end{casethm}
+\begin{casethm}[\textsc{S-Bottom}]
+\begin{mathpar}
+\inferrule
+  {S = \bot}
+  {}
+\end{mathpar}
+\end{casethm}
+Since there is no expansion to $\bot$, we end up with a contradiction.
+\end{proof}
+\qed
+\begin{lemma}[Environment Narrowing*]\label{thm:narrowing}
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <: T' \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\Gamma, (x : S); \Sigma \vdash T <:^* T'}
+  \quad (\textsc {<:-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <:^* T' \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\Gamma, (x : S); \Sigma \vdash T <:^* T'}
+  \quad (\textsc {<:\textsuperscript{*}-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma} \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists \overline{\sigma}':
+  	\Gamma, (x : S); \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma}' \\
+  	\Gamma, (x : S); \Sigma \vdash \overline{\sigma}' <:^* \overline{\sigma}}
+  \quad (\textsc {$\prec^{\uparrow}$-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma} \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists \overline{\sigma}':
+  	\Gamma, (x : S); \Sigma \vdash T \prec^{\downarrow}_z \overline{\sigma}' \\
+  	\Gamma, (x : S); \Sigma \vdash \overline{\sigma} <:^* \overline{\sigma}'}
+  \quad (\textsc {$\prec^{\downarrow}$-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p \ni \sigma \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists \sigma':
+  	\Gamma, (x : S); \Sigma \vdash p \ni \sigma' \\
+  	\Gamma, (x : S); \Sigma \vdash \sigma' <:^* \sigma}
+  \quad (\textsc {$\ni$-Narrowing*})
+	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T \\
+  	\Gamma; \Sigma \vdash S <: U}
+  {\exists T':
+  	\Gamma, (x : S); \Sigma \vdash p : T' \\
+  	\Gamma, (x : S); \Sigma \vdash T' <:^* T}
+  \quad (\textsc {:-Narrowing*})
+\end{mathpar}
+\end{lemma}
+
+\begin{proof}
+We proceed by mutual structural induction on the of each of the judgements:
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <: T' \\
+  	\Gamma, (x : U); \Sigma \vdash T \prec \overline{\sigma} \\
+  	\Gamma, (x : U); \Sigma \vdash p \ni \sigma \\
+  	\Gamma, (x : U); \Sigma \vdash p : T}
+  {}
+\end{mathpar}
+That is, if for each judgment the base cases (those cases that 
+do not require the derivation of simpler judgments) are satisfied, 
+and assuming the result for all simpler sub-derivations the we can 
+show it holds for more complex cases, we can conclude it holds in 
+general. While not explicitly stated above, we also include the 
+relevant declaration forms of the above judgments.
+
+\subsubsection*{\textsc {$<:$-Narrowing*}:}
+
+\begin{casethm}[\textsc{S-Refl}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T' = T \\
+  	\Gamma, (x : U); \Sigma \vdash T\; \texttt{<:}\; T}
+\end{mathpar}
+In the reflexive base case \textsc{S-Refl}, $T' = T$. 
+It follows trivially from \textsc{S-Refl} that 
+$\Gamma, (x : S); \Sigma \vdash T\; \texttt{<:}\; T$.
+\end{casethm}
+\begin{casethm}[\textsc{S-Exp}]
+\begin{mathpar}
+\inferrule
+  {\Gamma,(x : U); \Sigma \vdash T \prec^{\uparrow}_z \overline{\sigma} \\
+	\Gamma,(x : U); \Sigma \vdash T' \prec^{\downarrow}_z \overline{\sigma}' \\
+	\Gamma,(x : U), (z : T); \Sigma \vdash \overline{\sigma} <: \overline{\sigma}'}
+  {\Gamma,(x : U); \Sigma \vdash T <: T'}
+\end{mathpar}
+\end{casethm}
+\begin{casethm}[\textsc{S-Bottom}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \bot \\
+  	\Gamma, (x : U); \Sigma \vdash \bot\; \texttt{<:}\; T'}
+\end{mathpar}
+The base case \textsc{S-Bottom} resolves trivially since 
+by \textsc{S-Bottom} $\Gamma, (x : S); \Sigma \vdash \bot\; \texttt{<:}\; T'$
+\end{casethm}
+\begin{casethm}[\textsc{S-Decl-Val}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\sigma = \texttt{val} \; f:T \\
+  	\sigma' = \texttt{val} \; f:T}
+  	\and
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T}
+\end{mathpar}
+The base case for declaration subtyping is resolves trivially by 
+\textsc{S-Decl-Val}: 
+$\Gamma, (x : S); \Sigma \vdash \texttt{val} \; f:T <: \texttt{val} \; f:T$
+\end{casethm}
+\begin{casethm}[\textsc{S-Decl-Def}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\sigma = \texttt{def} \; m:S' \rightarrow T \\
+  	\sigma' = \texttt{def} \; m:S'' \rightarrow T'}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T <: T' \\
+  	\Gamma, (x : U); \Sigma \vdash S'' <: S'}
+  {\Gamma, (x : U); \Sigma \vdash \texttt{def} \; m:S' \rightarrow T <: \texttt{def} \; m:S'' \rightarrow T'}
+\end{mathpar}
+Using the \textsc {<:-Narrowing*} induction hypothesis 
+for argument and return type subtyping we 
+get $\Gamma, (x : S); \Sigma \vdash T <:^* T'$ and
+$\Gamma, (x : S); \Sigma \vdash S'' <:^* S'$. We can then 
+create a chain of declaration subtype judgments to show that 
+$\Gamma, (x : S); \Sigma \vdash \texttt{def} \; m:S' \rightarrow T <:^* \texttt{def} \; m:S'' \rightarrow T'$.
+\end{casethm}
+
+\begin{casethm}[\textsc{S-Decl-Type}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\sigma = \texttt{type} \; L : S' .. U' \\
+  	\sigma' = \texttt{type} \; L : S'' .. U''}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash S'' <: S' \\
+  	\Gamma, (x : U); \Sigma \vdash U' <: U''}
+  {\Gamma, (x : U); \Sigma \vdash \texttt{type} \; L : S' .. U' \; <:\; \texttt{type} \; L : S'' .. U''}
+\end{mathpar}
+Similar to the \textsc{S-Decl-Def} case, by the induction hypothesis, 
+if $\Gamma, (x : S); \Sigma \vdash S'' <:^* S'$ and
+$\Gamma, (x : S); \Sigma \vdash U' <:^* U''$ hold, it can be shown that 
+$\Gamma, (x : S); \Sigma \vdash \texttt{type} \; L : S' .. U' \; <:^* \; \texttt{type} \; L : S'' .. U''$ holds too.
+
+\end{casethm}
+
+\subsubsection*{\textsc {$\prec$-Narrowing*}:}
+
+\begin{casethm}[\textsc{E-Rec}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \{z \Rightarrow \overline{\sigma}\}}
+  	\and
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash 
+  		\{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}}
+\end{mathpar}
+The base case for expansion follows immediately from \textsc{E-Rec}:
+$\Gamma, (x : S); \Sigma \vdash \{z \Rightarrow \overline{\sigma}\} \prec_z \overline{\sigma}$.
+\end{casethm}
+\begin{casethm}[\textsc{E-Select}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = p.L}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p \ni \texttt{type} \; L : S'..U' \\
+  	\Gamma, (x : U); \Sigma \vdash U' \prec_z \overline{\sigma}}
+  {\Gamma, (x : U); \Sigma \vdash p.L \prec_z \overline{\sigma}}
+\end{mathpar}
+By our mutual induction hypothesis we assume that
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p \ni \texttt{type} \; L : S''..U'', \;
+  	\texttt{type} \; L : S''..U'' <:^* \texttt{type} \; L : S'..U', \;
+  	U' \prec_z \overline{\sigma}', \;
+  	\overline{\sigma}' <:^* \overline{\sigma}}
+  {}
+\end{mathpar}
+holds. By \textsc{S-Decl-Type}, we can infer that 
+$\Gamma, (x : S); \Sigma \vdash U'' <:^* U'$. Using 
+Lemma \ref{lem:subtype:decl} (\hl{TODO}), we can show that 
+$\exists \overline{\sigma}'': \Gamma, (x : S); \Sigma \vdash U'' \prec 
+\overline{\sigma}'', \; \overline{\sigma}'' <:^* \overline{\sigma}'$.
+Thus, we can show that 
+$\Gamma, (x : S); \Sigma \vdash \overline{\sigma}'' <:^* \overline{\sigma}$ 
+which completes the case.
+
+\hl{ToDo: U = $\bot$?}
+\end{casethm}
+\begin{casethm}[\textsc{E-Top}]
+\begin{mathpar}
+\inferrule
+  {}
+  {T = \top}
+  	\and
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash \top \prec_z \varnothing}
+\end{mathpar}
+The \textsc{E-Top} base case resolves trivially. By 
+\textsc{E-Top}, $\Gamma, (x : S); \Sigma \vdash \top \prec_z \varnothing$.
+\end{casethm}
+
+\subsubsection*{\textsc {$\ni$-Narrowing*}:}
+
+\begin{casethm}[\textsc{M-Path}]
+\begin{mathpar}
+\inferrule
+  {}
+  {e = p \\
+  	\sigma = [p/z]\sigma_i}
+  	\and
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T \\
+  	\Gamma, (x : U); \Sigma \vdash T \prec_z \overline{\sigma}\\
+  	\sigma_i \in \overline{\sigma}}
+  {\Gamma, (x : U); \Sigma \vdash p \ni [p/z]\sigma_i}
+\end{mathpar}
+From the mutually defined induction hypothesis, we assume 
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p : T', \; T' <:^* T \\
+  	\Gamma, (x : S); \Sigma \vdash T \prec_z \overline{\sigma}', \;
+  	\overline{\sigma}' <:^* \overline{\sigma}}
+  {}
+\end{mathpar}
+By Lemma \ref{lem:subtype:decl} (\hl{TODO}), $\Gamma, (x : S); \Sigma \vdash T' \prec \overline{\sigma}''$ 
+and $\Gamma, (x : S); \Sigma \vdash \overline{\sigma}'' <:^* \overline{\sigma}'$. 
+We can now show that $\exists \sigma_i'' \in \overline{\sigma}'':
+\Gamma, (x : S); \Sigma \vdash \sigma_i'' <:^* \sigma_i$, and thus that 
+$\Gamma, (x : S); \Sigma \vdash [p/z]\sigma_i'' <:^* [p/z]\sigma_i$.
+
+\hl{ToDo: Show T' expanding \\ Substitution preserves subtype?}
+\end{casethm}
+\begin{casethm}[\textsc{M-Exp}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T \\
+  	\Gamma, (x : U); \Sigma \vdash T \prec_z \overline{\sigma}\\
+  	\sigma \in \overline{\sigma} \\
+  	z \notin \sigma}
+  {\Gamma, (x : U); \Sigma \vdash p \ni \sigma}
+\end{mathpar}
+We explicitly restrict the statement of the theorem to only include 
+membership of paths, as a result, this cases resolves as in \textsc{M-Path}.
+\end{casethm}
+
+\subsubsection*{\textsc {:-Narrowing*}:}
+We restrict Narrowing on expression typing to paths. This is done since for 
+a generic expression narrowing does not hold. For this reason the below cases only deal 
+with path expressions.
+\begin{casethm}[\textsc{T-Var}]
+\begin{mathpar}
+\inferrule
+  {}
+  {p = y \\
+  	T = \Gamma, (x : U)(y)}
+  	\and
+\inferrule
+  {y \in dom(\Gamma, (x : U))}
+  {	\Gamma, (y : U); \Sigma \vdash y : \Gamma(y)}
+\end{mathpar}
+\begin{itemize}
+\item[]  \textit{Subcase 1} ($y = x$):
+If $y = x$, then the result is immediate since by \textsc{T-Var} 
+$\Gamma,(x:S); \Sigma \vdash x : S$, and by assumption 
+$\Gamma; \Sigma \vdash S <: U$.
+\item[]  \textit{Subcase 2} ($y \neq x$):
+If $y \neq x$, then the type of $y$ remains the same and the result 
+is achieved by reflexive.
+\end{itemize}
+\end{casethm}
+\begin{casethm}[\textsc{T-Loc}]
+\begin{mathpar}
+\inferrule
+  {}
+  {p = l}
+  	\and
+\inferrule
+  {	l \in dom(\Sigma)}
+  {	\Gamma, (x : U); \Sigma \vdash l : \Sigma(l)}
+\end{mathpar}
+$\Gamma, (x : S); \Sigma \vdash l : \Sigma(l)$ follows immediately from \textsc{T-Loc}.
+\end{casethm}
+\begin{casethm}[\textsc{T-Acc}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : S \\
+  	\Gamma, (x : U); \Sigma \vdash p \ni \texttt{val} \; f:T}
+  {	\Gamma, (x : U); \Sigma \vdash p.f : T}
+\end{mathpar}
+By our mutual induction hypothesis we assume narrowing holds for the 
+smaller premises.
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p : S' \\
+  	\Gamma, (x : S); \Sigma \vdash S' <:^* S}
+  {}
+  	\and
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p \ni \texttt{val} \; f:T' \\
+  	\Gamma, (x : S); \Sigma \vdash T' <:^* T}
+  {}
+\end{mathpar}
+By \textsc{T-Acc}, we get
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p.f : T'}
+  {}
+\end{mathpar}
+completing the case.
+\end{casethm}
+\begin{casethm}[\textsc{T-Type}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash p : T}
+  {	\Gamma, (x : U); \Sigma \vdash p \unlhd T : T}
+\end{mathpar}
+By the mutual induction hypothesis we assume narrowing holds 
+for the simpler expression typing premise.
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash p : T' \\
+  	\Gamma, (x : S); \Sigma \vdash T' <:^* T}
+  {}
+\end{mathpar}
+By \textsc{T-Sub*}, we get $\Gamma, (x : S); \Sigma \vdash p : T$, 
+and subsequently by \textsc{T-Type} we get $\Gamma, (x : S); \Sigma \vdash p \unlhd T : T$.
+\end{casethm}
+
+\begin{casethm}[\textsc{T-Sub*}]
+\begin{mathpar}
+\inferrule
+  {	\Gamma, (x : U); \Sigma \vdash e : T' \\
+  	\Gamma, (x : U); \Sigma \vdash T' <:^* T}
+  {	\Gamma, (x : U); \Sigma \vdash e : T}
+\end{mathpar}
+From our mutual induction hypothesis, we assume 
+$\Gamma, (x : S); \Sigma \vdash e : T'', T'' <:^* T'$ and 
+$\Gamma, (x : S); \Sigma \vdash T' <:^* T$. This gives us 
+$\Gamma, (x : S); \Sigma \vdash T'' <:^* T$ and by \textsc{T-Sub} we
+get the desired result.
+\end{casethm}
+
+\subsubsection*{\textsc {$<:^*$-Narrowing*}:}
+\begin{casethm}[\textsc {S\textsuperscript{*}-Refl}]
+\begin{mathpar}
+\inferrule
+  {}
+  {\Gamma, (x : U); \Sigma \vdash S \; <:^* \; S}
+\end{mathpar}
+The base case for transitive subtyping is simple by \textsc{S\textsuperscript{*}-Refl}.
+\end{casethm}
+\begin{casethm}[\textsc {S\textsuperscript{*}-Trans}]
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : U); \Sigma \vdash T \; <:^* \; T' \\
+	\Gamma, (x : U); \Sigma \vdash T' \; <: \; T''}
+  {\Gamma, (x : U); \Sigma \vdash T \; <:^* \; T''}
+\end{mathpar}
+From our mutual induction hypothesis we get 
+\begin{mathpar}
+\inferrule
+  {\Gamma, (x : S); \Sigma \vdash S \; <:^* \; T \\
+	\Gamma, (x : S); \Sigma \vdash T \; <:^* \; U}
+  {}
+\end{mathpar}
+This immediately gives us the desired result 
+$\Gamma, (x : S); \Sigma \vdash T \; <:^* \; T''$.
+\end{casethm}
+\qed
+\end{proof}
+
+
+
+
+\bibliographystyle{plain}
+\bibliography{bib}
+
+\end{document}

@@ -1,0 +1,708 @@
+
+
+\section{Syntax}
+
+\begin{figure}[t]
+\begin{minipage}{\linewidth}
+\small
+\[
+\begin{array}{l}
+\begin{syntax}
+\syntaxElement{t}{Term}
+	{p}	{path}
+	{new\; \{z \Rightarrow \overline{d_v}\}}{object initialization}
+	{t.f}{field selection}
+	{t.m(t)}{method selection}
+\endSyntaxElement\\
+\syntaxElement{p}{Path}
+	{x,y}	{variable/store location}
+	{p.f}{field selection}
+\endSyntaxElement\\
+\syntaxElement{\tau}{Type}
+	{\{z \Rightarrow \overline{\sigma}\}}{record type}
+	{p.L}{type selection}
+	{\top} {top}
+	{\bot}{bottom}
+\endSyntaxElement\\
+\syntaxElement{d}{Declaration}
+	{\typeInit{L}{\tau}}{}
+	{\defInit{m}{x}{\tau}{t}}{}
+	{\valInit{f}{t}}{}
+\endsyntaxElement\\
+\syntaxElement{d_v}{Declaration Values}
+	{\vdots}{}
+%	{\defInit{m}{x}{\tau}{t}}{}
+	{\valInit{f}{y}}{}
+\endsyntaxElement\\
+\syntaxElement{\sigma}{Declaration Type}
+	{\typeDefSup{L}{\tau}}{}
+	{\typeDefSub{L}{\tau}}{}
+	{\typeDefExt{L}{\tau}}{}
+	{\valType{f}{\tau}}{}
+	{\defType{m}{x}{\tau}{\tau}}{}
+\endsyntaxElement\\
+\syntaxElement{E}{Evaluation Context}
+	{\bigcirc}{}
+	{E.f}{}
+	{E.m(t)}{}
+	{p.m(E)}{}
+\endsyntaxElement\\
+\syntaxElement{\Gamma}{Environment}
+	{\varnothing}{}
+	{\Gamma, x : \tau}{}
+\endsyntaxElement\\
+\syntaxElement{\mu}{Store}
+	{\varnothing}{}
+	{\mu, y : \{z \Rightarrow \overline{d_v}\}}{}
+\endsyntaxElement\\
+\end{syntax}
+\end{array}
+\]
+\end{minipage}
+\caption{Wyvern Syntax}
+\label{f:Wyv:Syntax}
+\end{figure}
+
+We present the syntax of Wyvern in Figure \ref{f:Wyv:Syntax}. \textbf{Terms} are paths ($p$), object intializations ($new\; \{z \Rightarrow \overline{d_v}\}$), field accesses ($t.f$), and method selections ($t.m(t)$). \textbf{Paths} are variables ($x$), field selections on paths ($p.f$) and locations in the store ($y$). \textbf{Types} are recursive self types ($\{z \Rightarrow \overline{\sigma}\}$), selection types ($p.L$), the top type ($\top$) and the bottom type ($\bot$). \textbf{Declarations} are abstract type members ($\typeInit{L}{\tau}$), method definitions ($\defInit{m}{x}{\tau}{t}$) and value assignments ($\valInit{f}{t}$). \textbf{Declaration Types} are upper ($\typeDefSub{L}{\tau}$) and lower ($\typeDefSup{L}{\tau}$) bound abstract type members ($\typeDefExt{L}{\tau}$), type member assignments ($\typeDefExt{L}{\tau}$), value types ($\valType{f}{\tau}$) and method types ($\defType{m}{x}{\tau}{\tau}$).
+
+
+\section{Semantics}
+
+
+%\begin{figure}[h]
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {p \equiv p}
+%  \quad (\textsc{Eq-Refl})
+%  \and
+%\inferrule
+%  {p_1 \equiv p_2}
+%  {p_2 \equiv p_1}
+%  \quad (\textsc{Eq-Sym})
+%  \and
+%\inferrule
+%  {p_1 \equiv p_2 \\
+%   p_2 \equiv p_3}
+%  {p_1 \equiv p_3}
+%  \quad (\textsc{Eq-Trans})
+%  \and
+%\inferrule
+%  {p_1 \equiv p_2}
+%  {p_1 \equiv p_2 \unlhd T}
+%  \quad (\textsc{Eq-Path})
+%\end{mathpar}
+%\caption{Path Equivalence}
+%\label{f:path_equiv}
+%\end{figure}
+
+
+%\begin{figure}[h]
+%\begin{mathpar}
+%\inferrule
+%  {
+%  \overline{\sigma}_1 \equiv \overline{\sigma}_2
+%  }
+%  {\{z \Rightarrow \overline{\sigma}_1\} \equiv \{z \Rightarrow \overline{\sigma}_2\}}
+%  \quad (\textsc{Eq-Struct})
+%  \and
+%\inferrule
+%  {
+%  	p_1 \equiv p_2
+%   }
+%  {p_1.L \equiv p_2.L}
+%  \quad (\textsc{Eq-Select})
+%  \and
+%\inferrule
+%  {}
+%  {\vdash \top \equiv \top}
+%  \quad (\textsc{Eq-Top})
+%  \and
+%\inferrule
+%  {}
+%  {\bot \equiv \bot}
+%  \quad (\textsc{Eq-Bottom})
+%\end{mathpar}
+%\caption{Type Path Equivalence}
+%\label{f:type_equiv}
+%\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$\Gamma_1 \vdash \tau_1 <: \tau_2 \dashv \Gamma_2$}
+\begin{mathpar}
+\inferrule
+	{}
+	{\Gamma_1 \vdash x.L\ <:\ x.L \dashv \Gamma_2}
+	\quad (\textsc {S-Refl})
+	\and
+\inferrule
+	{\Gamma_1, z : \{z \Rightarrow \overline{\sigma}_1\} \vdash \overline{\sigma}_1 <:\ \overline{\sigma}_2 \dashv \Gamma_2, z : \{z \Rightarrow \overline{\sigma}_2\}}
+	{\Gamma_1 \vdash \{z \Rightarrow \overline{\sigma}_1\}\ <:\ \{z \Rightarrow \overline{\sigma}_2\} \dashv \Gamma_2}
+	\quad (\textsc {S-Rec})
+%	\and
+%\inferrule
+%	{\Gamma_2 \vdash \tau_2\ <:\ \tau_1 \dashv \Gamma_1 \\
+%	 \Gamma, x : \tau_1 \vdash \tau_1'\ <:\ \tau_2' \dashv \Gamma_2, x : \tau_2}
+%	{\Gamma_1 \vdash \arrowType{\tau_1}{x}{\tau_1'} <:\ \arrowType{\tau_2}{x}{\tau_2'} \dashv \Gamma_2}
+%	\quad (\textsc {S-Arrow})
+	\and
+\inferrule
+	{\Gamma_1 \vdash x \ni \text{\texttt{type}} \ L : \tau_1 \ldots  \tau_2\\
+	 \Gamma_1 \vdash \tau_2 <: \tau \dashv \Gamma_2}
+	{\Gamma_1 \vdash p.L\ <:\ \tau \dashv \Gamma_2}
+	\quad (\textsc {S-Select-Upper})
+	\and
+\inferrule
+	{\Gamma_2 \vdash x \ni \text{\texttt{type}} \ L : \tau_1 \ldots  \tau_2\\
+	 \Gamma_1 \vdash \tau <: \tau_1 \dashv \Gamma_2}
+	{\Gamma_1 \vdash \tau \ <:\ p.L \dashv \Gamma_2}
+	\quad (\textsc {S-Select-Lower})
+	\and
+\inferrule
+	{}
+	{\Gamma_1 \vdash \tau\ <:\ \top \dashv \Gamma_2}
+	\quad (\textsc {S-Top})
+	\and
+\inferrule
+	{}
+	{\Gamma_1 \vdash \bot\ <:\ \tau \dashv \Gamma_2}
+	\quad (\textsc {S-Bottom})
+\end{mathpar}
+\hfill \fbox{$\Gamma_1 \vdash \sigma <: \sigma' \dashv \Gamma_2$}
+\begin{mathpar}
+\inferrule
+	{\Gamma_1 \vdash \tau_1 <: \tau_2 \dashv \Gamma_2}
+	{\Gamma_1 \vdash \valType{f}{\tau_1} <: \valType{f}{\tau_2} \dashv \Gamma_2}
+	\quad (\textsc {S-Decl-Val})	
+	\and
+\inferrule
+	{\Gamma_2 \vdash \tau_2 <: \tau_1 \dashv \Gamma_1 \\
+	\Gamma_1, x : \tau_1 \vdash \tau_1' <: \tau_2' \dashv \Gamma_2, x : \tau_2}
+	{\Gamma_1 \vdash \defType{m}{x}{\tau_1}{\tau_1'} <: \defType{m}{x}{\tau_2}{\tau_2'} \dashv \Gamma_2}
+	\quad (\textsc {S-Decl-Def})	
+	\and
+\inferrule
+	{\Gamma_1 \vdash \tau_1 <: \tau_2 \dashv \Gamma_2}
+	{\Gamma_1 \vdash \typeDefSub{L}{\tau_1} <:\ \typeDefSub{L}{\tau_2} \dashv \Gamma_2}
+	\quad (\textsc {S-Decl-Upper})
+	\and
+\inferrule
+	{\Gamma_2 \vdash \tau_2 <: \tau_1 \dashv \Gamma_1}
+	{\Gamma_1 \vdash \typeDefSup{L}{\tau_1} <:\ \typeDefSup{L}{\tau_2} \dashv \Gamma_2}
+	\quad (\textsc {S-Decl-Lower})
+	\and
+\inferrule
+	{\Gamma_1 \vdash \tau_1 <: \tau_2 \dashv \Gamma_1}
+	{\Gamma_1 \vdash \typeDefExt{L}{\tau_1} <:\ \typeDefSub{L}{\tau_2} \dashv \Gamma_2}
+	\quad (\textsc {S-Decl-Type-1})
+	\and
+\inferrule
+	{\Gamma_2 \vdash \tau_2 <: \tau_1 \dashv \Gamma_1}
+	{\Gamma_1 \vdash \typeDefExt{L}{\tau_1} <:\ \typeDefSup{L}{\tau_2} \dashv \Gamma_2}
+	\quad (\textsc {S-Decl-Type-2})
+\end{mathpar}
+\caption{Subtyping}
+\label{f:subtype}
+\end{figure}
+The subtype semantics are given in Figure \ref{f:subtype}. The only non-standard aspect of subtyping is the presence of a second environment. This is captured in the rules for recursive self types (\textsc{S-Rec}) and method declarations \textsc{S-Decl-Def}. The use of a single environment in these cases would introduce environment narrowing, altering the context of the larger types during subtyping.
+
+%\begin{figure}[h]
+%\hfill \fbox{$A\Gamma \vdash T \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {A\Gamma \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%  	A\Gamma \vdash \texttt{type} \ L : S \ldots  U \ \textbf{wf} }
+%  {A\Gamma \vdash p.L \ \textbf{wf}}
+%  \quad (\textsc {WF-Sel})
+%	\and
+%\inferrule
+%  {A\Gamma,z:\{z \Rightarrow \overline{\sigma}\} \vdash \overline{\sigma} \ \textbf{wf} \\
+%  	\forall j \neq i, \ dom(\sigma_j) \neq dom(\sigma_i)}
+%  {A\Gamma \vdash \{z \Rightarrow \overline{\sigma}\} \ \textbf{wf}}
+%  \quad (\textsc {WF-Struct})
+%%	\and
+%%\inferrule
+%%  {\Gamma \vdash S \  \textbf{wf} \\
+%%  	\Gamma \vdash T \  \textbf{wf}}
+%%  {\Gamma \vdash S \rightarrow T \  \textbf{wf}}
+%%  \quad (\textsc {WF-Func})
+%	\and
+%\inferrule
+%  {}
+%  {A\Gamma \vdash \top \  \textbf{wf}}
+%  \quad (\textsc {WF-Top})
+%	\and
+%\inferrule
+%  {}
+%  {A\Gamma \vdash \bot \  \textbf{wf}}
+%  \quad (\textsc {WF-Bottom})
+%\end{mathpar}
+%\hfill \fbox{$A\Gamma \vdash \sigma \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {A\Gamma \vdash T : \textbf{wf}}
+%  {A\Gamma \vdash \texttt{val} \ f:T \  \textbf{wf}}
+%  \quad (\textsc {WF-Val})
+%	\and
+%\inferrule
+%  {A\Gamma \vdash T : \textbf{wf} \\
+%  	A\Gamma \vdash S : \textbf{wf}}
+%  {A\Gamma \vdash \texttt{def} \ m:S \rightarrow T \  \textbf{wf}}
+%  \quad (\textsc {WF-Def})
+%	\and
+%\inferrule
+%  {A\Gamma \vdash S : \textbf{wfe} \ \vee \ S = \bot\\
+%  	A\Gamma \vdash U : \textbf{wfe} \\
+%  	A\Gamma \vdash S <: U}
+%  {A\Gamma \vdash \texttt{type} \ L : S \ldots  U \ \textbf{wf}}
+%  \quad (\textsc {WF-Type})
+%\end{mathpar}
+%\hfill \fbox{$A \vdash \Gamma \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {\forall x \in dom(\Gamma), A\Gamma \vdash \Gamma(x) \ \textbf{wf}}
+%  { \vdash \Gamma \  \textbf{wf}}
+%  \quad (\textsc {WF-Environment})
+%\end{mathpar}
+%\hfill \fbox{$ \  \textbf{wf}$}
+%\begin{mathpar}
+%\inferrule
+%  {\forall l \in dom(), \varnothing\varnothing \vdash (l) \ \textbf{wf}}
+%  { \  \textbf{wf}}
+%  \quad (\textsc {WF-Store-Context})
+%\end{mathpar}
+%\begin{mathpar}
+%\inferrule
+%  {\forall l \in dom(\mu), \varnothing\varnothing \vdash \mu(l) : (l)}
+%  {\mu : }
+%  \quad (\textsc {WF-Store})
+%\end{mathpar}
+%\caption{Well-Formedness}
+%\label{f:wf}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\Gamma \vdash T \  \textbf{wfe}$}
+%\begin{mathpar}
+%\inferrule
+%  {\Gamma \vdash T \ \textbf{wf} \\
+%  	\Gamma \vdash T \prec \overline{\sigma}}
+%  {\Gamma \vdash T \ \textbf{wfe}}
+%  \quad (\textsc {WFE})
+%\end{mathpar}
+%\caption{Well-Formed and Expanding Types}
+%\label{f:wfe}
+%\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash \sigma^z \in \tau$}
+\begin{mathpar}
+\inferrule
+	{\sigma \in \overline{\sigma}}
+	{\Gamma \vdash \sigma^z \in \{z \Rightarrow \overline{\sigma}\}}
+	\quad (\textsc {MT-Struct})
+	\and
+\inferrule
+	{\Gamma \vdash p \ni \typeDefSub{L}{\tau_2} \\
+	 \Gamma \vdash \sigma^z \in \tau_2}
+	{\Gamma \vdash \sigma^z \in p.L}
+	\quad (\textsc {MT-Sel-1})
+	\and
+\inferrule
+	{\Gamma \vdash p \ni \typeInit{L}{\tau_2} \\
+	 \Gamma \vdash \sigma^z \in \tau_2}
+	{\Gamma \vdash \sigma^z \in p.L}
+	\quad (\textsc {MT-Sel-2})
+\end{mathpar}
+\caption{Type Membership}
+\label{f:exp}
+\hfill \fbox{$\Gamma \vdash t \ni \sigma$}
+\begin{mathpar}
+\inferrule
+  {\Gamma \vdash p : \tau \\
+  	\Gamma \vdash \sigma^z \in \tau}
+  {\Gamma \vdash p \ni [p/z]\sigma}
+  \quad (\textsc {M-Path})
+	\and
+\inferrule
+  {\Gamma \vdash t : \tau \\
+  	\Gamma \vdash \sigma^z \in \tau \\
+  	z \notin \sigma}
+  {\Gamma \vdash t \ni \sigma}
+  \quad (\textsc {M-Exp})
+\end{mathpar}
+\caption{Term Membership}
+\label{f:mem}
+\end{figure}
+Term and type membership is relatively straightforward and is given in Figure \ref{f:mem}. One thing to note, type membership is only ever done on paths, and never non-path terms. This simplifies the term typing need during subtyping to only enviroment lookups. This means that during the proof of transitivity, we need only consider the typing a small subset of relatively simple terms.
+
+%\subsubsection{Typing}
+
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash e:T$}
+\begin{mathpar}
+\inferrule
+  {x \in dom(\Gamma)}
+  {\Gamma \vdash x : \Gamma(x)}
+  \quad (\textsc {T-Var})
+	\and
+\inferrule
+  {\Gamma, z : \{z \Rightarrow \overline{\sigma}\} 
+  \vdash \overline{d} : \overline{\sigma}}
+  {\Gamma \vdash \texttt{new} \ \{z \Rightarrow \overline{d}\} : 
+  \{z \Rightarrow \overline{\sigma}\}}
+  \quad (\textsc {T-New})
+	\and
+\inferrule
+  {\Gamma \vdash t \ni \valType{f}{\tau}}
+  {\Gamma \vdash t.f : \tau}
+  \quad (\textsc {T-Field})
+	\and
+\inferrule
+  {\Gamma \vdash t \ni \defType{m}{x}{\tau_1}{\tau_2} \\
+   \Gamma \vdash t' : \tau_1 \\
+   \Gamma \vdash t' <: t_1 \dashv \Gamma}
+  {\Gamma \vdash t.m : \tau_2}
+  \quad (\textsc {T-Meth})
+\end{mathpar}
+\caption{Term Typing}
+\label{f:t_typ}
+\end{figure}
+\begin{figure}[h]
+\hfill \fbox{$\Gamma \vdash d:\sigma$}
+\begin{mathpar}
+\inferrule
+  {\Gamma \vdash t : \tau}
+  {\Gamma \vdash \valInit{f}{t} : \valType{f}{\tau}}
+  \quad (\textsc {T-Decl-Val})
+	\and
+\inferrule
+  {\Gamma, x : \tau_1 \vdash t : \tau_2}
+  {\Gamma \vdash \defInit{m}{x}{\tau_1}{t} : \defType{m}{x}{\tau_1}{\tau_2}}
+  \quad (\textsc {T-Decl-Def})
+	\and
+\inferrule
+  {}
+  {\Gamma \vdash \typeInit{L}{\tau} : \typeInit{L}{\tau}}
+  \quad (\textsc {T-Decl-Type})
+\end{mathpar}
+\caption{Declaration Typing}
+\label{f:d_typ}
+\end{figure}
+Figure \ref{f:t_typ} gives the full term typing relation, while \ref{f:d_typ} gives the typing relation for declarations. As previously mentioned, in a world on only path term, typing reduces to a very simple environment lookup, as only the rules \textsc{T-Var} and \textsc{T-Field} are used.
+
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v \leadsto l$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\mu \vdash l \leadsto l }
+%  \quad (\textsc {P-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v'}
+%  {\mu \vdash v \unlhd T \leadsto v' \unlhd T}
+%  \quad (\textsc {L-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v' \\
+%   \mu \vdash v' \leadsto_{f} v_f}
+%  {\mu \vdash v.f \leadsto v_f}
+%  \quad (\textsc {L-Path})
+%\end{mathpar}
+%\hfill \fbox{$\mu \vdash d_v \leadsto d$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu \vdash v \leadsto v'}
+%  {\mu \vdash \texttt{val} \ f : T = v \leadsto \texttt{def} \ m : S \rightarrow T}
+%  \quad (\textsc {L-Val})
+%	\and
+%\inferrule
+%  {}
+%  {\mu \vdash \texttt{def} \ m : S(x:T) = e \leadsto \texttt{def} \ m(x:S) = e : T}
+%  \quad (\textsc {L-Def})
+%	\and
+%\inferrule
+%  {}
+%  {\mu \vdash \texttt{type} \ L : S \ldots  U \leadsto \texttt{type} \ L : S \ldots  U}
+%  \quad (\textsc {L-Type})
+%\end{mathpar}
+%\caption{Path Leads-to Judgement}
+%\label{f:path}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v \leadsto_{f} v$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\mu \vdash l \leadsto l }
+%  \quad (\textsc {P-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v'}
+%  {\mu \vdash v \unlhd T \leadsto v' \unlhd T}
+%  \quad (\textsc {L-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v \leadsto v' \\
+%   \mu \vdash v' \leadsto_{f} v_f}
+%  {\mu \vdash v.f \leadsto v_f}
+%  \quad (\textsc {L-Path})
+%\end{mathpar}
+%\caption{Path Leads-to Judgement}
+%\label{f:path}
+%\end{figure}
+%
+% 
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v_1 \leadsto v_2$}
+%\begin{mathpar}
+%\inferrule
+%  {}
+%  {\mu \vdash l \leadsto l}
+%  \quad (\textsc {L-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash {v_1}^{p'_z} \leadsto v_2}
+%  {\mu \vdash v_1^{p'_z} \unlhd \{z \Rightarrow \overline{\sigma}\}_{p_z} \leadsto v_2 \unlhd \{z \Rightarrow [p_z/z]\overline{\sigma}\}}
+%  \quad (\textsc {L-Type})
+%	\and
+%\inferrule
+%  {\varnothing\varnothing \vdash v_1 : p'.L \\
+%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%  	p \not\equiv p' \\
+%  	\mu \vdash v_1 \unlhd S \unlhd U \leadsto v_2}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%  \quad (\textsc {L-Type-Select-Lower})
+%	\and
+%\inferrule
+%  {\varnothing\varnothing \vdash v_1 : p'.L \\
+%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%  	p \equiv p' \\
+%  	\mu \vdash v_1 \unlhd U \leadsto v_2}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%  \quad (\textsc {L-Type-Select-Upper})
+%%	\and
+%%\inferrule
+%%  {\varnothing\varnothing \vdash v_1 : p'.L \\
+%%   p' \equiv p \\
+%%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%%  	\mu \vdash v_1 \unlhd U \leadsto v_2}
+%%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%%  \quad (\textsc {L-Type-Select-Refl})
+%\end{mathpar}
+%\caption{Leadsto Judgement}
+%\label{f:leadsto}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v_1 \leadsto_{f} v_2$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu(l) = \{z \Rightarrow \ldots , \texttt{val} \ f : T = v, \ldots \}}
+%  {\mu \vdash l \leadsto_{f} [l/z]v \unlhd T}
+%  \quad (\textsc {L\textsubscript{$f$}-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \leadsto_{f} v_2 \\
+%  \texttt{val} \ f:T \in \overline{\sigma}}
+%  {\mu \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{f} v_2 \unlhd [v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} / z]T}
+%  \quad (\textsc {L\textsubscript{$f$}-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2 \\
+%   \mu \vdash v_2 \leadsto_{f} v_3}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto_{f} v_3}
+%  \quad (\textsc {L\textsubscript{$f$}-Type-Select})
+%%	\and
+%%\inferrule
+%%  {\varnothing\varnothing \vdash v_1 : T \\
+%%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%%  	\varnothing\varnothing \not\vdash T <: U \\
+%%  	\mu \vdash v_1 \unlhd S \unlhd U \leadsto v_2}
+%%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%%  \quad (\textsc {L\textsubscript{$f$}-Type-Select-Lower})
+%%	\and
+%%\inferrule
+%%  {\varnothing\varnothing \vdash v_1 : T \\
+%%  	\varnothing\varnothing \vdash p \ni \texttt{type} \ L : S \ldots  U \\
+%%  	\varnothing\varnothing \vdash T <: U \\
+%%  	\mu \vdash v_1 \unlhd U \leadsto v_2}
+%%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2}
+%%  \quad (\textsc {L\textsubscript{$f$}-Type-Select-Upper})
+%%	\and
+%%\inferrule
+%%  {\mu \vdash v_1 \leadsto_{f_1} v_2 \\
+%%   v_2 \neq v_1.f_1 \\
+%%  	\mu \vdash v_2 \leadsto_{f_2} v_3}
+%%  {\mu \vdash v_1.f_1 \leadsto_{f_2} v3}
+%%  \quad (\textsc {L\textsubscript{$f$}-Field})
+%%	\and
+%%\inferrule
+%%  {\mu \vdash v_1 \leadsto_{f_1} v_1.f_1}
+%%  {\mu \vdash v_1.f_1 \leadsto_{f_2} v_1.f_1.f_2}
+%%  \quad (\textsc {L\textsubscript{$f$}-Field-Stop})
+%\end{mathpar}
+%\caption{Field Leadsto Judgement}
+%\label{f:field_leadsto}
+%\end{figure}
+%
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v_1 \leadsto_{m(v_2)} e$}
+%\begin{mathpar}
+%\inferrule
+%  {\mu(l) = \{z \Rightarrow \ldots , \texttt{def} \ m (x : S) = e : T, \ldots \}}
+%  {\mu \vdash l \leadsto_{m(v_2)} [v_2 \unlhd S/x, l/z]e \unlhd T}
+%  \quad (\textsc {L\textsubscript{$m$}-Loc})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \leadsto_{m(v_2 \unlhd S)} e \\
+%  \texttt{def} \ m : S \rightarrow T \in \overline{\sigma}}
+%  {\mu \vdash v_1 \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_{m(v_2)} e \unlhd T}
+%  \quad (\textsc {L\textsubscript{$m$}-Type})
+%	\and
+%\inferrule
+%  {\mu \vdash v_1 \unlhd p.L \leadsto v_2 \\
+%   \mu \vdash v_2 \leadsto_{m(v_2)} v_3}
+%  {\mu \vdash v_1 \unlhd p.L \leadsto_{m} v_3}
+%  \quad (\textsc {L\textsubscript{$m$}-Type-Select})
+%%	\and
+%%\inferrule
+%%  {\mu \vdash v_1 \leadsto_{f} v_2 \\
+%%  	\mu \vdash v_2 \leadsto_{m} v_3}
+%%  {\mu \vdash v_1.f \leadsto_{m} v3}
+%%  \quad (\textsc {L\textsubscript{$m$}-Field})
+%\end{mathpar}
+%\caption{Method Leadsto Judgement}
+%\label{f:meth_leadsto}
+%\end{figure}
+
+%\begin{figure}[h]
+%\hfill \fbox{$ \vdash v \leadsto v'$}
+%\begin{mathpar}
+%\inferrule
+%	{}
+%	{ \vdash l \leadsto l}
+%	\quad(\textsc{L-Loc})
+%	\and
+%\inferrule
+%	{ \vdash v \leadsto v'}
+%	{ \vdash v \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto v' \unlhd \{z \Rightarrow \overline{\sigma}\}}
+%	\quad(\textsc{L-Struct})
+%	\and
+%\inferrule
+%	{\emptyset \vdash v : \tau \\
+%	 \tau \not\equiv p.L \\
+%	 \emptyset \vdash p \ni \text{\texttt{type}}\ L: \tau_1 \ldots \tau_2 \\
+%	  \vdash v \unlhd \tau_1 \unlhd \tau_2 \leadsto v'}
+%	{ \vdash v \unlhd p.L \leadsto v'}
+%	\quad(\textsc{L-Select})
+%	\and
+%\inferrule
+%	{\emptyset \vdash v : \tau \\
+%	 \tau \equiv p.L \\
+%	 \emptyset \vdash p \ni \text{\texttt{type}}\ L: \tau_1 \ldots \tau_2 \\
+%	  \vdash v \unlhd \tau_2 \leadsto v'}
+%	{ \vdash v \unlhd p.L \leadsto v'}
+%	\quad(\textsc{L-Select-Path-Equiv})
+%\end{mathpar}
+%\caption{Leadsto}
+%\label{f:leadsto}
+%\end{figure}
+
+%\begin{figure}[h]
+%\hfill \fbox{$\mu \vdash v \leadsto_m t$}
+%\begin{mathpar}
+%\inferrule
+%	{\mu(l) = \{z \Rightarrow \ldots, \text{\texttt{def}}\ m : \tau = t, \ldots\}}
+%	{\mu \vdash l \leadsto_m [l/z](t \unlhd \tau)}
+%	\quad(\textsc{ML-Loc})
+%	\and
+%\inferrule
+%	{\mu \vdash v \leadsto_m t \\
+%	 \text{\texttt{def}}\ m : \tau \in \overline{\sigma}}
+%	{\mu \vdash v \unlhd \{z \Rightarrow \overline{\sigma}\} \leadsto_m t \unlhd [v \unlhd \{z \Rightarrow \overline{\sigma}\}/z]\tau}
+%	\quad(\textsc{ML-Struct})
+%\end{mathpar}
+%\caption{Method Leadsto}
+%\label{f:mleadsto}
+%\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$p \mapsto_\mu y$}
+\begin{mathpar}
+\inferrule
+	{}
+	{y \mapsto_\mu y}
+	\quad(\textsc{MAP-Loc})
+	\and
+\inferrule
+	{p \mapsto_\mu y \\
+	\mu(y) = \{z \Rightarrow \overline{d_v}\} \\
+	\valInit{f}{y_f} \in \overline{d_v}}
+	{p.f \mapsto_\mu y_f}
+	\quad(\textsc{MAP-Field})
+\end{mathpar}
+\caption{Path Mapping}
+\label{f:mapsto}
+\end{figure}
+
+\begin{figure}[h]
+\hfill \fbox{$\mu \ | \ t \ \rightarrow \mu' \ | \ t'$}
+\begin{mathpar}
+\inferrule
+  {y \notin dom(\mu) \\
+  	\mu' = \mu, y \mapsto \{\texttt{z} \Rightarrow \overline{d_v}\}}
+  {\mu \ | \ \texttt{new} \ \{\texttt{z} \Rightarrow \overline{d_v}\} \ \rightarrow \mu' \ | \ y}
+  \quad (\textsc {R-New})
+  \and
+\inferrule
+  {p \mapsto_\mu y \\
+  \mu(y) = \{z \Rightarrow \overline{d_v}\} \\
+  \defInit{m}{x}{\tau}{t} \in \overline{d_v}}
+  {\mu \ | \ p.m(p') \rightarrow \mu \ | [p,p'/z,x]t}
+  \quad (\textsc {R-Meth})
+%  \and
+%\inferrule
+%  {p \mapsto_\mu y \\
+%  \mu(y) = \{z \Rightarrow \overline{d_v}\} \\
+%  \valInit{f}{p'} \in \overline{d_v}}
+%  {\mu \ | \ p.f \rightarrow \mu \ | [p/z]p'}
+%  \quad (\textsc {R-Field})
+  \and
+\inferrule
+  {	\mu \ | \ t \ \rightarrow \ \mu' \ | \ t'}
+  {\mu \ | \ E[t] \ \rightarrow \mu' \ | \ E[t']}
+  \quad (\textsc {R-Context})
+\end{mathpar}
+\caption{Term Reduction}
+\label{f:red}
+\end{figure}
+The typing relation is given in Figure \ref{f:red}. This makes use of a helper relation in Figure \ref{f:mapsto} for Path Mapping. As we do not reduce paths in order to maintain type preservation, we use Path Mapping to determine the ultimate location in the store of a path in order to do method lookup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

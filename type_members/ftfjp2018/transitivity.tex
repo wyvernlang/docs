@@ -1,0 +1,27 @@
+\section{Simpler forms of Soundness}
+
+\subsection{Environment Narrowing and Transitivity}
+A central difficulty in achieving a proof of soundness is the interplay between environment narrowing (the modification of an environment to a more specific one) and subtype transitivity. The proofs of soundness for DOT deal with this by pushing back on transitivity using \emph{tight} and \emph{inert} typing.
+In this paper we demonstrate that a much simplified type system can easily achieve soundness while still containing a variety of interesting features. Primarily we remove environment narrowing altogether by using a double headed subtyping relation ($\Gamma_1 \vdash \tau_1 <: \tau_2 \dashv \Gamma_2$). \citeauthor{nada 2014} used a similar subtyping relation when developing soundness using a big step semantics. We remove environment narrowing in the absence of intersection types.
+
+\subsection{Path Dependent Types}
+
+DOT only allows type selections on variables ($x$). This disqualifies the use of more complex type selections that include field access in the path ($x.f_1 \ldots .f_n$). Such paths are required for modelling modules as objects. They hold some complexity in the evaluation of the paths. Consider the following example.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val x = new {
+        def m(x : {z $\Rightarrow$
+                   type L = $\top$
+          }) = { x } : x.L
+        }
+\end{lstlisting}
+In this case we define a method that takes a parameter \verb|x| and returns a term of type \verb|x.L|. Now if we attempt to type the following code in this context.
+\begin{lstlisting}[mathescape, style=custom_lang]
+val z = new {type L = $\top$}
+val y = new {
+         val f = z
+         }
+x.m(y)
+\end{lstlisting}
+\verb|x.m(y.f)| has type \verb|y.f.L|. Further reduction eventually results in \verb|z.L|. This is not the same type and so violates the type preservation portion of type safety.
+
+We aim to introduce complex paths as part of selection types. The strategy involved here is to include paths as values, that is paths are not evaluated.
