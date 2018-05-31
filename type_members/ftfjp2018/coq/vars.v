@@ -4443,17 +4443,20 @@ Qed.
 
   Lemma subst_typing :
     (forall G v t, G vdash v hasType t ->
-              forall x n t' v', t = ([x /t S n] t') ->
-                           v = ([x /v S n] v') -> 
-                           forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
-                                    n < (length G1) ->
-                                    forall x' tx, G vdash x hasType tx ->
-                                             G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
-                                             ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x' /v S n] v') hasType ([x' /t S n] t')).
+              forall x n t', t = ([x /t S n] t') ->
+                        forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
+                                 n < (length G1) ->
+                                 forall x' tx, G vdash x hasType tx ->
+                                          G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                          ([x' rshift_v 1 /e n] G1) ++ G2 vdash v hasType ([x' /t S n] t')).
   Proof.
     intros G v t Htyp; induction Htyp; intros.
 
     destruct v'; inversion H1; subst.
+
+    
+
+    apply t_var in H.
 
     (*
      if get n1 (([x rshift_v 1 /e n0] G1) ++ G2) = Some t, then there exists t' st 
