@@ -427,7 +427,18 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       | dt_con d ds' => dt_con ([x /dt n] d) ([x /dts n] ds')
     end
       
-  where "'[' p '/dts' n ']' d" := (subst_d_tys n p d)
+      where "'[' p '/dts' n ']' d" := (subst_d_tys n p d).
+
+  Fixpoint subst_env (n : nat)(x : var)(G : env) : env :=
+    match G with
+      | nil => nil
+      | t::G' => match n with
+                  | O => ([x /t n]t)::G
+                  | S n' => ([x /t n]t)::(subst_env n' (x rshift_v 1) G')
+                end
+    end.
+
+  Notation "'[' x '/e' n ']' G" := (subst_env n x G)(at level 80).
 
   (*with
   subst_p (n : nat) (p1 p2 : path) : path :=
@@ -442,7 +453,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     end
                               
       
-  where "'[' p1 '/p' n ']' p2" := (subst_p n p1 p2)*).
+  where "'[' p1 '/p' n ']' p2" := (subst_p n p1 p2)*)
 
   Fixpoint get (n : nat) (l : list ty) : option ty :=
     match l with 
@@ -615,7 +626,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                        n notin_p (p cast t)
                          where "n 'notin_p' p" := (notin_path n p)*).
 
-  Hint Constructors notin_ty notin_decl_ty notin_decl_tys.
+  Hint Constructors notin_var notin_ty notin_decl_ty notin_decl_tys.
 
   Scheme notin_ty_mutind := Induction for notin_ty Sort Prop
     with notin_decl_ty_mutind := Induction for notin_decl_ty Sort Prop
@@ -1407,8 +1418,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Proof.
     intros.
     inversion H; crush.
-    apply ni_con; crush.
-    apply ni_abs.
   Qed.
 
   Hint Rewrite ge_implies_notin_var.
@@ -1609,6 +1618,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Rewrite rlshift_type rlshift_decl_ty rlshift_decl_tys. 
   Hint Resolve rlshift_type rlshift_decl_ty rlshift_decl_tys.
+
+  Lemma lrshift_n_var :
+    forall v n, (v lshift_v n rshift_v n) = v.
+  Proof.
+    intros; destruct v; crush.
+   Qed.
 
   Lemma lrshift_n_mutind :
     (forall t n, (t lshift_t n rshift_t n) = t) /\
@@ -4322,6 +4337,251 @@ Qed.
                                                            ds1 =ds2).
   Proof.
     destruct subst_equals_mutind; crush.
+  Qed.
+
+  Lemma subst_env_cons :
+    forall G t x n, ([x /t S n] t)::([(x rshift_v 1) /e n] G) = [x /e S n] (t::G).
+  Proof.
+    intros; simpl; auto.
+  Qed.
+
+  Lemma notin_lshift_var :
+    forall v n, n notin_v v -> forall m, (n + m) notin_v (v lshift_v m).
+  Proof.
+    intros v n Hni; induction Hni; crush.
+  Qed.
+
+  Lemma notin_lshift_mutind :
+    (forall n t, n notin_t t -> forall m, n + m notin_t (t lshift_t m)) /\
+    (forall n d, n notin_dt d -> forall m, n + m notin_dt (d lshift_dt m)) /\
+    (forall n ds, n notin_dts ds -> forall m, n + m notin_dts (ds lshift_dts m)).
+  Proof.
+    apply notin_mutind; crush.
+
+    apply ni_sel.
+    apply notin_lshift_var; auto.
+  Qed.
+
+  Lemma notin_lshift_type :
+    (forall n t, n notin_t t -> forall m, n + m notin_t (t lshift_t m)).
+  Proof.
+    destruct notin_lshift_mutind; crush.
+  Qed.
+
+  Lemma notin_lshift_decl_ty :
+    (forall n d, n notin_dt d -> forall m, n + m notin_dt (d lshift_dt m)).
+  Proof.
+    destruct notin_lshift_mutind; crush.
+  Qed.
+
+  Lemma notin_lshift_decl_tys :
+    (forall n ds, n notin_dts ds -> forall m, n + m notin_dts (ds lshift_dts m)).
+  Proof.
+    destruct notin_lshift_mutind; crush.
+  Qed.
+
+  Lemma notin_subst_var :
+    forall v x n, n notin_v v -> n notin_v x -> forall m, n notin_v ([x /v m] v).
+  Proof.
+    intros; destruct v; crush.
+    destruct (eq_nat_dec m n0);
+      [subst; rewrite <- beq_nat_refl; auto|].
+    destruct (Nat.eqb_neq m n0) as [Htmp Hneqb];
+      rewrite Hneqb; auto.
+  Qed.
+  
+  Lemma notin_subst_mutind :
+    (forall t x n, n notin_t t -> n notin_v x -> forall m, n notin_t ([x /t m] t)) /\
+    (forall d x n, n notin_dt d -> n notin_v x -> forall m, n notin_dt ([x /dt m] d)) /\
+    (forall ds x n, n notin_dts ds -> n notin_v x -> forall m, n notin_dts ([x /dts m] ds)).
+  Proof.
+    apply type_mutind; intros; auto.
+
+    apply ni_str.
+    apply H.
+    inversion H0; auto.
+    apply notin_lshift_var with (m:=1) in H1.
+    rewrite Nat.add_1_r in H1; crush.
+    
+    apply ni_sel.
+    apply notin_subst_var; auto.
+    inversion H; auto.
+
+    apply ni_arr; fold subst;
+    inversion H1; subst; auto.
+    apply H0; auto.
+    rewrite <- Nat.add_1_r;
+      apply notin_lshift_var; auto.
+
+    apply ni_upp_dt; fold subst; inversion H0; auto.
+
+    apply ni_low_dt; inversion H0; auto.
+
+    apply ni_val_dt; inversion H0; auto.
+
+    apply ni_con_dt; inversion H1; auto.
+
+  Qed.
+  
+  Lemma notin_subst_type :
+    (forall t x n, n notin_t t -> n notin_v x -> forall m, n notin_t ([x /t m] t)).
+  Proof.
+    destruct notin_subst_mutind; crush.
+  Qed.
+  
+  Lemma notin_subst_decl_ty :
+    (forall d x n, n notin_dt d -> n notin_v x -> forall m, n notin_dt ([x /dt m] d)).
+  Proof.
+    destruct notin_subst_mutind; crush.
+  Qed.
+  
+  Lemma notin_subst_decl_tys :
+    (forall ds x n, n notin_dts ds -> n notin_v x -> forall m, n notin_dts ([x /dts m] ds)).
+  Proof.
+    destruct notin_subst_mutind; crush.
+  Qed.
+
+  Lemma subst_typing :
+    (forall G v t, G vdash v hasType t ->
+              forall x n t' v', t = ([x /t S n] t') ->
+                           v = ([x /v S n] v') -> 
+                           forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
+                                    n < (length G1) ->
+                                    forall x' tx, G vdash x hasType tx ->
+                                             G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                             ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x' /v S n] v') hasType ([x' /t S n] t')).
+  Proof.
+    intros G v t Htyp; induction Htyp; intros.
+
+    destruct v'; inversion H1; subst.
+
+    (*
+     if get n1 (([x rshift_v 1 /e n0] G1) ++ G2) = Some t, then there exists t' st 
+     get n1 (([x' rshift_v 1 /e n0] G1) ++ G2) = Some t''
+
+     if t is in ([x rshift_v 1 /e n0] G1, then t contains a substitution. 
+     This is then used in (t lshift_t S n1) = ([x /t S n0] t') to 
+     associate t'' with t'.
+
+     if (t lshift_t S n1) = ([x /t S n0] t'), then there exists some x'', n0'' t'' such that 
+     t = [x''/ S n0''] t''
+
+     then [x''/ S n0''] t'' is in *)
+
+    apply t_var in H.
+    
+    
+  Qed.
+
+  Lemma wf_has_contains_mutind :
+    (forall G v d, G vdash v ni d ->
+              G wf_e ->
+              G vdash v wf_v ->
+              G vdash d wf_d) /\
+    (forall G t d, G vdash d cont t ->
+              G wf_e ->
+              G vdash t wf_t ->
+              G vdash d wf_d).
+  Proof.
+    
+    apply has_contains_mutind; intros.
+
+    
+
+  Lemma subst_typing :
+    (forall G v t, G vdash v hasType t ->
+              forall x n t' v', t = ([x /t n] t') ->
+                           v = ([x /v n] v') ->
+                           forall x' tx, G vdash x hasType tx ->
+                                    G vdash x' hasType tx ->
+                                    n notin_e G ->
+                                    G vdash ([x /v n] v) hasType ).
+
+  Lemma subst_has_contains_mutind :
+    (forall G v d, G vdash v ni d ->
+              forall x n d' v', d = ([x /dt S n] d') ->
+                           v = ([x /v S n] v') ->
+                           forall G1 G2, G = ([x lshift_v 1 /e n] G1) ++ G1 ->
+                                    n < (length G1) ->
+                                    forall x' tx, G vdash x hasType tx ->
+                                             G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                             ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x' /v S n] v') ni ([x' /dt S n]d')) /\
+    (forall G t d, G vdash d cont t ->
+              forall x n d' t', d = ([x /dt S n] d') ->
+                           t = ([x /t S n] t') ->
+                           forall G1 G2, G = ([x lshift_v 1 /e n] G1) ++ G1 ->
+                                    n < (length G1) ->
+                                    forall x' tx, G vdash x hasType tx ->
+                                             G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                             ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x' /dt S n]d') cont ([x' /t S n] t')).
+  Proof.
+
+    apply has_contains_mutind; intros.
+
+    apply subst_typing with (v:=p)(t:=t)(n:=n)(t':=t')in t0.
+    apply h_path.
+    
+
+  Qed.
+    
+  
+  Lemma subst_wf_mutind :
+    (forall G t, G vdash t wf_t -> forall x n t', t = ([x /t S n] t') ->
+                                   forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
+                                            n < (length G1) ->
+                                            forall x' tx, G vdash x hasType tx ->
+                                                     G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                                     ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x' /t S n]t') wf_t) /\
+    
+    (forall G d, G vdash d wf_d -> forall x n d', d = ([x /dt S n] d') ->
+                                   forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
+                                            n < length G1 ->
+                                            forall x' tx, G vdash x hasType tx ->
+                                                     G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                                     ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x /dt S n]d') wf_d) /\
+    
+    (forall G ds, G vdash ds wf_ds -> forall x n ds', ds = ([x /dts S n] ds') ->
+                                       forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
+                                                n < length G1 ->
+                                                forall x' tx, G vdash x hasType tx ->
+                                                         G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                                         ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x /dts S n]ds') wf_ds).
+  Proof.
+    apply wf_mutind; intros.
+
+    destruct t'; simpl in H; inversion H; auto.
+
+    destruct t'; simpl in H; inversion H; auto.
+
+    destruct t'; simpl in H1; inversion H1; subst; auto.
+    apply wf_arr; fold subst.
+    apply H with (x0:=x)(tx:=tx); auto.
+    rewrite app_comm_cons.
+    rewrite subst_env_cons.
+    assert (Htmp : ([x' /e S n0] t'1 :: G1) = [(x' lshift_v 1) rshift_v 1 /e S n0] t'1 :: G1 );
+      [destruct x'; simpl; auto;
+       rewrite <- minus_n_O; auto|
+       rewrite Htmp].
+    apply H0 with (x0:=x lshift_v 1)(tx:=tx lshift_t 1); fold left_shift_var; auto.
+    rewrite lrshift_n_var; auto.
+    crush.
+    admit. (*typing weakening*)
+
+    admit. (*typing weakening*)
+
+    apply notin_subst_type; auto.
+    admit.
+    destruct x'; crush.
+
+    destruct t'; inversion H; subst.
+    apply wf_sel_lower with (t:=[x' /t S n] t); auto.
+
+
+    
+    
+    SearchAbout notin_ty.
+    
+    
   Qed.
 
   Lemma subst_wf_mutind :
