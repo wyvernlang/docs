@@ -25,17 +25,12 @@ def someMethod(f: Unit $\rightarrow$ Unit):
 \label{fig:unannotated_reasoning}
 \end{figure}
 
-The key insight of our paper is that capability-safe design can help us:
-because the only authority code can exercise is that which is
-explicitly given to it, the only capabilities that the unannotated
-code can use must be passed into it. If these capabilities are being
-passed in from an annotated environment, we know what effects they
-capture. These effects are therefore a conservative upper bound on
-what can happen in the unannotated code. To demonstrate, consider a
-developer who wants to decide whether to use the $\kwa{logger}$
-functor in Figure \ref{fig:cc_motivation}. It must be instantiated
-with two capabilities, $\kwa{File}$ and $\kwa{Socket}$, and provides
-an unannotated function $\kwa{log}$.
+Consider another scenario, where a developer must decide whether or not
+to use the \kwat{logger} functor defined in Figure \ref{fig:cc_motivation}. This
+functor takes two capabilities as input, \kwat{File} and \kwat{Socket}\footnote{Note that the resource literal is \kwat{File}, while the type of the resource literal is
+\kwat{\{File\}}.}. It instantiates an object-like module which has access to these
+capabilities, and which has a single, unannotated \kwat{log} function that the
+developer may invoke. The type of this object-like module is \kwat{Logger}, which for brevity is assumed to be defined elsewhere.
 
 \begin{figure}
 \begin{lstlisting}
@@ -55,19 +50,18 @@ approach is to manually\footnote{or automatically---but if the
   automation produces an unexpected result we must fall back to manual
   reasoning to understand why.} examine its source code, but this is
 tedious and error-prone. In many real-world situations, the source
-code may be obfuscated or unavailable. A capability-based argument can
-do better: the only authority which $\kwa{Logger}$ can exercise is
-that which it has been explicitly given. Here, the $\kwa{Logger}$
-requires a $\kwa{File}$ and a $\kwa{Socket}$, so
-$\kwa{ \{ \kwa{File.*, Socket.*} \} }$ is an upper bound on the
-effects of $\kwa{Logger}$. Knowing $\kwa{Logger}$ could be performing
-arbitrary reads and writes to $\kwa{File}$, or arbitrary communication
-with the $\kwa{Socket}$, the developer decides this implementation
-cannot be trusted and does not use it.
+code may be obfuscated or unavailable. A capability-based argument can do
+better, since a \kwat{Logger} can only exercise what authority it is explicitly
+given. In this case, the \kwat{logger} functor must be given \kwat{File} and
+\kwat{Socket}, so an upper bound on the effects of the \kwat{Logger} it
+instantiates will be the set of all operations on those resources,
+\kwat{\{File.*, Socket.*\}}. Knowing the \kwat{Logger} could perform
+arbitrary reads and writes to \kwat{File}, or arbitrary communication with \kwat{Socket}, the developer decides this implementation cannot be trusted
+and does not use it. 
 
-The reasoning we employed only required us to examine the interface of
-the unannotated code for the capabilities passed into it. To model
-this situation in $\epscalc$, we add a new $\kwa{import}$ expression
+This reasoning only required us to examine what code was passed into the
+unannotated \kwat{log} function by its annotated surroundings. To model this
+situation in $\epscalc$, we add a new $\kwa{import}$ expression
 that selects what authority $\varepsilon$ the unannotated code may
 exercise. In the above example, the expected least authority of
 $\kwa{Logger}$ is $\{ \kwa{File.append} \}$, so that is what the
@@ -93,8 +87,7 @@ types are given in Figure
 \ref{fig:epscalc_unannotated_grammar}. Unannotated types $\tau$ are
 built using $\rightarrow$ and sets of resources $\{ \bar r \}$. An
 unannotated context $\Gamma$ maps variables to unannotated
-types. Rules for annotated programs and their types are in
-Figure \ref{fig:epscalc_annotated_grammar}.
+types.
 
 \begin{figure}
 \[
@@ -146,7 +139,7 @@ v & ::= & ~ & values: \\
 \begin{figure}
 \[
 \begin{array}{lll}
-7
+
 \begin{array}{lllr}
 
 \hat e & ::= & ~ & labeled~exprs: \\
@@ -192,13 +185,19 @@ v & ::= & ~ & values: \\
 \label{fig:epscalc_annotated_grammar}
 \end{figure}
 
-The new form is $\import{\varepsilon_s}{x}{\hat e}{e}$, modelling the
-points at which capabilities are passed from annotated code into
-unannotated code. $e$ is the unannotated code. $\hat e$ is the
-capability being given to it; we call $\hat e$ an import. For
-simplicity, we assume only one capability is being passed into
-$e$. $\hat e$ is associated with the name $x$ inside
-$e$. $\varepsilon_s$ is the maximum authority that $e$ is allowed to
+Rules for annotated programs and their types are in
+Figure \ref{fig:epscalc_annotated_grammar}. The first main difference is that
+the arrow type constructor now has a subscript $\varepsilon$, which is a
+set of effects that functions of that type may incur.
+
+The other main difference is the new expression form,
+$\import{\varepsilon_s}{x}{\hat e}{e}$, which models the points at which
+capabilities are passed from annotated code into unannotated code. $e$ is
+the unannotated code, while $\hat e$ is the capability being given to $e$; we call
+$\hat e$ an import. Note this definition allows an import to be any kind of
+expression, not just a resource literal. For simplicity, we assume only one
+capability is being passed into $e$. $\hat e$ is bound to the variable $x$ inside $e$.
+$\varepsilon_s$ is the maximum authority that $e$ is allowed to
 exercise (its ``selected authority''). As an example, suppose an
 unannotated $\kwa{Logger}$, which requires $\kwa{File}$, is expected
 to only $\kwa{append}$ to a file, but has an implementation that
@@ -212,7 +211,7 @@ something interesting about the unannotated code. For the rest of our
 discussion on $\epscalc$, we will only be interested in unannotated
 code when it is encapsulated by an $\kwa{import}$ expression.
 
-One of the requirements of capability safety is there be no ambient
+One of the requirements of capability safety is that there be no ambient
 authority.  This requirement is met by forbidding resource literals
 $r$ from being used directly inside an \kwat{import} statement (they
 can still be passed in as a capability via the \kwat{import}'s binding
@@ -224,19 +223,23 @@ instead using the typing rule for \kwat{import}, given below.
 \subsection{Semantics ($\epscalc$)}
 \vspace{-0.2cm}
 
-Reductions are defined on annotated expressions and are natural
-reduction rules from extended lambda calculus. We omit them for
-brevity. If unannotated code $e$ is wrapped inside annotated code
+Reductions are defined on annotated expressions. The notation
+$\hat e \longrightarrow \hat e'~|~\varepsilon'$ means that $\hat e$ is being
+reduced to $\hat e'$ in a single step, incurring the set of effects $\varepsilon'$.
+The rules for $\epscalc$ are natural extensions of the simply-typed lambda calculus.
+Apart from the rules for \kwat{import}, we omit them for brevity.
+
+If unannotated code $e$ is wrapped inside annotated code
 $\import{\varepsilon_s}{x}{\hat e}{e}$, we transform it into annotated
 code by recursively annotating its parts with $\varepsilon_s$. In
-practice, it is meaningful to execute purely unannotated code --- but
+practice, it is meaningful to execute purely unannotated code, but
 our only interest is when that code is wrapped inside an
 $\kwa{import}$ expression, so we do not bother to give rules for
-it. There are two additional rules for reducing $\kwa{import}$
-expressions, given in Figure \ref{fig:epscalc_reductions}:
-\textsc{E-Import1} reduces the capability being imported, while
-\textsc{E-Import2} first annotates $e$ with its selected authority
-$\varepsilon$ --- this is $\annot{e}{\varepsilon}$ --- and then
+it. There are two rules for reducing $\kwa{import}$
+expressions, given in Figure \ref{fig:epscalc_reductions}.
+\textsc{E-Import1} reduces the capability being imported. When it has been
+reduced to a value, \textsc{E-Import2} first annotates $e$ with its selected
+authority $\varepsilon$ --- this is $\annot{e}{\varepsilon}$ --- and then
 substitutes the import $\hat v$ for its name $x$ in $e$ --- this is
 $[\hat v/x]\annot{e}{\varepsilon}$.
 
