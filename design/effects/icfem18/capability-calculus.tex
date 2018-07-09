@@ -210,8 +210,8 @@ discussion on $\epscalc$, we will only be interested in unannotated
 code when it is encapsulated by an $\kwa{import}$ expression.
 
 One of the requirements of capability safety is that there be no ambient
-authority.  This requirement is met by forbidding resource literals
-$r$ from being used directly inside an \kwat{import} statement (they
+authority. We meet this requirement by forbidding resource literals
+from being used directly inside an \kwat{import} statement (they
 can still be passed in as a capability via the \kwat{import}'s binding
 variable $x$).  We could enforce this syntactically, by removing $r$
 from the language of unannotated expressions, but we choose to do it
@@ -224,19 +224,17 @@ instead using the typing rule for \kwat{import}, given below.
 Reductions are defined on annotated expressions. The notation
 $\hat e \longrightarrow \hat e'~|~\varepsilon'$ means that $\hat e$ is being
 reduced to $\hat e'$ in a single step, incurring the set of effects $\varepsilon'$.
-The rules for $\epscalc$ are natural extensions of the simply-typed lambda calculus.
-Apart from the rules for \kwat{import}, we omit them for brevity.
+The rules for $\epscalc$ are natural extensions of the simply-typed lambda calculus, so apart from the rules for \kwat{import}, we shall omit them for brevity.
 
 If unannotated code $e$ is wrapped inside annotated code
 $\import{\varepsilon_s}{x}{\hat e}{e}$, we transform it into annotated
-code by recursively annotating its parts with $\varepsilon_s$. In
-practice, it is meaningful to execute purely unannotated code, but
-our only interest is when that code is wrapped inside an
-$\kwa{import}$ expression, so we do not bother to give rules for
-it. There are two rules for reducing $\kwa{import}$
-expressions, given in Figure \ref{fig:epscalc_reductions}.
+code by recursively annotating its parts with $\varepsilon_s$. In practice,
+it is meaningful to execute purely annotated code, but since we are only
+interested when that code is wrapped inside an \kwat{import} expression,
+we do not bother to give rules for it. There are two rules for reducing
+\kwat{import} expressions, given in Figure \ref{fig:epscalc_reductions}.
 \textsc{E-Import1} reduces the capability being imported. When it has been
-reduced to a value, \textsc{E-Import2} first annotates $e$ with its selected
+reduced to a value $\hat v$, \textsc{E-Import2} first annotates $e$ with its selected
 authority $\varepsilon$ --- this is $\annot{e}{\varepsilon}$ --- and then
 substitutes the import $\hat v$ for its name $x$ in $e$ --- this is
 $[\hat v/x]\annot{e}{\varepsilon}$.
@@ -267,7 +265,7 @@ $\varepsilon$. A definition is given in Figure
 \ref{fig:annot_defn}. There are versions of $\kwa{annot}$ defined for
 expressions and types. Later we shall need to annotate contexts, so
 the definition is given here. It is worth mentioning that
-$\kwa{annot}$ operates on a purely syntatic level --- nothing prevents
+$\kwa{annot}$ operates on a purely syntatic level; nothing prevents
 us from annotating a program with something unsafe, so any use of
 $\kwa{annot}$ must be justified.
 
@@ -309,10 +307,18 @@ $\kwa{annot} :: \Gamma \times \varepsilon \rightarrow \hat \Gamma$
 
 A term can be annotated or unannotated, so we need to be able to
 recognise when either is well-typed. We do not reason about the
-effects of unannotated code directly, so judgements about them have
-the form $\Gamma \vdash e: \tau$. Subtyping judgements have the form
-$\tau <: \tau$. A summary of the rules for unannotated judgements is
-given in Figure \ref{fig:unannotated_static_rules}.
+effects of unannotated code directly, so judgements involving them
+ascribe only a type to an expression, and have the form $\Gamma \vdash e: \tau$.
+Subtyping judgements have the form $\tau <: \tau$. A summary of these
+rules is given in Figure \ref{fig:unannotated_static_rules}.
+
+The annotated static rules are effectively the same, except judgements now
+ascribe a type $\hat \tau$ and a set of effects $\varepsilon$ to an expression $\hat e$.
+The form for this is $\hat \Gamma \vdash \hat e: \hat \tau~ \kw{with} \varepsilon$.
+The interesting rule is \textsc{$\varepsilon$-Import}, given in Figure \ref{fig:import_rule}. This is the only way to reason about what effects might be
+incurred by some unannotated code. The rule is complicated, so to explain it we shall
+start with a simplified, but incorrect version, and spend the rest of the section building
+up to the final version.
 
 \begin{figure}
 \vspace{-5pt}
@@ -369,31 +375,24 @@ given in Figure \ref{fig:unannotated_static_rules}.
 \label{fig:unannotated_static_rules}
 \end{figure}
 
-The annotated static rules are effectively the same only involving the
-annotated expressions. The interesting rule is
-\textsc{$\varepsilon$-Import}, given in Figure \ref{fig:import_rule},
-which gives the type and approximate effects of an $\kwa{import}$
-expression. This is the only way to reason about what effects might be
-incurred by some unannotated code.
-
-The rule is complicated, so to explain it we shall start with a
-simplified version and spend the rest of this section building up to
-the final version of \textsc{$\varepsilon$-Import}.
-
 To begin, typing $\import{\varepsilon_s}{x}{\hat e}{e}$ in a context
 $\hat \Gamma$ requires us to know that the import $\hat e$ is
 well-typed, so we add the premise
-$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1$. Since
-$x = \hat e$ is an import, it can be used throughout $e$. We do not
-want $e$ to exercise authority it hasn't explicitly selected, so
-whatever capabilities it uses must be selected by the $\kwa{import}$
-expression; therefore, we require that $e$ can be typechecked using
-only the binding $x: \hat \tau$. There is a problem though: $e$ is
-unannotated and $\hat \tau$ is annotated, and there is no rule for
-typechecking unannotated code in an annotated context. To get around
-this, we define a function $\kwa{erase}$ in Figure
-\ref{fig:erase_defn} which removes the annotations from a type. We
-then add $x: \erase{\hat \tau} \vdash e: \tau$ as a premise.
+$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1$.
+$e$ is only allowed to use what authority has been explicitly given to it
+(i.e. the capability $\hat e$, bound to $x$). To ensure this, we require
+that $e$ can be typechecked using only one binding, $x: \hat \tau$,
+which binds $x$ to the type of the capability $\hat e$ being imported.
+Typing $e$ in this restricted environment means it cannot use any
+other capabilities, thus prohibiting the exercise of ambient authority.
+
+There is a problem though: $e$ is unannotated, while $\hat \tau$ is
+annotated, and there is no rule for typechecking unannotated code in
+an annotated context. To get around this, we define a function
+\kwat{erase} in Figure \ref{fig:erase_defn}, which removes the
+annotations from a type. We then add
+$x: \erase{\hat \tau} \vdash e: \tau$ as a premise.
+
 
 \begin{figure}
 $\kwa{erase} :: \hat \tau \rightarrow \tau$
@@ -409,24 +408,16 @@ $\kwa{erase} :: \hat \tau \rightarrow \tau$
 \label{fig:erase_defn}
 \end{figure}
 
-Note that, since the environment $\Gamma$ for $e$ has only one binding
-(for $x$), it cannot contain any bindings of resource literals---and
-the rule \textsc{T-Resource} requires a binding in the environment in
-order to type a resource literal in an expression. Typing $e$ in the
-restricted environment given by $\kwa{import}$ thus prohibits ambient
-authority.
-
 The first version of \textsc{$\varepsilon$-Import} is given in Figure
 \ref{fig:import_rule_1}. Since
-$\import{\varepsilon_s}{x}{\hat v}{e} \longrightarrow [\hat
-v/x]\annot{e}{\varepsilon_s}$ by \textsc{E-Import2}, the ascribed type
-is $\annot{\tau}{\varepsilon}$, which is the type of the unannotated
-code, annotated with its selected authority $\varepsilon_s$. The
-effects of the $\kwa{import}$ are $\varepsilon_1 \cup \varepsilon_s$
---- the former comes from reducing the imported capability, which
-happens before the body of the $\kwa{import}$ is annotated and
-executed, and the latter contains all the effects which the
-unannotated code might incur.
+$\import{\varepsilon_s}{x}{\hat v}{e}$ reduces to $[\hat
+v/x]\annot{e}{\varepsilon_s}$ by \textsc{E-Import2}, its ascribed type
+should be $\annot{\tau}{\varepsilon}$, which is the type of the unannotated
+code $e$, annotated with its selected authority $\varepsilon_s$. The
+effects of reducing the $\kwa{import}$ are $\varepsilon_1 \cup \varepsilon_s$
+--- the former happens when the imported capability is reduced to a value,
+while the latter happens when the body of the \kwat{import} expression is
+annotated and executed.
 
 \begin{figure}[h]
 \vspace{-0.5cm}
@@ -445,26 +436,16 @@ unannotated code might incur.
 \label{fig:import_rule_1}
 \end{figure}
 
-At the moment there is no relation between the selected authority
-$\varepsilon$ and those effects captured by the imported capability
-$\hat e$. Consider
-$\hat e' = \import{\varnothing}{x}{\File}{\kwa{x.write}}$, which
-imports a $\File$ and writes to it, but declares its authority as
-$\varnothing$. According to \textsc{$\varepsilon$-Import1},
-$\vdash \hat e': \Unit~\kw{with} \varnothing$, but this is clearly
-wrong since $\hat e'$ writes to $\kwa{File}$.  An $\kwa{import}$
-should only be well-typed if the capability being imported only
-captures effects contained in the unannotated code's selected
-authority $\varepsilon$. In this case, $\kwa{File}$ captures
-$\kwa{ \{ File.* \}}$, which is not contained in the selected
-authority $\varnothing$, so it should be rejected for that reason.  To
-this end we define a function $\kwa{effects}$, which collects the set
-of effects that an annotated type captures. A first (but not yet
-correct) definition is given in Figure \ref{fig:fx_defn}. We can then
-add the premise $\kwa{effects}(\hat \tau) \subseteq \varepsilon_s$ to
-require that any imported capability must not capture authority beyond
-that selected in $\varepsilon_s$. The updated rule is given in Figure
-\ref{fig:import_rule_2}.
+This first rule permits any capability to be passed to the unannotated code $e$,
+regardless of what capabilities it is asking for (in its selected authority
+$\varepsilon_s$). To ensure that unannotated code cannot import any capabilities
+beyond what it declares, we define a function \kwat{effects}, which collects the
+set of effects that an annotated type captures. For example, \kwat{File}
+captures every operation on \kwat{File}, which is the set \kwat{\{File.*\}}.
+A first (but not yet correct) definition is given in Figure \ref{fig:fx_defn}. We then
+add the premise $\kwa{effects}(\hat \tau) \subseteq \varepsilon_s$, which
+restricts imported capabilities to only those which effects selected in $\varepsilon_s$.
+The updated rule is given in Figure \ref{fig:import_rule_2}.
 
 \begin{figure}
 
@@ -497,10 +478,9 @@ $\kwa{effects} :: \hat \tau \rightarrow \varepsilon$
 \label{fig:import_rule_2}
 \end{figure}
 
-The counterexample from before is now rejected by
-\textsc{$\varepsilon$-Import2}, but there are still issues: the
-annotations on one import can be broken by another import. To
-illustrate, consider Figure \ref{fig:rule_import2_counterexample}
+There are still issues with this second rule, as the annotations on one import
+can be broken by another import. To illustrate, consider Figure
+\ref{fig:rule_import2_counterexample}
 where two\footnote{Our formalisation only permits a single capability
   to be imported, but this discussion leads to a generalisation needed
   for the rules to be safe when multiple capabilities can be imported.
@@ -531,38 +511,30 @@ in
 \label{fig:rule_import2_counterexample}
 \end{figure}
 
-In the world of annotated code it is not possible to pass a
+In the world of annotated code, it is not possible to pass a
 file-writing function to $\kwa{go}$, but because the judgement
 $x: \erase{\hat \tau} \vdash e: \tau$ discards the annotations on
 $\kwa{go}$, and since the file-writing function has type
-$\unit \rightarrow \unit$, the unannotated world accepts it. The
-approximation is actually safe at the top-level, because the
-$\kwa{import}$ selects $\{ \kwa{File.*} \}$, which contains
-$\kwa{File.write}$ --- but it contains code that violates the type
-signature of $\kwa{go}$. We want to prevent this.
+$\unit \rightarrow \unit$, the unannotated world accepts it.
+Although the unannotated code is allowed to incur this effect---since
+its selected authority is \kwat{\{File.*\}}, which contains
+\kwat{File.write}---it is nonetheless violating the type signature of \kwat{go}.
+We want to prevent this.
 
-If $\kwa{go}$ had the type
-$\Unit \rightarrow_{\{ \kwa{File.write} \}} \Unit$ the above example
-would be safe, but a modified version where a file-reading function is
-passed to $\kwa{go}$ would have the same issue. $\kwa{go}$ is only
-safe when it expects every effect that the unannotated code might pass
-to it: if $\kwa{go}$ had the type
-$\Unit \rightarrow_{\{ \kwa{File.*} \}} \Unit$, then the unannotated
-code cannot pass it a capability with an effect it isn't already
-expecting, so the annotation on $\kwa{go}$ cannot be
-violated. Therefore, we require imported capabilities to have
-authority to incur the effects in $\varepsilon$. To achieve greater
-control in how we say this, the definition of $\kwa{effects}$ is split
-into two separate functions called $\kwa{effects}$ and
-$\kwa{ho \hyphen effects}$. The latter is for higher-order effects,
-i.e. the effects that are not captured within a function, but rather
-are possible because of what it is passed as an argument. If values of
-$\hat \tau$ possess a capability that can be used to incur the effect
-$r.\pi$, then $r.\pi \in \fx{\hat \tau}$. If values of $\hat \tau$ can
-incur an effect $r.\pi$, but need to be given the capability (as a
-function argument) by someone else in order to do it, then
-$r.\pi \in \hofx{\hat \tau}$. Definitions are given in Figure
-\ref{fig:fx_defns}.
+If $\kwa{go}$ had the type $\Unit \rightarrow_{\{ \kwa{File.write} \}} \Unit$
+the above example would be safe. However, a modified version of this example,
+where a file-reading function is passed to \kwat{go}, would have the same issue. \kwat{go} is only safe when it expects every effect that the unannotated code
+might pass to it. If \kwat{go} had the type $\Unit \rightarrow_{\{ \kwa{File.*} \}} \Unit$, then the unannotated code cannot pass it a capability with an effect it isn't already expecting. To ensure this is the case, we shall require that imported
+capabilities have authority to incur all of the effects in $\varepsilon_s$. To achieve
+greater control in how we say this, we split the definition of \kwat{effects} into
+two separate functions called \kwat{effects} and \kwat{ho \hyphen effects}.
+The latter is for higher-order effects, which are those effects not captured within a
+function, but rather are possible because of what is passed to the function as an
+argument. If values of $\hat \tau$ possess a capability that can be used to incur
+the effect $r.\pi$, then $r.\pi \in \fx{\hat \tau}$. If values of $\hat \tau$ can incur a
+effect $r.\pi$, but need to be given the capability (as a function argument) by
+someone else in order to do it, then $r.\pi \in \hofx{\hat \tau}$. Definitions are
+given in Figure \ref{fig:fx_defns}.
 
 \begin{figure}
 \vspace{-0.5cm}
@@ -605,12 +577,12 @@ $\fx{\hat \tau} \subseteq \varepsilon_s$ --- unannotated code must
 select any effect its capabilities can incur --- but we add a new
 premise $\varepsilon_s \subseteq \hofx{\hat \tau}$, stipulating that
 imported capabilities must know about every effect they could be given
-by the unannotated code (which is at most $\varepsilon$). The
+by the unannotated code (which is at most $\varepsilon_s$). The
 counterexample from Figure \ref{fig:rule_import2_counterexample} is
 now rejected, because
 $\hofx{(\Unit \rightarrow_{\varnothing} \Unit)
   \rightarrow_{\varnothing} \Unit} = \varnothing$, but
-$\{ \kwa{File.*} \} \not\subseteq \varnothing$.  However, this is
+$\fx{\kwa{File}} = \{ \kwa{File.*} \} \not\subseteq \varnothing$.  However, this is
 \textit{still} not sufficient! Consider
 $\varepsilon_s \subseteq \hofx{ \hat \tau_1 \rightarrow_{\varepsilon'}
   \hat \tau_2 }$. We want \textit{every} higher-order capability
@@ -623,9 +595,8 @@ $r.\pi \in \fx{\hat \tau_1}$, but $r.\pi \notin \hofx{\hat
 $\varepsilon_s \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$ is
 still true, but $\hat \tau_2$ is not expecting $r.\pi$. Unannotated
 code could then violate the annotations on $\hat \tau_2$ by passing it
-a capability for $r.\pi$, using the same trickery as before. The cause
-of the issue is that $\subseteq$ does not distribute over $\cup$. We
-want a relation like
+a capability for $r.\pi$. The cause of this issue is that $\subseteq$
+does not distribute over $\cup$. We want a relation like
 $\varepsilon_s \subseteq \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$,
 which also implies $\varepsilon_s \subseteq \fx{\hat \tau_1}$ and
 $\varepsilon_s \subseteq \fx{\hat \tau_2}$. Figure
@@ -707,7 +678,7 @@ An amended version of \textsc{$\varepsilon$-Import} is given in Figure
 \ref{fig:import_rule3}. It contains a new premise
 $\hosafe{\hat \tau}{\varepsilon_s}$ which formalises the notion that
 every capability which could be given to a value of $\hat \tau$ --- or
-any of its constituent pieces --- must be expecting the effects
+any of its constituent parts --- must be expecting the effects
 $\varepsilon_s$ it might be given by the unannotated code.
 The premises so far restrict what authority can be selected by
 unannotated code, but what about authority passed as a function
@@ -731,12 +702,12 @@ be used to incur $r.\pi$, in which case $r.\pi$ is a higher-order
 effect of $\annot{f}{\varepsilon_s}$. If the argument is a function,
 then $r.\pi \in \varepsilon_s$ by the soundness of our calculus (or it
 would not typecheck). If the argument is a resource $r$, then
-$\annot{f}{\varepsilon_s}$ may exercise $r.\pi$ without declaring it
---- this is the case we do not yet account for.
+$\annot{f}{\varepsilon_s}$ could exercise $r.\pi$ without declaring it
+in $\varepsilon_s$ --- this is the case we do not yet account for.
 
 We want $\varepsilon_s$ to contain every effect captured by resources
 passed into $\annot{f}{\varepsilon_s}$ as arguments. We can do this by
-inspecting the (unannotated) type of $f$ for resource sets. For
+inspecting the (unannotated) type of $f$ for resource types. For
 example, if the unannotated type is
 $\kwa{ \{ File \} \rightarrow \Unit}$, then we need
 $\kwa{ \{ File.* \} }$ in $\varepsilon_s$. To do this, we add a new
@@ -744,9 +715,9 @@ premise $\hofx{\annot{\tau}{\varnothing}} \subseteq
 \varepsilon_s$. $\kwa{ho \hyphen effects}$ is only defined on
 annotated types, so we first annotate $\tau$ with $\varnothing$. We
 are only inspecting the resources passed into $f$ as arguments, so the
-annotations are not relevant -- annotating $\tau$ with $\varnothing$
-is therefore a good choice. We can now handle the example from
-before. The unannotated code types via the judgement
+exact set of effects with which we annotate is not relevant.
+We can now handle the example from before. The unannotated code
+types via the judgement
 $x: \Unit \vdash \lambda f: \{ \File \}.~\kwa{f.write}: \{ \File \}
 \rightarrow \Unit$. Its higher-order effects are
 $\hofx{\annot{ \{ \File \} \rightarrow \Unit}{\varnothing}} = \{
@@ -762,7 +733,7 @@ $e$. The expected least authority of $\kwa{Logger}$ is
 $\{ \kwa{File.append} \}$, so its corresponding $\kwa{import}$
 expression would be
 $\import{\kwa{File.append}}{f}{\kwa{File}}{\lambda x: \Unit.~e}$. The
-imported capability is $ f = \kwa{File}$, and
+imported capability is $ f = \kwa{File}$, which has type $\{ \kwa{File} \}$, and
 $\fx{\{\File\}} = \{ \kwa{File.*} \} \not\subseteq \{
 \kwa{File.append} \}$, so this example is safely rejected:
 $\kwa{Logger.log}$ has authority to do anything with $\kwa{File}$, and

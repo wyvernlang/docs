@@ -9,7 +9,7 @@ In this section we show how the capability-based design of $\epscalc$ can assist
 \subsection{Unannotated Client}
 \vspace{-0.4cm}
 
-There is a single primitive capability $\kwa{File}$. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module, possessing the $\kwa{logger}$ module, exposes a functino $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not --- if $\kwa{client.run}$ is executed, what effects might it have? Code for this example is given below. 
+There is a single primitive capability $\kwa{File}$. A $\kwa{logger}$ module possessing this capability exposes a function $\kwa{log}$ which incurs $\kwa{File.write}$ when executed. The $\kwa{client}$ module, possessing the $\kwa{logger}$ module, exposes a function $\kwa{run}$ which invokes $\kwa{logger.log}$, incurring $\kwa{File.write}$. While $\kwa{logger}$ has been annotated, $\kwa{client}$ has not. If $\kwa{client.run}$ is executed, what effects might it have? Code for this example is given below. 
 
 \begin{lstlisting}
 module def logger(f: {File}):Logger
@@ -34,7 +34,7 @@ instantiate client(logger)
 client.run()
 \end{lstlisting}
 
-The translation is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities: just $\kwa{File}$ in this case.
+The translation is given below. It first creates two functions, $\kwa{MakeLogger}$ and $\kwa{MakeClient}$, which instantiate the $\kwa{logger}$ and $\kwa{client}$ modules. Lines 1-3 define $\kwa{MakeLogger}$. When given a $\kwa{File}$, it returns a function representing $\kwa{logger.log}$. Lines 5-8 define $\kwa{MakeClient}$. When given a $\kwa{Logger}$, it returns a function representing $\kwa{client.run}$. Lines 10-15 define $\kwa{MakeMain}$ which returns a function which, when executed, instantiates all other modules and invokes the code in the body of $\kwa{Main}$. Program execution begins on line $16$, where $\kwa{Main}$ is given the initial capabilities (just $\kwa{File}$ in this case).
 
 \begin{lstlisting}
 let MakeLogger =
@@ -61,7 +61,7 @@ The interesting part  is on line $7$ where the unannotated code selects $\{ \kwa
 \subsection{Unannotated Library}
 \vspace{-0.4cm}
 
-The next example inverts the roles of the last scenario: now, the annotated $\kwa{client}$ wants to use the unannotated $\kwa{logger}$. $\kwa{logger}$ captures $\kwa{File}$ and exposes a single function $\kwa{log}$ which incurs the $\kwa{File.append}$ effect. $\kwa{client}$ has a function $\kwa{run}$ which executes $\kwa{logger.log}$, incurring its effects. $\kwa{client.run}$ is annotated with $\varnothing$, so the implementation of $\kwa{logger.log}$ violates its interface.
+The next example inverts the roles of the last scenario. Now, the annotated $\kwa{client}$ wants to use the unannotated $\kwa{logger}$. $\kwa{logger}$ captures $\kwa{File}$ and exposes a single function $\kwa{log}$ which incurs the $\kwa{File.append}$ effect. $\kwa{client}$ has a function $\kwa{run}$ which executes $\kwa{logger.log}$, incurring its effects. $\kwa{client.run}$ is annotated with $\varnothing$, so the implementation of $\kwa{logger.log}$ violates its interface.
 
 \begin{lstlisting}
 module def logger(f: {File}): Logger
@@ -113,7 +113,7 @@ The only way for this to typecheck would be to annotate $\kwa{client.run}$ as ha
 \subsection{Higher-Order Effects}
 \vspace{-0.2cm}
 
-Here $\kwa{Main}$ gains its functionality from a plugin. Plugins might be written by third-parties, in which case we may not be able to view their source code, but still want to reason about the authority they exercise. In this example, $\kwa{plugin}$ has access to a $\kwa{File}$ capability, but its interface does not permit it to perform any operations on $\kwa{File}$. It tries to subvert this by wrapping the capability inside a function and passing it to $\kwa{malicious}$, which invokes $\kwa{File.read}$ in a higher-order manner in an unannotated context.
+Here, $\kwa{Main}$ gains its functionality from a plugin. Plugins might be written by third-parties, in which case we may not be able to view their source code, but still want to reason about the authority they exercise. In this example, $\kwa{plugin}$ has access to a $\kwa{File}$ capability, but its interface does not permit it to perform any operations on $\kwa{File}$. It tries to subvert this by wrapping the capability inside a function and passing it to $\kwa{malicious}$, which invokes $\kwa{File.read}$ in a higher-order manner in an unannotated context.
 
 \begin{lstlisting}
 module malicious
@@ -157,7 +157,7 @@ let MakeMain =
 MakeMain File
 \end{lstlisting}
 
-To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority, and $\kwa{plugin.run}$ needs to be annotated with $\kwa{ \{ File.* \}}$. A program would have to be rewritten to explicitly say that plugins can exercise authority over $\kwa{File}$.
+To get this example to typecheck, the $\kwa{import}$ expression has to select $\kwa{ \{ File.* \}}$ as its authority, and $\kwa{plugin.run}$ needs to be annotated with $\kwa{ \{ File.* \}}$. The program would have to be rewritten to explicitly say that plugins can exercise authority over $\kwa{File}$.
 
 \vspace{-0.5cm}
 \subsection{Resource Leak}
