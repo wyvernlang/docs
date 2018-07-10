@@ -14,16 +14,16 @@ component that provides a logging service would need to be initialised
 with an object capability providing the ability to append to the log
 file.
 
-Capability-safe languages thus prohibit the \textit{ambient
+Capability-safe languages prohibit the \textit{ambient
   authority}~\cite{miller06} that is present in non-capability-safe
-languages.  An implementation of a \kwat{logger} in Java, for example,
-does not need to be initialised with a log file capability; it can simply
+languages. An implementation of a \kwat{logger} in Java, for example,
+does not need to be initialised with a log file capability, as it can simply
 import the appropriate file-access library and open the log file for
 appending by itself. But critically, a malicious implementation could also
 delete the log, read from another file, or exfiltrate logging information
 over the network.  Other mechanisms such as sandboxing can be used
-to limit the effects of such malicious components, but recent work has
-found that Java's sandbox (for example) is difficult to use and is
+to limit the damage of such malicious components, but recent work has
+found that Java's sandbox (for instance) is difficult to use and
 therefore often misused~\cite{coker15,maass16}.
 
 In practice, reasoning about resource use in capability-based systems
@@ -34,10 +34,10 @@ shouldn't they also aid in \textit{formal} reasoning?  Recent work by Drossopoul
 formalizes capability-based reasoning about trust between
 objects~\cite{drossopoulou07}.  Two other trains of work, rather than
 formalise capability-based reasoning itself, reason about how
-capabilities may be used.  Dimoulas et al. developed a formalism for
+capabilities may be used: Dimoulas et al. developed a formalism for
 reasoning about which components may use a capability and which may
 influence (perhaps indirectly) the use of a
-capability~\cite{dimoulas14}.  Devriese et al. formulate an effect
+capability~\cite{dimoulas14}, while  Devriese et al. formulate an effect
 parametricity theorem that limits the effects of an object based on
 the capabilities it possesses, and then use logical relations to
 reason about capability use in higher-order settings~\cite{devriese16}
@@ -50,19 +50,19 @@ enhance formal reasoning that is currently done without relying on
 capabilities?  In other words, what value do capabilities add to
 existing formal reasoning approaches?
 
-To answer this question, we decided to pick a simple and practical
-formal reasoning system, and see if capability-based reasoning could
-help.  A natural choice for our investigation is effect
-systems~\cite{nielson99}.  Effect systems are a relatively simple
-formal reasoning approach, and keeping things simple will help to
-highlight the difference made by capabilities.  Effects also have
-an intuitive link to capabilities: in a system that uses capabilities
-to protect resources, an expression can only have an effect on a
-resource if it is given a capability to do so.
+To answer this question, we
+decided to pick a simple and practical formal reasoning system, and 
+see if capability-based reasoning could help.  A natural choice for our
+investigation is effect systems~\cite{nielson99}.  Effect systems
+are a relatively simple formal reasoning approach, and keeping things
+simple will help to highlight the difference made by capabilities.
+ Effects also have an intuitive link to capabilities: in a system that
+ uses capabilities to protect resources, an expression can only have
+ an effect on a resource if it is given a capability to do so.
 
 One challenge to the wider adoption of effect systems is their annotation
-overhead~\cite{rytz12}. Java's checked exception system, which is a kind of effect
-system, is often criticised for being cumbersome~\cite{Kiniry2006}. While effect inference can be used to reduce the annotations required~\cite{koka14},
+overhead~\cite{rytz12}. For example, Java's checked exception system, which
+is a kind of effect system, is often criticised for being cumbersome~\cite{Kiniry2006}. While effect inference can be used to reduce the annotations required~\cite{koka14},
 understanding error messages that arise through effect inference requires a detailed understanding of the internal structure of the code, not just its interface. Capabilities are a promising
 alternative for reducing the overhead of effect annotations, as
 suggested by the following example:
@@ -72,12 +72,42 @@ import log : String -> Unit with effect File.write
 e
 \end{lstlisting}
 
-The code above, like the rest in this paper, is written in a capability-safe language supporting first-class, object-like modules, similar to \textit{Wyvern}~\cite{kurilova16}. It should be read as the expression \kwat{e} declaring what capabilities it needs to execute. In this case, \kwat{e} must be passed a function of type \kwat{String \rightarrow Unit}, which incurs no more than the single \kwat{File.write} effect when invoked. This function is bound to the name \kwat{log} inside \kwat{e}, which is then evaluated.
+This code, like the rest in this paper, is written in a capability-safe language supporting
+first-class, object-like modules, similar to \textit{Wyvern}~\cite{kurilova16}. In it, the
+expression \kwat{e} declares what capabilities it needs to execute. In this case,
+\kwat{e} must be passed a function of type \kwat{String \rightarrow Unit}, which
+incurs no more than the single \kwat{File.write} effect when invoked. This function is
+bound to the name \kwat{log} inside \kwat{e}.
 
-If we were to evaluate \kwat{e}, what could we say about its effects on resources, such as the file system or network? Since we are in a capability-safe language, \kwat{e} has no ambient authority, so the only way it can have any effects is via the \kwat{log} function given to it. Since the \kwat{log} function is annotated as having no more than the \kwat{File.write} effect, this is an upper-bound on the effects of \kwat{e}. Note that we did not require anything of \kwat{e}, other than that it obeys the rules of a capability-safe language. In particular, we don't require it to have any effect annotations, and we don't need to analyse its structure, like an effect inference would have to do. Also note that \kwat{e} might be arbitrarily large, perhaps consisting of an entire program we have downloaded from a source we trust enough to write to a log, but not enough to access any other resources. Thus in this scenario, capabilities can be used to reason ``for free'' about the effects of a large body of code (\kwat{e}) based on a few annotations on the components it imports (\kwat{log}).
+If we were to evaluate \kwat{e}, what could we say about its effects on resources,
+such as the file system or network? Because we are in a capability-safe language,
+\kwat{e} has no ambient authority, so the only way it could have any effects is via
+the \kwat{log} function given to it. Since the \kwat{log} function is annotated as
+having no more than the \kwat{File.write} effect, this is an upper-bound on the
+effects of \kwat{e}. Note we only required that \kwat{e} obeys the rules of
+capability safety. We did not require it to have effect annotations, and we
+didn't analyse its structure, like an effect inference would. Also note that \kwat{e}
+might be arbitrarily large, perhaps consisting of an entire program we have
+downloaded from a source we trust enough to write to a log, but not enough to
+access any other resources. Thus in this scenario, capabilities can be used to
+reason ``for free'' about the effects of a large body of code (\kwat{e}), based on a
+few annotations on the components it imports (\kwat{log}).
 
 This example illustrates the central intuition of this paper: in a capability-safe setting,
 the effects of an unannotated expression can be bounded by the effects latent in the
-variables that are in scope. In the remainder of this paper, we formalise these ideas in a capability calculus (\kwat{CC}; section 2). Along the way we must generalise this intuition to handle higher-order programs: what if \kwat{log} takes a higher-order argument? If \kwat{e} evaluates not to \kwat{unit}, but to a function, what can we say about its effects?
+variables that are in scope. In the remainder of this paper, we formalise these ideas
+in a capability calculus (\kwat{CC}; section 2) and prove it sound. Along the way we
+must generalise this intuition: what if \kwat{log} takes a higher-order argument? If
+\kwat{e} evaluates, not to \kwat{unit}, but to a function, what can we say about its
+effects?
 
-Although the current resurgence of interest in capabilities is primarily focused on object-oriented languages, for simplicity our formal definitions build on a typed lambda calculus with a simple notion of capabilities and their operations. \kwat{CC} permits the nesting of unannotated code inside annotated code in a controlled, capability-safe manner using the \kwat{import} construct from above. This allows us to reason about unannotated code by inspecting what capabilities are passed into it from its annotated surroundings. We then show how \kwat{CC} can model practical situations, using it to encode a range of Wyvern-like programs. A more thorough discussion of how this is done is given in an accompanying technical report.~\cite{ecs:2018:aaron-tr}.
+While the current resurgence of interest in capabilities is primarily focused on
+object-oriented languages, for simplicity our formal definitions build on a typed
+lambda calculus with a simple notion of capabilities and their operations. \kwat{CC}
+permits the nesting of unannotated code inside annotated code in a controlled,
+capability-safe manner using the \kwat{import} form from above. This allows us to
+reason about unannotated code by inspecting what capabilities are passed into it
+from its unannotated surroundings. We then show how \kwat{CC} can model
+practical situations by encoding a range of Wyvern-like programs. A more thorough
+discussion of the proofs and encodings are given in an accompanying technical
+report~\cite{ecs:2018:aaron-tr}.
