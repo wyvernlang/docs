@@ -86,9 +86,16 @@ types are given in Figure
 \ref{fig:epscalc_unannotated_grammar}. Unannotated types $\tau$ are
 built using $\rightarrow$ and sets of resources $\{ \bar r \}$. An
 unannotated context $\Gamma$ maps variables to unannotated types.
-The syntax for invoking an operation on a resource is $e.\pi$. There is also
-an assumed, fixed set of resource literals $R$ (containing e.g. \kwat{File},
- \kwat{Socket}) and of operations $\Pi$ (containing e.g. \kwat{write}, \kwat{read}).
+The syntax for invoking an operation on a resource is $e.\pi$. Resource
+literals and operations are drawn from fixed sets $R$ (containing e.g.
+\kwat{File}, \kwat{Socket}) and $\Pi$ (containing e.g. \kwat{write},
+\kwat{read}).
+
+Because our focus is on tracking what effects happen, i.e. whether
+particular operations are invoked on particular resources, a few simplifying
+assumptions are made over the next few sections. First, it is valid to call
+any operation on any resource literal. Second, all operations are assumed
+to take no inputs and to return \kwat{unit}.
 
 \begin{figure}
 
@@ -115,13 +122,13 @@ v & ::= & ~ & values: \\
 \begin{array}{lllr}
 
 \tau & ::= & ~ & types: \\
-		& | & \{ \bar r \} \\
-		& | & \tau \rightarrow \tau \\ 
+		& | & \{ \bar r \} & resource~set \\
+		& | & \tau \rightarrow \tau & function\\ 
 		&&\\
 
 \Gamma & ::= & ~ & type~ctx: \\
-				& | & \varnothing \\
-				& | & \Gamma, x: \tau \\
+				& | & \varnothing & empty~ctx.\\
+				& | & \Gamma, x: \tau & binding\\
 				&&\\
 				
 \varepsilon & ::= & ~ & effects: \\
@@ -147,16 +154,16 @@ v & ::= & ~ & values: \\
 \begin{array}{lllr}
 
 \hat e & ::= & ~ & labeled~exprs: \\
-	& | & x \\
-	& | & \hat v \\
-	& | & \hat e ~ \hat e \\
-	& | & \hat e.\pi \\
+	& | & x & variable \\
+	& | & \hat v & value \\
+	& | & \hat e ~ \hat e & application \\
+	& | & \hat e.\pi & operation \\
 	& | & \kwa{import}(\varepsilon_s)~x = \hat e~\kwa{in}~e & import \\
 	&&\\
 
 \hat v & ::= & ~ & labeled~values: \\
-	& | & r \\
-	& | & \lambda x: \hat \tau.\hat e \\
+	& | & r & resource literal\\
+	& | & \lambda x: \hat \tau.\hat e & abstraction \\
 	&&\\
 
 \end{array}
@@ -166,13 +173,13 @@ v & ::= & ~ & values: \\
 \begin{array}{lllr}
 
 \hat \tau & ::= & ~ & annotated ~types: \\
-		& | & \{ \bar r \} \\
-		& | & \hat \tau \rightarrow_{\varepsilon} \hat \tau \\
+		& | & \{ \bar r \} & resource~set\\
+		& | & \hat \tau \rightarrow_{\varepsilon} \hat \tau & function \\
 		&&\\
 
 \hat \Gamma & ::= & ~ & annotated~type~ctx:\\
-				& | & \varnothing \\
-				& | & \hat \Gamma, x: \hat \tau \\
+				& | & \varnothing & empty~ctx.\\
+				& | & \hat \Gamma, x: \hat \tau & binding \\
 				&&\\
 
 \varepsilon & ::= & ~ & effects: \\
@@ -205,12 +212,10 @@ unannotated $\kwa{Logger}$, which requires $\kwa{File}$, is expected
 to only $\kwa{append}$ to a file, but has an implementation which
 writes. This would be the expression
 $\import{\kwa{File.append}}{x}{\kwa{File}}{\lambda y:
-  \Unit.~\kwa{x.write}}$.
-
-$\kwa{import}$ is the only way to mix annotated and
-unannotated code, because it is the only situation in which we can say
-something interesting about the effects of unannotated code. For the rest of our
-discussion on $\epscalc$, we will only be interested in unannotated
+  \Unit.~\kwa{x.write}}$. The $\kwa{import}$ expression is the only way to
+mix annotated and unannotated code, because it is the only situation in which
+we can say something interesting about the effects of unannotated code. For the
+rest of our discussion on $\epscalc$, we will only be interested in unannotated
 code when it is encapsulated by an $\kwa{import}$ expression.
 
 Capability safety prohibits ambient authority. $\epscalc$
@@ -310,7 +315,6 @@ $\kwa{annot} :: \Gamma \times \varepsilon \rightarrow \hat \Gamma$
 
 \subsection{Static Rules ($\epscalc$)}
 
-
 Terms can be annotated or unannotated, so we need to be able to
 recognise when either is well-typed. We do not reason about the
 effects of unannotated code directly, so judgements involving them
@@ -319,68 +323,88 @@ Subtyping judgements have the form $\tau <: \tau$. Because these rules are
 essentially those of the simply-typed lambda calculus, we do not list
 them here.
 
-Judgements involving annotated terms ascribe a type $\hat \tau$ and a set of effects
-$\varepsilon$ to an expression $\hat e$. The form for this is
-$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$. These rules are given
-in Figure \ref{fig:unannotated_static_rules}. Most of them are analogous to those of
-the simply-typed lambda calculus, except for \textsc{$\varepsilon$-Import}. The rule
-is complicated. To explain it we will start with a simplified, but incorrect version, and
-spend the rest of the section building up to the final version.
+Judgements involving annotated terms ascribe a type $\hat \tau$ and a
+set of effects $\varepsilon$ to an expression $\hat e$. The form for this is
+$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$. This should
+be interpreted as meaning that when $\hat e$ is evaluated, it reduces to a
+value of type $\hat \tau$, incurring no more than the effects in $\varepsilon$.
+Most of the rules are analogous to those of the simply-typed lambda calculus;
+these ones are given in Figure \ref{fig:cc_static_rules}. Note that the rule for
+typing an operation call, \textsc{$\varepsilon$-OperCall}, types the expression
+as \kwat{Unit}. In practice, operation calls can return different types, but to
+keep it simple, we make the simplifying assumption that operations all return
+\kwat{Unit}.
 
 \begin{figure}
-\vspace{-5pt}
 
-\fbox{$\Gamma \vdash e: \tau$}
+\noindent
+\fbox{$\Gamma \vdash e: \tau~\kw{with} \varepsilon$}
 
 \[
 \begin{array}{c}
 
-
-\infer[\textsc{(T-Var)}]
-	{\Gamma, x: \tau \vdash x: \tau}
+\infer[\textsc{($\varepsilon$-Var)}]
+	{ \Gamma, x:\tau \vdash x: \tau~\kw{with} \varnothing }
 	{}
-\hspace{5ex}
-\infer[\textsc{(T-Resource)}]
-	{\Gamma, r: \{ r \} \vdash r : \{ r \}}
-	{}
-
-\hspace{5ex}
-\infer[\textsc{(T-Abs)}]
-	{\Gamma \vdash \lambda x: \tau_1.e : \tau_1 \rightarrow \tau_2}
-	{\Gamma, x: \tau_1 \vdash e: \tau_2}\\[4ex]
 	
-\infer[\textsc{(T-App)}]
-	{\Gamma \vdash e_1~e_2: \tau_3}
-	{\Gamma \vdash e_1: \tau_2 \rightarrow \tau_3 & \Gamma \vdash e_2: \tau_2}
-\hspace{5ex}
-\infer[\textsc{(T-OperCall)}]
-	{\Gamma \vdash e.\pi: \kwa{Unit}}
-	{\Gamma \vdash e: \{ \bar r \}}
+	~~~
+	
+\infer[\textsc{($\varepsilon$-Resource)}]
+ 	{ \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
+ 	{} \\[3ex]
+ 	
+ 	~~~
+	\infer[\textsc{($\varepsilon$-Abs)}]
+	{ \Gamma \vdash \lambda x:\tau_2 . e : \tau_2 \rightarrow_{\varepsilon_3} \tau_3~\kw{with} \varnothing }
+	{ \Gamma, x: \tau_2 \vdash e: \tau_3~\kw{with} \varepsilon_3 }
+	
+	~~~
+	
+\infer[\textsc{($\varepsilon$-App)}]
+	{ \Gamma \vdash e_1~e_2 : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
+	{ \Gamma \vdash e_1: \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1 & \Gamma \vdash e_2: \tau_2~\kw{with} \varepsilon_2 } \\[3ex]
+	
+\infer[\textsc{($\varepsilon$-OperCall)}]
+	{ \Gamma \vdash e.\pi: \kw{Unit} \kw{with} \{ \bar r.\pi \} }
+	{ \Gamma \vdash e: \{ \bar r \} } 
 
+	~~~
+
+\infer[\textsc{($\varepsilon$-Subsume)}]
+	{ \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
+	{ \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[3ex]
+	
+	
 \end{array}
 \]
 
-\fbox{$\tau <: \tau$}
+
+\fbox{$\Gamma \vdash e: \tau~\kw{with} \varepsilon$}
 
 \[
 \begin{array}{c}
 
 \infer[\textsc{(S-Arrow)}]
-	{ \tau_1 \rightarrow \tau_2 <: \tau_1' \rightarrow \tau_2' }
-	{ \tau_1' <: \tau_1 & \tau_2 <: \tau_2' }
-\hspace{5ex}
-\infer[\textsc{(S-Resources)}]
+	{ \tau_1 \rightarrow_{\varepsilon} \tau_2 <: \tau_1' \rightarrow_{\varepsilon'} \tau_2' }
+	{ \tau_1' <: \tau_1 & \tau_2 <: \tau_2' & \varepsilon \subseteq \varepsilon' }
+~~~~~~
+\infer[\textsc{(S-Resource)}]
 	{ \{ \bar r_1 \} <: \{ \bar r_2 \} }
-	{ \{ \bar r_1 \} \subseteq \{ \bar r_2 \} }
+	{ r \in r_1 \implies r \in r_2 }
 
 \end{array}
 \]
 
-\vspace{-0.3cm}
-\caption{(Sub)typing judgements for the unannotated sublanguage of $\epscalc$}
-\vspace{-0.3cm}
-\label{fig:unannotated_static_rules}
+
+\vspace{-7pt}
+\caption{Type-and-effect and subtyping judgements in $\epscalc$.}
+\label{fig:cc_static_rules}
 \end{figure}
+
+There is one rule left, for typing \kwat{import}. It is a complicated rule. To
+explain it, we will start with a simplified (but incorrect) version, and spend the
+rest of the section building up to the final version.
+
 
 To begin, typing $\import{\varepsilon_s}{x}{\hat e}{e}$ in a context
 $\hat \Gamma$ requires us to know that $\hat e$ is
