@@ -1,0 +1,77 @@
+\documentclass[10pt,twocolumn]{article}
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\oddsidemargin  0.0in
+	\evensidemargin 0.0in
+	\textwidth      6.5in
+	\headheight     0.0in
+        \headsep        0.0in
+	\topmargin      0.0in
+	\textheight=9.0in
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand\floatpagefraction{0.9}
+
+\newcommand{\minisec}[1]{\vspace{2ex}\noindent\textbf{#1}}
+
+\begin{document}
+\begin{sloppypar}
+
+\twocolumn[
+\begin{center}
+\Large
+\textbf{Incremental Verification, Gradually}
+
+\vspace{0.5cm}
+
+\normalsize
+\textbf{Jonathan Aldrich, \'Eric Tanter, and Joshua Sunshine}
+
+\vspace{0.5cm}
+
+\end{center}]
+
+\section{Scientific Contribution}
+
+Scientific advances such as separation logic from the past two decades have resulted in tools such as Infer that are having a profound impact on quality assurance at Facebook and other major companies.  Incrementality is a key enabler of that inpact: it allows the analysis tool or its users to select the portion of the code to be verified, making sure that analysis time---and specification time, where relevant---is spent most effectively.  For example, we might want to verify just the changes to the codebase~\cite{FromStartupsToScaleups}, a feature that is supported by Facebook's Infer tool.  Alternatively, we might want to verify properties of one component without specifying and verifying the related properties of surrounding components, then incrementally extend this verification to other components, one at a time.
+
+This second form of incrementality---one component at a time---remains an open challenge for many forms of static verification.  The precondition of a function $f$ might be specified or inferred, but if the caller's precondition is not specified and cannot be inferred successfully, then the tool may not be able to determine whether $f$'s precondition has been established.  A developer can address that problem by adding a specification to the caller, but this takes valuable time that the developer may prefer to invest elsewhere---and besides, the caller may itself have a caller, and specifying the whole program may be infeasible.
+
+We have proposed \textit{gradual verification}~\cite{GV} to address this problem by combining static and dynamic verification.  When specifications are provided or can be inferred, a component can be verified statically.  Otherwise, dynamic checks are inserted at the boundaries of the component.  Gradual verification is inspired by gradual typing---a technology that in various forms is having major impact in industry, including via Facebook's Hack---and we adapt several key properties of gradual typing research to the verification setting:
+
+\begin{enumerate}
+
+\item
+In addition to providing specifications for only some components, it is possible to give partial specifications anywhere in the code.  For example, the precondition ``? * $x<10$'' means ``This function requires that $x<10$ and it also has other, currently unspecified, requirements.''  Even if ``$x<10$'' alone is not enough to verify a function, if there is some condition that can be plugged in for ``?'' that allows the function to be verified, the static analyzer will not give an error, but will insert appropriate run-time checks.  \textbf{Make a figure here}
+
+\item
+The \textit{gradual guarantee} ensures that any relaxation of a complete specification is still a legal specification, and will not result in a run-time or compile-time warning.  This ensures that programmers can move smoothly from no specifications to full specifications, and will get static/dynamic errors only when the specifications and code they write is somehow inconsistent.
+
+\item
+Run-time verification checks only the part of a condition that cannot be verified statically—potentially saving substantial run-time overhead.  Our approach builds on the Abstracting Gradual Typing approach~\cite{garcia2016abstracting}, and is also reminiscent of abduction as used in Infer~\cite{Infer}.
+
+\end{enumerate}
+
+We believe these properties are key to achieving incremental specification and verification in practice.  Property \#1 allows programmers to specify only the properties they care about; more properties can be added incrementally.  Property \#2 ensures that incrementally adding (or removing) specifications will not cause warnings that are spurious in the sense that the added specifications are correct but incomplete; the requirement that developers add specifications until a complete proof is formed is one of the most problematic aspects of many specification-based verification tools.  Property \#3 is important because run-time checks can be quite computationally expensive, so anything we can do to minimize their cost will help us get more dynamic verification out of a fixed computational cost budget.
+
+
+\section{Proposed Work}
+
+Although we have published an initial paper on gradual verification, important research needs to be done to fulfill the promise of the idea.  Our paper developed a system in a simple Hoare logic, and we also experimented with a system based on implicit dynamic frames.  We propose to extend our theory (including the gradual guarantee) and our implementation to a separation logic with recursive predicates, similar to today's advanced static verifiers.  We propose to handle predicates isorecursively, so that when (un)folding a predicate we reason about (and potentially track at run time) what state is owned by that (un)folding's part of the predicate, and handle any imprecision (i.e. ?'s) in the formula. While we worked out some initial theory for optimizing run-time verification checks, we propose to extend our run-time checking approach to handle recursive predicates, then measure overhead in a real implementation and work on ways to further optimize it.  There has been a lot of concern about the run-time overhead of gradual typing, with some declaring that it is dead~\cite{dead}.  We are mainly interested in checking first-order assertions, as typically found in Hoare logic pre- and post-conditions, so we believe gradual verification can be implemented without the higher-order wrappers that cause performance problems in the gradual typing setting.
+
+\section{Routes to Deployment}
+
+Although there is some prior work in hybrids of static and dynamic verification, the first exploration of a gradual verification system with the 3 key properties above was only published this year, and the limitations in that work prevent it from being immediately deployed in industrial-strength verification tools.  Our goal is to work on those limitations in a simple theoretical and prototype implementation setting in the coming year, supported by a Facebook gift, so that by a year from now, the technology will be advanced enough that it could be experimentally added to tools such as infer in the following year.
+
+While the obvious application of gradual verification is to add incrementality to tools such as Dafny that are based on programmer-written specifications, we believe that applying gradual verification to more automated tools such as Infer could have even greater dividends, as these tools are more widely used in industry.  For example, Infer may be able to come up with a precondition for a function, but may not be able to either prove or disprove that a given caller establishes the precondition.  In such situations, today's tools must choose between giving the programmer a possibly spurious warning or ignoring a potential error.  Our gradual verification theory would help Infer decide when to give warnings---e.g. it includes an explicit representation of where a specified or inferred assertion is partial and can use that information to detect definite inconsistencies that may not be obvious without this information.  It can also allow Infer to insert run-time assertions that can be checked in any test cases that exercise the code, making those test cases more likely to find defects while minimizing the run-time cost of the checks.  Gradual verification ideas could be used to enhance Infer's ``modeling'' capability, so that partial models can be given (with the partiality explicit, rather than implicit, again aiding in checking).  Finally, gradual verification could provide a way for Infer users to put more explicit specifications in code when desired, while still retaining the incrementality properties that Infer already provides.
+
+
+\minisec{Acknowledgments and Potential Student Researchers.}  Many ideas in this proposal came out of Johannes Bader's master's thesis, advised by Aldrich and Tanter; additional ideas came from recent research with Jenna Wise, advised by Aldrich and Sunshine.  Jenna is a CMU student who will work on the project should it be funded.  Johannes Bader was admitted to CMU but deferred for a year, in which he is working at Facebook; afterward, he may work on the project as well.  We hope that close coordination with Johannes as well as Facebook researchers in related areas, such as Peter O'Hearn, will facilitate collaboration with Facebook and eventual transition of the research ideas into practical use.
+
+\bibliographystyle{abbrv}
+\bibliography{gradual}
+
+\end{sloppypar}
+\end{document}
