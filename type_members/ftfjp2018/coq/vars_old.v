@@ -101,12 +101,6 @@ Definition id (d : decl_ty) : label :=
   | val l ofv _ => l
   end.
 
-Definition loc (v : var) : option nat :=
-  match v with
-    | c_ n => Some n
-    | a_ n => None
-  end.
-
 (*Definition bind (x : var) : var :=
   match x with
   | Var _ => x
@@ -439,7 +433,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     match G with
       | nil => nil
       | t::G' => match n with
-                  | O => ([x /t n]t)::G'
+                  | O => ([x /t n]t)::G
                   | S n' => ([x /t n]t)::(subst_env n' (x rshift_v 1) G')
                 end
     end.
@@ -462,14 +456,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   where "'[' p1 '/p' n ']' p2" := (subst_p n p1 p2)*)
 
   Fixpoint get (n : nat) (l : list ty) : option ty :=
-    match n with
-      | O => match l with
-              | nil => None
-              | h::t => Some h
-            end
-      | S m => match l with
-                | nil => None
-                | h::t => get m t
+    match l with 
+    | nil  => None
+    | h::t => match n with
+              | O => Some h
+              | S m => get m t
               end
     end.
 
@@ -657,48 +648,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Reserved Notation "G 'vdash' d 'wf_d'" (at level 80).
   Reserved Notation "G 'vdash' ds 'wf_ds'" (at level 80).
   Reserved Notation "G 'vdash' p 'wf_v'" (at level 80).
-
-  Inductive closed_v : var -> nat -> Prop :=
-  | concrete_closed : forall r n, closed_v (c_ r) n
-  | abstract_closed : forall r n, r <= n ->
-                             closed_v (a_ r) n.
-
-  Inductive closed_ty : ty -> nat -> Prop :=
-  | top_closed : forall n, closed_ty top n
-  | bot_closed : forall n, closed_ty bot n
-  | arr_closed : forall t1 t2 n, closed_ty t1 n ->
-                            closed_ty t2 (S n) ->
-                            closed_ty (t1 arr t2) n
-  | sel_closed : forall v l n, closed_v v n ->
-                          closed_ty (sel v l) n
-  | str_closed : forall ds n, closed_dts ds (S n) ->
-                         closed_ty (str ds) n
-
-  with
-  closed_dt : decl_ty -> nat -> Prop :=
-  | lower_closed : forall l t n, closed_ty t n ->
-                            closed_dt (type l sup t) n
-  | upper_closed : forall l t n, closed_ty t n ->
-                            closed_dt (type l ext t) n
-  | value_closed : forall f t n, closed_ty t n ->
-                            closed_dt (val f ofv t) n
-
-  with
-  closed_dts : decl_tys -> nat -> Prop :=
-  | nil_closed : forall n, closed_dts dt_nil n
-  | con_closed : forall d ds n, closed_dt d n ->
-                           closed_dts ds n ->
-                           closed_dts (dt_con d ds) n.
-
-  Hint Constructors closed_v closed_ty closed_dt closed_dts.
-
-  Inductive closed_env : env -> nat -> Prop :=
-  | empty_closed : forall n, closed_env nil n
-  | cons_closed : forall t G n, closed_ty t n ->
-                           closed_env G n ->
-                           closed_env (t::G) n.
-
-  Hint Constructors closed_env.
 
   Inductive wf_var : env -> var -> Prop :=
   | wf_variable : forall G r, r < length G ->
@@ -1610,14 +1559,14 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     intro m; induction m as [|m']; intros; crush.
   Qed.
 
-  Lemma rlshift_comm_var :
+  Lemma rlshift_var :
     forall v n m, ge_var v n -> (v rshift_v n lshift_v m) = (v lshift_v m rshift_v n).
   Proof.
     intros.
     inversion H; crush.
   Qed.
             
-  Lemma rlshift_comm_mutind :
+  Lemma rlshift_mutind :
     (forall t n m, ge_type t n -> (t rshift_t n lshift_t m) = (t lshift_t m rshift_t n)) /\
     (forall d n m, ge_decl_ty d n -> (d rshift_dt n lshift_dt m) = (d lshift_dt m rshift_dt n)) /\
     (forall ds n m, ge_decl_tys ds n -> (ds rshift_dts n lshift_dts m) = (ds lshift_dts m rshift_dts n)).
@@ -1629,7 +1578,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply ge_lt_n_decl_tys with (n:=S n); auto.
 
     inversion H; subst.
-    rewrite rlshift_comm_var; auto.
+    rewrite rlshift_var; auto.
 
     inversion H1; subst.
     rewrite H, H0; crush.
@@ -1649,26 +1598,26 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
             
-  Lemma rlshift_comm_type :
+  Lemma rlshift_type :
     (forall t n m, ge_type t n -> (t rshift_t n lshift_t m) = (t lshift_t m rshift_t n)).
   Proof.
-    destruct rlshift_comm_mutind; crush.
+    destruct rlshift_mutind; crush.
   Qed.
             
-  Lemma rlshift_comm_decl_ty :
+  Lemma rlshift_decl_ty :
     (forall d n m, ge_decl_ty d n -> (d rshift_dt n lshift_dt m) = (d lshift_dt m rshift_dt n)).
   Proof.
-    destruct rlshift_comm_mutind; crush.
+    destruct rlshift_mutind; crush.
   Qed.
             
-  Lemma rlshift_comm_decl_tys :
+  Lemma rlshift_decl_tys :
     (forall ds n m, ge_decl_tys ds n -> (ds rshift_dts n lshift_dts m) = (ds lshift_dts m rshift_dts n)).
   Proof.
-    destruct rlshift_comm_mutind; crush.
+    destruct rlshift_mutind; crush.
   Qed.
 
-  Hint Rewrite rlshift_comm_type rlshift_comm_decl_ty rlshift_comm_decl_tys. 
-  Hint Resolve rlshift_comm_type rlshift_comm_decl_ty rlshift_comm_decl_tys.
+  Hint Rewrite rlshift_type rlshift_decl_ty rlshift_decl_tys. 
+  Hint Resolve rlshift_type rlshift_decl_ty rlshift_decl_tys.
 
   Lemma lrshift_n_var :
     forall v n, (v lshift_v n rshift_v n) = v.
@@ -1753,7 +1702,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Hint Resolve shift_comm_decl_tys shift_comm_type shift_comm_decl_ty.
 
   Lemma rshift_subst_var :
-    forall  y x n m, ([x /v n] y rshift_v m) = [x rshift_v m /v n] (y rshift_v m).
+    forall  y x n m, ge_var x m -> ([x /v n] y rshift_v m) = [x rshift_v m /v n] (y rshift_v m).
   Proof.
     intros; destruct y; crush.
     destruct (eq_nat_dec n n0); subst;
@@ -2900,36 +2849,6 @@ Qed.
 
   Hint Resolve typing_weakening.
   Hint Rewrite typing_weakening.
-
-  Lemma ge_get :
-    forall G m, ge_env G m -> forall n t, get n G = Some t ->
-                               ge_type t m.
-  Proof.
-    intro G; induction G as [|t' G']; intros; [crush|].
-    destruct n as [|n'].
-    inversion H; subst.
-    simpl in H0; inversion H0; subst; auto.
-    apply IHG' with (n:=n'); auto.
-    inversion H; auto.
-  Qed.
-
-  Lemma typing_weakening_actual :
-    forall G v t, G vdash v hasType t ->
-             ge_env G 0 ->
-             forall G' n, n = length G' ->
-                     G' ++ G vdash (v lshift_v n) hasType (t lshift_t n).
-  Proof.
-    intros.
-    assert (Hge : ge_type t 0); [inversion H; subst; apply ge_get with (m:=0) in H2; auto|].
-    apply typing_weakening with (p:=v)(t:=t)(G1:=nil)(G2:=G)(G':=G')(i:=Some 0)(n:=length G') in H0; auto.
-    simpl in H0.
-    rewrite ge_n_implies_jump_shift_type in H0;
-    rewrite ge_n_implies_jump_shift_var in H0; subst; auto.
-    destruct v; crush.
-    destruct v; crush.
-  Qed.
-    
-    
 
   (*Inductive equiv_top : env -> ty -> Prop :=
   | eq_top : forall G, equiv_top G top
@@ -4522,318 +4441,19 @@ Qed.
     destruct notin_subst_mutind; crush.
   Qed.
 
-  Lemma subst_env_get_le :
-    forall G n t x m, n <= m -> get n G = Some t -> get n ([x /e m] G) = Some ([x rshift_v n /t m - n] t).
-  Proof.
-    intro G; induction G as [|t' G']; intros; [crush|].
-
-    destruct n as [|n'].
-    simpl in H0; inversion H0; subst.
-    destruct m as [|m'].
-    destruct x as [r|r]; simpl; auto.
-    rewrite <- minus_n_O; auto.
-    simpl. destruct x as [r|r]; [rewrite <- minus_n_O|]; auto.
-
-    destruct m as [|m']; simpl.
-    inversion H.
-
-    destruct x as [r|r].
-    rewrite IHG' with (t:=t); simpl; [simpl|crush|crush].
-    destruct r; [crush|simpl].
-    rewrite <- minus_n_O; crush.
-    rewrite IHG' with (t:=t); simpl; crush.
-  Qed.
-
-  Lemma subst_env_get_gt :
-    forall G n t x m, n > m -> get n G = Some t -> get n ([x /e m] G) = Some t.
-  Proof.
-    intro G; induction G as [|t' G']; intros; [crush|].
-
-    destruct n as [|n'].
-    inversion H.
-
-    destruct m as [|m']; crush.
-  Qed.
-
-  Lemma rlshift_var :
-    forall v n m, ge_var v n -> n <= m -> (v rshift_v n lshift_v m) =  (v lshift_v (m - n)).
-  Proof.
-    intros v n m Hge; induction Hge; crush.
-  Qed.
-
-  Lemma minus_1_S :
-    forall n m, n - S m = n - 1 - m.
-  Proof.
-    crush.
-  Qed.
-    
-
-  Lemma subst_env_get_gt_exists :
-    forall G n t x m, get n ([x /e m] G) = Some t ->
-                 m >= length G ->
-                 exists t', t = ([x rshift_v n /t m - n] t').
-  Proof.
-    intro G; induction G as [|t' G']; intros.
-
-    destruct m, n; simpl in H; inversion H.
-
-    destruct n as [|n'].
-    rewrite <- minus_n_O.
-    exists t'.
-    destruct m; crush.
-    destruct x; auto.
-    rewrite <- minus_n_O; auto.
-
-    destruct m. inversion H0.
-    simpl in H0.
-    simpl in H.
-    rewrite Nat.sub_succ.
-    destruct x; simpl in H;
-    apply IHG' in H; [|crush| |crush]; destruct H as [t0].
-    simpl; rewrite minus_1_S.
-    exists t0; rewrite H; crush.
-
-    exists t0; rewrite H; crush.
-    
-  Qed.
-
-  Lemma subst_nil :
-    forall n x, ([x /e n] nil) = nil.
-  Proof.
-    intros; destruct n; crush.
-  Qed.
-
-  Hint Resolve subst_nil.
-  Hint Rewrite subst_nil.
-  
-  Lemma length_subst :
-    forall G x n, length ([x /e n] G) = length G.
-  Proof.
-    intro G; induction G as [|t' G']; intros; [crush|].
-    destruct n as [|n']; crush.
-  Qed.
-
-  Lemma lshift_rshift_var :
-    forall v1 v2 n, v1 = (v2 lshift_v n) ->
-               (v1 rshift_v n) = v2.
-  Proof.
-    intros; destruct v1, v2; crush.
-  Qed.
-
-  Lemma lshift_rshift_mutind :
-    (forall t1 t2 n, t1 = (t2 lshift_t n) ->
-                (t1 rshift_t n) = t2) /\
-    (forall d1 d2 n, d1 = (d2 lshift_dt n) ->
-                (d1 rshift_dt n) = d2) /\
-    (forall ds1 ds2 n, ds1 = (ds2 lshift_dts n) ->
-                  (ds1 rshift_dts n) = ds2).
-  Proof.
-    apply type_mutind; intros;
-    try (rewrite H);
-    try (rewrite H0);
-    try (rewrite H1);
-    try (rewrite lrshift_n_type);
-    try (rewrite lrshift_n_decl_ty);
-    try (rewrite lrshift_n_decl_tys); auto.
-  Qed.
-
-  Lemma lshift_rshift_type :
-    (forall t1 t2 n, t1 = (t2 lshift_t n) ->
-                (t1 rshift_t n) = t2).
-  Proof.
-    destruct lshift_rshift_mutind; crush.
-  Qed.
-
-  Lemma lshift_rshift_decl_ty :
-    (forall d1 d2 n, d1 = (d2 lshift_dt n) ->
-                (d1 rshift_dt n) = d2).
-  Proof.
-    destruct lshift_rshift_mutind; crush.
-  Qed.
-
-  Lemma lshift_rshift_decl_tys :
-    (forall ds1 ds2 n, ds1 = (ds2 lshift_dts n) ->
-                  (ds1 rshift_dts n) = ds2).
-  Proof.
-    destruct lshift_rshift_mutind; crush.
-  Qed.
-    
-  Lemma lshift_eq_subst_var :
-    forall v1 x n v2 m, ([x /v n] v1) = (v2 lshift_v m) ->
-                   v2 = [x rshift_v m /v n] (v1 rshift_v m).
-  Proof.
-    intros;
-    apply lshift_rshift_var in H.
-    rewrite <- H; rewrite rshift_subst_var; auto.
-  Qed.
-
-  Lemma lshift_eq_subst_mutind :
-    (forall t1 x n t2 m, ge_var x m -> ([x /t n] t1) = (t2 lshift_t m) ->
-                    t2 = [x rshift_v m /t n] (t1 rshift_t m)) /\
-    (forall d1 x n d2 m, ge_var x m -> ([x /dt n] d1) = (d2 lshift_dt m) ->
-                    d2 = [x rshift_v m /dt n] (d1 rshift_dt m)) /\
-    (forall ds1 x n ds2 m, ge_var x m -> ([x /dts n] ds1) = (ds2 lshift_dts m) ->
-                      ds2 = [x rshift_v m /dts n] (ds1 rshift_dts m)).
-  Proof.
-    apply type_mutind; intros;
-    try (apply lshift_rshift_type in H1;
-         rewrite <- H1);
-    try (apply lshift_rshift_type in H0;
-         rewrite <- H0);
-    try (apply lshift_rshift_type in H2;
-         rewrite <- H2);
-    try (apply lshift_rshift_decl_ty in H1;
-         rewrite <- H1);
-    try (apply lshift_rshift_decl_tys in H0;
-         rewrite <- H0);
-    try (apply lshift_rshift_decl_tys in H2;
-         rewrite <- H2);
-    try (rewrite shift_subst_type; auto);
-    try (rewrite shift_subst_decl_ty; auto);
-    try (rewrite shift_subst_decl_tys; auto).
-
-  Qed.
-
-  Lemma lshift_eq_subst_type :
-    (forall t1 x n t2 m, ge_var x m -> ([x /t n] t1) = (t2 lshift_t m) ->
-                    t2 = [x rshift_v m /t n] (t1 rshift_t m)).
-  Proof.
-    destruct lshift_eq_subst_mutind; crush.
-  Qed.
-
-  Lemma lshift_eq_subst_decl_ty :
-    (forall d1 x n d2 m, ge_var x m -> ([x /dt n] d1) = (d2 lshift_dt m) ->
-                    d2 = [x rshift_v m /dt n] (d1 rshift_dt m)).
-  Proof.
-    destruct lshift_eq_subst_mutind; crush.
-  Qed.
-
-  Lemma lshift_eq_subst_decl_tys :
-    (forall ds1 x n ds2 m, ge_var x m -> ([x /dts n] ds1) = (ds2 lshift_dts m) ->
-                      ds2 = [x rshift_v m /dts n] (ds1 rshift_dts m)).
-  Proof.
-    destruct lshift_eq_subst_mutind; crush.
-  Qed.
-
-  Lemma sub_add :
-    forall n m, n >= m -> n - m + m = n.
-  Proof.
-    intro n; induction n as [|n']; [crush|intros].
-    destruct m as [|m']; crush.
-  Qed.
-  
-  Lemma subst_typing :
-    forall G v t, G vdash v hasType t ->
-             forall x n G1 G2,
-               G = ([x /e n] G1) ++ G2 ->
-               S n = length G1 ->
-               forall t' n' x' tx,
-                 Some n' = loc v ->
-                 t = ([x /t n - n'] t') ->
-(*                 v = ([x /v (S n)] v') ->*)
-                 G vdash x hasType tx ->
-                 G2 vdash x' hasType (tx rshift_t (S n)) ->
-                 ge_type tx (S n) ->
-                 ([x' lshift_v n /e n] G1) ++ G2 vdash v hasType ([x' lshift_v (S n) /t n - n'] t').
-  Proof.
-    intros G v t Htyp; inversion Htyp; intros; subst.
-
-    simpl in H5; inversion H5; subst.
-
-    destruct (get_some_app ([x /e n0] G1) G2 n) as [Hget | Hget];
-      destruct Hget as [Hget1 Hget2].
-    
-    destruct (le_lt_dec (S n0) n).
-
-    rewrite get_app_r in H.
-    rewrite length_subst in H.
-    rewrite <- length_subst with (x:=x' lshift_v n0)(n:=n0) in H.
-    apply t_var in H.
-    symmetry in H6; apply lshift_eq_subst_type in H6.
-    apply typing_weakening_actual with (G':=[x' lshift_v n0 /e n0] G1)(n:=length ([x' lshift_v n0 /e n0] G1)) in H; auto.
-    rewrite lshift_concrete in H.
-    rewrite lshift_add_type in H.
-    rewrite sub_add in H; [|rewrite length_subst; crush].
-    rewrite <- Nat.sub_succ_l in H; [|rewrite length_subst; crush].
-    rewrite sub_add in H; [|rewrite length_subst; crush].
-    rewrite H6 in H.
-    rewrite lshift_type in H.
-    SearchAbout minus.
-    simpl in H.
-    
-    apply lshift_eq_subst_var in 
-    apply get_app_r in H.
-    
-    destruct (subst_env_get_gt_exists ) as [t0].
-    
-  Qed.
-    
-                                      
-                          
-
-  forall G v t, G vdash v hasType t ->
-           forall n, v
-  [x /e n]G1++G2 vdash [x /v n]v hasType [x / n] t ->
-  n = length G1 ->
-  [x /e n]G1++G2 vdash x hasType tx ->
-  G2 vdash x rshift_v n hasType tx rshift_t n ->
-  [x /e n]G1++G2 vdash [x /v n]v hasType [x /t n] t.
-  
-
-  Lemma subst_typing :
-    forall G v t, G vdash v hasType t ->
-             forall n, v = (c_ n) ->
-                  forall x m G1 G2 t', G = ([x /e m] G1) ++ G2 ->
-                                  t = [x lshift_v 1 /e m - n] t ->
-                                  n <= m ->
-                                  ge_var x n ->
-                                  forall x' tx, G2 vdash x hasType tx ->
-                                           G2 vdash x hasType tx ->
-                                           
-                    n <= m ->
-                         ge_var x n ->
-                         forall.
-
   Lemma subst_typing :
     (forall G v t, G vdash v hasType t ->
-              forall n, v = (c_ n) ->
-                   forall x m, n <= m ->
-                          ge_var x n ->
-                          [x /e m] G vdash v hasType ([x lshift_v 1 /t m - n] t)).
-  Proof.
-    intros; inversion H; subst.
-    inversion H5; subst.
-
-    apply subst_env_get with (x:=x)(m:=m) in H3; auto.
-    apply t_var in H3.
-    rewrite lshift_subst_type in H3.
-    rewrite rlshift_var in H3; auto.
-    rewrite <- minus_Sn_m in H3; auto.
-    rewrite Nat.sub_diag in H3; auto.
-    
-  Qed.
-
-  Lemma subst_typng_2 :
-    forall G v t, G vdash v hasType ->
-             forall n, v = (c_ n) ->
-                  
-              
-              forall x n t', t = ([x /t S n] t') ->
-                        forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
-                                 n < (length G1) ->
-                                 forall x' tx, G vdash x hasType tx ->
-                                          G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
-                                          ([x' rshift_v 1 /e n] G1) ++ G2 vdash v hasType ([x' /t S n] t')).
+              forall x n t' v', t = ([x /t S n] t') ->
+                           v = ([x /v S n] v') -> 
+                           forall G1 G2, G = ([x rshift_v 1 /e n] G1) ++ G2 ->
+                                    n < (length G1) ->
+                                    forall x' tx, G vdash x hasType tx ->
+                                             G2 vdash (x' rshift_v (length G1)) hasType (tx rshift_t (length G1)) ->
+                                             ([x' rshift_v 1 /e n] G1) ++ G2 vdash ([x' /v S n] v') hasType ([x' /t S n] t')).
   Proof.
     intros G v t Htyp; induction Htyp; intros.
 
-    
-    
     destruct v'; inversion H1; subst.
-
-    
-
-    apply t_var in H.
 
     (*
      if get n1 (([x rshift_v 1 /e n0] G1) ++ G2) = Some t, then there exists t' st 
