@@ -27,15 +27,16 @@ Inductive label : Type :=
 
 Inductive ty : Type := (*types*)
 | str : decl_tys -> ty
-| sel : var -> label -> ty
-| fn_t  : ty -> ty -> ty
+| sel : path -> label -> ty
+| fn_t  : ty -> var -> ty -> ty
 | top   : ty
 | bot  : ty
 
-(*with
+with
 path : Type := (*paths*)
+| p_loc : nat -> path
 | p_var : var -> path
-| p_cast : path -> ty -> path*)
+| p_cast : path -> ty -> path
                            
 with
 decl_ty : Type := (*declaration types*)
@@ -55,6 +56,14 @@ Inductive exp : Type := (*expressions*)
 | e_fn : nat -> ty -> exp -> exp
 | e_acc : exp -> label -> exp
 | e_var : var -> exp
+| e_loc : nat -> exp
+| e_cast : exp -> ty -> exp
+                                       
+(*with
+path : Type := (*paths*)
+| p_var : var -> path
+| p_loc : nat -> path
+| p_cast : path -> ty -> path*)
 
 with
 decl : Type := (*declarations*)
@@ -72,14 +81,29 @@ decls : Type :=
 (*Notation "p 'cast' t" := (p_cast p t) (at level 80).
 Notation "'v_' x" := (p_var x) (at level 80).*)
 
-Notation "'c_' x" := (Var x) (at level 80).
-Notation "'a_' x" := (Abs x) (at level 80).
+Notation "'c_' x" := (e_var (Var x)) (at level 80).
+Notation "'a_' x" := (e_var (Abs x)) (at level 80).
+Notation "'v_' x" := (e_var x) (at level 80).
+Notation "'i_' x" := (e_loc x) (at level 80).
+Notation "e 'cast' t" := (e_cast e t) (at level 80).
 
 Notation "'type' l 'sup' t" := (dt_low l t) (at level 80).
 Notation "'type' l 'ext' t" := (dt_upp l t) (at level 80).
 Notation "'fn' n 'off' t 'in_exp' e" := (e_fn n t e) (at level 80).
 Notation "'val' l 'ofv' t" := (dt_val l t) (at level 80).
 Notation "t1 'arr' t2" := (fn_t t1 t2) (at level 80).
+
+Inductive is_value : exp -> Prop :=
+| v_loc : forall i, is_value (i_ i)
+| v_fn : forall x t e, is_value (fn x off t in_exp e)
+| v_cast : forall v t, is_value v ->
+                  is_value (v cast t).
+
+Inductive is_path : exp -> Prop :=
+| isp_loc : forall i, is_path (i_ i)
+| isp_var : forall x, is_path (v_ x)
+| isp_cast : forall p t, is_path p ->
+                    is_path (p cast t).
 
 Scheme type_mut_ind := Induction for ty Sort Prop
   with decl_ty_mut_ind := Induction for decl_ty Sort Prop
@@ -88,30 +112,12 @@ Scheme type_mut_ind := Induction for ty Sort Prop
 
 Combined Scheme type_mutind from type_mut_ind, decl_ty_mut_ind, decl_tys_mut_ind.
 
-Inductive is_material : ty -> Prop :=
-| m_top    : is_material top
-| m_bot    : is_material bot
-| m_struct : forall ds, is_material (str ds)
-| m_select : forall p m, is_material (sel p (l_type (Material m))).
-
 Definition id (d : decl_ty) : label :=
   match d with
   | type l sup _ => l
   | type l ext _ => l
   | val l ofv _ => l
   end.
-
-Definition loc (v : var) : option nat :=
-  match v with
-    | c_ n => Some n
-    | a_ n => None
-  end.
-
-(*Definition bind (x : var) : var :=
-  match x with
-  | Var _ => x
-  | Self n => Var n
-  end.*)
 
 
 Section variables.
@@ -1039,60 +1045,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Constructors sub sub_d sub_ds.
 
-  (*Reserved Notation "G1 'vdash' t1 'equiv_t' t2 'dashv' G2" (at level 80).
-  Reserved Notation "G1 'vdash' t1 'equiv_d' t2 'dashv' G2" (at level 80).
-  Reserved Notation "G1 'vdash' t1 'equiv_p' t2 'dashv' G2" (at level 80). 
-
-  Inductive ty_eq : env -> ty -> env -> ty -> Prop :=
-  | eq_top : forall G1 G2, G1 vdash top equiv_t top dashv G2
-  | eq_bot : forall G1 G2, G1 vdash bot equiv_t bot dashv G2
-  | eq_sel : forall G1 p1 G2 p2 l, G1 vdash p1 equiv_p p2 dashv G2 ->
-                              G2 vdash (sel p1 l) equiv_t (sel p2 l) dashv G2
-  | eq_struct : forall G1 d1 d2 G2 d1' d2',
-                  (struct d1 d2)::G1 vdash [c_ O /d O] d1 equiv_d [c_ O /d O] d1' dashv (struct d1' d2')::G2 ->
-                  (struct d1 d2)::G1 vdash [c_ O /d O] d2 equiv_d [c_ O /d O] d2' dashv (struct d1' d2')::G2 ->
-                  G1 vdash (struct d1 d2) equiv_t (struct d1' d2') dashv G2
-
-  where "G1 'vdash' t1 'equiv_t' t2 'dashv' G2" := (ty_eq G1 t1 G2 t2)
-
-  with
-  path_eq : env -> path -> env -> var -> Prop :=
-  | eq_var : forall G1 t1 G2 t2 n, get n G1 = Some t1 ->
-                              get n G2 = Some t2 ->
-                              G1 vdash t1 equiv_t t2 dashv G2 ->
-                              G1 vdash c_ n equiv_p c_ n dashv G2
-  | eq_cast : forall G1 p1 t1 G2 p2 t2, G1 vdash p1 equiv_p p2 dashv G2 ->
-                                   G1 vdash t1 equiv_t t2 dashv G2 ->
-                                   G1 vdash p1 cast t1 equiv_p p2 cast t2 dashv G2
-
-  where "G1 'vdash' p1 'equiv_p' p2 'dashv' G2" := (path_eq G1 p1 G2 p2)
-
-  with
-  decl_eq : env -> decl -> env -> decl -> Prop :=
-  | lower_eq : forall G1 t1 G2 t2 l, G1 vdash t1 equiv_t t2 dashv G2 ->
-                                G1 vdash (type l sup t1) equiv_d (type l sup t2) dashv G2
-  | upper_eq : forall G1 t1 G2 t2 l, G1 vdash t1 equiv_t t2 dashv G2 ->
-                                G1 vdash (type l ext t1) equiv_d (type l ext t2) dashv G2
-
-                                   where "G1 'vdash' d1 'equiv_d' d2 'dashv' G2" := (decl_eq G1 d1 G2 d2).
-
-  Hint Constructors ty_eq path_eq decl_eq.
-
-  Scheme ty_eq_mut_ind := Induction for ty_eq Sort Prop
-    with decl_eq_mut_ind := Induction for decl_eq Sort Prop
-    with path_eq_mut_ind := Induction for path_eq Sort Prop.             
-
-  Combined Scheme ty_eq_mutind from ty_eq_mut_ind, decl_eq_mut_ind, path_eq_mut_ind.*)
-
-  (*Reserved Notation "G1 'equiv_e' G2" (at level 80).
   
-  Inductive env_eq : env -> env -> Prop :=
-  | eq_nil : nil equiv_e nil
-  | eq_cons : forall G1 t1 G2 t2, G1 equiv_e G2 ->
-                             G1 vdash t1 equiv_t t2 dashv G2 ->
-                             t1::G1 equiv_e t2::G2
-
-                               where "G1 'equiv_e' G2" := (env_eq G1 G2).*)
   
   Lemma get_empty :
     forall n, get n nil = None.
