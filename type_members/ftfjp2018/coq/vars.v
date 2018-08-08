@@ -522,40 +522,42 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   (*Definition get (n : nat) (l : list ty) : option ty :=
     nth n (rev l).*)
   
-  Reserved Notation "G 'vdash' p 'hasType' t" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' p 'pathType' t" (at level 80).
   
-  Inductive typing : env -> exp -> ty -> Prop :=
-  | t_var : forall G n t, get n G = Some t ->
-                     G vdash (c_ n) hasType (t lshift_t (S n))
-  (*| t_cast : forall G p t, G vdash (p cast t) hasType t*)
+  Inductive typing_p : env -> env -> exp -> ty -> Prop :=
+  | pt_var : forall Sig G n t, get n G = Some t ->
+                        Sig en G vdash (c_ n) pathType (t lshift_t (S n))
+  | pt_loc : forall Sig G i t, get i Sig = Some t ->
+                        Sig en G vdash (i_ i) pathType (t lshift_t (S i))
+  | pt_cast : forall Sig G p t, Sig en G vdash (p cast t) pathType t
 
-  where "G 'vdash' p 'hasType' t" := (typing G p t).
+  where "Sig 'en' G 'vdash' p 'pathType' t" := (typing_p Sig G p t).
 
-  Reserved Notation "G 'vdash' p 'ni' d" (at level 80).
-  Reserved Notation "G 'vdash' d 'cont' t" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' p 'ni' d" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' d 'cont' t" (at level 80).
 
-  Hint Constructors typing.
+  Hint Constructors typing_p.
 
   Inductive in_dty : decl_ty -> decl_tys -> Prop :=
   | in_head_dty : forall d ds, in_dty d (dt_con d ds)
   | in_tail_dty : forall d d' ds, in_dty d ds ->
                              in_dty d (dt_con d' ds).
-  
-  Inductive has : env -> var -> decl_ty -> Prop :=
-  | h_path : forall G p d t, G vdash p hasType t ->
-                        G vdash d cont t ->
-                        G vdash p ni ([ p /dt O] d)
-  where "G 'vdash' p 'ni' d" := (has G p d)
-  
+
+  Inductive has : env -> env -> exp -> decl_ty -> Prop :=
+  | has_path : forall Sig G p t d, Sig en G vdash p pathType t ->
+                            Sig en G vdash d cont t ->
+                            Sig en G vdash p ni ([p /dt 0] d)
+
+  where "Sig 'en' G 'vdash' p 'ni' d" := (has Sig G p d)
 
   with
-  contains : env -> ty -> decl_ty -> Prop :=
-  | c_struct1 : forall G d ds, in_dty d ds ->
-                          G vdash (d rshift_dt 1) cont (str ds)
-  | c_select : forall G p l t d, G vdash p ni (type l ext t) ->
-                            G vdash d cont t ->
-                            G vdash d cont(sel p l)
-  where "G 'vdash' d 'cont' t" := (contains G t d). 
+  contains : env -> env -> ty -> decl_ty -> Prop :=
+  | cont_struct : forall Sig G ds d, in_dty d ds ->
+                              Sig en G vdash d cont str ds
+  | cont_upper : forall Sig G p L t d, Sig en G vdash p ni (type L ext t) ->
+                                Sig en G vdash d cont t ->
+                                Sig en G vdash d cont (sel p L)
+  where "Sig 'en' G 'vdash' d 'cont' t" := (contains Sig G t d).
 
   Hint Constructors has contains.
   
@@ -569,16 +571,97 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       | nil => nil
       | t::G' => (t [i] ljump_t n) :: (G' [dec i 1] ljump_e n)
     end
-      where "G '[' i ']' 'ljump_e' n" := (left_jump_env G n i).
-  
-  (*Fixpoint right_jump_env (G : env) (n : nat) (i : option nat) : env :=
-    match G with
-      | nil => nil
-      | t::G' => (t [i] rjump_t n) :: (G' [dec i 1] rjump_e n)
-    end
-  where "G '[' i ']' 'rjump_e' n" := (right_jump_env G n i).*)
+  where "G '[' i ']' 'ljump_e' n" := (left_jump_env G n i).
 
-  (*t, d or p does not contain any variable less than n*)
+
+  Reserved Notation "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" (at level 80).
+  Reserved Notation "Sig 'en' G1 'vdash' d1 '<;;' d2 'dashv' G2" (at level 80).
+  Reserved Notation "Sig 'en' G1 'vdash' ds1 '<;;;' ds2 'dashv' G2" (at level 80).
+  
+  Inductive sub : env -> env -> ty -> ty -> env -> Prop :=
+  | s_top : forall Sig G1 t G2, Sig en G1 vdash t <; top dashv G2
+  | s_bot : forall Sig G1 t G2, Sig en G1 vdash bot <; t dashv G2
+  | s_refl : forall Sig G1 p L G2, Sig en G1 vdash (sel p L) <; (sel p L) dashv G2
+                           
+  | s_upper : forall Sig G1 p L t1 t2 G2, Sig en G1 vdash p ni (type L ext t1) ->
+                                   Sig en G1 vdash t1 <; t2 dashv G2 ->
+                                   Sig en G1 vdash (sel p L) <; t2 dashv G2
+                           
+  | s_lower : forall Sig G1 t1 p L t2 G2, Sig en G2 vdash p ni (type L sup t2) ->
+                                   Sig en G1 vdash t1 <; t2 dashv G2 ->
+                                   Sig en G1 vdash t1 <; (sel p L) dashv G2
+
+  | s_struct : forall Sig G1 ds1 ds2 G2, Sig en (str ds1)::G1 vdash [c_ 0 /dts 0] ds1 <;;; [c_ 0 /dts 0] ds2 dashv (str ds2)::G1 ->
+                                  Sig en G1 vdash str ds1 <; str ds2 dashv G2
+
+  where "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" := (sub Sig G1 t1 t2 G2)
+
+  with
+  sub_d : env -> env -> decl_ty -> decl_ty -> env -> Prop :=
+  | sd_upper : forall Sig G1 L t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2 ->
+                                  Sig en G1 vdash (type L ext t1) <;; (type L ext t2) dashv G2
+  | sd_lower : forall Sig G1 L t1 t2 G2, Sig en G2 vdash t2 <; t1 dashv G1 ->
+                                  Sig en G1 vdash (type L sup t1) <;; (type L sup t2) dashv G2
+
+  where "Sig 'en' G1 'vdash' d1 '<;;' d2 'dashv' G2" := (sub_d Sig G1 d1 d2 G2)
+
+  with
+  sub_ds : env -> env -> decl_tys -> decl_tys -> env -> Prop :=
+  | sd_nil : forall Sig G1 G2, Sig en G1 vdash dt_nil <;;; dt_nil dashv G2
+  | sd_cons : forall Sig G1 d1 ds1 d2 ds2 G2, Sig en G1 vdash d1 <;; d2 dashv G2 ->
+                                       Sig en G1 vdash ds1 <;;; ds2 dashv G2 ->
+                                       Sig en G1 vdash (dt_con d1 ds1) <;;; (dt_con d2 ds2) dashv G2
+
+  where "Sig 'en' G1 'vdash' ds1 '<;;;' ds2 'dashv' G2" := (sub_ds Sig G1 ds1 ds2 G2).
+  
+  Reserved Notation "Sig 'en' G 'vdash' e 'hasType' t" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' ds 'hasType_ds' ss" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' d 'mem' e" (at level 80).
+  
+  Inductive typing : env -> env -> exp -> ty -> Prop :=
+  | t_var : forall  Sig G n t, get n G = Some t ->
+                        Sig en G vdash (c_ n) hasType (t lshift_t (S n))
+                          
+  | t_loc : forall  Sig G n t, get n Sig = Some t ->
+                        Sig en G vdash (i_ n) hasType (t lshift_t (S n))
+
+  | t_cast : forall Sig G e t, Sig en G vdash e cast t hasType t
+
+  | t_fn : forall Sig G t1 e t2, Sig en G vdash (fn t1 in_exp e off t2) hasType (t1 arr t2)
+
+  | t_app : forall Sig G e e' t1 t2, Sig en G vdash e hasType (t1 arr t2) ->
+                              Sig en G vdash e' hasType t1 ->
+                              Sig en G vdash (e_app e e') hasType ([e' /t 0] t2)
+
+  | t_new : forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                         Sig en G vdash new ds hasType str ss
+
+  (*TODO: add t_acc and member lookup*)
+
+  where "Sig 'en' G 'vdash' e 'hasType' t" := (typing Sig G e t)
+
+  with
+  typing_d : env -> env -> decl -> decl_ty -> Prop :=
+  | td_upper : forall Sig G L t, Sig en G vdash (type L exte t) hasType_d (type L ext t)
+  | td_lower : forall Sig G L t, Sig en G vdash (type L supe t) hasType_d (type L sup t)
+  | td_val : forall Sig G l e t, Sig en G vdash e hasType t ->
+                          Sig en G vdash (val l assgn e) hasType_d (val l oft t)
+
+  where "Sig 'en' G 'vdash' d 'hasType_d' s" := (typing_d Sig G d s)
+
+  with
+  typing_ds : env -> env -> decls -> decl_tys -> Prop :=
+  | td_nil : forall Sig G, Sig en G vdash d_nil hasType_ds dt_nil
+  | td_con : forall Sig G d ds s ss, Sig en G vdash d hasType_d s ->
+                              Sig en G vdash ds hasType_ds ss ->
+                              Sig en G vdash (d_con d ds) hasType_ds (dt_con s ss)
+
+  where "Sig 'en' G 'vdash' ds 'hasType_ds' ss" := (typing_ds Sig G ds ss)
+
+  with
+  member : env -> env -> decl -> exp -> Prop :=
+  .
 
   Inductive ge_var : var -> nat -> Prop :=
   | ge_concrete : forall r n, n <= r ->
