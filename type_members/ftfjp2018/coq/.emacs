@@ -1,17 +1,3 @@
-;
-; Very basic gnu emacs customisation.  Turns on font colouring.
-;
-(custom-set-variables
- '(global-font-lock-mode t nil (font-lock)))
-(custom-set-faces)
-
-;;setq twelf-root "/u/others/mackayjuli/Scratch/twelf/") (load (concat twelf-root "emacs/twelf-init.el")
-
-(load "~/.emacs.d/lisp/PG/generic/proof-site")
-
-;; Coq symbols
-
-(global-prettify-symbols-mode 1)
 
 
 (setq coq-symbols-list '(lambda ()
@@ -33,6 +19,8 @@
 	      ("decl" . ?σ)
 	      ("ty" . ?τ)
 	      ("env" . ?Γ)
+	      ("Sig" . ?∑)
+	      ("en" . ?,)
 	      ("vdash" . ?⊢)
 	      ("dashv" . ?⊣)
 	      ("equiv" . ?≡)
@@ -40,6 +28,7 @@
 	      ("equiv_p" . ?≡)
 	      ("equiv_e" . ?≡)
 	      ("hasType" . ?:)
+	      ("pathType" . ?:)
 	      ("swap" . ?↔)
 	      ("swap_t" . ?↔)
 	      ("swap_d" . ?↔)
@@ -85,6 +74,7 @@
 	      ("cont" . ?∈)
 	      ("<;" . ?≤)
 	      ("<;;" . ?≤)
+	      ("<;;;" . ?≤)
               ("arr". ?→)
 	      ("sup" . ?≥)
 	      ("ext" . ?≤)
@@ -106,10 +96,3 @@
 	      ("cast" . ?⊴)
 	      ("d_nil" . ?∅)
 	      ("dt_nil" . ?∅)))))
-
-;; Prettify Coq script editor
-
-(add-hook 'coq-mode-hook coq-symbols-list)
-
-;; Prettify Coq output in proofs
-(add-hook 'coq-goals-mode-hook coq-symbols-list)
