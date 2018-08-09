@@ -57,7 +57,7 @@ with
 decl : Type := (*declarations*)
 | d_upp : label -> ty -> decl
 | d_low : label -> ty -> decl
-| d_val : label -> exp -> decl
+| d_val : label -> exp -> ty -> decl
 
 with
 decls : Type :=
@@ -79,15 +79,9 @@ Notation "'type' l 'ext' t" := (dt_upp l t) (at level 80).
 Notation "'type' l 'supe' t" := (d_low l t) (at level 80).
 Notation "'type' l 'exte' t" := (d_upp l t) (at level 80).
 Notation "'val' l 'oft' t" := (dt_val l t) (at level 80).
-Notation "'val' l 'assgn' e" := (d_val l e) (at level 80).
+Notation "'val' l 'assgn' e 'oft' t" := (d_val l e t) (at level 80).
 Notation "'fn' t1 'in_exp' e 'off' t2" := (e_fn t1 e t2) (at level 80).
 Notation "t1 'arr' t2" := (fn_t t1 t2) (at level 80).
-
-Inductive is_value : exp -> Prop :=
-| v_loc : forall i, is_value (i_ i)
-| v_fn : forall t1 e t2, is_value (fn t1 in_exp e off t2)
-| v_cast : forall v t, is_value v ->
-                  is_value (v cast t).
 
 Inductive is_path : exp -> Prop :=
 | isp_loc : forall i, is_path (i_ i)
@@ -111,10 +105,10 @@ Definition id (d : decl_ty) : label :=
   | val l oft _ => l
   end.
 
-
 Section variables.
   
   Definition env := list ty.
+  Definition mu := list exp.
   
   Reserved Notation "'[' p '/t' n ']' t" (at level 80).
   Reserved Notation "'[' p '/d' n ']' d" (at level 80).
@@ -182,7 +176,7 @@ Section variables.
     match d with
       | type l supe t => type l supe (t lshift_t n)
       | type l exte t => type l exte (t lshift_t n)
-      | val l assgn e => val l assgn (e lshift_e n)
+      | val l assgn e oft t => val l assgn (e lshift_e n) oft (t lshift_t n)
     end
       where "d 'lshift_d' n" := (left_shift_decl n d)
 
@@ -259,7 +253,7 @@ Section variables.
     match d with
       | type l supe t => type l supe (t rshift_t n)
       | type l exte t => type l exte (t rshift_t n)
-      | val l assgn e => val l assgn (e rshift_e n)
+      | val l assgn e oft t => val l assgn (e rshift_e n) oft (t rshift_t n)
     end
       where "d 'rshift_d' n" := (right_shift_decl n d)
 
@@ -383,7 +377,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     match d with
       | type l supe t => type l supe (t[i] ljump_t n)
       | type l exte t => type l exte (t[i] ljump_t n)
-      | val l assgn e => val l assgn (e[i] ljump_e n)
+      | val l assgn e oft t => val l assgn (e[i] ljump_e n) oft (t [i] ljump_t n)
     end
       where "d '[' i ']' 'ljump_d' n" := (left_jump_d d n i)
 
@@ -467,7 +461,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     match d with
     | type l exte t => type l exte ([e /t n] t)
     | type l supe t => type l supe ([e /t n] t)
-    | val l assgn el => val l assgn ([e /e n] el)
+    | val l assgn el oft t => val l assgn ([e /e n] el) oft ([e /t n] t)
     end
       
   where "'[' p '/d' n ']' d" := (subst_d n p d)
@@ -490,7 +484,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
               end
     end.
 
-  Notation "'[' x '/e' n ']' G" := (subst_env n x G)(at level 80).
+  Notation "'[' x '/env' n ']' G" := (subst_env n x G)(at level 80).
 
   (*with
   subst_p (n : nat) (p1 p2 : path) : path :=
@@ -507,7 +501,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       
   where "'[' p1 '/p' n ']' p2" := (subst_p n p1 p2)*)
 
-  Fixpoint get (n : nat) (l : list ty) : option ty :=
+  Fixpoint get {A : Type} (n : nat) (l : list A) : option A :=
     match n with
       | O => match l with
               | nil => None
@@ -613,11 +607,51 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                        Sig en G1 vdash (dt_con d1 ds1) <;;; (dt_con d2 ds2) dashv G2
 
   where "Sig 'en' G1 'vdash' ds1 '<;;;' ds2 'dashv' G2" := (sub_ds Sig G1 ds1 ds2 G2).
+
+  Inductive closed : nat -> var -> Prop :=
+  | cl_concrete : forall n x, closed n (Var x)
+  | cl_abstract : forall n x, n <> x ->
+                         closed n (Abs x).
+
+  Inductive closed_t : nat -> ty -> Prop :=
+  | cl_top : forall n, closed_t n top
+  | cl_bot : forall n, closed_t n bot
+  | cl_sel : forall n p L, closed_p n p ->
+                      closed_t n (sel p L)
+  | cl_str : forall n ds, closed_ds (S n) ds ->
+                     closed_t n (str ds)
+
+  with
+  closed_d : nat -> decl_ty -> Prop :=
+  | cl_upper : forall n L t, closed_t n t ->
+                        closed_d n (type L ext t)
+  | cl_lower : forall n L t, closed_t n t ->
+                        closed_d n (type L sup t)
+  | cl_value : forall n l t, closed_t n t ->
+                        closed_d n (val l oft t)
+
+  with
+  closed_ds : nat -> decl_tys -> Prop :=
+  | cl_nil : forall n, closed_ds n dt_nil
+  | cl_cons : forall n d ds, closed_d n d ->
+                        closed_ds n ds ->
+                        closed_ds n (dt_con d ds)
+
+  with
+  closed_p : nat -> exp -> Prop :=
+  | cl_var : forall n x, closed n x ->
+                    closed_p n (v_ x)
+  | cl_loc : forall n i, closed_p n (i_ i)
+  | cl_cast : forall n p t, closed_p n p ->
+                       closed_t n t ->
+                       closed_p n (p cast t).
   
   Reserved Notation "Sig 'en' G 'vdash' e 'hasType' t" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' ds 'hasType_ds' ss" (at level 80).
-  Reserved Notation "Sig 'en' G 'vdash' d 'mem' e" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' e 'mem' d" (at level 80).
+
+  
   
   Inductive typing : env -> env -> exp -> ty -> Prop :=
   | t_var : forall  Sig G n t, get n G = Some t ->
@@ -630,14 +664,22 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   | t_fn : forall Sig G t1 e t2, Sig en G vdash (fn t1 in_exp e off t2) hasType (t1 arr t2)
 
-  | t_app : forall Sig G e e' t1 t2, Sig en G vdash e hasType (t1 arr t2) ->
-                              Sig en G vdash e' hasType t1 ->
-                              Sig en G vdash (e_app e e') hasType ([e' /t 0] t2)
+  | t_app : forall Sig G e e' t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
+                                 Sig en G vdash e' hasType t' ->
+                                 Sig en G vdash t' <; t1 dashv G ->
+                                 closed_t 0 t2 ->
+                                 Sig en G vdash (e_app e e') hasType t2
+
+  | t_app_path : forall Sig G e p t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
+                                     Sig en G vdash p pathType t' ->
+                                     Sig en G vdash t' <; t1 dashv G ->
+                                     Sig en G vdash (e_app e p) hasType ([p /t 0] t2)
 
   | t_new : forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
                          Sig en G vdash new ds hasType str ss
 
-  (*TODO: add t_acc and member lookup*)
+  | t_acc : forall Sig G e l t, Sig en G vdash e mem (val l oft t) ->
+                         Sig en G vdash (e_acc e l) hasType t
 
   where "Sig 'en' G 'vdash' e 'hasType' t" := (typing Sig G e t)
 
@@ -645,8 +687,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   typing_d : env -> env -> decl -> decl_ty -> Prop :=
   | td_upper : forall Sig G L t, Sig en G vdash (type L exte t) hasType_d (type L ext t)
   | td_lower : forall Sig G L t, Sig en G vdash (type L supe t) hasType_d (type L sup t)
-  | td_val : forall Sig G l e t, Sig en G vdash e hasType t ->
-                          Sig en G vdash (val l assgn e) hasType_d (val l oft t)
+  | td_val : forall Sig G l e t, Sig en G vdash (val l assgn e oft t) hasType_d (val l oft t)
 
   where "Sig 'en' G 'vdash' d 'hasType_d' s" := (typing_d Sig G d s)
 
@@ -660,8 +701,93 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   where "Sig 'en' G 'vdash' ds 'hasType_ds' ss" := (typing_ds Sig G ds ss)
 
   with
-  member : env -> env -> decl -> exp -> Prop :=
-  .
+  member : env -> env -> exp -> decl_ty -> Prop :=
+  | mem_path : forall Sig G p d, Sig en G vdash p ni d ->
+                          Sig en G vdash p mem d
+  | mem_exp : forall Sig G e t d, Sig en G vdash e hasType t ->
+                           Sig en G vdash d cont t ->
+                           closed_d 0 d ->
+                           Sig en G vdash e mem d
+                           
+  where "Sig 'en' G 'vdash' e 'mem' d" := (member Sig G e d).
+
+  Hint Constructors typing typing_d typing_ds member.
+
+  Lemma path_typing_equivalence :
+    forall Sig G p t, is_path p -> Sig en G vdash p pathType t <-> Sig en G vdash p hasType t.
+  Proof.
+    split; intros;
+    inversion H; subst; auto;
+      try solve [inversion H0; auto].
+  Qed.
+
+  Reserved Notation "u 'hasType_u' Sig" (at level 80).
+
+  Inductive store_typing : mu -> env -> Prop :=
+  | t_nil : nil hasType_u nil
+  | t_con : forall t Sig e u, Sig en nil vdash e hasType t ->
+                       u hasType_u Sig ->
+                       (e::u) hasType_u (t::Sig)
+
+  where "u 'hasType_u' Sig" := (store_typing u Sig).
+  
+
+  Inductive is_value : exp -> Prop :=
+  | v_loc : forall i, is_value (i_ i)
+  | v_fn : forall t1 e t2, is_value (fn t1 in_exp e off t2)
+  | v_cast : forall v t, is_value v ->
+                    is_value (v cast t).
+
+  Inductive is_value_d : decl -> Prop :=
+  | v_lower : forall L t, is_value_d (type L exte t)
+  | v_upper : forall L t, is_value_d (type L supe t)
+  | v_value : forall l v t, is_value v ->
+                       is_value_d (val l assgn v oft t).
+
+  Inductive is_value_ds : decls -> Prop :=
+  | v_nil : is_value_ds d_nil
+  | v_con : forall d ds, is_value_d d ->
+                    is_value_ds ds ->
+                    is_value_ds (d_con d ds).
+
+  Notation "u 'bar' e" := (u, e)(at level 80).
+  Reserved Notation "p1 'reduce' p2" (at level 80).
+
+  (*Inductive mapsto : mu -> exp -> decls -> Prop :=
+  | map_loc : forall u i ds, get i u = Some (new ds) ->
+                        mapsto u (i_ i) ds
+  | map_cast : forall u v t ds, mapsto u v ds ->
+                           mapsto u (v cast t) ds.*)
+
+  Inductive in_ds : decl -> decls -> Prop :=
+  | ind_head : forall d ds, in_ds d ds
+  | ind_tail : forall d ds d', in_ds d ds ->
+                          in_ds d (d_con d' ds).
+
+  Inductive reduction : (mu * exp) -> (mu * exp) -> Prop :=
+  | r_new : forall u ds, is_value_ds ds ->
+                    (u bar new ds) reduce (new ds :: u bar i_ 0)
+                                 
+  | r_app : forall u t1 e t2 v, is_value v ->
+                           (u bar e_app (fn t1 in_exp e off t2) v) reduce (u bar [v cast t1 /e 0] (e cast t2))
+
+  | r_app_cast : forall u v t1 t2 v', is_value v ->
+                                 is_value v' ->
+                                 (u bar e_app (v cast (t1 arr t2)) v') reduce (u bar ((e_app v (v' cast t1)) cast ([v' /t 0] t2)))
+
+  | r_acc : forall u i l ds e t, get i u = Some (new ds) ->
+                            in_ds (val l assgn e oft t) ds ->
+                            (u bar e_acc (i_ i) l) reduce (u bar [i_ i /e 0] (e lshift_e S i))
+
+  | r_acc_cast : forall u Sig v t l t', is_value v ->
+                                 u hasType_u Sig ->
+                                 Sig en nil vdash v cast t mem (val l oft t') ->
+                                 (u bar e_acc (v cast t) l) reduce (u bar ((e_acc v l) cast t'))
+
+  where "p1 'reduce' p2" := (reduction p1 p2).
+
+  
+  
 
   Inductive ge_var : var -> nat -> Prop :=
   | ge_concrete : forall r n, n <= r ->
