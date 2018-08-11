@@ -27,15 +27,10 @@ Inductive label : Type :=
 
 Inductive ty : Type := (*types*)
 | str : decl_tys -> ty
-| sel : var -> label -> ty
+| sel : exp -> label -> ty
 | fn_t  : ty -> ty -> ty
 | top   : ty
 | bot  : ty
-
-(*with
-path : Type := (*paths*)
-| p_var : var -> path
-| p_cast : path -> ty -> path*)
                            
 with
 decl_ty : Type := (*declaration types*)
@@ -46,21 +41,23 @@ decl_ty : Type := (*declaration types*)
 with
 decl_tys : Type :=
 | dt_nil : decl_tys
-| dt_con : decl_ty -> decl_tys -> decl_tys.
+| dt_con : decl_ty -> decl_tys -> decl_tys
 
-
-Inductive exp : Type := (*expressions*)
+with
+exp : Type := (*expressions*)
 | new : decls -> exp
-| app : exp -> exp -> exp
-| e_fn : nat -> ty -> exp -> exp
+| e_app : exp -> exp -> exp
+| e_fn : ty -> exp -> ty -> exp
 | e_acc : exp -> label -> exp
 | e_var : var -> exp
+| e_loc : nat -> exp
+| e_cast : exp -> ty -> exp
 
 with
 decl : Type := (*declarations*)
 | d_upp : label -> ty -> decl
 | d_low : label -> ty -> decl
-| d_val : label -> exp -> decl
+| d_val : label -> exp -> ty -> decl
 
 with
 decls : Type :=
@@ -68,117 +65,54 @@ decls : Type :=
 | d_con : decl -> decls -> decls.
 
 
-
 (*Notation "p 'cast' t" := (p_cast p t) (at level 80).
 Notation "'v_' x" := (p_var x) (at level 80).*)
 
-Notation "'c_' x" := (Var x) (at level 80).
-Notation "'a_' x" := (Abs x) (at level 80).
+Notation "'c_' x" := (e_var (Var x)) (at level 80).
+Notation "'a_' x" := (e_var (Abs x)) (at level 80).
+Notation "'v_' x" := (e_var x) (at level 80).
+Notation "'i_' x" := (e_loc x) (at level 80).
+Notation "e 'cast' t" := (e_cast e t) (at level 80).
 
 Notation "'type' l 'sup' t" := (dt_low l t) (at level 80).
 Notation "'type' l 'ext' t" := (dt_upp l t) (at level 80).
-Notation "'fn' n 'off' t 'in_exp' e" := (e_fn n t e) (at level 80).
-Notation "'val' l 'ofv' t" := (dt_val l t) (at level 80).
+Notation "'type' l 'supe' t" := (d_low l t) (at level 80).
+Notation "'type' l 'exte' t" := (d_upp l t) (at level 80).
+Notation "'val' l 'oft' t" := (dt_val l t) (at level 80).
+Notation "'val' l 'assgn' e 'oft' t" := (d_val l e t) (at level 80).
+Notation "'fn' t1 'in_exp' e 'off' t2" := (e_fn t1 e t2) (at level 80).
 Notation "t1 'arr' t2" := (fn_t t1 t2) (at level 80).
+
+Inductive is_path : exp -> Prop :=
+| isp_loc : forall i, is_path (i_ i)
+| isp_var : forall x, is_path (v_ x)
+| isp_cast : forall p t, is_path p ->
+                    is_path (p cast t).
 
 Scheme type_mut_ind := Induction for ty Sort Prop
   with decl_ty_mut_ind := Induction for decl_ty Sort Prop
   with decl_tys_mut_ind := Induction for decl_tys Sort Prop
-  (*with path_mut_ind := Induction for path Sort Prop*).
+  with exp_mut_ind := Induction for exp Sort Prop
+  with decl_mut_ind := Induction for decl Sort Prop
+  with decls_mut_ind := Induction for decls Sort Prop.
 
-Combined Scheme type_mutind from type_mut_ind, decl_ty_mut_ind, decl_tys_mut_ind.
-
-Inductive is_material : ty -> Prop :=
-| m_top    : is_material top
-| m_bot    : is_material bot
-| m_struct : forall ds, is_material (str ds)
-| m_select : forall p m, is_material (sel p (l_type (Material m))).
+Combined Scheme type_exp_mutind from type_mut_ind, decl_ty_mut_ind, decl_tys_mut_ind, exp_mut_ind, decl_mut_ind, decls_mut_ind.
 
 Definition id (d : decl_ty) : label :=
   match d with
   | type l sup _ => l
   | type l ext _ => l
-  | val l ofv _ => l
+  | val l oft _ => l
   end.
-
-Definition loc (v : var) : option nat :=
-  match v with
-    | c_ n => Some n
-    | a_ n => None
-  end.
-
-(*Definition bind (x : var) : var :=
-  match x with
-  | Var _ => x
-  | Self n => Var n
-  end.*)
-
 
 Section variables.
   
   Definition env := list ty.
+  Definition mu := list exp.
   
   Reserved Notation "'[' p '/t' n ']' t" (at level 80).
   Reserved Notation "'[' p '/d' n ']' d" (at level 80).
   Reserved Notation "'[' p1 '/p' n ']' p2" (at level 80).
-
-  Definition switch_n (n1 n2 m : nat) : nat :=
-    if beq_nat n1 m
-    then n2
-    else if beq_nat n2 m
-         then n1
-         else m.
-
-  Notation "'[' n1 'swap_n' n2 ']' m" := (switch_n n1 n2 m) (at level 80).
-
-  Definition switch_v (n m : nat) (x : var) : var :=
-    match x with
-      | Var n' => Var ([n swap_n m] n')
-      | _ => x
-    end.
-  
-  Notation "'[' n 'swap_v' m ']'" := (switch_v n m) (at level 80).
-
-  Fixpoint switch (n m : nat) (t : ty) : ty :=
-    match t with
-    | top => top
-    | bot => bot
-    | t1 arr t2 => (switch n m t1) arr (switch (S n) (S m) t2) 
-    | sel x l => sel (switch_v n m x) l
-    | str ds => str (switch_ds (S n) (S m) ds)
-    end
-
-  (*with
-  switch_p (n m : nat) (p : path) : path :=
-    match p with
-    | v_ x => v_ [n swap_v m] x
-    | p' cast t => (switch_p n m p') cast (switch n m t)
-    end*)
-
-  with
-  switch_d (n m : nat) (d : decl_ty) : decl_ty :=
-    match d with
-    | type l sup t => type l sup (switch n m t)
-    | type l ext t => type l ext (switch n m t)
-    | val l ofv t => val l ofv (switch n m t)
-    end
-
-  with
-  switch_ds (n m : nat) (ds : decl_tys) : decl_tys :=
-    match ds with
-      | dt_nil => dt_nil
-      | dt_con d ds' => dt_con (switch_d n m d) (switch_ds n m ds')
-    end.
-
-  Notation "'[' n 'swap' m ']'" := (switch n m) (at level 80).
-(*  Notation "'[' n 'swap_p' m ']'" := (switch_p n m) (at level 80).*)
-  Notation "'[' n 'swap_d' m ']'" := (switch_d n m) (at level 80).
-  
-
-  Definition switch_env (n m : nat) (G : env) : env :=
-    map ([n swap m]) G.
-  
-  Notation "'[' n 'swap_e' m ']'" := (switch_env n m) (at level 80).
 
   (*Left Shift*)
   
@@ -190,11 +124,11 @@ Section variables.
       
   Notation "v 'lshift_v' n" := (left_shift_var n v) (at level 80).
   Reserved Notation "t 'lshift_t' n" (at level 80).
-  Reserved Notation "d 'lshift_d' n" (at level 80).
-  Reserved Notation "d 'lshift_ds' n" (at level 80).
   Reserved Notation "d 'lshift_dt' n" (at level 80).
   Reserved Notation "d 'lshift_dts' n" (at level 80).
-  Reserved Notation "p 'lshift_p' n" (at level 80).
+  Reserved Notation "e 'lshift_e' n" (at level 80).
+  Reserved Notation "d 'lshift_d' n" (at level 80).
+  Reserved Notation "d 'lshift_ds' n" (at level 80).
   Reserved Notation "G 'lshift_e' n" (at level 80).
   
   Fixpoint left_shift_type (n : nat) (t : ty) : ty :=
@@ -202,7 +136,7 @@ Section variables.
       | top => top
       | bot => bot
       | t1 arr t2 => (t1 lshift_t n) arr (t2 lshift_t n)
-      | sel x l => sel (x lshift_v n) l
+      | sel p l => sel (p lshift_e n) l
       | str ds => str (ds lshift_dts n)
     end
       where "t 'lshift_t' n" := (left_shift_type n t)
@@ -212,7 +146,7 @@ Section variables.
     match d with
       | type l sup t => type l sup (t lshift_t n)
       | type l ext t => type l ext (t lshift_t n)
-      | val l ofv t => val l ofv (t lshift_t n)
+      | val l oft t => val l oft (t lshift_t n)
     end
       where "d 'lshift_dt' n" := (left_shift_decl_ty n d)
 
@@ -224,13 +158,35 @@ Section variables.
     end
       where "d 'lshift_dts' n" := (left_shift_decl_tys n d)
 
-  (*with
-  left_shift_path (n : nat) (p : path) : path :=
-    match p with
-      | v_ x => v_ (x lshift_v n)
-      | p cast t => (p lshift_p n) cast (t lshift_t n)
+  with
+  left_shift_exp (n : nat) (e : exp) : exp :=
+    match e with
+    | new ds => new (ds lshift_ds S n)
+    | e_app e1 e2 => e_app (e1 lshift_e n) (e2 lshift_e n)
+    | fn t1 in_exp e off t2 => fn (t1 lshift_t n) in_exp (e lshift_e S n) off (t2 lshift_t S n)
+    | e_acc e m => e_acc (e lshift_e n) m
+    | e cast t => (e lshift_e n) cast (t lshift_t n)
+    | v_ x => v_ (x lshift_v n)
+    | i_ i => i_ i
     end
-      where "p 'lshift_p' n" := (left_shift_path n p)*).
+      where "e 'lshift_e' n" := (left_shift_exp n e)
+
+  with
+  left_shift_decl (n : nat) (d : decl) : decl :=
+    match d with
+      | type l supe t => type l supe (t lshift_t n)
+      | type l exte t => type l exte (t lshift_t n)
+      | val l assgn e oft t => val l assgn (e lshift_e n) oft (t lshift_t n)
+    end
+      where "d 'lshift_d' n" := (left_shift_decl n d)
+
+  with
+  left_shift_decls (n : nat) (ds : decls) : decls :=
+    match ds with
+      | d_nil => d_nil
+      | d_con d ds' => d_con (d lshift_d n) (ds' lshift_ds n)
+    end
+      where "d 'lshift_ds' n" := (left_shift_decls n d).
 
   
 
@@ -257,7 +213,7 @@ Section variables.
     | top => top
     | bot => bot
     | t1 arr t2 => (t1 rshift_t n) arr (t2 rshift_t n)
-    | sel x l => sel (x rshift_v n) l
+    | sel p l => sel (p rshift_e n) l
     | str ds => str (ds rshift_dts n)
     end
   where "t 'rshift_t' n" := (right_shift_type n t)
@@ -267,7 +223,7 @@ Section variables.
     match d with
     | type l sup t => type l sup (t rshift_t n)
     | type l ext t => type l ext (t rshift_t n)
-    | val l ofv t => val l ofv (t rshift_t n)
+    | val l oft t => val l oft (t rshift_t n)
     end
   where "d 'rshift_dt' n" := (right_shift_decl_ty n d)
 
@@ -278,6 +234,37 @@ Section variables.
       | dt_con d ds' => dt_con (d rshift_dt n) (ds' rshift_dts n)
     end
   where "d 'rshift_dts' n" := (right_shift_decl_tys n d)
+                                
+  with
+  right_shift_exp (n : nat) (e : exp) : exp :=
+    match e with
+    | new ds => new (ds rshift_ds S n)
+    | e_app e1 e2 => e_app (e1 rshift_e n) (e2 rshift_e n)
+    | fn t1 in_exp e off t2 => fn (t1 rshift_t n) in_exp (e rshift_e S n) off (t2 rshift_t S n)
+    | e_acc e m => e_acc (e rshift_e n) m
+    | e cast t => (e rshift_e n) cast (t rshift_t n)
+    | v_ x => v_ (x rshift_v n)
+    | i_ i => i_ i
+    end
+      where "e 'rshift_e' n" := (right_shift_exp n e)
+
+  with
+  right_shift_decl (n : nat) (d : decl) : decl :=
+    match d with
+      | type l supe t => type l supe (t rshift_t n)
+      | type l exte t => type l exte (t rshift_t n)
+      | val l assgn e oft t => val l assgn (e rshift_e n) oft (t rshift_t n)
+    end
+      where "d 'rshift_d' n" := (right_shift_decl n d)
+
+  with
+  right_shift_decls (n : nat) (ds : decls) : decls :=
+    match ds with
+      | d_nil => d_nil
+      | d_con d ds' => d_con (d rshift_d n) (ds' rshift_ds n)
+    end
+      where "d 'rshift_ds' n" := (right_shift_decls n d).
+
 
   (*with
   right_shift_path (n : nat) (p : path) : path :=
@@ -285,7 +272,7 @@ Section variables.
     | v_ x => v_ (x rshift_v n)
     | p cast t => (p rshift_p n) cast (t rshift_t n)
     end
-      where "p 'rshift_p' n" := (right_shift_path n p)*).
+      where "p 'rshift_p' n" := (right_shift_path n p)*)
 
   (*Environment shift*)
   
@@ -350,7 +337,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       | top => top
       | bot => bot
       | t1 arr t2 => (t1 [i] ljump_t n) arr (t2 [inc i 1] ljump_t n)
-      | sel x l => sel (x [i] ljump_v n) l
+      | sel p l => sel (p [i] ljump_e n) l
       | str ds => str (ds [inc i 1] ljump_dts n)
     end
       where "t '[' i ']' 'ljump_t' n" := (left_jump_t t n i)
@@ -360,7 +347,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     match d with
       | type l sup t => type l sup (t[i] ljump_t n)
       | type l ext t => type l ext (t[i] ljump_t n)
-      | val l ofv t => val l ofv (t[i] ljump_t n)
+      | val l oft t => val l oft (t[i] ljump_t n)
     end
       where "d '[' i ']' 'ljump_dt' n" := (left_jump_d_ty d n i)
 
@@ -372,27 +359,42 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     end
       where "d '[' i ']' 'ljump_dts' n" := (left_jump_d_tys d n i)
 
-  (*with
-  left_jump_p (p : path) (n : nat) (i : option nat) : path :=
-    match p with
-      | v_ x => v_ (x [i] ljump_v n)
-      | p cast t => (p [i] ljump_p n) cast (t [i] ljump_t n)
+  with
+  left_jump_e (e : exp) (n : nat) (i : option nat) : exp :=
+    match e with
+    | new ds => new (ds [inc i 1] ljump_ds n)
+    | e_app e1 e2 => e_app (e1 [i] ljump_e n) (e2 [i] ljump_e n)
+    | fn t1 in_exp e off t2 => fn (t1 [i] ljump_t n) in_exp (e [inc i 1] ljump_e n) off (t2 [inc i 1] ljump_t n)
+    | e_acc e m => e_acc (e [i] ljump_e n) m
+    | v_ x => v_ (x [i] ljump_v n)
+    | i_ i => i_ i
+    | e cast t => (e [i] ljump_e n) cast (t [i] ljump_t n)
     end
-  where "p '[' i ']' 'ljump_p' n" := (left_jump_p p n i)*).
+      where "e '[' i ']' 'ljump_e' n" := (left_jump_e e n i)        
+                                             
+  with
+  left_jump_d (d : decl) (n : nat) (i : option nat) : decl :=
+    match d with
+      | type l supe t => type l supe (t[i] ljump_t n)
+      | type l exte t => type l exte (t[i] ljump_t n)
+      | val l assgn e oft t => val l assgn (e[i] ljump_e n) oft (t [i] ljump_t n)
+    end
+      where "d '[' i ']' 'ljump_d' n" := (left_jump_d d n i)
 
-(*  Definition left_jump_option (i n : nat) (o : option ty) : option ty :=
-    match o with
-    | None => None
-    | Some t => Some (t [i] ljump_t n)
-    end.
-
-  Notation "o '[' i ']' 'ljump_o' n" := (left_jump_option i n o)(at level 80).*)
+  with
+  left_jump_ds (d : decls) (n : nat) (i : option nat) : decls :=
+    match d with
+      | d_nil => d_nil
+      | d_con d ds' => d_con (d [i] ljump_d n) (ds' [i] ljump_ds n)
+    end
+  where "d '[' i ']' 'ljump_ds' n" := (left_jump_ds d n i).
+  
   Reserved Notation "'[' p '/t' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/dt' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/dts' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/d' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/ds' n ']' ds" (at level 80).
-  Reserved Notation "'[' p '/p' n ']' ds" (at level 80).
+  Reserved Notation "'[' p '/e' n ']' ds" (at level 80).
 
 
   Definition subst_v (n : nat) (x y : var) : var :=
@@ -405,46 +407,84 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   
   Notation "'[' x '/v' n ']' y" := (subst_v n x y) (at level 80).
     
-  Fixpoint subst (n : nat) (x : var) (t : ty) : ty :=
+  Fixpoint subst (n : nat) (e : exp) (t : ty) : ty :=
     match t with
     | top => top
     | bot => bot
-    | t1 arr t2 => ([x /t n] t1) arr ([x lshift_v 1 /t S n] t2)
-    | sel y l => sel ([ x /v n ] y) l
-    | str ds => str ([ x lshift_v 1 /dts S n ] ds)
+    | t1 arr t2 => ([e /t n] t1) arr ([e lshift_e 1 /t S n] t2)
+    | sel p l => sel ([ e /e n ] p) l
+    | str ds => str ([ e lshift_e 1 /dts S n ] ds)
     end
 
   where "'[' p '/t' n ']' t" := (subst n p t)
 
   with
-  subst_d_ty (n : nat) (x : var) (d : decl_ty) : decl_ty :=
+  subst_d_ty (n : nat) (e : exp) (d : decl_ty) : decl_ty :=
     match d with
-    | type l sup t => type l sup ([x /t n] t)
-    | type l ext t => type l ext ([x /t n] t)
-    | val l ofv t => val l ofv ([x /t n] t)                        
+    | type l sup t => type l sup ([e /t n] t)
+    | type l ext t => type l ext ([e /t n] t)
+    | val l oft t => val l oft ([e /t n] t)                        
     end
       
   where "'[' p '/dt' n ']' d" := (subst_d_ty n p d)
 
   with
-  subst_d_tys (n : nat) (x : var) (d : decl_tys) : decl_tys :=
+  subst_d_tys (n : nat) (e : exp) (d : decl_tys) : decl_tys :=
     match d with
-      | dt_nil => dt_nil
-      | dt_con d ds' => dt_con ([x /dt n] d) ([x /dts n] ds')
+    | dt_nil => dt_nil
+    | dt_con d ds' => dt_con ([e /dt n] d) ([e /dts n] ds')
     end
       
-      where "'[' p '/dts' n ']' d" := (subst_d_tys n p d).
+  where "'[' p '/dts' n ']' d" := (subst_d_tys n p d)
 
-  Fixpoint subst_env (n : nat)(x : var)(G : env) : env :=
+  with
+  subst_e (n : nat) (e1 e2 : exp) : exp :=
+    match e2 with
+    | new ds => new ([e1 /ds n] ds)
+    | e_app e e' => e_app ([e1 /e n] e) ([e1 /e n] e')
+    | fn t1 in_exp e off t2 => fn ([e1 /t n] t1) in_exp ([e1 /e n] e) off ([e1 /t S n] t2)
+    | e_acc e m => e_acc ([e1 /e n] e) m
+    | v_ x => match x with
+             | Abs m => if beq_nat n m
+                       then e1
+                       else v_ x
+             | _ => v_ x
+             end
+    | i_ i => i_ i
+    | e cast t => ([e1 /e n] e) cast ([e1 /t n] t)
+    end
+      
+  where "'[' e1 '/e' n ']' e2" := (subst_e n e1 e2)
+
+  with
+  subst_d (n : nat) (e : exp) (d : decl) : decl :=
+    match d with
+    | type l exte t => type l exte ([e /t n] t)
+    | type l supe t => type l supe ([e /t n] t)
+    | val l assgn el oft t => val l assgn ([e /e n] el) oft ([e /t n] t)
+    end
+      
+  where "'[' p '/d' n ']' d" := (subst_d n p d)
+
+  with
+  subst_ds (n : nat) (e : exp) (d : decls) : decls :=
+    match d with
+    | d_nil => d_nil
+    | d_con d ds' => d_con ([e /d n] d) ([e /ds n] ds')
+    end
+      
+  where "'[' p '/ds' n ']' d" := (subst_ds n p d).
+
+  Fixpoint subst_env (n : nat)(e : exp)(G : env) : env :=
     match G with
-      | nil => nil
-      | t::G' => match n with
-                  | O => ([x /t n]t)::G'
-                  | S n' => ([x /t n]t)::(subst_env n' (x rshift_v 1) G')
-                end
+    | nil => nil
+    | t::G' => match n with
+              | O => ([e /t n]t)::G'
+              | S n' => ([e /t n]t)::(subst_env n' (e rshift_e 1) G')
+              end
     end.
 
-  Notation "'[' x '/e' n ']' G" := (subst_env n x G)(at level 80).
+  Notation "'[' x '/env' n ']' G" := (subst_env n x G)(at level 80).
 
   (*with
   subst_p (n : nat) (p1 p2 : path) : path :=
@@ -461,7 +501,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       
   where "'[' p1 '/p' n ']' p2" := (subst_p n p1 p2)*)
 
-  Fixpoint get (n : nat) (l : list ty) : option ty :=
+  Fixpoint get {A : Type} (n : nat) (l : list A) : option A :=
     match n with
       | O => match l with
               | nil => None
@@ -476,40 +516,42 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   (*Definition get (n : nat) (l : list ty) : option ty :=
     nth n (rev l).*)
   
-  Reserved Notation "G 'vdash' p 'hasType' t" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' p 'pathType' t" (at level 80).
   
-  Inductive typing : env -> var -> ty -> Prop :=
-  | t_var : forall G n t, get n G = Some t ->
-                     G vdash (c_ n) hasType (t lshift_t (S n))
-  (*| t_cast : forall G p t, G vdash (p cast t) hasType t*)
+  Inductive typing_p : env -> env -> exp -> ty -> Prop :=
+  | pt_var : forall Sig G n t, get n G = Some t ->
+                        Sig en G vdash (c_ n) pathType (t lshift_t (S n))
+  | pt_loc : forall Sig G i t, get i Sig = Some t ->
+                        Sig en G vdash (i_ i) pathType (t lshift_t (S i))
+  | pt_cast : forall Sig G p t, Sig en G vdash (p cast t) pathType t
 
-  where "G 'vdash' p 'hasType' t" := (typing G p t).
+  where "Sig 'en' G 'vdash' p 'pathType' t" := (typing_p Sig G p t).
 
-  Reserved Notation "G 'vdash' p 'ni' d" (at level 80).
-  Reserved Notation "G 'vdash' d 'cont' t" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' p 'ni' d" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' d 'cont' t" (at level 80).
 
-  Hint Constructors typing.
+  Hint Constructors typing_p.
 
   Inductive in_dty : decl_ty -> decl_tys -> Prop :=
   | in_head_dty : forall d ds, in_dty d (dt_con d ds)
   | in_tail_dty : forall d d' ds, in_dty d ds ->
                              in_dty d (dt_con d' ds).
-  
-  Inductive has : env -> var -> decl_ty -> Prop :=
-  | h_path : forall G p d t, G vdash p hasType t ->
-                        G vdash d cont t ->
-                        G vdash p ni ([ p /dt O] d)
-  where "G 'vdash' p 'ni' d" := (has G p d)
-  
+
+  Inductive has : env -> env -> exp -> decl_ty -> Prop :=
+  | has_path : forall Sig G p t d, Sig en G vdash p pathType t ->
+                            Sig en G vdash d cont t ->
+                            Sig en G vdash p ni ([p /dt 0] d)
+
+  where "Sig 'en' G 'vdash' p 'ni' d" := (has Sig G p d)
 
   with
-  contains : env -> ty -> decl_ty -> Prop :=
-  | c_struct1 : forall G d ds, in_dty d ds ->
-                          G vdash (d rshift_dt 1) cont (str ds)
-  | c_select : forall G p l t d, G vdash p ni (type l ext t) ->
-                            G vdash d cont t ->
-                            G vdash d cont(sel p l)
-  where "G 'vdash' d 'cont' t" := (contains G t d). 
+  contains : env -> env -> ty -> decl_ty -> Prop :=
+  | cont_struct : forall Sig G ds d, in_dty d ds ->
+                              Sig en G vdash d cont str ds
+  | cont_upper : forall Sig G p L t d, Sig en G vdash p ni (type L ext t) ->
+                                Sig en G vdash d cont t ->
+                                Sig en G vdash d cont (sel p L)
+  where "Sig 'en' G 'vdash' d 'cont' t" := (contains Sig G t d).
 
   Hint Constructors has contains.
   
@@ -523,16 +565,229 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       | nil => nil
       | t::G' => (t [i] ljump_t n) :: (G' [dec i 1] ljump_e n)
     end
-      where "G '[' i ']' 'ljump_e' n" := (left_jump_env G n i).
-  
-  (*Fixpoint right_jump_env (G : env) (n : nat) (i : option nat) : env :=
-    match G with
-      | nil => nil
-      | t::G' => (t [i] rjump_t n) :: (G' [dec i 1] rjump_e n)
-    end
-  where "G '[' i ']' 'rjump_e' n" := (right_jump_env G n i).*)
+  where "G '[' i ']' 'ljump_e' n" := (left_jump_env G n i).
 
-  (*t, d or p does not contain any variable less than n*)
+
+  Reserved Notation "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" (at level 80).
+  Reserved Notation "Sig 'en' G1 'vdash' d1 '<;;' d2 'dashv' G2" (at level 80).
+  Reserved Notation "Sig 'en' G1 'vdash' ds1 '<;;;' ds2 'dashv' G2" (at level 80).
+  
+  Inductive sub : env -> env -> ty -> ty -> env -> Prop :=
+  | s_top : forall Sig G1 t G2, Sig en G1 vdash t <; top dashv G2
+  | s_bot : forall Sig G1 t G2, Sig en G1 vdash bot <; t dashv G2
+  | s_refl : forall Sig G1 p L G2, Sig en G1 vdash (sel p L) <; (sel p L) dashv G2
+                           
+  | s_upper : forall Sig G1 p L t1 t2 G2, Sig en G1 vdash p ni (type L ext t1) ->
+                                   Sig en G1 vdash t1 <; t2 dashv G2 ->
+                                   Sig en G1 vdash (sel p L) <; t2 dashv G2
+                           
+  | s_lower : forall Sig G1 t1 p L t2 G2, Sig en G2 vdash p ni (type L sup t2) ->
+                                   Sig en G1 vdash t1 <; t2 dashv G2 ->
+                                   Sig en G1 vdash t1 <; (sel p L) dashv G2
+
+  | s_struct : forall Sig G1 ds1 ds2 G2, Sig en (str ds1)::G1 vdash [c_ 0 /dts 0] ds1 <;;; [c_ 0 /dts 0] ds2 dashv (str ds2)::G1 ->
+                                  Sig en G1 vdash str ds1 <; str ds2 dashv G2
+
+  where "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" := (sub Sig G1 t1 t2 G2)
+
+  with
+  sub_d : env -> env -> decl_ty -> decl_ty -> env -> Prop :=
+  | sd_upper : forall Sig G1 L t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2 ->
+                                  Sig en G1 vdash (type L ext t1) <;; (type L ext t2) dashv G2
+  | sd_lower : forall Sig G1 L t1 t2 G2, Sig en G2 vdash t2 <; t1 dashv G1 ->
+                                  Sig en G1 vdash (type L sup t1) <;; (type L sup t2) dashv G2
+
+  where "Sig 'en' G1 'vdash' d1 '<;;' d2 'dashv' G2" := (sub_d Sig G1 d1 d2 G2)
+
+  with
+  sub_ds : env -> env -> decl_tys -> decl_tys -> env -> Prop :=
+  | sd_nil : forall Sig G1 G2, Sig en G1 vdash dt_nil <;;; dt_nil dashv G2
+  | sd_cons : forall Sig G1 d1 ds1 d2 ds2 G2, Sig en G1 vdash d1 <;; d2 dashv G2 ->
+                                       Sig en G1 vdash ds1 <;;; ds2 dashv G2 ->
+                                       Sig en G1 vdash (dt_con d1 ds1) <;;; (dt_con d2 ds2) dashv G2
+
+  where "Sig 'en' G1 'vdash' ds1 '<;;;' ds2 'dashv' G2" := (sub_ds Sig G1 ds1 ds2 G2).
+
+  Inductive closed : nat -> var -> Prop :=
+  | cl_concrete : forall n x, closed n (Var x)
+  | cl_abstract : forall n x, n <> x ->
+                         closed n (Abs x).
+
+  Inductive closed_t : nat -> ty -> Prop :=
+  | cl_top : forall n, closed_t n top
+  | cl_bot : forall n, closed_t n bot
+  | cl_sel : forall n p L, closed_p n p ->
+                      closed_t n (sel p L)
+  | cl_str : forall n ds, closed_ds (S n) ds ->
+                     closed_t n (str ds)
+
+  with
+  closed_d : nat -> decl_ty -> Prop :=
+  | cl_upper : forall n L t, closed_t n t ->
+                        closed_d n (type L ext t)
+  | cl_lower : forall n L t, closed_t n t ->
+                        closed_d n (type L sup t)
+  | cl_value : forall n l t, closed_t n t ->
+                        closed_d n (val l oft t)
+
+  with
+  closed_ds : nat -> decl_tys -> Prop :=
+  | cl_nil : forall n, closed_ds n dt_nil
+  | cl_cons : forall n d ds, closed_d n d ->
+                        closed_ds n ds ->
+                        closed_ds n (dt_con d ds)
+
+  with
+  closed_p : nat -> exp -> Prop :=
+  | cl_var : forall n x, closed n x ->
+                    closed_p n (v_ x)
+  | cl_loc : forall n i, closed_p n (i_ i)
+  | cl_cast : forall n p t, closed_p n p ->
+                       closed_t n t ->
+                       closed_p n (p cast t).
+  
+  Reserved Notation "Sig 'en' G 'vdash' e 'hasType' t" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' ds 'hasType_ds' ss" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' e 'mem' d" (at level 80).
+
+  
+  
+  Inductive typing : env -> env -> exp -> ty -> Prop :=
+  | t_var : forall  Sig G n t, get n G = Some t ->
+                        Sig en G vdash (c_ n) hasType (t lshift_t (S n))
+                          
+  | t_loc : forall  Sig G n t, get n Sig = Some t ->
+                        Sig en G vdash (i_ n) hasType (t lshift_t (S n))
+
+  | t_cast : forall Sig G e t, Sig en G vdash e cast t hasType t
+
+  | t_fn : forall Sig G t1 e t2, Sig en G vdash (fn t1 in_exp e off t2) hasType (t1 arr t2)
+
+  | t_app : forall Sig G e e' t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
+                                 Sig en G vdash e' hasType t' ->
+                                 Sig en G vdash t' <; t1 dashv G ->
+                                 closed_t 0 t2 ->
+                                 Sig en G vdash (e_app e e') hasType t2
+
+  | t_app_path : forall Sig G e p t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
+                                     Sig en G vdash p pathType t' ->
+                                     Sig en G vdash t' <; t1 dashv G ->
+                                     Sig en G vdash (e_app e p) hasType ([p /t 0] t2)
+
+  | t_new : forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                         Sig en G vdash new ds hasType str ss
+
+  | t_acc : forall Sig G e l t, Sig en G vdash e mem (val l oft t) ->
+                         Sig en G vdash (e_acc e l) hasType t
+
+  where "Sig 'en' G 'vdash' e 'hasType' t" := (typing Sig G e t)
+
+  with
+  typing_d : env -> env -> decl -> decl_ty -> Prop :=
+  | td_upper : forall Sig G L t, Sig en G vdash (type L exte t) hasType_d (type L ext t)
+  | td_lower : forall Sig G L t, Sig en G vdash (type L supe t) hasType_d (type L sup t)
+  | td_val : forall Sig G l e t, Sig en G vdash (val l assgn e oft t) hasType_d (val l oft t)
+
+  where "Sig 'en' G 'vdash' d 'hasType_d' s" := (typing_d Sig G d s)
+
+  with
+  typing_ds : env -> env -> decls -> decl_tys -> Prop :=
+  | td_nil : forall Sig G, Sig en G vdash d_nil hasType_ds dt_nil
+  | td_con : forall Sig G d ds s ss, Sig en G vdash d hasType_d s ->
+                              Sig en G vdash ds hasType_ds ss ->
+                              Sig en G vdash (d_con d ds) hasType_ds (dt_con s ss)
+
+  where "Sig 'en' G 'vdash' ds 'hasType_ds' ss" := (typing_ds Sig G ds ss)
+
+  with
+  member : env -> env -> exp -> decl_ty -> Prop :=
+  | mem_path : forall Sig G p d, Sig en G vdash p ni d ->
+                          Sig en G vdash p mem d
+  | mem_exp : forall Sig G e t d, Sig en G vdash e hasType t ->
+                           Sig en G vdash d cont t ->
+                           closed_d 0 d ->
+                           Sig en G vdash e mem d
+                           
+  where "Sig 'en' G 'vdash' e 'mem' d" := (member Sig G e d).
+
+  Hint Constructors typing typing_d typing_ds member.
+
+  Lemma path_typing_equivalence :
+    forall Sig G p t, is_path p -> Sig en G vdash p pathType t <-> Sig en G vdash p hasType t.
+  Proof.
+    split; intros;
+    inversion H; subst; auto;
+      try solve [inversion H0; auto].
+  Qed.
+
+  Reserved Notation "u 'hasType_u' Sig" (at level 80).
+
+  Inductive store_typing : mu -> env -> Prop :=
+  | t_nil : nil hasType_u nil
+  | t_con : forall t Sig e u, Sig en nil vdash e hasType t ->
+                       u hasType_u Sig ->
+                       (e::u) hasType_u (t::Sig)
+
+  where "u 'hasType_u' Sig" := (store_typing u Sig).
+  
+
+  Inductive is_value : exp -> Prop :=
+  | v_loc : forall i, is_value (i_ i)
+  | v_fn : forall t1 e t2, is_value (fn t1 in_exp e off t2)
+  | v_cast : forall v t, is_value v ->
+                    is_value (v cast t).
+
+  Inductive is_value_d : decl -> Prop :=
+  | v_lower : forall L t, is_value_d (type L exte t)
+  | v_upper : forall L t, is_value_d (type L supe t)
+  | v_value : forall l v t, is_value v ->
+                       is_value_d (val l assgn v oft t).
+
+  Inductive is_value_ds : decls -> Prop :=
+  | v_nil : is_value_ds d_nil
+  | v_con : forall d ds, is_value_d d ->
+                    is_value_ds ds ->
+                    is_value_ds (d_con d ds).
+
+  Notation "u 'bar' e" := (u, e)(at level 80).
+  Reserved Notation "p1 'reduce' p2" (at level 80).
+
+  (*Inductive mapsto : mu -> exp -> decls -> Prop :=
+  | map_loc : forall u i ds, get i u = Some (new ds) ->
+                        mapsto u (i_ i) ds
+  | map_cast : forall u v t ds, mapsto u v ds ->
+                           mapsto u (v cast t) ds.*)
+
+  Inductive in_ds : decl -> decls -> Prop :=
+  | ind_head : forall d ds, in_ds d ds
+  | ind_tail : forall d ds d', in_ds d ds ->
+                          in_ds d (d_con d' ds).
+
+  Inductive reduction : (mu * exp) -> (mu * exp) -> Prop :=
+  | r_new : forall u ds, is_value_ds ds ->
+                    (u bar new ds) reduce (new ds :: u bar i_ 0)
+                                 
+  | r_app : forall u t1 e t2 v, is_value v ->
+                           (u bar e_app (fn t1 in_exp e off t2) v) reduce (u bar [v cast t1 /e 0] (e cast t2))
+
+  | r_app_cast : forall u v t1 t2 v', is_value v ->
+                                 is_value v' ->
+                                 (u bar e_app (v cast (t1 arr t2)) v') reduce (u bar ((e_app v (v' cast t1)) cast ([v' /t 0] t2)))
+
+  | r_acc : forall u i l ds e t, get i u = Some (new ds) ->
+                            in_ds (val l assgn e oft t) ds ->
+                            (u bar e_acc (i_ i) l) reduce (u bar [i_ i /e 0] (e lshift_e S i))
+
+  | r_acc_cast : forall u Sig v t l t', is_value v ->
+                                 u hasType_u Sig ->
+                                 Sig en nil vdash v cast t mem (val l oft t') ->
+                                 (u bar e_acc (v cast t) l) reduce (u bar ((e_acc v l) cast t'))
+
+  where "p1 'reduce' p2" := (reduction p1 p2).
+
+  
+  
 
   Inductive ge_var : var -> nat -> Prop :=
   | ge_concrete : forall r n, n <= r ->
@@ -1039,60 +1294,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Constructors sub sub_d sub_ds.
 
-  (*Reserved Notation "G1 'vdash' t1 'equiv_t' t2 'dashv' G2" (at level 80).
-  Reserved Notation "G1 'vdash' t1 'equiv_d' t2 'dashv' G2" (at level 80).
-  Reserved Notation "G1 'vdash' t1 'equiv_p' t2 'dashv' G2" (at level 80). 
-
-  Inductive ty_eq : env -> ty -> env -> ty -> Prop :=
-  | eq_top : forall G1 G2, G1 vdash top equiv_t top dashv G2
-  | eq_bot : forall G1 G2, G1 vdash bot equiv_t bot dashv G2
-  | eq_sel : forall G1 p1 G2 p2 l, G1 vdash p1 equiv_p p2 dashv G2 ->
-                              G2 vdash (sel p1 l) equiv_t (sel p2 l) dashv G2
-  | eq_struct : forall G1 d1 d2 G2 d1' d2',
-                  (struct d1 d2)::G1 vdash [c_ O /d O] d1 equiv_d [c_ O /d O] d1' dashv (struct d1' d2')::G2 ->
-                  (struct d1 d2)::G1 vdash [c_ O /d O] d2 equiv_d [c_ O /d O] d2' dashv (struct d1' d2')::G2 ->
-                  G1 vdash (struct d1 d2) equiv_t (struct d1' d2') dashv G2
-
-  where "G1 'vdash' t1 'equiv_t' t2 'dashv' G2" := (ty_eq G1 t1 G2 t2)
-
-  with
-  path_eq : env -> path -> env -> var -> Prop :=
-  | eq_var : forall G1 t1 G2 t2 n, get n G1 = Some t1 ->
-                              get n G2 = Some t2 ->
-                              G1 vdash t1 equiv_t t2 dashv G2 ->
-                              G1 vdash c_ n equiv_p c_ n dashv G2
-  | eq_cast : forall G1 p1 t1 G2 p2 t2, G1 vdash p1 equiv_p p2 dashv G2 ->
-                                   G1 vdash t1 equiv_t t2 dashv G2 ->
-                                   G1 vdash p1 cast t1 equiv_p p2 cast t2 dashv G2
-
-  where "G1 'vdash' p1 'equiv_p' p2 'dashv' G2" := (path_eq G1 p1 G2 p2)
-
-  with
-  decl_eq : env -> decl -> env -> decl -> Prop :=
-  | lower_eq : forall G1 t1 G2 t2 l, G1 vdash t1 equiv_t t2 dashv G2 ->
-                                G1 vdash (type l sup t1) equiv_d (type l sup t2) dashv G2
-  | upper_eq : forall G1 t1 G2 t2 l, G1 vdash t1 equiv_t t2 dashv G2 ->
-                                G1 vdash (type l ext t1) equiv_d (type l ext t2) dashv G2
-
-                                   where "G1 'vdash' d1 'equiv_d' d2 'dashv' G2" := (decl_eq G1 d1 G2 d2).
-
-  Hint Constructors ty_eq path_eq decl_eq.
-
-  Scheme ty_eq_mut_ind := Induction for ty_eq Sort Prop
-    with decl_eq_mut_ind := Induction for decl_eq Sort Prop
-    with path_eq_mut_ind := Induction for path_eq Sort Prop.             
-
-  Combined Scheme ty_eq_mutind from ty_eq_mut_ind, decl_eq_mut_ind, path_eq_mut_ind.*)
-
-  (*Reserved Notation "G1 'equiv_e' G2" (at level 80).
   
-  Inductive env_eq : env -> env -> Prop :=
-  | eq_nil : nil equiv_e nil
-  | eq_cons : forall G1 t1 G2 t2, G1 equiv_e G2 ->
-                             G1 vdash t1 equiv_t t2 dashv G2 ->
-                             t1::G1 equiv_e t2::G2
-
-                               where "G1 'equiv_e' G2" := (env_eq G1 G2).*)
   
   Lemma get_empty :
     forall n, get n nil = None.

@@ -1,18 +1,15 @@
-\vspace{-0.5cm}
 \section{Applications}
-\vspace{-0.3cm}
 \label{s:app}
 
 In this section, we examine a number of scenarios to show how capabilities can help
 developers reason about the effects and behaviour of code. In each story we will
 discuss some Wyvern code before translating it to $\epscalc$ and explaining how its
-rules apply. In doing this, we hope to convince the reader of the benefits of
+rules apply. By doing this, we hope to convince the reader of the benefits of
 capability-based reasoning, and that $\epscalc$ captures the intuitive properties of
 capability-safe languages like Wyvern.
 
-\vspace{-0.5cm}
 \subsection{Unannotated Client}
-\vspace{-0.2cm}
+\label{s:unann-client}
 
 A \kwat{logger} module, when given \kwat{File}, exposes a \kwat{log} function
 which incurs the effect \kwat{File.append}. The \kwat{client} module, possessing the
@@ -22,24 +19,20 @@ executed, what effects might it have? Code for this example is given below.
 
 \begin{lstlisting}
 module def logger(f: {File}):Logger
-
 def log(): Unit with {File.append} =
     f.append(``message logged'')
 \end{lstlisting}
 
 \begin{lstlisting}
 module def client(logger: Logger)
-
 def run(): Unit =
    logger.log()
 \end{lstlisting}
 
 \begin{lstlisting}
 require File
-
 instantiate logger(File)
 instantiate client(logger)
-
 client.run()
 \end{lstlisting}
 
@@ -70,13 +63,11 @@ let MakeMain =
 MakeMain File
 \end{lstlisting}
 
-The interesting part  is on line $7$, where the unannotated code selects $\{ \kwa{File.append} \}$ as its authority. This matches the effects of \kwat{logger}, i.e.
+The interesting part is on line $7$, where the unannotated code selects $\{ \kwa{File.append} \}$ as its authority. This matches the effects of \kwat{logger}, i.e.
  $\kwa{effects}(\Unit \rightarrow_{\{\kwa{File.append}\}} \Unit) = \{
  \kwa{File.append} \}$. The unannotated code typechecks by \textsc{$\varepsilon$-Import}, approximating its effects as $\kwa{\{ \kwa{File.append} \}}$.
 
-\vspace{-0.5cm}
 \subsection{Unannotated Library}
-\vspace{-0.2cm}
 
 The next example inverts the roles of the last scenario. Now, the annotated 
 \kwat{client} wants to use the unannotated \kwat{logger}, which captures 
@@ -86,32 +77,32 @@ The next example inverts the roles of the last scenario. Now, the annotated
 
 \begin{lstlisting}
 module def logger(f: {File}): Logger
-
 def log(): Unit =
     f.append(``message logged'')
 \end{lstlisting}
 
 \begin{lstlisting}
 module def client(logger: Logger)
-
 def run(): Unit with {File.append} =
    logger.log()
 \end{lstlisting}
 
 \begin{lstlisting}
 require File
-
 instantiate logger(File)
 instantiate client(logger)
-
 client.run()
 \end{lstlisting}
 
-The translation is given below. On lines 3-4, the unannotated code is wrapped in an $\kwa{import}$ expression selecting $\{ \kwa{File.append} \}$ as its authority. The implementation of $\kwa{logger}$ actually abides by this, but since it captures
+The translation is given below. On lines 3-4, the unannotated code is wrapped
+in an $\kwa{import}$ expression selecting $\{ \kwa{File.append} \}$ as its
+authority. The implementation of $\kwa{logger}$ actually abides by this, but
+since it captures 
 \kwat{File} it could, in general, do anything to \kwat{File}; therefore,
 \textsc{$\varepsilon$-Import} rejects this example. Formally, the imported capability
 has the type \kwat{ \{ File \} }, but $\fx{\{ \File \}} = \{ \kwa{File}.* \}
 \not\subseteq \{ \kwa{ File.append } \}$.
+The only way for this to typecheck would be to annotate $\kwa{client.run}$ as having every effect on $\File$.
 
 \begin{lstlisting}
 let MakeLogger =
@@ -132,11 +123,8 @@ let MakeMain =
 MakeMain File
 \end{lstlisting}
 
-The only way for this to typecheck would be to annotate $\kwa{client.run}$ as having every effect on $\File$. This demonstrates how the effect-system of $\epscalc$ approximates unannotated code: it simply considers it as having every effect which could be incurred on those resources in scope, which here is $\kwa{File}.*$.
-
-\vspace{-0.5cm}
 \subsection{Higher-Order Effects}
-\vspace{-0.2cm}
+\label{s:ho-effects}
 
 Here, $\kwa{Main}$ gains its functionality from a plugin. Plugins might be written by
 third-parties, so we may not be able to view their source code, but still want to reason
@@ -148,7 +136,6 @@ manner in an unannotated context.
 
 \begin{lstlisting}
 module malicious
-
 def log(f: Unit $\rightarrow$ Unit): Unit
    f()
 \end{lstlisting}
@@ -156,7 +143,6 @@ def log(f: Unit $\rightarrow$ Unit): Unit
 \begin{lstlisting}
 module plugin
 import malicious
-
 def run(f: {File}): Unit with $\varnothing$
    malicious.log($\lambda$x:Unit. f.read)
 \end{lstlisting}
@@ -164,7 +150,6 @@ def run(f: {File}): Unit with $\varnothing$
 \begin{lstlisting}
 require File
 import plugin
-
 plugin.run(File)
 \end{lstlisting}
 
@@ -194,15 +179,12 @@ To get this example to typecheck, the program would have to be rewritten to expl
 say that plugins can exercise arbitrary authority over \kwat{File}, by changing the
 selected authority of \kwat{import} and the annotation on \kwat{plugin.run}.
 
-\vspace{-0.5cm}
 \subsection{Resource Leak}
-\vspace{-0.2cm}
 
 This is another example which obfuscates an unsafe effect by invoking it in a higher-order manner. The setup is the same, except the function which $\kwa{plugin}$ passes to $\kwa{malicious}$ now returns $\kwa{File}$ when invoked. $\kwa{malicious}$ uses this function to obtain $\kwa{File}$ and directly invokes $\kwa{read}$ upon it, violating the declared purity of $\kwa{plugin}$.
 
 \begin{lstlisting}
 module malicious
-
 def log(f: Unit $\rightarrow$ File):Unit
    f().read
 \end{lstlisting}
@@ -210,16 +192,13 @@ def log(f: Unit $\rightarrow$ File):Unit
 \begin{lstlisting}
 module plugin
 import malicious
-
 def run(f: {File}): Unit with $\varnothing$
    malicious.log($\lambda$x:Unit. f)
 \end{lstlisting}
 
 \begin{lstlisting}
 require File
-
 import plugin
-
 plugin.run(File)
 \end{lstlisting}
 
@@ -232,7 +211,6 @@ $\kwa{plugin}$. Nothing is being imported, so the $\kwa{import}$ binds $\kwa{y}$
 \rightarrow_{\varnothing} \{ File \}) \rightarrow_{\varnothing} Unit }$ and
 $\hofx{\annot{\tau}{\varepsilon}} = \{ \kwa{File.*} \}$. Thus, the premise cannot
 be satisfied and the example is safely rejected.
-
 
 \begin{lstlisting}
 let malicious =
@@ -249,3 +227,4 @@ let MakeMain =
 
 MakeMain File
 \end{lstlisting}
+

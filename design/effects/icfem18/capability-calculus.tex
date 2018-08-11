@@ -1,10 +1,17 @@
-\vspace{-0.3cm}
 \section{Capability Calculus ($\epscalc$)}
-\vspace{-0.3cm}
 \label{s:cc}
 
-Allowing a mix of effect-annotated and unannotated code helps
-reduce the cognitive overhead on developers, allowing them to rapidly
+While the current resurgence of interest in capabilities is primarily focused on
+object-oriented languages, for simplicity our formal definitions build on a typed
+lambda calculus with a simple notion of capabilities and their operations. \kwat{CC}
+permits the nesting of unannotated code inside annotated code in a controlled,
+capability-safe manner using the \kwat{import} form from Figure
+\ref{fig:declaring_effects}. This allows us to reason about unannotated code
+by inspecting what capabilities are passed into it from its unannotated
+surroundings.
+
+Allowing effect-annotated and unannotated code to be mixed helps
+reduce the cognitive overhead on developers, allowing them to 
 prototype in the unannotated sublanguage and incrementally add
 annotations as they are needed. Reasoning about unannotated code is
 difficult in general. Figure \ref{fig:unannotated_reasoning}
@@ -14,52 +21,50 @@ implementation. Without more information, there is no way to know what
 effects might be incurred by $\kwa{apply}$.
 
 \begin{figure}
-\vspace{-0.8cm}
+\vspace*{-5mm}
 \begin{lstlisting}
 def apply(f: Unit $\rightarrow$ Unit):
    f()
 \end{lstlisting}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{What effects can $\kwa{apply}$ incur?}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \label{fig:unannotated_reasoning}
 \end{figure}
 
 Consider another scenario, where a developer must decide whether or not
 to use the \kwat{logger} functor defined in Figure \ref{fig:cc_motivation}. This
-functor takes two capabilities as input, \kwat{File} and \kwat{Socket}\footnote{Note that the resource literal is \kwat{File}, while the type of the resource literal is
-\kwat{\{File\}}.}. It instantiates an object-like module that has a single, unannotated \kwat{log} method with access to these capabilities. The type of this object-like module is \kwat{Logger}, which is assumed to be defined elsewhere.
+functor takes two capabilities as input, \kwat{File} and \kwat{Socket}.\footnote{Note that the resource literal is \kwat{File}, while the type of the resource literal is
+\kwat{\{File\}}.} It instantiates an object-like module that has a single, unannotated \kwat{log} method with access to these capabilities. The type of this object-like module is \kwat{Logger}, which is assumed to be defined elsewhere.
 
 \begin{figure}
-\vspace{-0.8cm}
+\vspace*{-5mm}
 \begin{lstlisting}
 module def logger(f:{File},s:{Socket}):Logger
-
 def log(x: Unit): Unit
    ...
 \end{lstlisting}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{In a capability-safe setting, $\kwa{logger}$ can only exercise authority over the $\kwa{File}$ and $\kwa{Socket}$ capabilities given to it.}
-\vspace{-0.5cm}
+%\vspace*{-5mm}
 \label{fig:cc_motivation}
 \end{figure}
 
-What effects will be incurred if $\kwa{Logger.log}$ is invoked? One
-approach is to manually\footnote{or automatically---but if the
+How can we determine what effects will be incurred if $\kwa{Logger.log}$ is
+invoked? One approach is to manually\footnote{or automatically---but if the
   automation produces an unexpected result we must fall back to manual
   reasoning to understand why.} examine its source code, but this is
 tedious and error-prone. In many real-world situations, the source
 code may be obfuscated or unavailable. A capability-based argument can do
-better, since a \kwat{Logger} can only exercise what authority it is explicitly
+better, since a \kwat{Logger} can only exercise the authority it is explicitly
 given. In this case, the \kwat{logger} functor must be given \kwat{File} and
 \kwat{Socket}, so an upper bound on the effects of the \kwat{Logger} it
 instantiates will be the set of all operations on those resources,
 \kwat{\{File.*, Socket.*\}}. Knowing the \kwat{Logger} could perform
-arbitrary reads and writes to \kwat{File}, or communicate with \kwat{Socket}, the developer decides this implementation cannot be trusted
-and does not use it.
+arbitrary reads and writes to \kwat{File}, or communicate with \kwat{Socket}, the
+developer decides this implementation cannot be trusted and does not use it.
 
-This reasoning only required us to examine what capabilities were passed into
-the unannotated code by its annotated surroundings. To model this situation in
+To model this situation in
 $\epscalc$, we add a new $\kwa{import}$ expression
 that selects what authority $\varepsilon_s$ the unannotated code may
 exercise. In the above example, the expected least authority of
@@ -73,13 +78,11 @@ capability-safety enables us to make a safe inference about its
 effects by examining what capabilities are being passed in by the
 annotated code.
 
-\vspace{-0.5cm}
 \subsection{Grammar ($\epscalc$)}
-\vspace{-0.2cm}
 
-The grammar of $\epscalc$ is split into rules for annotated code and
+The grammar of $\epscalc$ has rules for annotated code and
 analogous rules for unannotated code. To distinguish the two, we put a
-hat above annotated types, expressions, and contexts: $\hat e$,
+hat above annotated types, expressions, and contexts. $\hat e$,
 $\hat \tau$, and $\hat \Gamma$ are annotated, while $e$, $\tau$, and
 $\Gamma$ are unannotated. The rules for unannotated programs and their
 types are given in Figure
@@ -91,15 +94,8 @@ literals and operations are drawn from fixed sets $R$ (containing, e.g.
 \kwat{File}, \kwat{Socket}) and $\Pi$ (containing, e.g. \kwat{write},
 \kwat{read}).
 
-Because our focus is on tracking what effects happen, i.e. whether
-particular operations are invoked on particular resources, a few simplifying
-assumptions are made over the next few sections. First, it is valid to call
-any operation on any resource literal. Second, all operations are assumed
-to take no inputs and to return \kwat{unit}.
-
-\begin{figure}
-
-\vspace{-0.6cm}
+\begin{figure}[htb]
+\vspace*{-5mm}
 \[
 \begin{array}{lll}
 \begin{array}{lllr}
@@ -113,11 +109,9 @@ e & ::= & ~ & exprs: \\
 v & ::= & ~ & values: \\
 	& | & r & resource~literal \\
 	& | & \lambda x: \tau.e & abstraction \\
-	&&\\
+&&\\
 \end{array}
-
 \hspace{5ex}
-
 \begin{array}{lllr}
 \tau & ::= & ~ & types: \\
 		& | & \{ \bar r \} & resource~set \\
@@ -125,29 +119,32 @@ v & ::= & ~ & values: \\
 		&&\\
 
 \Gamma & ::= & ~ & type~ctx: \\
-				& | & \varnothing & empty~ctx.\\
+				& | & \varnothing & empty~ctx\\
 				& | & \Gamma, x: \tau & binding\\
 				&&\\
 				
 \varepsilon & ::= & ~ & effects: \\
-		& | & \{ \overline{r.\pi} \} & effect~set \\
+		& | & \{ \overline{r.\pi} \} & effect~set
 \end{array}
 \end{array}
 \]
-\vspace{-0.6cm}
+\vspace*{-5mm}
 \caption{Unannotated programs and types in $\epscalc$.}
-\vspace{-0.6cm}
+\vspace*{-5mm}
 \label{fig:epscalc_unannotated_grammar}
 \end{figure}
 
-\begin{figure}
-\vspace{-0.6cm}
+Because our focus is on tracking what effects happen, i.e. whether
+particular operations are invoked on particular resources, we make the
+following simplifying assumptions: first, any operation may be called on any
+resource literal; and second, all operations take no inputs and return \kwat{unit}.
+
+\begin{figure}[hbt]
+\vspace*{-5mm}
 \[
 \begin{array}{lll}
-
 \begin{array}{lllr}
-
-\hat e & ::= & ~ & labeled~exprs: \\
+\hat e & ::= & ~ & labelled~exprs: \\
 	& | & x & variable \\
 	& | & \hat v & value \\
 	& | & \hat e ~ \hat e & application \\
@@ -155,15 +152,11 @@ v & ::= & ~ & values: \\
 	& | & \kwa{import}(\varepsilon_s)~x = \hat e~\kwa{in}~e & import \\
 	&&\\
 
-\hat v & ::= & ~ & labeled~values: \\
+\hat v & ::= & ~ & labelled~values: \\
 	& | & r & resource~literal\\
 	& | & \lambda x: \hat \tau.\hat e & abstraction \\
-	&&\\
-
 \end{array}
-
 & ~~~~~~~~&
-
 \begin{array}{lllr}
 
 \hat \tau & ::= & ~ & annotated ~types: \\
@@ -178,15 +171,12 @@ v & ::= & ~ & values: \\
 
 \varepsilon & ::= & ~ & effects: \\
 		& | & \{ \overline{r.\pi} \} & effect~set \\
-		&&\\
-
 \end{array}
-
 \end{array}
 \]
-\vspace{-0.6cm}
+\vspace*{-5mm}
 \caption{Annotated programs and types in $\epscalc$.}
-\vspace{-0.6cm}
+\vspace*{-5mm}
 \label{fig:epscalc_annotated_grammar}
 \end{figure}
 
@@ -195,13 +185,13 @@ Figure \ref{fig:epscalc_annotated_grammar}. The first main difference is that
 the $\rightarrow_{\varepsilon}$ type constructor has a subscript
 $\varepsilon$, which is a set of effects that functions of that type may incur.
 The other main difference is the new expression form, 
-$\import{\varepsilon_s}{x}{\hat e}{e}$, where $e$ is some unannotated code, while
+$\import{\varepsilon_s}{x}{\hat e}{e}$, where $e$ is some unannotated code and
 $\hat e$ is a capability being passed to it; we call $\hat e$ an import. For
 simplicity, we assume there is only ever one import. Note the definition
 not only allows resource literals to be imported, but also effectful functions.
 Inside $e$, $\hat e$ is bound to the variable $x$. $\varepsilon_s$
 is the maximum authority that $e$ is allowed to exercise (its ``selected authority'').
-As an example, suppose an
+For example, suppose an
 unannotated $\kwa{Logger}$, which requires $\kwa{File}$, is expected
 to only $\kwa{append}$ to a file, but has an implementation which
 writes. This would be the expression
@@ -218,17 +208,15 @@ an \kwat{import} expression (though they can still be passed in as a capability
 via the binding variable $x$). We could have enforced this syntactically, but
 we choose to do it using the typing rule for \kwat{import} in section 2.3.
 
-\vspace{-0.2cm}
 \subsection{Semantics ($\epscalc$)}
-\vspace{-0.2cm}
 
 The rules for $\epscalc$ are natural extensions of the simply-typed lambda calculus,
-so for brevity we only give the rules for \kwat{import} in
-Figure \ref{fig:epscalc_reductions}. Reductions are defined
+so for brevity we only give the rules for \kwat{import} (see Figure
+\ref{fig:epscalc_reductions}). Reductions are defined 
 on annotated expressions, using the notation $\hat e \longrightarrow \hat e'~|~
-\varepsilon'$, which means that $\hat e$ is being reduced to $\hat e'$ in a single
+\varepsilon'$, which means that $\hat e$ is reduced to $\hat e'$ in a single
 step, incurring the set of effects $\varepsilon'$. To execute the unannotated code
-inside an \kwat{import} expression, we recursively annotate its parts with the
+inside an \kwat{import} expression, we recursively annotate its components with the
 selected authority $\varepsilon_s$. While it is meaningful to execute
 unannotated code, we only care about it inside
 \kwat{import} expressions, so do not bother to give rules for this.
@@ -240,22 +228,22 @@ substitutes the import $\hat v$ for its name $x$ in $e$ --- this is
 $[\hat v/x]\annot{e}{\varepsilon}$.
 
 \begin{figure}
-
+\vspace*{-5mm}
 \fbox{$\hat e \longrightarrow \hat e~|~\varepsilon$}
-
 \[
 \begin{array}{c}
 \infer[\textsc{(E-Import1)}]
 	{\kwa{import}(\varepsilon_s)~x = \hat e~\kw{in} e \longrightarrow \kwa{import}(\varepsilon_s)~x = \hat e'~\kw{in} e~|~\varepsilon'}
-	{\hat e \longrightarrow \hat e'~|~\varepsilon'}\\[4ex]
+	{\hat e \longrightarrow \hat e'~|~\varepsilon'}\\[2ex]
 
 \infer[\textsc{(E-Import2)}]
 	{\kwa{import}(\varepsilon_s)~x = \hat v~\kw{in} e \longrightarrow [\hat v/x]\kwa{annot}(e, \varepsilon_s)~|~\varnothing}
 	{}
-
 \end{array}
 \]
+\vspace*{-5mm}
 \caption{New single-step reductions in $\epscalc$.}
+\vspace*{-5mm}
 \label{fig:epscalc_reductions}
 \end{figure}
 
@@ -270,42 +258,38 @@ us from annotating a program with something unsafe, so any use of
 $\kwa{annot}$ must be justified.
 
 \begin{figure}
-\vspace{-0.2cm}
-
-$\kwa{annot} :: e \times \varepsilon \rightarrow \hat e$
-\vspace{-0.2cm}
+\vspace*{-5mm}
 \begin{itemize}
 	\setlength\itemsep{-0.2em}
+\item[] $\kwa{annot} :: e \times \varepsilon \rightarrow \hat e$
 	\item[] $\annot{r}{\_} = r$
 	\item[] $\annot{\lambda x: \tau_1 . e}{\varepsilon} = \lambda x: \annot{\tau_1}{\varepsilon} . \annot{e}{\varepsilon}$
 	\item[] $\annot{e_1~e_2}{\varepsilon} = \kwa{annot}(e_1, \varepsilon)~\kwa{annot}(e_2, \varepsilon)$
 	\item[] $\annot{e_1.\pi}{\varepsilon} = \annot{e_1}{\varepsilon}.\pi$
 \end{itemize}
 	
-$\kwa{annot} :: \tau \times \varepsilon \rightarrow \hat \tau$
-\vspace{-0.2cm}
+\vspace{-5mm}
 
 \begin{itemize}
 	\setlength\itemsep{-0.2em}
+\item[] $\kwa{annot} :: \tau \times \varepsilon \rightarrow \hat \tau$
 	\item[] $\annot{\{ \bar r \}}{\_} = \{ \bar r \}$
 	\item[] $\annot{\tau_1 \rightarrow \tau_2}{\varepsilon} = \annot{\tau_1}{\varepsilon} \rightarrow_{\varepsilon} \annot{\tau_2}{\varepsilon}$.	
 \end{itemize}
 
-$\kwa{annot} :: \Gamma \times \varepsilon \rightarrow \hat \Gamma$
-\vspace{-0.2cm}
+\vspace{-5mm}
 
 \begin{itemize}
 	\setlength\itemsep{-0.2em}
+\item[] $\kwa{annot} :: \Gamma \times \varepsilon \rightarrow \hat \Gamma$
 	\item[] $\annot{\varnothing}{\_} = \varnothing$
 	\item[] $\annot{\Gamma, x: \tau}{\varepsilon} = \annot{\Gamma}{\varepsilon}, x: \annot{\tau}{\varepsilon}$
 \end{itemize}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{Definition of $\kwa{annot}$.}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \label{fig:annot_defn}
 \end{figure}
-
-\vspace{-0.5cm}
 
 \subsection{Static Rules ($\epscalc$)}
 
@@ -317,67 +301,65 @@ Subtyping judgements have the form $\tau <: \tau$. Because these rules are
 essentially those of the simply-typed lambda calculus, we do not list
 them here.
 
-Judgements involving annotated terms ascribe a type $\hat \tau$ and a
-set of effects $\varepsilon$ to an expression $\hat e$. The form for this is
-$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$. This should
-be interpreted as meaning that when $\hat e$ is evaluated, it reduces to a
-value of type $\hat \tau$, incurring no more than the effects in $\varepsilon$.
+Judgements involving annotated terms have the form
+$\hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon$, meaning that
+when $\hat e$ is evaluated, it reduces to a value of type $\hat \tau$,
+incurring no more than the effects in $\varepsilon$. 
 Most of the rules are analogous to those of the simply-typed lambda calculus;
 these ones are given in Figure \ref{fig:cc_static_rules}. Note that the rule for
 typing an operation call, \textsc{$\varepsilon$-OperCall}, types the expression
-as \kwat{Unit}. In practice, operation calls can return different types, but to
-keep it simple, we make the simplifying assumption that operations all return
+as \kwat{Unit}, following our simplifying assumption that all operations return
 \kwat{Unit}.
 
 \begin{figure}
-
+\vspace*{-5mm}
 \noindent
 \fbox{$\Gamma \vdash e: \tau~\kw{with} \varepsilon$}
-
+\vspace{-0mm}
 \[
 \begin{array}{c}
-
 \infer[\textsc{($\varepsilon$-Var)}]
 	{ \Gamma, x:\tau \vdash x: \tau~\kw{with} \varnothing }
 	{}
 	
-	~~~
+	~~~~~~~
 	
 \infer[\textsc{($\varepsilon$-Resource)}]
  	{ \Gamma, r: \{ r \} \vdash r : \{ r \}~\kw{with} \varnothing }
  	{} \\[3ex]
  	
- 	~~~
 	\infer[\textsc{($\varepsilon$-Abs)}]
 	{ \Gamma \vdash \lambda x:\tau_2 . e : \tau_2 \rightarrow_{\varepsilon_3} \tau_3~\kw{with} \varnothing }
 	{ \Gamma, x: \tau_2 \vdash e: \tau_3~\kw{with} \varepsilon_3 }
 	
-	~~~
+	~~~~~~~
 	
 \infer[\textsc{($\varepsilon$-App)}]
 	{ \Gamma \vdash e_1~e_2 : \tau_3~\kw{with} \varepsilon_1 \cup \varepsilon_2 \cup \varepsilon  }
-	{ \Gamma \vdash e_1: \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1 & \Gamma \vdash e_2: \tau_2~\kw{with} \varepsilon_2 } \\[3ex]
+	{ \begin{array}{c}
+            \Gamma \vdash e_1: \tau_2 \rightarrow_{\varepsilon} \tau_3~\kw{with} \varepsilon_1 \\[.6mm]
+            \Gamma \vdash e_2: \tau_2~\kw{with} \varepsilon_2
+          \end{array} } \\[3ex]
 	
 \infer[\textsc{($\varepsilon$-OperCall)}]
 	{ \Gamma \vdash e.\pi: \kw{Unit} \kw{with} \{ \bar r.\pi \} }
 	{ \Gamma \vdash e: \{ \bar r \} } 
 
-	~~~
+	~~~~~~~
 
 \infer[\textsc{($\varepsilon$-Subsume)}]
 	{ \Gamma \vdash e: \tau' ~\kw{with} \varepsilon'}
-	{ \Gamma \vdash e: \tau ~\kw{with} \varepsilon & \tau <: \tau' & \varepsilon \subseteq \varepsilon'}\\[3ex]
-	
-	
+	{ \begin{array}{c} 
+            \Gamma \vdash e: \tau ~\kw{with} \varepsilon \\[.6mm]
+            \tau <: \tau' ~~~ \varepsilon \subseteq \varepsilon'
+          \end{array}}\\[3ex]
 \end{array}
 \]
-
 
 \fbox{$\Gamma \vdash e: \tau~\kw{with} \varepsilon$}
 
 \[
 \begin{array}{c}
-
 \infer[\textsc{(S-Arrow)}]
 	{ \tau_1 \rightarrow_{\varepsilon} \tau_2 <: \tau_1' \rightarrow_{\varepsilon'} \tau_2' }
 	{ \tau_1' <: \tau_1 & \tau_2 <: \tau_2' & \varepsilon \subseteq \varepsilon' }
@@ -385,20 +367,17 @@ keep it simple, we make the simplifying assumption that operations all return
 \infer[\textsc{(S-Resource)}]
 	{ \{ \bar r_1 \} <: \{ \bar r_2 \} }
 	{ r \in r_1 \implies r \in r_2 }
-
 \end{array}
 \]
-
-
-\vspace{-7pt}
+\vspace*{-5mm}
 \caption{Type-and-effect and subtyping judgements in $\epscalc$.}
+\vspace*{-5mm}
 \label{fig:cc_static_rules}
 \end{figure}
 
-There is one rule left, for typing \kwat{import}. It is a complicated rule. To
-explain it, we will start with a simplified (but incorrect) version, and spend the
+There is one rule left, for typing \kwat{import}. Since it is a complicated
+rule, we will start with a simplified (but incorrect) version, and spend the
 rest of the section building up to the final version.
-
 
 To begin, typing $\import{\varepsilon_s}{x}{\hat e}{e}$ in a context
 $\hat \Gamma$ requires us to know that $\hat e$ is
@@ -415,23 +394,20 @@ There is a problem though: $e$ is unannotated, while $\hat \tau$ is
 annotated, and there is no rule for typechecking unannotated code in
 an annotated context. To get around this, we define a function
 \kwat{erase} in Figure \ref{fig:erase_defn}, which removes the
-annotations from a type, and adds
+annotations from a type. We can then add
 $x: \erase{\hat \tau} \vdash e: \tau$ as a premise.
 
-
 \begin{figure}
-\vspace{-0.2cm}
-$\kwa{erase} :: \hat \tau \rightarrow \tau$
+\vspace*{-5mm}
 \begin{itemize}
 	\setlength\itemsep{-0.2em}
+\item[] $\kwa{erase} :: \hat \tau \rightarrow \tau$
 	\item[] $\erase{\{ \bar r \}} = \{ \bar r \}$
 	\item[] $\erase{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \erase{\hat \tau_1} \rightarrow \erase{\hat \tau_2}$
 \end{itemize}
-
-
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{Definition of $\kwa{erase}$.}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \label{fig:erase_defn}
 \end{figure}
 
@@ -446,26 +422,25 @@ while the latter happens when the body of the \kwat{import} expression is
 annotated and executed.
 
 \begin{figure}[h]
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \[
 \begin{array}{c}
-
 \infer[\textsc{($\varepsilon$-Import1-Bad)}]
 	{ \hat \Gamma \vdash \import{\varepsilon_s}{x}{\hat e}{e}: \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon_s \cup \varepsilon_1 }
 	{ \hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1 & x: \kwa{erase}(\hat \tau) \vdash e: \tau }
 
 \end{array}
 \]
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{A first (incorrect) rule for type-and-effect checking $\kwa{import}$ expressions.}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \label{fig:import_rule_1}
 \end{figure}
 
 This first rule is incomplete, since any capability can be passed to the unannotated
 code $e$, even if it has effects that weren't declared in $\varepsilon_s$. To avoid
 this, we define a function \kwat{effects}, which collects the
-set of effects that an [annotated] type captures. For example, \kwat{\{File\}}
+set of effects that an (annotated) type captures. For example, \kwat{\{File\}}
 captures every operation on \kwat{File}, so $\fx{\{\kwa{File}\}} = \kwa{\{File.*\}}$.
 A first (but not yet correct) definition of this is given in Figure \ref{fig:fx_defn}.
 We then add the premise $\kwa{effects}(\hat \tau) \subseteq \varepsilon_s$,
@@ -474,34 +449,31 @@ $\varepsilon_s$. The updated rule for typing \kwat{import} is given in Figure
 \ref{fig:import_rule_2}.
 
 \begin{figure}
-
-$\kwa{effects} :: \hat \tau \rightarrow \varepsilon$
-\vspace{-0.2cm}
+\vspace*{-4mm}
 \begin{itemize}
 	\setlength\itemsep{-0.2em}
+\item[] $\kwa{effects} :: \hat \tau \rightarrow \varepsilon$
 	\item[] $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
 	\item[] $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \fx{\hat \tau_1} \cup \varepsilon \cup \fx{\hat \tau_2}$
 \end{itemize}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{A first (incorrect) definition of $\kwa{effects}$.}
-\vspace{-0.5cm}
 \label{fig:fx_defn}
 \end{figure}
 
 \begin{figure}
-
+\vspace*{-2mm}
 \[
 \begin{array}{c}
-
 \infer[\textsc{($\varepsilon$-Import2-Bad)}]
 	{ \hat \Gamma \vdash \import{\varepsilon_s}{x}{\hat e}{e}: \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon \cup \varepsilon_1 }
 	{ \hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1 & x: \kwa{erase}(\hat \tau) \vdash e: \tau & \kwa{effects}(\hat \tau) \subseteq \varepsilon_s}
 
 \end{array}
 \]
-\vspace{-0.3cm}
+\vspace*{-5mm}
 \caption{A second (still incorrect) rule for type-and-effect checking $\kwa{import}$ expressions.}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \label{fig:import_rule_2}
 \end{figure}
 
@@ -521,8 +493,7 @@ $\kwa{File}$ and passes it to $\kwa{go}$, which subsequently incurs
 $\kwa{File.write}$.
 
 \begin{figure}[h]
-\vspace{-0.5cm}
-
+\vspace*{-5mm}
 \begin{lstlisting}
 import({File.*})
    go = $\lambda$x: Unit $\rightarrow_{\varnothing}$ Unit. x unit
@@ -530,10 +501,9 @@ import({File.*})
 in
    go ($\lambda$y: Unit. f.write)
 \end{lstlisting}
-
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{Permitting multiple imports will break \textsc{$\varepsilon$-Import2}.}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \label{fig:rule_import2_counterexample}
 \end{figure}
 
@@ -562,27 +532,23 @@ function argument) by someone else to do so, then $r.\pi \in \hofx{\hat \tau}$.
 Definitions are given in Figure \ref{fig:fx_defns}.
 
 \begin{figure}
-\vspace{-0.2cm}
-
-$\kwa{effects} :: \hat \tau \rightarrow \varepsilon$
-
+\vspace*{-5mm}
 \begin{itemize}
 	\setlength\itemsep{-0.2em}
+\item[] $\kwa{effects} :: \hat \tau \rightarrow \varepsilon$
 	\item[] $\fx{\{ \bar r \}} = \{ r.\pi \mid r \in \bar r, \pi \in \Pi \}$
 	\item[] $\fx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \hofx{\hat \tau_1} \cup \varepsilon \cup \fx{\hat \tau_2}$
 \end{itemize}
 
-$\kwa{ho \hyphen effects} :: \hat \tau \rightarrow \varepsilon$
-
 \begin{itemize}
 	\setlength\itemsep{-0.2em}
+\item[] $\kwa{ho \hyphen effects} :: \hat \tau \rightarrow \varepsilon$
 	\item[] $\hofx{\{ \bar r \}} = \varnothing$
 	\item[] $\hofx{\hat \tau_1 \rightarrow_{\varepsilon} \hat \tau_2} = \fx{\hat \tau_1} \cup \hofx{\hat \tau_2}$
 \end{itemize}
-
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{Effect functions (corrected).}
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \label{fig:fx_defns}
 \end{figure}
 
@@ -639,13 +605,13 @@ notion that imported capabilities must be expecting the effects they could
 be passed by the unannotated code (which is at most $\varepsilon_s$).
 
 \begin{figure}
-
+\vspace*{-5mm}
 \noindent
 $\fbox{$\safe{\hat \tau}{\varepsilon}$}$
 
+\vspace{-2mm}
 \[
 \begin{array}{c}
-
 \infer[\textsc{(Safe-Resource)}]
 	{ \kwa{safe}(\{ \bar r \}, \varepsilon) }
 	{} 
@@ -661,9 +627,9 @@ $\fbox{$\safe{\hat \tau}{\varepsilon}$}$
 \noindent
 $\fbox{$\hosafe{\hat \tau}{\varepsilon}$}$
 
+\vspace{-2mm}
 \[
 \begin{array}{c}
-
 \infer[\textsc{(HOSafe-Resource)}]
 	{ \kwa{ho \hyphen safe}( \{ \bar r \}, \varepsilon)} 
 	{}
@@ -671,39 +637,32 @@ $\fbox{$\hosafe{\hat \tau}{\varepsilon}$}$
 
 \infer[\textsc{(HOSafe-Arrow)}]
 	{ \kwa{ho \hyphen safe}( \hat \tau_1 \rightarrow_{\varepsilon'} \hat \tau_2, \varepsilon ) }
-	{ \kwa{safe}(\hat \tau_1, \varepsilon)  & \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon) }\\[3ex]
-
+	{ \kwa{safe}(\hat \tau_1, \varepsilon)  & \kwa{ho \hyphen safe}(\hat \tau_2, \varepsilon) }
 \end{array}
 \]
-
-\vspace{-0.5cm}
+\vspace*{-5mm}
 \caption{Safety judgements in $\epscalc$.}
-\vspace{-0.5cm}
+\vspace*{-7mm}
 \label{fig:safe_defns}
 \end{figure}
 
 \begin{figure}
-\vspace{-0.6cm}
-
 \[
 \begin{array}{c}
-
 \infer[\textsc{($\varepsilon$-Import3-Bad)}]
 	{ \hat \Gamma \vdash \kwa{import}(\varepsilon_s)~x = \hat e~\kw{in} e: \kwa{annot}(\tau, \varepsilon_s)~\kw{with} \varepsilon \cup \varepsilon_1 }
 {{\def\arraystretch{1.4}
   \begin{array}{c}
 \hat \Gamma \vdash \hat e: \hat \tau~\kw{with} \varepsilon_1
 ~~~~~~
-\kwa{effects}(\hat \tau) \subseteq \varepsilon_s \\
+\kwa{effects}(\hat \tau) \subseteq \varepsilon_s \\[-.5mm]
 \hosafe{\hat \tau}{\varepsilon_s} ~~~~~~ x: \kwa{erase}(\hat \tau) \vdash e: \tau
   \end{array}}} 
- 
 \end{array}
 \]
-
-\vspace{-0.2cm}
+\vspace*{-5mm}
 \caption{A third (still incorrect) rule for type-and-effect checking $\kwa{import}$ expressions.}
-\vspace{-0.2cm}
+\vspace*{-5mm}
 \label{fig:import_rule3}
 \end{figure}
 
@@ -767,8 +726,8 @@ its implementation $e$ might be violating its stipulated least
 authority $\{ \kwa{File.append} \}$.
 
 
-\begin{figure}[t]
-
+\begin{figure}[h]
+\vspace*{-7mm}
 \[
 \begin{array}{c}
 
@@ -782,17 +741,14 @@ authority $\{ \kwa{File.append} \}$.
  
 \end{array}
 \]
-
-\vspace{-0.2cm}
+\vspace*{-5mm}
 \caption{The final rule for typing imports.}
-\vspace{-0.5cm}
+\vspace*{-7mm}
 \label{fig:import_rule}
 \end{figure}
 
-
-\vspace{-0.5cm}
+\OMIT{
 \subsection{Soundness ($\epscalc$)} 
-\vspace{-0.2cm}
 
 In this section we sketch a proof of soundness of $\epscalc$ by showing the usual
 progress and preservation properties hold. For a more thorough,
@@ -940,5 +896,4 @@ With progress and preservation, we can prove the soundness theorem.
 \begin{theorem}[$\epscalc$ Single-step Soundness]
 If $\hat \Gamma \vdash \hat e_A: \hat \tau_A~\kw{with} \varepsilon_A$ and $\hat e_A$ is not a value, then $\hat e_A \longrightarrow \hat e_B~|~\varepsilon$, where $\hat \Gamma \vdash \hat e_B: \hat \tau_B~\kw{with} \varepsilon_B$ and $\hat \tau_B <: \hat \tau_A$ and $\varepsilon_B \cup \varepsilon \subseteq \varepsilon_A$, for some $\hat e_B, \varepsilon, \hat \tau_B, \varepsilon_B$.
 \end{theorem}
-
-
+}
