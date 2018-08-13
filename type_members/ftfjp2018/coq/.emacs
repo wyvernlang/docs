@@ -103,4 +103,6 @@
 	      ("cast" . ?⊴)
 	      ("d_nil" . ?∅)
 	      ("dt_nil" . ?∅)
-              ("reduce". ?↘)))))
+              ("reduce". ?↘)
+              ("reduce_d". ?↘)
+              ("reduce_ds". ?↘)))))

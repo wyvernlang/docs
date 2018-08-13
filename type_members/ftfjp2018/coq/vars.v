@@ -522,7 +522,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | pt_var : forall Sig G n t, get n G = Some t ->
                         Sig en G vdash (c_ n) pathType (t lshift_t (S n))
   | pt_loc : forall Sig G i t, get i Sig = Some t ->
-                        Sig en G vdash (i_ i) pathType (t lshift_t (S i))
+                        Sig en G vdash (i_ i) pathType t
   | pt_cast : forall Sig G p t, Sig en G vdash (p cast t) pathType t
 
   where "Sig 'en' G 'vdash' p 'pathType' t" := (typing_p Sig G p t).
@@ -645,11 +645,21 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | cl_cast : forall n p t, closed_p n p ->
                        closed_t n t ->
                        closed_p n (p cast t).
+
+  (*Reserved Notation "Sig 'en' G 'vdash' e 'mem' d" (at level 80).
+  
+  Inductive member : env -> env -> exp -> decl_ty -> Prop :=
+  | mem_path : forall Sig G p d, Sig en G vdash p ni d ->
+                          Sig en G vdash p mem d
+  | mem_exp : forall Sig G e t d, Sig en G vdash d cont t ->
+                           closed_d 0 d ->
+                           Sig en G vdash e mem d
+                           
+  where "Sig 'en' G 'vdash' e 'mem' d" := (member Sig G e d).*)
   
   Reserved Notation "Sig 'en' G 'vdash' e 'hasType' t" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' ds 'hasType_ds' ss" (at level 80).
-  Reserved Notation "Sig 'en' G 'vdash' e 'mem' d" (at level 80).
 
   
   
@@ -657,29 +667,37 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | t_var : forall  Sig G n t, get n G = Some t ->
                         Sig en G vdash (c_ n) hasType (t lshift_t (S n))
                           
-  | t_loc : forall  Sig G n t, get n Sig = Some t ->
-                        Sig en G vdash (i_ n) hasType (t lshift_t (S n))
+  | t_loc : forall  Sig G i t, get i Sig = Some t ->
+                        Sig en G vdash (i_ i) hasType t
 
-  | t_cast : forall Sig G e t, Sig en G vdash e cast t hasType t
+  | t_cast : forall Sig G e t t', Sig en G vdash e hasType t'->
+                           Sig en G vdash t' <; t dashv G ->
+                           Sig en G vdash e cast t hasType t
 
-  | t_fn : forall Sig G t1 e t2, Sig en G vdash (fn t1 in_exp e off t2) hasType (t1 arr t2)
+  | t_fn : forall Sig G t1 e t2, Sig en t1::G vdash ([c_ 0 /e 0] e) hasType ([c_ 0 /t 0] t2) ->
+                          Sig en G vdash (fn t1 in_exp e off t2) hasType (t1 arr t2)
 
   | t_app : forall Sig G e e' t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
                                  Sig en G vdash e' hasType t' ->
                                  Sig en G vdash t' <; t1 dashv G ->
                                  closed_t 0 t2 ->
-                                 Sig en G vdash (e_app e e') hasType t2
+                                 Sig en G vdash (e_app e e') hasType (t2 rshift_t 1)
 
   | t_app_path : forall Sig G e p t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
                                      Sig en G vdash p pathType t' ->
                                      Sig en G vdash t' <; t1 dashv G ->
-                                     Sig en G vdash (e_app e p) hasType ([p /t 0] t2)
+                                     Sig en G vdash (e_app e p) hasType ([p cast t1 /t 0] (t2 rshift_t 1))
 
   | t_new : forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
                          Sig en G vdash new ds hasType str ss
 
-  | t_acc : forall Sig G e l t, Sig en G vdash e mem (val l oft t) ->
-                         Sig en G vdash (e_acc e l) hasType t
+  | t_acc_path : forall Sig G p l t, Sig en G vdash p ni (val l oft t) ->
+                              Sig en G vdash (e_acc p l) hasType t
+
+  | t_acc_closed : forall Sig G e l t t', Sig en G vdash e hasType t' ->
+                                   Sig en G vdash (val l oft t) cont t' ->
+                                   closed_t 0 t ->
+                                   Sig en G vdash (e_acc e l) hasType t
 
   where "Sig 'en' G 'vdash' e 'hasType' t" := (typing Sig G e t)
 
@@ -687,7 +705,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   typing_d : env -> env -> decl -> decl_ty -> Prop :=
   | td_upper : forall Sig G L t, Sig en G vdash (type L exte t) hasType_d (type L ext t)
   | td_lower : forall Sig G L t, Sig en G vdash (type L supe t) hasType_d (type L sup t)
-  | td_val : forall Sig G l e t, Sig en G vdash (val l assgn e oft t) hasType_d (val l oft t)
+  | td_val : forall Sig G l e t' t, Sig en G vdash e hasType t' ->
+                             Sig en G vdash t' <; t dashv G ->
+                             Sig en G vdash (val l assgn e oft t) hasType_d (val l oft t)
 
   where "Sig 'en' G 'vdash' d 'hasType_d' s" := (typing_d Sig G d s)
 
@@ -698,28 +718,15 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                               Sig en G vdash ds hasType_ds ss ->
                               Sig en G vdash (d_con d ds) hasType_ds (dt_con s ss)
 
-  where "Sig 'en' G 'vdash' ds 'hasType_ds' ss" := (typing_ds Sig G ds ss)
+  where "Sig 'en' G 'vdash' ds 'hasType_ds' ss" := (typing_ds Sig G ds ss).
 
-  with
-  member : env -> env -> exp -> decl_ty -> Prop :=
-  | mem_path : forall Sig G p d, Sig en G vdash p ni d ->
-                          Sig en G vdash p mem d
-  | mem_exp : forall Sig G e t d, Sig en G vdash e hasType t ->
-                           Sig en G vdash d cont t ->
-                           closed_d 0 d ->
-                           Sig en G vdash e mem d
-                           
-  where "Sig 'en' G 'vdash' e 'mem' d" := (member Sig G e d).
+  Hint Constructors typing typing_d typing_ds.
 
-  Hint Constructors typing typing_d typing_ds member.
+  Scheme typing_mut_ind := Induction for typing Sort Prop
+    with typing_d_mut_ind := Induction for typing_d Sort Prop
+    with typing_ds_mut_ind := Induction for typing_ds Sort Prop.
 
-  Lemma path_typing_equivalence :
-    forall Sig G p t, is_path p -> Sig en G vdash p pathType t <-> Sig en G vdash p hasType t.
-  Proof.
-    split; intros;
-    inversion H; subst; auto;
-      try solve [inversion H0; auto].
-  Qed.
+  Combined Scheme typing_mutind from typing_mut_ind, typing_d_mut_ind, typing_ds_mut_ind.
 
   Reserved Notation "u 'hasType_u' Sig" (at level 80).
 
@@ -752,6 +759,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Notation "u 'bar' e" := (u, e)(at level 80).
   Reserved Notation "p1 'reduce' p2" (at level 80).
+  Reserved Notation "p1 'reduce_d' p2" (at level 80).
+  Reserved Notation "p1 'reduce_ds' p2" (at level 80).
 
   (*Inductive mapsto : mu -> exp -> decls -> Prop :=
   | map_loc : forall u i ds, get i u = Some (new ds) ->
@@ -766,7 +775,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Inductive reduction : (mu * exp) -> (mu * exp) -> Prop :=
   | r_new : forall u ds, is_value_ds ds ->
-                    (u bar new ds) reduce (new ds :: u bar i_ 0)
+                    (u bar new ds) reduce (u ++ (new ds::nil) bar i_ 0)
                                  
   | r_app : forall u t1 e t2 v, is_value v ->
                            (u bar e_app (fn t1 in_exp e off t2) v) reduce (u bar [v cast t1 /e 0] (e cast t2))
@@ -781,11 +790,81 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   | r_acc_cast : forall u Sig v t l t', is_value v ->
                                  u hasType_u Sig ->
-                                 Sig en nil vdash v cast t mem (val l oft t') ->
+                                 Sig en nil vdash v cast t ni (val l oft t') ->
                                  (u bar e_acc (v cast t) l) reduce (u bar ((e_acc v l) cast t'))
 
-  where "p1 'reduce' p2" := (reduction p1 p2).
+  | r_new_ctx : forall u ds u' ds', u bar ds reduce_ds (u' bar ds') ->
+                               u bar new ds reduce (u' bar new ds')
 
+  | r_app_ctx_1 : forall u e1 e2 u' e', u bar e1 reduce (u' bar e') ->
+                                   u bar e_app e1 e2 reduce (u' bar e_app e' e2)
+
+  | r_app_ctx_2 : forall u e1 e2 u' e', u bar e2 reduce (u' bar e') ->
+                                   u bar e_app e1 e2 reduce (u' bar e_app e1 e')
+
+  | r_acc_ctx : forall u e l u' e', u bar e reduce (u' bar e') ->
+                               (u bar e_acc e l) reduce (u' bar (e_acc e' l))
+
+  | r_cast_ctx : forall u e t u' e', (u bar e) reduce (u' bar e') -> 
+                                (u bar (e cast t)) reduce (u' bar (e' cast t))
+      
+
+  where "p1 'reduce' p2" := (reduction p1 p2)
+                              
+  with
+  reduction_d : (mu * decl) -> (mu * decl) -> Prop :=
+  | r_val : forall u e u' e' l t, u bar e reduce (u' bar e') ->
+                             u bar (val l assgn e oft t) reduce_d (u' bar (val l assgn e' oft t))
+
+  where "p1 'reduce_d' p2" := (reduction_d p1 p2)
+
+  with
+  reduction_ds : (mu * decls) -> (mu * decls) -> Prop :=
+  | r_head : forall u d ds u' d', u bar d reduce_d (u' bar d') ->
+                             u bar (d_con d ds) reduce_ds (u' bar (d_con d' ds))
+
+  | r_tail : forall u d ds u' ds', u bar ds reduce_ds (u' bar ds') ->
+                              u bar (d_con d ds) reduce_ds (u' bar (d_con d ds'))
+
+  where "p1 'reduce_ds' p2" := (reduction_ds p1 p2).
+
+  Theorem preservation :
+    (forall Sig G e t, Sig en G vdash e hasType t ->
+                forall u u' e' S, u' hasType_u Sig ++ S ->
+                             u bar e reduce (u' bar e') ->
+                             Sig ++ S en G vdash e' hasType t) /\
+    (forall Sig G d s, Sig en G vdash d hasType_d s ->
+                forall u u' d' S, u' hasType_u Sig ++ S ->
+                             u bar d reduce_d (u' bar d') ->
+                             Sig ++ S en G vdash d' hasType_d s) /\
+   (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                 forall u u' ds' S, u' hasType_u Sig ++ S ->
+                               u bar ds reduce_ds (u' bar ds') ->
+                               Sig ++ S en G vdash ds' hasType_ds ss).
+  
+  Proof.
+    apply typing_mutind; intros;
+      try solve [inversion H0];
+      try solve [inversion H1].
+
+    inversion H1; subst.
+    apply t_cast with (t':=t'); auto.
+
+    apply H with (u:=u)(u':=u'); auto.
+
+    admit. (*weakness*)
+
+    inversion H2; subst.
+    admit. (*r_app*)
+    admit. (*r_app_cast*)
+    admit. (*r_app_ctx1*)
+    admit. (*r_app_ctx2*)
+    
+    admit.
+    admit.
+    admit.
+  Qed.
+    
   
   
 
