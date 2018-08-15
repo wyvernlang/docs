@@ -312,14 +312,96 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     | Some i' => if i' <? n
                 then None
                 else Some (i' - n)
-    end.                  
+    end.
 
-  Definition left_jump_n (r n: nat) (i : option nat) : nat :=
+  Definition raise_nat (r i : nat) : nat :=
+    if r <? i
+    then r
+    else r + 1.
+
+  Notation "r 'raise_n' i" := (raise_nat r i)(at level 80).
+
+  Definition raise_var (v : var)(i : nat) : var :=
+    match v with
+    | Var _ => v
+    | Abs r => Abs (r raise_n i)
+    end.
+
+  Notation "v 'raise_v' i" := (raise_var v i)(at level 80).
+  
+  Reserved Notation "t 'raise_t' i" (at level 80).
+  Reserved Notation "s 'raise_s' i" (at level 80).
+  Reserved Notation "ss 'raise_ss' i" (at level 80).
+  Reserved Notation "e 'raise_e' i" (at level 80).
+  Reserved Notation "d 'raise_d' i" (at level 80).
+  Reserved Notation "ds 'raise_ds' i" (at level 80).
+
+  Fixpoint raise_ty (t : ty)(i : nat) : ty :=
+    match t with
+    | top => top
+    | bot => bot
+    | t1 arr t2 => (t1 raise_t i) arr (t2 raise_t (S i))
+    | sel p L => sel (p raise_e i) L
+    | str ss => str (ss raise_ss (S i))
+    end
+  where "t 'raise_t' i" := (raise_ty t i)
+
+  with
+  raise_decl_ty (s : decl_ty)(i : nat) : decl_ty :=
+    match s with
+    | type L ext t => type L ext (t raise_t i)
+    | type L sup t => type L sup (t raise_t i)
+    | val l oft t => val l oft (t raise_t i)
+    end
+  where "s 'raise_s' i" := (raise_decl_ty s i)
+
+  with
+  raise_decl_tys (ss : decl_tys)(i : nat) : decl_tys :=
+    match ss with
+    | dt_nil => dt_nil
+    | dt_con s ss' => dt_con (s raise_s i) (ss' raise_ss i)
+    end
+  where "ss 'raise_ss' i" := (raise_decl_tys ss i)
+
+  with
+  raise_exp (e : exp)(i : nat) : exp :=
+    match e with
+    | v_ v => v_ (v raise_v i)
+    | i_ _ => e
+    | fn t1 in_exp e' off t2 => fn (t1 raise_t i) in_exp (e' raise_e (S i)) off (t2 raise_t (S i))
+    | e_app e1 e2 => e_app (e1 raise_e i) (e2 raise_e i)
+    | e_acc e' l => e_acc (e' raise_e i) l
+    | new ds => new (ds raise_ds (S i))
+    | e' cast t => (e' raise_e i) cast (t raise_t i)
+    end
+  where "e 'raise_e' i" := (raise_exp e i)
+
+  with
+  raise_decl (d : decl)(i : nat) : decl :=
+    match d with
+    | type L exte t => type L exte (t raise_t i)
+    | type L supe t => type L supe (t raise_t i)
+    | val l assgn e oft t => val l assgn (e raise_e i) oft (t raise_t i)
+    end
+  where "d 'raise_d' i" := (raise_decl d i)
+
+  with
+  raise_decls (ds : decls)(i : nat) : decls :=
+    match ds with
+    | d_nil => d_nil
+    | d_con d ds' => d_con (d raise_d i) (ds' raise_ds i)
+    end
+  where "ds 'raise_ds' i" := (raise_decls ds i).
+      
+
+          
+(*
+  Definition left_jump_n (r : nat) (i : option nat) : nat :=
     match i with
       | None => r
       | Some i' => if r <? i'
                   then r
-                  else r + n
+                  else r + 1
     end.
 
   Notation "r '[' i ']' 'ljump_n' n" := (left_jump_n r n i) (at level  80).
@@ -388,7 +470,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       | d_con d ds' => d_con (d [i] ljump_d n) (ds' [i] ljump_ds n)
     end
   where "d '[' i ']' 'ljump_ds' n" := (left_jump_ds d n i).
-  
+*)  
   Reserved Notation "'[' p '/t' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/dt' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/dts' n ']' ds" (at level 80).
@@ -411,9 +493,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     match t with
     | top => top
     | bot => bot
-    | t1 arr t2 => ([e /t n] t1) arr ([e lshift_e 1 /t S n] t2)
+    | t1 arr t2 => ([e /t n] t1) arr ([(e raise_e 0) /t S n] t2)
     | sel p l => sel ([ e /e n ] p) l
-    | str ds => str ([ e lshift_e 1 /dts S n ] ds)
+    | str ds => str ([ (e raise_e 0) /dts S n ] ds)
     end
 
   where "'[' p '/t' n ']' t" := (subst n p t)
@@ -440,9 +522,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   with
   subst_e (n : nat) (e1 e2 : exp) : exp :=
     match e2 with
-    | new ds => new ([e1 /ds n] ds)
+    | new ds => new ([(e1 raise_e 0) /ds S n] ds)
     | e_app e e' => e_app ([e1 /e n] e) ([e1 /e n] e')
-    | fn t1 in_exp e off t2 => fn ([e1 /t n] t1) in_exp ([e1 /e n] e) off ([e1 /t S n] t2)
+    | fn t1 in_exp e off t2 => fn ([e1 /t n] t1) in_exp ([(e1 raise_e 0) /e S n] e) off ([(e1 raise_e 0) /t S n] t2)
     | e_acc e m => e_acc ([e1 /e n] e) m
     | v_ x => match x with
              | Abs m => if beq_nat n m
@@ -475,12 +557,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       
   where "'[' p '/ds' n ']' d" := (subst_ds n p d).
 
-  Fixpoint subst_env (n : nat)(e : exp)(G : env) : env :=
+  Fixpoint subst_env (n : nat)(p : exp)(G : env) : env :=
     match G with
     | nil => nil
     | t::G' => match n with
-              | O => ([e /t n]t)::G'
-              | S n' => ([e /t n]t)::(subst_env n' (e rshift_e 1) G')
+              | O => ([p /t n]t)::G'
+              | S n' => ([p /t n]t)::(subst_env n' p G')
               end
     end.
 
@@ -513,15 +595,20 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
               end
     end.
 
+  Definition mapping {A : Type}(n : nat)(l : list A) : option A :=
+    get n (rev l).
+
+  Notation "n 'mapsto' t 'elem' G" := (mapping n G = Some t)(at level 80).
+
   (*Definition get (n : nat) (l : list ty) : option ty :=
     nth n (rev l).*)
   
   Reserved Notation "Sig 'en' G 'vdash' p 'pathType' t" (at level 80).
   
   Inductive typing_p : env -> env -> exp -> ty -> Prop :=
-  | pt_var : forall Sig G n t, get n G = Some t ->
-                        Sig en G vdash (c_ n) pathType (t lshift_t (S n))
-  | pt_loc : forall Sig G i t, get i Sig = Some t ->
+  | pt_var : forall Sig G n t, n mapsto t elem G ->
+                        Sig en G vdash (c_ n) pathType t
+  | pt_loc : forall Sig G i t, i mapsto t elem Sig ->
                         Sig en G vdash (i_ i) pathType t
   | pt_cast : forall Sig G p t, Sig en G vdash (p cast t) pathType t
 
@@ -550,7 +637,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                               Sig en G vdash d cont str ds
   | cont_upper : forall Sig G p L t d, Sig en G vdash p ni (type L ext t) ->
                                 Sig en G vdash d cont t ->
-                                Sig en G vdash d cont (sel p L)
+                                Sig en G vdash ([a_ 0 cast t /dt 0] d) cont (sel p L)
+                                  
   where "Sig 'en' G 'vdash' d 'cont' t" := (contains Sig G t d).
 
   Hint Constructors has contains.
@@ -559,14 +647,14 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                         with contains_mut_ind := Induction for contains Sort Prop.             
 
   Combined Scheme has_contains_mutind from has_mut_ind, contains_mut_ind. 
-  
+  (*
   Fixpoint left_jump_env (G : env) (n : nat) (i : option nat) : env :=
     match G with
       | nil => nil
       | t::G' => (t [i] ljump_t n) :: (G' [dec i 1] ljump_e n)
     end
   where "G '[' i ']' 'ljump_e' n" := (left_jump_env G n i).
-
+*)
 
   Reserved Notation "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" (at level 80).
   Reserved Notation "Sig 'en' G1 'vdash' d1 '<;;' d2 'dashv' G2" (at level 80).
@@ -585,8 +673,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                    Sig en G1 vdash t1 <; t2 dashv G2 ->
                                    Sig en G1 vdash t1 <; (sel p L) dashv G2
 
-  | s_struct : forall Sig G1 ds1 ds2 G2, Sig en (str ds1)::G1 vdash [c_ 0 /dts 0] ds1 <;;; [c_ 0 /dts 0] ds2 dashv (str ds2)::G1 ->
-                                  Sig en G1 vdash str ds1 <; str ds2 dashv G2
+  | s_struct : forall Sig G1 ds1 ds2 G2 i, i = length G1 ->
+                                    i = length G2 ->
+                                    Sig en G1 vdash [c_ i /dts 0] ds1 <;;; [c_ i /dts 0] ds2 dashv (str ds2)::G1 ->
+                                    Sig en G1 vdash str ds1 <; str ds2 dashv G2
 
   where "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" := (sub Sig G1 t1 t2 G2)
 
@@ -664,31 +754,31 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   
   
   Inductive typing : env -> env -> exp -> ty -> Prop :=
-  | t_var : forall  Sig G n t, get n G = Some t ->
-                        Sig en G vdash (c_ n) hasType (t lshift_t (S n))
+  | t_var : forall  Sig G n t, n mapsto t elem G ->
+                        Sig en G vdash (c_ n) hasType t
                           
-  | t_loc : forall  Sig G i t, get i Sig = Some t ->
+  | t_loc : forall  Sig G i t, i mapsto t elem G ->
                         Sig en G vdash (i_ i) hasType t
 
   | t_cast : forall Sig G e t t', Sig en G vdash e hasType t'->
                            Sig en G vdash t' <; t dashv G ->
                            Sig en G vdash e cast t hasType t
 
-  | t_fn : forall Sig G t1 e t2, Sig en t1::G vdash ([c_ 0 /e 0] e) hasType ([c_ 0 /t 0] t2) ->
+  | t_fn : forall Sig G t1 e t2, Sig en t1::G vdash ([c_ (length G) /e 0] e) hasType ([c_ (length G) /t 0] t2) ->
                           Sig en G vdash (fn t1 in_exp e off t2) hasType (t1 arr t2)
 
   | t_app : forall Sig G e e' t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
                                  Sig en G vdash e' hasType t' ->
                                  Sig en G vdash t' <; t1 dashv G ->
                                  closed_t 0 t2 ->
-                                 Sig en G vdash (e_app e e') hasType (t2 rshift_t 1)
+                                 Sig en G vdash (e_app e e') hasType t2
 
   | t_app_path : forall Sig G e p t1 t2 t', Sig en G vdash e hasType (t1 arr t2) ->
                                      Sig en G vdash p pathType t' ->
                                      Sig en G vdash t' <; t1 dashv G ->
-                                     Sig en G vdash (e_app e p) hasType ([p cast t1 /t 0] (t2 rshift_t 1))
+                                     Sig en G vdash (e_app e p) hasType ([p cast t1 /t 0] t2)
 
-  | t_new : forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+  | t_new : forall Sig G ds ss, Sig en (str ss)::G vdash ds hasType_ds ss ->
                          Sig en G vdash new ds hasType str ss
 
   | t_acc_path : forall Sig G p l t, Sig en G vdash p ni (val l oft t) ->
@@ -784,9 +874,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                  is_value v' ->
                                  (u bar e_app (v cast (t1 arr t2)) v') reduce (u bar ((e_app v (v' cast t1)) cast ([v' /t 0] t2)))
 
-  | r_acc : forall u i l ds e t, get i u = Some (new ds) ->
+  | r_acc : forall u i l ds e t, i mapsto (new ds) elem u ->
                             in_ds (val l assgn e oft t) ds ->
-                            (u bar e_acc (i_ i) l) reduce (u bar [i_ i /e 0] (e lshift_e S i))
+                            (u bar e_acc (i_ i) l) reduce (u bar [i_ i /e 0] e)
 
   | r_acc_cast : forall u Sig v t l t', is_value v ->
                                  u hasType_u Sig ->
@@ -828,19 +918,93 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   where "p1 'reduce_ds' p2" := (reduction_ds p1 p2).
 
+  Lemma closed_subst_type :
+    forall n t, closed_t n t -> forall e, ([e /t n] t) = t.
+  Proof.
+  Admitted.
+
+  Lemma path_typing_uniqueness :
+    forall Sig G p t, Sig en G vdash p pathType t ->
+               forall t', Sig en G vdash p pathType t' ->
+                     t' = t.
+  Proof.
+    intros Sig G p t Htyp;
+      induction Htyp; intros t' Htyp;
+        try solve [inversion Htyp; subst; rewrite H3 in H; inversion H; auto].
+    inversion Htyp; auto.
+  Qed.
+
+  Lemma 
+
+  
+  Lemma type_uniqueness_decl :
+    (forall Sig G d s, Sig en G vdash d hasType_d s ->
+                forall G' S' s', S' en G' vdash d hasType_d s' ->
+                            s' = s).
+  Proof.
+    intros.
+    induction H;
+      try solve [inversion H0; auto].
+  Qed.
+
+  Lemma type_uniqueness_decls :
+    (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                forall G' S' ss', S' en G' vdash ds hasType_ds ss' ->
+                             ss' = ss).
+  Proof.
+    intros Sig G ds ss Htyp.
+    induction Htyp; intros;
+      try solve [inversion H; auto].
+    inversion H0; subst.
+    apply type_uniqueness_decl with (Sig:=Sig)(G:=G)(s:=s) in H5; auto; subst.
+    apply IHHtyp in H7; subst; auto.
+  Qed.
+
+  Lemma type_uniqueness_type :
+    (forall Sig G e t, Sig en G vdash e hasType t ->
+                forall t', Sig en G vdash e hasType t' ->
+                      t' = t).
+  Proof.
+    intros Sig G e t Htyp;
+      induction Htyp; intros;
+        try solve [inversion H0; rewrite H4 in H; inversion H; auto];
+        try solve [inversion H0; auto];
+        try solve [inversion H; auto].
+
+    (*t-app*)
+    inversion H1; subst;
+    apply IHHtyp1 in H4; inversion H4; subst; auto.
+    rewrite closed_subst_type; auto.
+
+    (*t-app-path*)
+    inversion H1; subst;
+    apply IHHtyp in H4; inversion H4; subst; auto.
+    rewrite closed_subst_type; auto.
+
+    (*t-new*)
+    inversion H0; subst.
+    apply type_uniqueness_decls with (Sig:=Sig)(G:=str ss :: G)(ss:=ss) in H4;
+      subst; auto.
+
+    (*t-path*)
+    
+
+  Qed.
+    
+    
   Theorem preservation :
     (forall Sig G e t, Sig en G vdash e hasType t ->
-                forall u u' e' S, u' hasType_u Sig ++ S ->
+                forall u u' e' S, u' hasType_u S ++ Sig ->
                              u bar e reduce (u' bar e') ->
-                             Sig ++ S en G vdash e' hasType t) /\
+                             S ++ Sig en G vdash e' hasType t) /\
     (forall Sig G d s, Sig en G vdash d hasType_d s ->
-                forall u u' d' S, u' hasType_u Sig ++ S ->
+                forall u u' d' S, u' hasType_u S ++ Sig ->
                              u bar d reduce_d (u' bar d') ->
-                             Sig ++ S en G vdash d' hasType_d s) /\
+                             S ++ Sig en G vdash d' hasType_d s) /\
    (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
-                 forall u u' ds' S, u' hasType_u Sig ++ S ->
+                 forall u u' ds' S, u' hasType_u S ++ Sig ->
                                u bar ds reduce_ds (u' bar ds') ->
-                               Sig ++ S en G vdash ds' hasType_ds ss).
+                               S ++ Sig en G vdash ds' hasType_ds ss).
   
   Proof.
     apply typing_mutind; intros;
@@ -852,17 +1016,21 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     apply H with (u:=u)(u':=u'); auto.
 
-    admit. (*weakness*)
+    admit. (*weakening*)
 
     inversion H2; subst.
+
+    (*r_app*)
+    inversion t; subst.
+    rewrite closed_subst_type; auto.
+    apply t_cast with (t':=).
+    
     admit. (*r_app*)
     admit. (*r_app_cast*)
     admit. (*r_app_ctx1*)
     admit. (*r_app_ctx2*)
+    admit. (**)
     
-    admit.
-    admit.
-    admit.
   Qed.
     
   
