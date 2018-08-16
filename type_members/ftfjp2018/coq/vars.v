@@ -98,11 +98,18 @@ Scheme type_mut_ind := Induction for ty Sort Prop
 
 Combined Scheme type_exp_mutind from type_mut_ind, decl_ty_mut_ind, decl_tys_mut_ind, exp_mut_ind, decl_mut_ind, decls_mut_ind.
 
-Definition id (d : decl_ty) : label :=
-  match d with
+Definition id_t (s : decl_ty) : label :=
+  match s with
   | type l sup _ => l
   | type l ext _ => l
   | val l oft _ => l
+  end.
+
+Definition id_d (d : decl) : label :=
+  match d with
+  | type L exte _ => L
+  | type L supe _ => L
+  | val l assgn _ oft _ => l
   end.
 
 Section variables.
@@ -624,6 +631,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | in_tail_dty : forall d d' ds, in_dty d ds ->
                              in_dty d (dt_con d' ds).
 
+  Inductive in_d : decl -> decls -> Prop :=
+  | in_head_d : forall d ds, in_d d (d_con d ds)
+  | in_tail_d : forall d d' ds, in_d d ds ->
+                             in_d d (d_con d' ds).
+
   Inductive has : env -> env -> exp -> decl_ty -> Prop :=
   | has_path : forall Sig G p t d, Sig en G vdash p pathType t ->
                             Sig en G vdash d cont t ->
@@ -735,17 +747,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | cl_cast : forall n p t, closed_p n p ->
                        closed_t n t ->
                        closed_p n (p cast t).
-
-  (*Reserved Notation "Sig 'en' G 'vdash' e 'mem' d" (at level 80).
-  
-  Inductive member : env -> env -> exp -> decl_ty -> Prop :=
-  | mem_path : forall Sig G p d, Sig en G vdash p ni d ->
-                          Sig en G vdash p mem d
-  | mem_exp : forall Sig G e t d, Sig en G vdash d cont t ->
-                           closed_d 0 d ->
-                           Sig en G vdash e mem d
-                           
-  where "Sig 'en' G 'vdash' e 'mem' d" := (member Sig G e d).*)
   
   Reserved Notation "Sig 'en' G 'vdash' e 'hasType' t" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
@@ -778,7 +779,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                      Sig en G vdash t' <; t1 dashv G ->
                                      Sig en G vdash (e_app e p) hasType ([p cast t1 /t 0] t2)
 
-  | t_new : forall Sig G ds ss, Sig en (str ss)::G vdash ds hasType_ds ss ->
+  | t_new : forall Sig G ds ss, Sig en (str ss)::G vdash ([c_ length G /ds 0] ds) hasType_ds ([c_ length G /dts 0] ss) ->
                          Sig en G vdash new ds hasType str ss
 
   | t_acc_path : forall Sig G p l t, Sig en G vdash p ni (val l oft t) ->
@@ -827,6 +828,18 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                        (e::u) hasType_u (t::Sig)
 
   where "u 'hasType_u' Sig" := (store_typing u Sig).
+
+  Reserved Notation "Sig 'en' G 'vdash' e 'mem' d" (at level 80).
+  
+  Inductive member : env -> env -> exp -> decl_ty -> Prop :=
+  | mem_path : forall Sig G p d, Sig en G vdash p ni d ->
+                          Sig en G vdash p mem d
+  | mem_exp : forall Sig G e t d, Sig en G vdash e hasType t ->
+                           Sig en G vdash d cont t ->
+                           closed_d 0 d ->
+                           Sig en G vdash e mem d
+                           
+  where "Sig 'en' G 'vdash' e 'mem' d" := (member Sig G e d).
   
 
   Inductive is_value : exp -> Prop :=
@@ -918,6 +931,141 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   where "p1 'reduce_ds' p2" := (reduction_ds p1 p2).
 
+  
+
+  Reserved Notation "Sig 'en' G 'vdash' t 'wf_t'" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' d 'wf_s'" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' ds 'wf_ss'" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' e 'wf_e'" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' d 'wf_d'" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' ds 'wf_ds'" (at level 80).
+
+  Definition distinct (ss : decl_tys) : Prop :=
+    forall s1 s2, in_dty s1 ss ->
+             in_dty s2 ss ->
+             id_t s1 = id_t s2 ->
+             s1 = s2.
+
+  Inductive wf_ty : env -> env -> ty -> Prop :=
+  | wf_top : forall Sig G, Sig en G vdash top wf_t
+                      
+  | wf_bot : forall Sig G, Sig en G vdash bot wf_t
+                      
+  | wf_arr : forall Sig G t1 t2, Sig en G vdash t1 wf_t ->
+                          Sig en t1::G vdash t2 wf_t ->
+                          Sig en G vdash (t1 arr t2) wf_t
+
+  | wf_sel_upper : forall Sig G p L t, Sig en G vdash p wf_e ->
+                                is_path p ->
+                                Sig en G vdash p ni (type L ext t) ->
+                                Sig en G vdash (sel p L) wf_t
+
+  | wf_sel_lower : forall Sig G p L t, Sig en G vdash p wf_e ->
+                                is_path p ->
+                                Sig en G vdash p ni (type L sup t) ->
+                                Sig en G vdash (sel p L) wf_t
+
+  | wf_str : forall Sig G ss, Sig en (str ss)::G vdash ([c_ length G /dts 0] ss) wf_ss ->
+                       Sig en G vdash (str ss) wf_t
+
+  where "Sig 'en' G 'vdash' t 'wf_t'" := (wf_ty Sig G t)
+
+  with
+  wf_decl_ty : env -> env -> decl_ty -> Prop :=
+  | wft_upper : forall Sig G L t, Sig en G vdash t wf_t ->
+                          Sig en G vdash (type L ext t) wf_s
+
+  | wft_lower : forall Sig G L t, Sig en G vdash t wf_t ->
+                          Sig en G vdash (type L sup t) wf_s
+
+  | wft_value : forall Sig G l t, Sig en G vdash t wf_t ->
+                           Sig en G vdash (val l oft t) wf_s
+
+  where "Sig 'en' G 'vdash' s 'wf_s'" := (wf_decl_ty Sig G s)
+
+  with
+  wf_decl_tys : env -> env -> decl_tys -> Prop :=
+  | wft_nil : forall Sig G, Sig en G vdash dt_nil wf_ss
+  | wft_con : forall Sig G s ss, Sig en G vdash s wf_s ->
+                          Sig en G vdash ss wf_ss ->
+                          (forall s', in_dty s' ss ->
+                                 id_t s' <> id_t s) ->
+                          Sig en G vdash (dt_con s ss) wf_ss
+
+  where "Sig 'en' G 'vdash' ss 'wf_ss'" := (wf_decl_tys Sig G ss)
+
+  with
+  wf_exp : env -> env -> exp -> Prop :=
+  | wf_var : forall Sig G n, n < length G ->
+                      Sig en G vdash (c_ n) wf_e
+
+  | wf_loc : forall Sig G i, i < length Sig ->
+                      Sig en G vdash (i_ i) wf_e
+
+  | wf_fn : forall Sig G t1 e t2, Sig en G vdash t1 wf_t ->
+                           Sig en t1::G vdash ([c_ length G /e 0] e) wf_e ->
+                           Sig en t1::G vdash ([c_ length G /t 0] t2) wf_t ->
+                           Sig en t1::G vdash ([c_ length G /e 0] e) hasType ([c_ length G /t 0] t2) ->
+                           Sig en G vdash fn t1 in_exp e off t2 wf_e
+
+  | wf_app : forall Sig G e e' t1 t2, Sig en G vdash e wf_e ->
+                               Sig en G vdash e' wf_e ->
+                               Sig en G vdash e hasType (t1 arr t2) ->
+                               Sig en G vdash e' hasType t1 ->
+                               Sig en G vdash (e_app e e') wf_e
+
+  | wf_acc : forall Sig G e l t', Sig en G vdash e wf_e ->
+                           Sig en G vdash e mem (val l oft t') ->
+                           Sig en G vdash e_acc e l wf_e
+
+  | wf_cast : forall Sig G e t t', Sig en G vdash e wf_e ->
+                            Sig en G vdash t wf_t ->
+                            Sig en G vdash e hasType t' ->
+                            Sig en G vdash t' <; t dashv G ->
+                            Sig en G vdash e cast t wf_e
+
+  | wf_new : forall Sig G ds ss, Sig en G vdash new ds hasType str ss ->
+                          Sig en (str ss)::G vdash ([c_ length G /ds 0] ds) wf_ds ->
+                          Sig en G vdash new ds wf_e
+
+  where "Sig 'en' G 'vdash' e 'wf_e'" := (wf_exp Sig G e)
+
+  with
+  wf_decl : env -> env -> decl -> Prop :=
+  | wfe_upper : forall Sig G L t, Sig en G vdash t wf_t ->
+                           Sig en G vdash (type L exte t) wf_d
+
+  | wfe_lower : forall Sig G L t, Sig en G vdash t wf_t ->
+                           Sig en G vdash (type L supe t) wf_d
+
+  | wfe_value : forall Sig G l e t, Sig en G vdash e wf_e ->
+                             Sig en G vdash t wf_t ->
+                             Sig en G vdash (val l assgn e oft t) wf_d
+
+  where "Sig 'en' G 'vdash' d 'wf_d'" := (wf_decl Sig G d)
+
+  with
+  wf_decls : env -> env -> decls -> Prop :=
+  | wfe_nil : forall Sig G, Sig en G vdash d_nil wf_ds
+                       
+  | wfe_con : forall Sig G d ds, Sig en G vdash d wf_d ->
+                          Sig en G vdash ds wf_ds ->
+                          (forall d', in_d d ds ->
+                                 id_d d' <> id_d d) ->
+                          Sig en G vdash (d_con d ds) wf_ds
+
+  where "Sig 'en' G 'vdash' ds 'wf_ds'" := (wf_decls Sig G ds).
+
+  Reserved Notation "Sig 'evdash' G 'wf_env'" (at level 80).
+
+  Inductive wf_environment : env -> env -> Prop :=
+  | wf_nil : forall Sig, Sig evdash nil wf_env
+  | wf_con : forall Sig t G, Sig en G vdash t wf_t ->
+                      Sig evdash G wf_env ->
+                      Sig evdash t::G wf_env
+
+  where "Sig 'evdash' G 'wf_env'" := (wf_environment Sig G).
+  
   Lemma closed_subst_type :
     forall n t, closed_t n t -> forall e, ([e /t n] t) = t.
   Proof.
@@ -934,7 +1082,42 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     inversion Htyp; auto.
   Qed.
 
-  Lemma 
+  Lemma typing_p_wf :
+    forall Sig G p t, Sig en G vdash p pathType t ->
+               Sig en G vdash p wf_e ->
+               
+               Sig en G vdash t wf_t.
+
+  Lemma member_uniqueness_mutind :
+    (forall Sig G p d, Sig en G vdash p ni d ->
+                Sig en G vdash p wf_e ->
+                forall d', Sig en G vdash p ni d' ->
+                      id_t d' = id_t d ->
+                      d' = d) /\
+    (forall Sig G t d, Sig en G vdash d cont t ->
+                Sig en G vdash t wf_t ->
+                forall d', Sig en G vdash d' cont t ->
+                      id_t d' = id_t d ->
+                      d' = d).
+  Proof.
+    apply has_contains_mutind; intros.
+
+    inversion H1; subst.
+    apply path_typing_uniqueness with (t:=t) in H3; auto; subst.
+    apply H in H4; subst; auto.
+    admit. (*typing_p wf*)
+    admit. (*subst preserves id*)
+
+    admit. (*wf decl_tys distinct*)
+    
+    inversion H2; subst.
+    apply H in H8; inversion H8; subst; auto.
+    apply H0 in H10; subst; auto.
+    admit. (*member wf*)
+    admit. (*subst preserves id*)
+    inversion H1; auto.
+    rewrite H4; auto.
+  Qed.
 
   
   Lemma type_uniqueness_decl :

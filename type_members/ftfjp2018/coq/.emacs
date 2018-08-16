@@ -24,6 +24,7 @@
 	      ("en" . ?,)
 	      ("bar" . ?|)
 	      ("vdash" . ?⊢)
+	      ("evdash" . ?⊢) ; needed to avoid ambiguity
 	      ("dashv" . ?⊣)
 	      ("equiv" . ?≡)
 	      ("equiv_d" . ?≡)
