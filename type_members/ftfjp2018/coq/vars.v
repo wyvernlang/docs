@@ -285,27 +285,6 @@ Section variables.
   
   (*move all variables less than n, 1 space to the left, this means reducing the relative distance of all 
    references greater than or equal to n by 1*)
-  
-  Reserved Notation "v '[' i ']' 'ljump_v' n" (at level 80).
-  Reserved Notation "t '[' i ']' 'ljump_t' n" (at level 80).
-  Reserved Notation "d '[' i ']' 'ljump_d' n" (at level 80).
-  Reserved Notation "d '[' i ']' 'ljump_ds' n" (at level 80).
-  Reserved Notation "d '[' i ']' 'ljump_dt' n" (at level 80).
-  Reserved Notation "d '[' i ']' 'ljump_dts' n" (at level 80).
-  Reserved Notation "p '[' i ']' 'ljump_p' n" (at level 80).
-  Reserved Notation "p '[' i ']' 'ljump_e' n" (at level 80).
-
-  (*left and right jumps for inserting new variables into the middle of contexts*)
-  (*
-for a context G1++G2 that is a context G1 appended with G2, we would like to insert another 
-context G between them (G1++G++G2) while maitaining the correct variable naming. Since refereces use de Bruijn indeces
-Therefore every reference in G1 that refers to something in G2 must be increased by the length of G. References 
-in G1 that refer to positions in G1 do not change, and similarly, all references in G2 must remain the same.
-
-@params i is the relative distance to the first element of G2. If i = 0, then the current element is in G2
-        n is the length of G, the distance to be shifted
-        m is reference. If m = 0, then the next element in the context is the refered type.
-*)
 
   Definition inc (i : option nat) (n : nat) : option nat :=
     match i with
@@ -401,83 +380,105 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   where "ds 'raise_ds' i" := (raise_decls ds i).
       
 
+  
+  Reserved Notation "v '[' i ']' 'rjump_v' n" (at level 80).
+  Reserved Notation "t '[' i ']' 'rjump_t' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'rjump_s' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'rjump_ss' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'rjump_d' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'rjump_ds' n" (at level 80).
+  Reserved Notation "p '[' i ']' 'rjump_e' n" (at level 80).
+
+  (*left and right jumps for inserting new variables into the middle of contexts*)
+  (*
+for a context G1++G2 that is a context G1 appended with G2, we would like to insert another 
+context G between them (G1++G++G2) while maitaining the correct variable naming. Since refereces use de Bruijn indeces
+Therefore every reference in G1 that refers to something in G2 must be increased by the length of G. References 
+in G1 that refer to positions in G1 do not change, and similarly, all references in G2 must remain the same.
+
+@params i is the relative distance to the first element of G2. If i = 0, then the current element is in G2
+        n is the length of G, the distance to be shifted
+        m is reference. If m = 0, then the next element in the context is the refered type.
+*)
           
-(*
-  Definition left_jump_n (r : nat) (i : option nat) : nat :=
-    match i with
-      | None => r
-      | Some i' => if r <? i'
-                  then r
-                  else r + 1
-    end.
 
-  Notation "r '[' i ']' 'ljump_n' n" := (left_jump_n r n i) (at level  80).
+  Definition right_jump_n (r i n : nat) : nat :=
+      if i <=? r
+      then r + n
+      else r.
 
-  Fixpoint left_jump_v (x : var)(n : nat)(i : option nat) : var :=
+  Notation "r '[' i ']' 'rjump_n' n" := (right_jump_n r i n) (at level  80).
+
+  Fixpoint right_jump_v (x : var)(i n : nat) : var :=
     match x with
-      | Var r => Var (r[i] ljump_n n)
+      | Var r => Var (r[i] rjump_n n)
       | _ => x
     end.
 
-  Notation "x '[' i ']' 'ljump_v' n" := (left_jump_v x n i) (at level  80).
+  Notation "x '[' i ']' 'rjump_v' n" := (right_jump_v x i n) (at level  80).
 
-  Fixpoint left_jump_t (t : ty) (n : nat) (i : option nat): ty  :=
+  Fixpoint right_jump_t (t : ty) (i n : nat) : ty  :=
     match t with
       | top => top
       | bot => bot
-      | t1 arr t2 => (t1 [i] ljump_t n) arr (t2 [inc i 1] ljump_t n)
-      | sel p l => sel (p [i] ljump_e n) l
-      | str ds => str (ds [inc i 1] ljump_dts n)
+      | t1 arr t2 => (t1 [i] rjump_t n) arr (t2 [i] rjump_t n)
+      | sel p l => sel (p [i] rjump_e n) l
+      | str ss => str (ss [i] rjump_ss n)
     end
-      where "t '[' i ']' 'ljump_t' n" := (left_jump_t t n i)
+      where "t '[' i ']' 'rjump_t' n" := (right_jump_t t i n)
 
   with
-  left_jump_d_ty (d : decl_ty) (n : nat) (i : option nat) : decl_ty :=
-    match d with
-      | type l sup t => type l sup (t[i] ljump_t n)
-      | type l ext t => type l ext (t[i] ljump_t n)
-      | val l oft t => val l oft (t[i] ljump_t n)
+  right_jump_d_ty (s : decl_ty) (i n : nat) : decl_ty :=
+    match s with
+      | type l sup t => type l sup (t[i] rjump_t n)
+      | type l ext t => type l ext (t[i] rjump_t n)
+      | val l oft t => val l oft (t[i] rjump_t n)
     end
-      where "d '[' i ']' 'ljump_dt' n" := (left_jump_d_ty d n i)
+      where "d '[' i ']' 'rjump_s' n" := (right_jump_d_ty d i n)
 
   with
-  left_jump_d_tys (d : decl_tys) (n : nat) (i : option nat) : decl_tys :=
-    match d with
+  right_jump_d_tys (ss : decl_tys) (i n : nat) : decl_tys :=
+    match ss with 
       | dt_nil => dt_nil
-      | dt_con d ds' => dt_con (d [i] ljump_dt n) (ds' [i] ljump_dts n)
+      | dt_con s ss' => dt_con (s [i] rjump_s n) (ss' [i] rjump_ss n)
     end
-      where "d '[' i ']' 'ljump_dts' n" := (left_jump_d_tys d n i)
+      where "d '[' i ']' 'rjump_ss' n" := (right_jump_d_tys d i n)
 
   with
-  left_jump_e (e : exp) (n : nat) (i : option nat) : exp :=
+  right_jump_e (e : exp) (i n : nat) : exp :=
     match e with
-    | new ds => new (ds [inc i 1] ljump_ds n)
-    | e_app e1 e2 => e_app (e1 [i] ljump_e n) (e2 [i] ljump_e n)
-    | fn t1 in_exp e off t2 => fn (t1 [i] ljump_t n) in_exp (e [inc i 1] ljump_e n) off (t2 [inc i 1] ljump_t n)
-    | e_acc e m => e_acc (e [i] ljump_e n) m
-    | v_ x => v_ (x [i] ljump_v n)
+    | new ds => new (ds [i] rjump_ds n)
+    | e_app e1 e2 => e_app (e1 [i] rjump_e n) (e2 [i] rjump_e n)
+    | fn t1 in_exp e off t2 => fn (t1 [i] rjump_t n) in_exp (e [i] rjump_e n) off (t2 [i] rjump_t n)
+    | e_acc e m => e_acc (e [i] rjump_e n) m
+    | v_ x => v_ (x [i] rjump_v n)
     | i_ i => i_ i
-    | e cast t => (e [i] ljump_e n) cast (t [i] ljump_t n)
+    | e cast t => (e [i] rjump_e n) cast (t [i] rjump_t n)
     end
-      where "e '[' i ']' 'ljump_e' n" := (left_jump_e e n i)        
+      where "e '[' i ']' 'rjump_e' n" := (right_jump_e e i n)        
                                              
   with
-  left_jump_d (d : decl) (n : nat) (i : option nat) : decl :=
+  right_jump_d (d : decl) (i n : nat) : decl :=
     match d with
-      | type l supe t => type l supe (t[i] ljump_t n)
-      | type l exte t => type l exte (t[i] ljump_t n)
-      | val l assgn e oft t => val l assgn (e[i] ljump_e n) oft (t [i] ljump_t n)
+      | type l supe t => type l supe (t[i] rjump_t n)
+      | type l exte t => type l exte (t[i] rjump_t n)
+      | val l assgn e oft t => val l assgn (e[i] rjump_e n) oft (t [i] rjump_t n)
     end
-      where "d '[' i ']' 'ljump_d' n" := (left_jump_d d n i)
+      where "d '[' i ']' 'rjump_d' n" := (right_jump_d d i n)
 
   with
-  left_jump_ds (d : decls) (n : nat) (i : option nat) : decls :=
-    match d with
+  right_jump_ds (ds : decls) (i n : nat) : decls :=
+    match ds with
       | d_nil => d_nil
-      | d_con d ds' => d_con (d [i] ljump_d n) (ds' [i] ljump_ds n)
+      | d_con d ds' => d_con (d [i] rjump_d n) (ds' [i] rjump_ds n)
     end
-  where "d '[' i ']' 'ljump_ds' n" := (left_jump_ds d n i).
-*)  
+  where "d '[' i ']' 'rjump_ds' n" := (right_jump_ds d i n).
+
+  Definition right_jump_env (G : env)(i n : nat) : env :=
+    map (fun (t : ty) => t [i] rjump_t n) G.
+
+  Notation "G '[' i ']' 'rjump_env' n" :=(right_jump_env G i n)(at level 80).
+  
   Reserved Notation "'[' p '/t' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/dt' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/dts' n ']' ds" (at level 80).
@@ -1065,6 +1066,148 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                       Sig evdash t::G wf_env
 
   where "Sig 'evdash' G 'wf_env'" := (wf_environment Sig G).
+
+  Reserved Notation "Sig 'wf_st'" (at level 80).
+
+  Inductive wf_store_typing : env -> Prop :=
+  | wfst_nil : nil wf_st
+  | wfst_con : forall Sig ds, Sig en nil vdash str ds wf_t ->
+                       Sig wf_st ->
+                       str ds::Sig wf_st
+  where "Sig 'wf_st'" := (wf_store_typing Sig).
+
+  (*get & mapsto*)
+  
+  Lemma get_empty :
+    forall {A : Type} (G : list A) n, G = nil -> get n G = None.
+  Proof.
+    intros A G n; induction n as [| n']; 
+      crush.
+  Qed.
+
+  Hint Resolve (get_empty (A:=ty)).
+  Hint Rewrite (get_empty (A:=ty)).
+
+  
+  Lemma get_map :
+    forall {A : Type} (G : list A) n t, get n G = Some t ->
+             forall {B : Type} (f : A -> B), get n (map f G) = Some (f t).
+  Proof.
+    intros A G; induction G as [|t' G']; intros.
+
+    rewrite get_empty in H; crush.
+
+    destruct n as [|n']; crush.
+  Qed.
+
+  Hint Resolve (get_map (A:=ty)).
+  Hint Rewrite (get_map (A:=ty)).
+
+  
+  Lemma get_cons :
+    forall {A : Type} n G (t1 t2 : A), get (S n) (t1::G) = Some t2 ->
+                                  get n G = Some t2.
+  Proof.
+    intros A n; induction n as [|n']; intros; crush.
+  Qed.
+
+  Hint Resolve (get_cons (A:=ty)).
+  Hint Rewrite (get_cons (A:=ty)).
+  
+
+  Lemma get_some_index :
+    forall A G n (t : A), get n G = Some t ->
+                     n < length G.
+  Proof.
+    intros A G ; induction G as [|t' G'] ; intros.
+
+    rewrite get_empty in H; inversion H; auto.
+
+    destruct n as [|n']; crush.
+    simpl in H; inversion H; subst.
+    apply gt_n_S.
+    apply IHG' with (t:=t); auto.
+  Qed.
+  
+  Lemma get_app :
+    forall A G G' n (t : A), get n G = Some t ->
+                        get n (G++G') = Some t.
+  Proof.
+    intros A G; induction G; intros; simpl.
+    rewrite get_empty in H; inversion H; auto.
+
+    destruct n as [|n']; auto.
+
+    simpl; simpl in H; auto.
+  Qed.
+
+  Hint Resolve get_app.
+  
+  Lemma get_dec :
+    forall A (G : list A) n, {n < length G /\ exists t, get n G = Some t} + {n >= length G /\ get n G = None}.
+  Proof.
+    intros A G; induction G as [|t' G']; intros.
+
+    right; rewrite get_empty; split; crush.
+
+    destruct n as [|n'];
+      [left; crush; exists t'; auto|simpl].
+
+    destruct (IHG' n') as [Hdec|Hdec];
+      [left|right]; crush.
+  Qed.
+
+  Lemma get_some_app :
+    forall A (G1 G2 : list A) n, {(n < length G1) /\ get n (G1 ++ G2) = get n G1} +
+               {n >= length G1 /\ get n (G1 ++ G2) = get (n - length G1) G2}.
+  Proof.
+    intros A G1; induction G1 as [|t' G1']; intros; simpl;
+    [right; split;
+     [| rewrite <- minus_n_O]; crush|].
+
+    destruct n as [|n'];
+      [crush|destruct (IHG1' G2 n') as [Hdec|Hdec]; crush].
+  Qed.
+
+  Lemma get_app_l :
+    forall A (G1 G2 : list A) n, n < length G1 ->
+                            get n (G1++G2) = get n G1.
+  Proof.  
+    intros A G1; induction G1 as [|t' G1']; intros; auto.
+    
+    simpl in H.
+    inversion H.
+
+    simpl in H.
+    destruct n as [|n']; crush.
+  Qed.
+
+  Hint Resolve get_app_l.
+
+  Lemma get_app_r :
+    forall A (G1 G2 : list A) n, n >= length G1 ->
+                            get n (G1++G2) = get (n - length G1) G2.
+  Proof.  
+    intros A G1; induction G1 as [|t' G1']; intros; simpl; auto.
+
+    rewrite <- minus_n_O; auto.
+
+    destruct n as [|n']; auto.
+    unfold ge in H; simpl in H.
+    apply le_n_0_eq in H; inversion H.
+
+    unfold ge in H.
+    simpl in H; apply le_S_n in H.
+    apply (IHG1' G2) in H; auto.
+  Qed.
+
+  Hint Resolve get_app_r.
+
+
+  (*Substitution*)
+
+  Lemma subst_rjump_mutind :
+    () /\
   
   Lemma closed_subst_type :
     forall n t, closed_t n t -> forall e, ([e /t n] t) = t.
@@ -1082,11 +1225,140 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     inversion Htyp; auto.
   Qed.
 
+  (*Weakening*)
+
+  Lemma typing_p_weakening :
+    forall Sig G p t, Sig en G vdash p pathType t ->
+               forall G1 G2, G = G1 ++ G2 ->
+                        forall i n G', i = length G2 ->
+                                  n = length G' ->
+                                  (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (p [i] rjump_e n) pathType (t [i] rjump_t n).
+  Proof.
+
+    intros; induction H.
+    
+    simpl.
+    apply pt_var.
+
+    apply get_map with (f:=fun (t : ty) => t [i] rjump_t n) in H.
+    rewrite map_rev in H.
+    rewrite H0 in H.
+    rewrite map_app in H.
+    rewrite rev_app_distr in H.
+    destruct (get_some_app (rev (map (fun t : ty => t [i]rjump_t n) G2))
+                           (rev (map (fun t : ty => t [i]rjump_t n) G1))
+                           n0) as [Ha|Ha];
+      destruct Ha as [Ha Hb].
+
+    unfold mapping;
+      rewrite rev_app_distr.
+    rewrite get_app_l.
+    unfold right_jump_n.
+    rewrite rev_app_distr.
+    rewrite rev_length, map_length, <- H1 in Ha.
+    assert (Hc : n0 < i); [auto|];
+    apply lt_not_le in Hc;
+      apply Nat.leb_nle in Hc;
+      rewrite Hc.
+    rewrite get_app_l;
+      [|rewrite rev_length;
+        unfold right_jump_env;
+        rewrite map_length, <- H1;
+        auto].
+    rewrite get_app_l in H;
+      [auto|
+       rewrite rev_length;
+       unfold right_jump_env;
+       rewrite map_length, <- H1;
+       auto].
+    unfold right_jump_n.
+    rewrite rev_length, map_length, <- H1 in Ha.
+    unfold right_jump_env.
+    rewrite rev_length, app_length, map_length, <- H1, <- H2.
+    assert (Hc : n0 < i); [auto|];
+    apply lt_not_le in Hc;
+      apply Nat.leb_nle in Hc;
+      rewrite Hc.
+    crush.
+
+    unfold mapping;
+      rewrite rev_app_distr.
+    rewrite get_app_r in H; auto.
+    rewrite rev_length in H, Ha, Hb;
+      rewrite map_length in H, Ha, Hb;
+      rewrite <- H1 in H, Ha, Hb.
+    rewrite get_app_r;
+      rewrite rev_length, app_length, <- H2.
+    unfold right_jump_env;
+      rewrite map_length, <- H1.
+    unfold right_jump_n.
+    assert (Hc : i <= n0);
+      [auto|
+       apply Nat.leb_le in Hc;
+       rewrite Hc; simpl].
+    rewrite Nat.sub_add_distr.
+    rewrite <- Nat.add_sub_assoc; [simpl|auto].    
+    rewrite Nat.sub_diag.
+    rewrite Nat.add_0_r; auto.
+
+    unfold right_jump_n.
+    assert (Hc : i <= n0);
+      [auto|
+       apply Nat.leb_le in Hc;
+       rewrite Hc].
+    unfold right_jump_env;
+      rewrite map_length, <- H1.
+    crush.
+
+    simpl.
+    apply pt_loc.
+    apply get_map with (f:=fun (t : ty) => t [i] rjump_t n) in H.
+    rewrite map_rev in H.
+    crush.
+
+    crush.
+    
+  Qed.
+
+  Lemma has_contains_weakening_mutind :
+    (forall Sig G p d, Sig en G vdash p ni d ->
+                forall G1 G2,
+                  G = G1 ++ G2 ->
+                  forall i n G',
+                    i = length G2 ->
+                    n = length G' ->
+                    (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (p [i] rjump_e n) ni (d [i] rjump_s n)) /\
+    (forall Sig G t d, Sig en G vdash d cont t ->
+                forall G1 G2,
+                  G = G1 ++ G2 ->
+                  forall i n G',
+                    i = length G2 ->
+                    n = length G' ->
+                    (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (d [i] rjump_s n) cont (t [i] rjump_t n)).
+  Proof.
+    apply has_contains_mutind; intros.
+
+    simpl.
+    apply has_path.
+
+    
+  Qed.
+    
+
   Lemma typing_p_wf :
     forall Sig G p t, Sig en G vdash p pathType t ->
                Sig en G vdash p wf_e ->
-               
+               Sig evdash G wf_env ->
+               Sig wf_st ->
                Sig en G vdash t wf_t.
+  Proof.
+    intros.
+
+    inversion H; subst.
+
+    
+    
+  Qed.
 
   Lemma member_uniqueness_mutind :
     (forall Sig G p d, Sig en G vdash p ni d ->
@@ -1725,17 +1997,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Hint Constructors sub sub_d sub_ds.
 
   
-  
-  Lemma get_empty :
-    forall n, get n nil = None.
-  Proof.
-    intro n; induction n as [| n'];
-      crush.
-  Qed.
-
-  Hint Resolve get_empty.
-  Hint Rewrite get_empty.
-
  (* Lemma get_empty :
     forall n, get n nil = None.
   Proof.
@@ -1747,59 +2008,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Hint Rewrite nth_empty.*)
 
 
-  Lemma get_cons :
-    forall n G t1 t2, get (S n) (t1::G) = Some t2 ->
-                 get n G = Some t2.
-  Proof.
-    intro n; induction n as [|n']; intros; crush.
-  Qed.
-
-  Hint Resolve get_cons.
-  Hint Rewrite get_cons.
-  
-
-  Lemma get_some_index :
-    forall G n t, get n G = Some t ->
-             n < length G.
-  Proof.
-    intro G ; induction G as [|t' G'] ; intros; crush.
-
-    destruct n as [|n']; crush.
-    apply gt_n_S.
-    apply IHG' with (t:=t); auto.
-  Qed.
-
-  (*Lemma get_some_index :
-    forall G n t, get n G = Some t ->
-             n < length G.
-  Proof.
-    intros.
-    rewrite <- rev_length.
-    apply nth_some_index with (t:=t); auto.
-  Qed.*)
-  
-  Lemma get_app :
-    forall G G' n t, get n G = Some t ->
-                get n (G++G') = Some t.
-  Proof.
-    intros G; induction G; intros; crush.
-    destruct n as [|n']; auto.
-
-    simpl; simpl in H; auto.
-  Qed.
-
-  (*Lemma get_app :
-    forall G G' n t, get n G = Some t ->
-                get n (G'++G) = Some t.
-  Proof.
-    intros.
-    unfold get in H.
-    unfold get.
-    rewrite rev_app_distr.
-    apply nth_app; auto.
-  Qed.*)
-
-  Hint Resolve get_app.
 
   Lemma get_shift :
     forall G' G n, get n G = get (n + (length G')) (G'++G).
@@ -1830,40 +2038,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     unfold get; simpl.
     rewrite <- rev_length; auto.
   Qed.*)
-
-  Lemma get_app_l :
-    forall G1 G2 n, n < length G1 ->
-               get n (G1++G2) = get n G1.
-  Proof.  
-    intro G1; induction G1 as [|t' G1']; intros; auto.
-    
-    simpl in H.
-    inversion H.
-
-    simpl in H.
-    destruct n as [|n']; crush.
-  Qed.
-
-  Hint Resolve get_app_l.
-
-  Lemma get_app_r :
-    forall G1 G2 n, n >= length G1 ->
-               get n (G1++G2) = get (n - length G1) G2.
-  Proof.  
-    intro G1; induction G1 as [|t' G1']; intros; simpl; auto.
-
-    rewrite <- minus_n_O; auto.
-
-    destruct n as [|n']; auto.
-    unfold ge in H; simpl in H.
-    apply le_n_0_eq in H; inversion H.
-
-    unfold ge in H.
-    simpl in H; apply le_S_n in H.
-    apply (IHG1' G2) in H; auto.
-  Qed.
-
-  Hint Resolve get_app_r.
 
   (*Lemma get_app_r :
     forall G1 G2 n, n < length G2 ->
@@ -1946,16 +2120,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply in_rev; auto.
   Qed.
    *)
-  
-  Lemma get_map :
-    forall G n t, get n G = Some t ->
-             forall f, get n (map f G) = Some (f t).
-  Proof.
-    intro G; induction G as [|t' G']; crush.
-
-    destruct n as [|n']; crush.
-  Qed.
-
   
 
   Lemma rshift_concrete :
@@ -2808,30 +2972,6 @@ Qed.
        destruct (Nat.ltb_nlt r' (length G1')) as [Htemp Hltb1]; clear Htemp;
        destruct (Nat.ltb_nlt (S r') (S (length G1'))) as [Htemp Hltb2]; clear Htemp;
        rewrite Hltb1, Hltb2; crush].
-  Qed.
-  
-  Lemma get_dec :
-    forall G n, {n < length G /\ exists t, get n G = Some t} + {n >= length G /\ get n G = None}.
-  Proof.
-    intro G; induction G as [|t' G']; intros; [crush|].
-
-    destruct n as [|n'];
-      [left; crush; exists t'; auto|simpl].
-
-    destruct (IHG' n') as [Hdec|Hdec];
-      [left|right]; crush.
-  Qed.
-
-  Lemma get_some_app :
-    forall G1 G2 n, {(n < length G1) /\ get n (G1 ++ G2) = get n G1} +
-               {n >= length G1 /\ get n (G1 ++ G2) = get (n - length G1) G2}.
-  Proof.
-    intro G1; induction G1 as [|t' G1']; intros; simpl;
-    [right; split;
-     [| rewrite <- minus_n_O]; crush|].
-
-    destruct n as [|n'];
-      [crush|destruct (IHG1' G2 n') as [Hdec|Hdec]; crush].
   Qed.
 
   Lemma dec_S_S :
