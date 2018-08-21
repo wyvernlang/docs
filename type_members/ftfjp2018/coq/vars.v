@@ -768,7 +768,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | t_var : forall  Sig G n t, n mapsto t elem G ->
                         Sig en G vdash (c_ n) hasType t
                           
-  | t_loc : forall  Sig G i t, i mapsto t elem G ->
+  | t_loc : forall  Sig G i t, i mapsto t elem Sig ->
                         Sig en G vdash (i_ i) hasType t
 
   | t_cast : forall Sig G e t t', Sig en G vdash e hasType t'->
@@ -1356,6 +1356,54 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   (*Weakening*)
 
+  Lemma mapping_weakening :
+    forall G r t, r mapsto t elem G ->
+             forall G1 G2,
+               G = G1 ++ G2 ->
+               forall i n G',
+                 i = length G2 ->
+                 n = length G' ->
+                 (r [i] rjump_n n) mapsto (t [i] rjump_t n) elem ((G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n)).
+  Proof.
+    intros; subst.
+
+    unfold mapping.
+
+    rewrite rev_app_distr.
+    unfold right_jump_n.
+    destruct (le_gt_dec (length G2) r);
+      [rewrite leb_correct|
+       rewrite leb_correct_conv]; auto.
+    rewrite get_app_r; unfold right_jump_env.
+    rewrite rev_length, app_length, map_length, Nat.sub_add_distr.
+
+    rewrite <- Nat.add_sub_assoc;
+      [rewrite Nat.sub_diag, plus_0_r|auto].
+    rewrite <- map_rev.
+    unfold mapping in H.
+    rewrite rev_app_distr in H.
+    rewrite get_app_r, rev_length in H.
+    apply get_map with (f:=(fun t0 : ty => t0 [length G2]rjump_t length G')) in H; auto.
+
+    rewrite rev_length; crush.
+    rewrite rev_length, app_length, map_length; crush.
+
+    rewrite get_app_l;
+      [|unfold right_jump_env;
+        rewrite rev_length, app_length, map_length;
+        crush].
+    unfold right_jump_env.
+    rewrite rev_app_distr, get_app_l;
+      [|rewrite rev_length, map_length; auto].
+    rewrite <- map_rev.
+    unfold mapping in H.
+    rewrite rev_app_distr in H.
+    rewrite get_app_l in H;
+      [|rewrite rev_length; auto].
+    apply get_map with (f:=(fun t0 : ty => t0 [length G2]rjump_t length G')) in H; auto.
+    
+  Qed.
+
   Lemma typing_p_weakening :
     forall Sig G p t, Sig en G vdash p pathType t ->
                forall G1 G2, G = G1 ++ G2 ->
@@ -1369,75 +1417,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     simpl.
     apply pt_var.
 
-    apply get_map with (f:=fun (t : ty) => t [i] rjump_t n) in H.
-    rewrite map_rev in H.
-    rewrite H0 in H.
-    rewrite map_app in H.
-    rewrite rev_app_distr in H.
-    destruct (get_some_app (rev (map (fun t : ty => t [i]rjump_t n) G2))
-                           (rev (map (fun t : ty => t [i]rjump_t n) G1))
-                           n0) as [Ha|Ha];
-      destruct Ha as [Ha Hb].
-
-    unfold mapping;
-      rewrite rev_app_distr.
-    rewrite get_app_l.
-    unfold right_jump_n.
-    rewrite rev_app_distr.
-    rewrite rev_length, map_length, <- H1 in Ha.
-    assert (Hc : n0 < i); [auto|];
-    apply lt_not_le in Hc;
-      apply Nat.leb_nle in Hc;
-      rewrite Hc.
-    rewrite get_app_l;
-      [|rewrite rev_length;
-        unfold right_jump_env;
-        rewrite map_length, <- H1;
-        auto].
-    rewrite get_app_l in H;
-      [auto|
-       rewrite rev_length;
-       unfold right_jump_env;
-       rewrite map_length, <- H1;
-       auto].
-    unfold right_jump_n.
-    rewrite rev_length, map_length, <- H1 in Ha.
-    unfold right_jump_env.
-    rewrite rev_length, app_length, map_length, <- H1, <- H2.
-    assert (Hc : n0 < i); [auto|];
-    apply lt_not_le in Hc;
-      apply Nat.leb_nle in Hc;
-      rewrite Hc.
-    crush.
-
-    unfold mapping;
-      rewrite rev_app_distr.
-    rewrite get_app_r in H; auto.
-    rewrite rev_length in H, Ha, Hb;
-      rewrite map_length in H, Ha, Hb;
-      rewrite <- H1 in H, Ha, Hb.
-    rewrite get_app_r;
-      rewrite rev_length, app_length, <- H2.
-    unfold right_jump_env;
-      rewrite map_length, <- H1.
-    unfold right_jump_n.
-    assert (Hc : i <= n0);
-      [auto|
-       apply Nat.leb_le in Hc;
-       rewrite Hc; simpl].
-    rewrite Nat.sub_add_distr.
-    rewrite <- Nat.add_sub_assoc; [simpl|auto].    
-    rewrite Nat.sub_diag.
-    rewrite Nat.add_0_r; auto.
-
-    unfold right_jump_n.
-    assert (Hc : i <= n0);
-      [auto|
-       apply Nat.leb_le in Hc;
-       rewrite Hc].
-    unfold right_jump_env;
-      rewrite map_length, <- H1.
-    crush.
+    apply mapping_weakening with (G:=G); crush.
 
     simpl.
     apply pt_loc.
@@ -1550,7 +1530,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       unfold right_jump_env;
       repeat (rewrite map_length);
       auto.
-    assert (Hleng : length G3 = length G5); [admit|].
+    assert (Hleng : length G3 = length G5);
+      [subst;
+       repeat rewrite app_length in e0;
+       rewrite H3 in e0;
+       crush|].
     repeat (rewrite app_length);
       unfold right_jump_env;
       repeat (rewrite map_length);
@@ -1562,16 +1546,104 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     subst; auto.
     subst; auto.
     repeat (rewrite rjump_subst_distr_decl_tys in Hsub).
-    assert (Hleng : i0 <= i); [admit|].
-    assert (Hlengb : i0 <=? i = true); [admit|].
+    assert (Hleng : i0 <= i);
+      [rewrite e, H2, H0, app_length; crush|].
+    apply Nat.leb_le in Hleng.
     simpl in Hsub;
       unfold right_jump_n in Hsub;
-      rewrite Hlengb in Hsub.
+      rewrite Hleng in Hsub.
     repeat rewrite app_length.
     assert ((length G3 + (length G + length G4)) = (length G + (length G3 + length G4))); [crush|].
     rewrite H6, <- app_length, <- H0, <- e, <- H4, plus_comm.
     crush.
+  Qed.
 
+  Lemma sub_weakening_exp :
+    (forall Sig G1 t1 t2 G2,
+        Sig en G1 vdash t1 <; t2 dashv G2 ->
+        forall G3 G4 G5 G6 G G',
+          G1 = G3 ++ G4 ->
+          G2 = G5 ++ G6 ->
+          forall i n,
+            i = length G4 -> i = length G6 ->
+            n = length G -> n = length G' ->
+            (Sig [i] rjump_env n) en (G3 [i] rjump_env n) ++ G ++ (G4 [i] rjump_env n) vdash (t1 [i] rjump_t n) <; (t2 [i] rjump_t n) dashv (G5 [i] rjump_env n) ++ G' ++ (G6 [i] rjump_env n)).
+  Proof.
+    destruct sub_weakening_mutind; crush.
+  Qed.
+
+  Lemma sub_weakening_decl :
+    
+    (forall Sig G1 s1 s2 G2,
+        Sig en G1 vdash s1 <;; s2 dashv G2 ->
+        forall G3 G4 G5 G6 G G',
+          G1 = G3 ++ G4 ->
+          G2 = G5 ++ G6 ->
+          forall i n,
+            i = length G4 -> i = length G6 ->
+            n = length G -> n = length G' ->
+            (Sig [i] rjump_env n) en (G3 [i] rjump_env n) ++ G ++ (G4 [i] rjump_env n) vdash (s1 [i] rjump_s n) <;; (s2 [i] rjump_s n) dashv (G5 [i] rjump_env n) ++ G' ++ (G6 [i] rjump_env n)).
+  Proof.
+    destruct sub_weakening_mutind; crush.
+  Qed.
+
+  Lemma sub_weakening_decls :
+      
+    (forall Sig G1 ss1 ss2 G2,
+        Sig en G1 vdash ss1 <;;; ss2 dashv G2 ->
+        forall G3 G4 G5 G6 G G',
+          G1 = G3 ++ G4 ->
+          G2 = G5 ++ G6 ->
+          forall i n,
+            i = length G4 -> i = length G6 ->
+            n = length G -> n = length G' ->
+            (Sig [i] rjump_env n) en (G3 [i] rjump_env n) ++ G ++ (G4 [i] rjump_env n) vdash (ss1 [i] rjump_ss n) <;;; (ss2 [i] rjump_ss n) dashv (G5 [i] rjump_env n) ++ G' ++ (G6 [i] rjump_env n)).
+  Proof.
+    destruct sub_weakening_mutind; crush.
+  Qed.
+
+  Lemma typing_weakening_mutind :
+    (forall Sig G e t, Sig en G vdash e hasType t ->
+                forall G1 G2,
+                  G = G1 ++ G2 ->
+                  forall G' i n,
+                    i = length G2 ->
+                    n = length G' ->
+                    (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (e [i] rjump_e n) hasType (t [i] rjump_t n)) /\
+      
+    (forall Sig G d s, Sig en G vdash d hasType_d s ->
+                forall G1 G2,
+                  G = G1 ++ G2 ->
+                  forall G' i n,
+                    i = length G2 ->
+                    n = length G' ->
+                    (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (d [i] rjump_d n) hasType_d (s [i] rjump_s n)) /\
+    
+    (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                  forall G1 G2,
+                    G = G1 ++ G2 ->
+                    forall G' i n,
+                      i = length G2 ->
+                      n = length G' ->
+                      (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (ds [i] rjump_ds n) hasType_ds (ss [i] rjump_ss n)).
+  Proof.
+    apply typing_mutind; intros;
+      try solve [crush].
+
+    (*t-var*)
+    apply t_var, mapping_weakening with (G:=G); auto.
+
+    (*t-loc*)
+    apply t_loc.
+    apply get_map with (f:=fun (t0 : ty) => t0 [i0] rjump_t n) in e.
+    rewrite map_rev in e; auto.
+
+    (*t-cast*)
+    simpl; apply t_cast with (t':=t' [i] rjump_t n); auto.
+    apply sub_weakening_exp with (G1:=G1++G2)(G2:=G1++G2); subst; auto.
+
+    (*t-arr*)
+    
   Qed.
     
   Lemma typing_p_wf :
