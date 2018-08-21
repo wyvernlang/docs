@@ -480,8 +480,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Notation "G '[' i ']' 'rjump_env' n" :=(right_jump_env G i n)(at level 80).
   
   Reserved Notation "'[' p '/t' n ']' ds" (at level 80).
-  Reserved Notation "'[' p '/dt' n ']' ds" (at level 80).
-  Reserved Notation "'[' p '/dts' n ']' ds" (at level 80).
+  Reserved Notation "'[' p '/s' n ']' ds" (at level 80).
+  Reserved Notation "'[' p '/ss' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/d' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/ds' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/e' n ']' ds" (at level 80).
@@ -503,7 +503,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     | bot => bot
     | t1 arr t2 => ([e /t n] t1) arr ([(e raise_e 0) /t S n] t2)
     | sel p l => sel ([ e /e n ] p) l
-    | str ds => str ([ (e raise_e 0) /dts S n ] ds)
+    | str ds => str ([ (e raise_e 0) /ss S n ] ds)
     end
 
   where "'[' p '/t' n ']' t" := (subst n p t)
@@ -516,16 +516,16 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     | val l oft t => val l oft ([e /t n] t)                        
     end
       
-  where "'[' p '/dt' n ']' d" := (subst_d_ty n p d)
+  where "'[' p '/s' n ']' d" := (subst_d_ty n p d)
 
   with
   subst_d_tys (n : nat) (e : exp) (d : decl_tys) : decl_tys :=
     match d with
     | dt_nil => dt_nil
-    | dt_con d ds' => dt_con ([e /dt n] d) ([e /dts n] ds')
+    | dt_con d ds' => dt_con ([e /s n] d) ([e /ss n] ds')
     end
       
-  where "'[' p '/dts' n ']' d" := (subst_d_tys n p d)
+  where "'[' p '/ss' n ']' d" := (subst_d_tys n p d)
 
   with
   subst_e (n : nat) (e1 e2 : exp) : exp :=
@@ -640,7 +640,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Inductive has : env -> env -> exp -> decl_ty -> Prop :=
   | has_path : forall Sig G p t d, Sig en G vdash p pathType t ->
                             Sig en G vdash d cont t ->
-                            Sig en G vdash p ni ([p /dt 0] d)
+                            Sig en G vdash p ni ([p /s 0] d)
 
   where "Sig 'en' G 'vdash' p 'ni' d" := (has Sig G p d)
 
@@ -650,7 +650,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                               Sig en G vdash d cont str ds
   | cont_upper : forall Sig G p L t d, Sig en G vdash p ni (type L ext t) ->
                                 Sig en G vdash d cont t ->
-                                Sig en G vdash ([a_ 0 cast t /dt 0] d) cont (sel p L)
+                                Sig en G vdash ([a_ 0 cast t /s 0] d) cont (sel p L)
                                   
   where "Sig 'en' G 'vdash' d 'cont' t" := (contains Sig G t d).
 
@@ -688,7 +688,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   | s_struct : forall Sig G1 ds1 ds2 G2 i, i = length G1 ->
                                     i = length G2 ->
-                                    Sig en G1 vdash [c_ i /dts 0] ds1 <;;; [c_ i /dts 0] ds2 dashv (str ds2)::G1 ->
+                                    Sig en G1 vdash [c_ i /ss 0] ds1 <;;; [c_ i /ss 0] ds2 dashv (str ds2)::G1 ->
                                     Sig en G1 vdash str ds1 <; str ds2 dashv G2
 
   where "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" := (sub Sig G1 t1 t2 G2)
@@ -780,7 +780,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                      Sig en G vdash t' <; t1 dashv G ->
                                      Sig en G vdash (e_app e p) hasType ([p cast t1 /t 0] t2)
 
-  | t_new : forall Sig G ds ss, Sig en (str ss)::G vdash ([c_ length G /ds 0] ds) hasType_ds ([c_ length G /dts 0] ss) ->
+  | t_new : forall Sig G ds ss, Sig en (str ss)::G vdash ([c_ length G /ds 0] ds) hasType_ds ([c_ length G /ss 0] ss) ->
                          Sig en G vdash new ds hasType str ss
 
   | t_acc_path : forall Sig G p l t, Sig en G vdash p ni (val l oft t) ->
@@ -966,7 +966,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                 Sig en G vdash p ni (type L sup t) ->
                                 Sig en G vdash (sel p L) wf_t
 
-  | wf_str : forall Sig G ss, Sig en (str ss)::G vdash ([c_ length G /dts 0] ss) wf_ss ->
+  | wf_str : forall Sig G ss, Sig en (str ss)::G vdash ([c_ length G /ss 0] ss) wf_ss ->
                        Sig en G vdash (str ss) wf_t
 
   where "Sig 'en' G 'vdash' t 'wf_t'" := (wf_ty Sig G t)
@@ -1204,10 +1204,130 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Hint Resolve get_app_r.
 
 
-  (*Substitution*)
+  (*Right Jump/Raise/Substitution*)
 
-  Lemma subst_rjump_mutind :
-    () /\
+  Lemma raise_rjump_distr_mutind :
+    (forall t i n m, ((t [i] rjump_t n) raise_t m) = ((t raise_t m) [i] rjump_t n)) /\
+    (forall s i n m, ((s [i] rjump_s n) raise_s m) = ((s raise_s m) [i] rjump_s n)) /\
+    (forall ss i n m, ((ss [i] rjump_ss n) raise_ss m) = ((ss raise_ss m) [i] rjump_ss n)) /\
+    (forall e i n m, ((e [i] rjump_e n) raise_e m) = ((e raise_e m) [i] rjump_e n)) /\
+    (forall d i n m, ((d [i] rjump_d n) raise_d m) = ((d raise_d m) [i] rjump_d n)) /\
+    (forall ds i n m, ((ds [i] rjump_ds n) raise_ds m) = ((ds raise_ds m) [i] rjump_ds n)).
+  Proof.
+    apply type_exp_mutind; intros;
+      try solve [crush].
+
+    destruct v as [r|r]; auto.
+    
+  Qed.
+
+  Lemma raise_rjump_distr_type :
+    (forall t i n m, ((t [i] rjump_t n) raise_t m) = ((t raise_t m) [i] rjump_t n)).
+  Proof.
+    destruct raise_rjump_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_rjump_distr_decl_ty :
+    (forall s i n m, ((s [i] rjump_s n) raise_s m) = ((s raise_s m) [i] rjump_s n)).
+  Proof.
+    destruct raise_rjump_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_rjump_distr_decl_tys :
+    (forall ss i n m, ((ss [i] rjump_ss n) raise_ss m) = ((ss raise_ss m) [i] rjump_ss n)).
+  Proof.
+    destruct raise_rjump_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_rjump_distr_exp :
+    (forall e i n m, ((e [i] rjump_e n) raise_e m) = ((e raise_e m) [i] rjump_e n)).
+  Proof.
+    destruct raise_rjump_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_rjump_distr_decl :
+    (forall d i n m, ((d [i] rjump_d n) raise_d m) = ((d raise_d m) [i] rjump_d n)).
+  Proof.
+    destruct raise_rjump_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_rjump_distr_decls :
+    (forall ds i n m, ((ds [i] rjump_ds n) raise_ds m) = ((ds raise_ds m) [i] rjump_ds n)).
+  Proof.
+    destruct raise_rjump_distr_mutind; crush.
+  Qed.
+    
+
+  Lemma rjump_subst_distr_mutind :
+    (forall t p n i m, (([p /t n] t) [i] rjump_t m) = [(p [i] rjump_e m) /t n] (t [i] rjump_t m)) /\ 
+    (forall s p n i m, (([p /s n] s) [i] rjump_s m) = [(p [i] rjump_e m) /s n] (s [i] rjump_s m)) /\
+    (forall ss p n i m, (([p /ss n] ss) [i] rjump_ss m) = [(p [i] rjump_e m) /ss n] (ss [i] rjump_ss m)) /\
+    (forall e p n i m, (([p /e n] e) [i] rjump_e m) = [(p [i] rjump_e m) /e n] (e [i] rjump_e m)) /\
+    (forall d p n i m, (([p /d n] d) [i] rjump_d m) = [(p [i] rjump_e m) /d n] (d [i] rjump_d m)) /\
+    (forall ds p n i m, (([p /ds n] ds) [i] rjump_ds m) = [(p [i] rjump_e m) /ds n] (ds [i] rjump_ds m)).
+  Proof.
+    apply type_exp_mutind; intros;
+      try solve [simpl;
+                 rewrite raise_rjump_distr_exp;
+                 crush];
+      try solve [crush].
+
+    simpl.
+    destruct v as [r|r]; auto; simpl.
+    destruct (Nat.eq_dec n r) as [Heq|Heq];
+      subst;
+      [rewrite <- beq_nat_refl; auto|].
+    destruct (Nat.eqb_neq n r) as [Htemp Hbeq];
+      apply Hbeq in Heq;
+      rewrite Heq; auto.
+  Qed.
+
+  Lemma rjump_subst_distr_type :
+    (forall t p n i m, (([p /t n] t) [i] rjump_t m) = [(p [i] rjump_e m) /t n] (t [i] rjump_t m)).
+  Proof.
+    destruct rjump_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma rjump_subst_distr_decl_ty :
+    (forall s p n i m, (([p /s n] s) [i] rjump_s m) = [(p [i] rjump_e m) /s n] (s [i] rjump_s m)).
+  Proof.
+    destruct rjump_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma rjump_subst_distr_decl_tys :
+    (forall ss p n i m, (([p /ss n] ss) [i] rjump_ss m) = [(p [i] rjump_e m) /ss n] (ss [i] rjump_ss m)).
+  Proof.
+    destruct rjump_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma rjump_subst_distr_exp :
+    (forall e p n i m, (([p /e n] e) [i] rjump_e m) = [(p [i] rjump_e m) /e n] (e [i] rjump_e m)).
+  Proof.
+    destruct rjump_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma rjump_subst_distr_decl :
+    (forall d p n i m, (([p /d n] d) [i] rjump_d m) = [(p [i] rjump_e m) /d n] (d [i] rjump_d m)).
+  Proof.
+    destruct rjump_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma rjump_subst_distr_decls :
+    (forall ds p n i m, (([p /ds n] ds) [i] rjump_ds m) = [(p [i] rjump_e m) /ds n] (ds [i] rjump_ds m)).
+  Proof.
+    destruct rjump_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma in_dty_rjump :
+    forall d ds, in_dty d ds -> forall i n, in_dty (d [i] rjump_s n) (ds [i] rjump_ss n).
+  Proof.
+    intros d ds Hin; induction Hin; intros.
+
+    simpl; apply in_head_dty.
+
+    simpl; apply in_tail_dty; auto.
+  Qed.
+        
   
   Lemma closed_subst_type :
     forall n t, closed_t n t -> forall e, ([e /t n] t) = t.
@@ -1339,9 +1459,15 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply has_contains_mutind; intros.
 
     simpl.
-    apply has_path.
+    rewrite rjump_subst_distr_decl_ty.
+    apply has_path with (t:=t [i] rjump_t n); auto.
+    apply typing_p_weakening with (G:=G1 ++ G2); subst; auto.
 
-    
+    simpl; apply cont_struct.
+    apply in_dty_rjump; auto.
+
+    rewrite rjump_subst_distr_decl_ty; simpl.
+    apply cont_upper; crush.
   Qed.
     
 
