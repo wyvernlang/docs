@@ -688,7 +688,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   | s_struct : forall Sig G1 ds1 ds2 G2 i, i = length G1 ->
                                     i = length G2 ->
-                                    Sig en G1 vdash [c_ i /ss 0] ds1 <;;; [c_ i /ss 0] ds2 dashv (str ds2)::G1 ->
+                                    Sig en (str ds1)::G1 vdash [c_ i /ss 0] ds1 <;;; [c_ i /ss 0] ds2 dashv (str ds2)::G2 ->
                                     Sig en G1 vdash str ds1 <; str ds2 dashv G2
 
   where "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" := (sub Sig G1 t1 t2 G2)
@@ -710,6 +710,15 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                        Sig en G1 vdash (dt_con d1 ds1) <;;; (dt_con d2 ds2) dashv G2
 
   where "Sig 'en' G1 'vdash' ds1 '<;;;' ds2 'dashv' G2" := (sub_ds Sig G1 ds1 ds2 G2).
+
+  Hint Constructors sub sub_d sub_ds.
+  
+  Scheme sub_mut_ind := Induction for sub Sort Prop
+    with sub_s_mut_ind := Induction for sub_d Sort Prop
+    with sub_ss_mut_ind := Induction for sub_ds Sort Prop.
+
+  Combined Scheme sub_mutind from sub_mut_ind, sub_s_mut_ind, sub_ss_mut_ind.
+
 
   Inductive closed : nat -> var -> Prop :=
   | cl_concrete : forall n x, closed n (Var x)
@@ -1469,8 +1478,102 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite rjump_subst_distr_decl_ty; simpl.
     apply cont_upper; crush.
   Qed.
-    
 
+  Lemma has_weakening :
+    (forall Sig G p d, Sig en G vdash p ni d ->
+                forall G1 G2,
+                  G = G1 ++ G2 ->
+                  forall i n G',
+                    i = length G2 ->
+                    n = length G' ->
+                    (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (p [i] rjump_e n) ni (d [i] rjump_s n)).
+  Proof.
+    destruct has_contains_weakening_mutind; crush.
+  Qed.
+
+  Lemma contains_weakening :
+    (forall Sig G p d, Sig en G vdash p ni d ->
+                forall G1 G2,
+                  G = G1 ++ G2 ->
+                  forall i n G',
+                    i = length G2 ->
+                    n = length G' ->
+                    (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (p [i] rjump_e n) ni (d [i] rjump_s n)).
+  Proof.
+    destruct has_contains_weakening_mutind; crush.
+  Qed.
+
+  Lemma sub_weakening_mutind :
+    (forall Sig G1 t1 t2 G2,
+        Sig en G1 vdash t1 <; t2 dashv G2 ->
+        forall G3 G4 G5 G6 G G',
+          G1 = G3 ++ G4 ->
+          G2 = G5 ++ G6 ->
+          forall i n,
+            i = length G4 -> i = length G6 ->
+            n = length G -> n = length G' ->
+            (Sig [i] rjump_env n) en (G3 [i] rjump_env n) ++ G ++ (G4 [i] rjump_env n) vdash (t1 [i] rjump_t n) <; (t2 [i] rjump_t n) dashv (G5 [i] rjump_env n) ++ G' ++ (G6 [i] rjump_env n)) /\
+    
+    (forall Sig G1 s1 s2 G2,
+        Sig en G1 vdash s1 <;; s2 dashv G2 ->
+        forall G3 G4 G5 G6 G G',
+          G1 = G3 ++ G4 ->
+          G2 = G5 ++ G6 ->
+          forall i n,
+            i = length G4 -> i = length G6 ->
+            n = length G -> n = length G' ->
+            (Sig [i] rjump_env n) en (G3 [i] rjump_env n) ++ G ++ (G4 [i] rjump_env n) vdash (s1 [i] rjump_s n) <;; (s2 [i] rjump_s n) dashv (G5 [i] rjump_env n) ++ G' ++ (G6 [i] rjump_env n)) /\
+      
+    (forall Sig G1 ss1 ss2 G2,
+        Sig en G1 vdash ss1 <;;; ss2 dashv G2 ->
+        forall G3 G4 G5 G6 G G',
+          G1 = G3 ++ G4 ->
+          G2 = G5 ++ G6 ->
+          forall i n,
+            i = length G4 -> i = length G6 ->
+            n = length G -> n = length G' ->
+            (Sig [i] rjump_env n) en (G3 [i] rjump_env n) ++ G ++ (G4 [i] rjump_env n) vdash (ss1 [i] rjump_ss n) <;;; (ss2 [i] rjump_ss n) dashv (G5 [i] rjump_env n) ++ G' ++ (G6 [i] rjump_env n)).
+  Proof.
+    apply sub_mutind; intros;
+      try solve [crush].
+    
+    (*s-upper*)
+    simpl; apply s_upper with (t1:=t1 [i] rjump_t n); auto.
+    apply has_weakening with (G1:=G3)(G2:=G4)(i:=i)(n:=n)(G':=G) in h; auto.
+    
+    (*s-lower*)
+    simpl; apply s_lower with (t2:=t2 [i] rjump_t n); auto.
+    apply has_weakening with (G1:=G5)(G2:=G6)(i:=i)(n:=n)(G':=G') in h; auto.
+
+    simpl; apply s_struct with (i:=length (G3 ++ G ++ G4)).
+    repeat (rewrite app_length);
+      unfold right_jump_env;
+      repeat (rewrite map_length);
+      auto.
+    assert (Hleng : length G3 = length G5); [admit|].
+    repeat (rewrite app_length);
+      unfold right_jump_env;
+      repeat (rewrite map_length);
+      rewrite Hleng, <- H2, H3, <- H4, H5; auto.
+    assert (Hsub : (Sig [i0]rjump_env n) en (((str ds1)::G3) [i0]rjump_env n) ++ G ++ (G4 [i0]rjump_env n) vdash
+                               ([v_ Var i /ss 0] ds1) [i0]rjump_ss n <;;; ([v_ Var i /ss 0] ds2) [i0]rjump_ss n
+                               dashv (((str ds2)::G5) [i0]rjump_env n) ++ G' ++ (G6 [i0]rjump_env n)).
+    apply H; auto.
+    subst; auto.
+    subst; auto.
+    repeat (rewrite rjump_subst_distr_decl_tys in Hsub).
+    assert (Hleng : i0 <= i); [admit|].
+    assert (Hlengb : i0 <=? i = true); [admit|].
+    simpl in Hsub;
+      unfold right_jump_n in Hsub;
+      rewrite Hlengb in Hsub.
+    repeat rewrite app_length.
+    assert ((length G3 + (length G + length G4)) = (length G + (length G3 + length G4))); [crush|].
+    rewrite H6, <- app_length, <- H0, <- e, <- H4, plus_comm.
+    crush.
+
+  Qed.
+    
   Lemma typing_p_wf :
     forall Sig G p t, Sig en G vdash p pathType t ->
                Sig en G vdash p wf_e ->
