@@ -767,6 +767,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Combined Scheme closed_mutind from closed_t_mut_ind, closed_s_mut_ind, closed_ss_mut_ind, closed_p_mut_ind.
 
+  Definition closed_env (G : env)(n : nat) := forall t, In t G -> closed_t n t.
   
   Reserved Notation "Sig 'en' G 'vdash' e 'hasType' t" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
@@ -2150,7 +2151,55 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply notin_d_rjump; auto.
   Qed.
 
-  
+  Lemma typing_p_subst :
+    (forall Sig G p t, Sig en G vdash p pathType t ->
+                forall p1 n G1 G2 p' t',
+                  G = ([p1 /env n] G1) ++ G2 ->
+                  closed_env G2 n ->
+                  closed_env Sig n ->
+                  (p = [p1 /e n] p') ->
+                  (t = [p1 /t n] t') ->
+                  forall p2 tp, Sig en G1 vdash p1 pathType tp ->
+                           Sig en G1 vdash p2 pathType tp ->
+                           Sig en ([p2 /env n] G2) ++ G1 vdash ([p2 /e n] p') hasType ([p2 /t n] t')).
+  Proof.
+    intros Sig G p t Htyp;
+      induction Htyp; intros.
+
+    (*pt-var*)
+    simpl.
+  Admitted.
+
+  Lemma has_contains_subst_mutind :
+    (forall Sig G p s, Sig en G vdash p ni s ->
+                forall p1 n G1 G2 p' s',
+                  G = ([p1 /env n] G1) ++ G2 ->
+                  closed_env G2 n ->
+                  closed_env Sig n ->
+                  (p = [p1 /e n] p') ->
+                  (s = [p1 /s n] s') ->
+                  forall p2 tp, Sig en G1 vdash p1 pathType tp ->
+                           Sig en G1 vdash p2 pathType tp ->
+                           Sig en ([p2 /env n] G2) ++ G1 vdash ([p2 /e n] p') ni ([p2 /s n] s')) /\
+    
+    (forall Sig G t s, Sig en G vdash s cont t ->
+                forall p1 n G1 G2 t' s',
+                  G = ([p1 /env n] G1) ++ G2 ->
+                  closed_env G2 n ->
+                  closed_env Sig n ->
+                  (t = [p1 /t n] t') ->
+                  (s = [p1 /s n] s') ->
+                  forall p2 tp, Sig en G1 vdash p1 pathType tp ->
+                           Sig en G1 vdash p2 pathType tp ->
+                           Sig en ([p2 /env n] G2) ++ G1 vdash ([p2 /s n] s') cont ([p2 /t n] t')).
+  Proof.
+    apply has_contains_mutind; intros.
+
+    (*has-path*)
+    
+      
+  Qed.
+                  
   
   Lemma typing_p_wf :
     forall Sig G p t, Sig en G vdash p pathType t ->
