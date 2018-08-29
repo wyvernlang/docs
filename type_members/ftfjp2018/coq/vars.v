@@ -2910,49 +2910,46 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Resolve closed_decl_tys_con.
 
-  Lemma closed_exp_ :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
+  Lemma closed_exp_var :
+    forall i n, closed_exp (c_ n) i.
   Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
+    intros i n m; auto. 
   Qed.
 
-  Hint Resolve closed_decl_ty_value.
+  Hint Resolve closed_exp_var.
 
 
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
+  Lemma closed_exp_loc :
+    forall i l, closed_exp (i_ l) i.
   Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
+    intros i n m; auto. 
   Qed.
 
-  Hint Resolve closed_decl_ty_value.
+  Hint Resolve closed_exp_loc.
 
 
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
+  Lemma closed_exp_cast :
+    forall i e t, closed_exp (e cast t) i <-> (closed_exp e i) /\ (closed_ty t i).
   Proof.
-    intros; split; intros; intros n Ha; auto.
+    intros; split; intros;
+      [split|];intros n Ha; auto.
 
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
+    apply H in Ha; inversion Ha; auto.
+    apply H in Ha; inversion Ha; auto.
+    destruct H as [Hb Hc]; auto.
   Qed.
 
-  Hint Resolve closed_decl_ty_value.
+  Hint Resolve closed_exp_cast.
 
 
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
+  Lemma closed_exp_fn :
+    forall i t1 e t2, closed_exp (fn t1 in_exp e off t2) i <-> (closed_ty t1 i) /\
+                                                (closed_exp e (S i)) /\
+                                                (closed_ty t2 (S i)).
   Proof.
-    intros; split; intros; intros n Ha; auto.
+    intros; split; intros;
+      [split|];
+      intros n Ha; auto.
 
     assert (closed_s n (val l oft t));
       auto.
