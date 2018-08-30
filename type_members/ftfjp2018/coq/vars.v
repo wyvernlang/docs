@@ -857,7 +857,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Definition closed_decl (d : decl)(i : nat) := forall n, i <= n -> closed_d n d.
   Definition closed_decls (ds : decls)(i : nat) := forall n, i <= n -> closed_ds n ds.
 
-  Definition closed_env (G : env) := forall t, In t G -> forall n, closed_t n t.
+  Definition closed_env (G : env)(i : nat) := forall t, In t G -> closed_ty t i.
   
   Reserved Notation "Sig 'en' G 'vdash' e 'hasType' t" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
@@ -2697,6 +2697,50 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Hint Rewrite raise_n_e_concrete_simpl.
   Hint Resolve raise_n_e_concrete_simpl.
 
+  Lemma raise_n_e_abstract_ge_simpl :
+    forall n i r, i <= r -> raise_n_e n (a_ r) i = a_ (r + n).
+  Proof.
+    intro n; induction n as [|n'];
+      intros; simpl;
+        [rewrite plus_0_r|];
+        auto.
+
+    rewrite IHn';
+      unfold raise_nat.
+    apply <- Nat.ltb_ge in H;
+      rewrite H.
+    rewrite <- plus_assoc;
+      rewrite Nat.add_1_l; auto.
+
+    SearchAbout le.
+    assert (Ha : r <? i = false);
+      [apply Nat.ltb_ge; auto
+      |rewrite Ha];
+      crush.
+  Qed.
+
+  Hint Rewrite raise_n_e_abstract_ge_simpl.
+  Hint Resolve raise_n_e_abstract_ge_simpl.
+
+  Lemma raise_n_e_abstract_lt_simpl :
+    forall n i r, r < i -> raise_n_e n (a_ r) i = a_ r.
+  Proof.
+    intro n; induction n as [|n']; intros; simpl; auto.
+    rewrite IHn'.
+    unfold raise_nat.
+    apply Nat.ltb_lt in H;
+      rewrite H; auto.
+    unfold raise_nat.
+    assert (Ha : r <? i = true);
+      [apply Nat.ltb_lt; auto
+      |rewrite Ha; auto].
+  Qed.
+
+  Hint Rewrite raise_n_e_abstract_lt_simpl.
+  Hint Resolve raise_n_e_abstract_lt_simpl.
+
+  
+
   Lemma raise_n_e_fn_simpl :
     forall n i t1 e t2, raise_n_e n (fn t1 in_exp e off t2) i =
                    fn (raise_n_t n t1 i) in_exp (raise_n_e n e (S i)) off (raise_n_t n t2 (S i)).
@@ -2733,6 +2777,15 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Rewrite raise_n_e_new_simpl.
   Hint Resolve raise_n_e_new_simpl.
+
+  Lemma raise_n_e_cast_simpl :
+    forall n i e t, raise_n_e n (e cast t) i = ((raise_n_e n e i) cast (raise_n_t n t i)).
+  Proof.
+    intro n; induction n as [|n']; simpl; auto.    
+  Qed.
+
+  Hint Rewrite raise_n_e_cast_simpl.
+  Hint Resolve raise_n_e_cast_simpl.
 
   Lemma raise_n_d_equal_simpl :
     forall n i L t, raise_n_d n (type L eqe t) i = type L eqe (raise_n_t n t i).
@@ -2948,108 +3001,113 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                                 (closed_ty t2 (S i)).
   Proof.
     intros; split; intros;
+      [split;
+       [|split]|];
+      intros n Ha;
+      auto;
+      try solve [apply H in Ha; inversion Ha; auto];
+      try solve [destruct n as [|n'];
+                 [inversion Ha|
+                  apply le_S_n, H in Ha; inversion Ha; auto]].
+
+    destruct H as [Hb Hc];
+      destruct Hc as [Hc Hd].
+    apply cl_fn; auto.
+    apply le_n_S, Hc in Ha; auto.
+    apply le_n_S, Hd in Ha; auto.
+  Qed.
+
+  Hint Resolve closed_exp_fn.
+
+
+  Lemma closed_exp_app :
+    forall i e1 e2, closed_exp (e_app e1 e2) i <-> (closed_exp e1 i) /\ (closed_exp e2 i).
+  Proof.
+    intros; split; intros;
+      [split|]; intros n Ha;
+        try solve [apply H in Ha; inversion Ha; auto].
+    destruct H as [Hb Hc].
+    apply cl_app;
+      [apply Hb in Ha
+      |apply Hc in Ha]; auto.
+  Qed.
+
+  Hint Resolve closed_exp_app.
+
+
+  Lemma closed_exp_acc :
+    forall i e l, closed_exp (e_acc e l) i <-> closed_exp e i.
+  Proof.
+    intros; split; intros; intros n Ha; auto.
+
+    apply H in Ha; inversion Ha; auto.
+    
+  Qed.
+
+  Hint Resolve closed_exp_acc.
+
+
+  Lemma closed_exp_new :
+    forall i ds, closed_exp (new ds) i <-> closed_decls ds (S i).
+  Proof.
+    intros; split; intros; intros n Ha; auto.
+
+    destruct n as [|n'];
+      [inversion Ha|];
+      apply le_S_n, H in Ha;
+      inversion Ha; auto.
+
+    apply le_n_S, H in Ha; auto.
+  Qed.
+
+  Hint Resolve closed_exp_new.
+
+  Lemma closed_decl_equal :
+    forall i L t, closed_decl (type L eqe t) i <-> closed_ty t i.
+  Proof.
+    intros; split; intros; intros n Ha; auto.
+
+    apply H in Ha; inversion Ha; auto.
+  Qed.
+
+  Hint Resolve closed_decl_equal.
+  
+  Lemma closed_decl_value:
+    forall i l e t, closed_decl (val l assgn e oft t) i <-> (closed_exp e i) /\ (closed_ty t i).
+  Proof.
+    intros; split; intros;
       [split|];
-      intros n Ha; auto.
+      intros n Ha;
+      try solve [apply H in Ha; inversion Ha; auto].
 
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
+    destruct H as [Hb Hc];
+      apply cld_value; auto.
   Qed.
 
-  Hint Resolve closed_decl_ty_value.
+  Hint Resolve closed_decl_value.
 
 
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
+  Lemma closed_decls_nil :
+    forall i, closed_decls d_nil i.
   Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
+    intros i n Ha; auto.
   Qed.
 
-  Hint Resolve closed_decl_ty_value.
+  Hint Resolve closed_decls_nil.
 
-
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
+  Lemma closed_decls_con :
+    forall i d ds, closed_decls (d_con d ds) i <-> (closed_decl d i) /\ (closed_decls ds i).
   Proof.
-    intros; split; intros; intros n Ha; auto.
+    intros; split; intros;
+      [split|];
+      intros n Ha;
+      try solve [apply H in Ha; inversion Ha; auto].
 
-    assert (closed_s n (val l oft t));
+    destruct  H as [Hb Hc];
       auto.
-    inversion H0; auto.
   Qed.
 
-  Hint Resolve closed_decl_ty_value.
-
-
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
-  Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
-  Qed.
-
-  Hint Resolve closed_decl_ty_value.
-
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
-  Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
-  Qed.
-
-  Hint Resolve closed_decl_ty_value.
-
-
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
-  Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
-  Qed.
-
-  Hint Resolve closed_decl_ty_value.
-
-
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
-  Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
-  Qed.
-
-  Hint Resolve closed_decl_ty_value.
-
-
-  Lemma closed_decl_ty_value :
-    forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
-  Proof.
-    intros; split; intros; intros n Ha; auto.
-
-    assert (closed_s n (val l oft t));
-      auto.
-    inversion H0; auto.
-  Qed.
-
-  Hint Resolve closed_decl_ty_value.
-
-
-
+  Hint Resolve closed_decls_con.
   
   Lemma raise_closed_substitution :
     (forall t n, closed_ty t n ->
@@ -3122,22 +3180,269 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     erewrite H with (m:=m); simpl; auto.
     apply -> closed_decl_ty_value; eauto.
 
-    
-    
+    simpl in H2; inversion H2; subst.
+    rewrite raise_n_ss_cons_simpl.
+    erewrite H, H0 with (m:=m); simpl; auto.
+    apply -> closed_decl_tys_con; eauto.
+    apply -> closed_decl_tys_con; eauto.
+
+    simpl in H1; inversion H1; subst.
+    rewrite raise_n_e_new_simpl.
+    erewrite H with (m:=m); simpl; auto.
+    rewrite plus_Sn_m; auto.
+    apply -> closed_exp_new; eauto.
+
+    simpl in H1; inversion H1; subst.
+    destruct v as [r|r];
+      [inversion H1|].
+    destruct (le_lt_dec n r).
+    rewrite raise_n_e_abstract_ge_simpl; auto.
+    destruct (Nat.eq_dec n r);
+      subst;
+      simpl;
+      [rewrite <- beq_nat_refl;
+       rewrite <- beq_nat_refl in H1;
+       auto|].
+    apply Nat.eqb_neq in n0;
+      rewrite n0 in H1;
+      inversion H1.
+    apply Nat.lt_neq, Nat.eqb_neq in l;
+      rewrite Nat.eqb_sym in H1;
+      rewrite l in H1;
+      inversion H1.
+
+    simpl in H2; inversion H2; subst.
+    rewrite raise_n_e_app_simpl.
+    erewrite H, H0 with (m:=m); simpl; auto;
+      apply closed_exp_app in H1; destruct H1; auto.
+
+    simpl in H2; inversion H2; subst.
+    destruct v as [r|r];
+      [inversion H2|].
+    destruct (le_lt_dec n r).
+    rewrite raise_n_e_abstract_ge_simpl; auto.
+    destruct (Nat.eq_dec n r);
+      subst;
+      simpl;
+      [rewrite <- beq_nat_refl;
+       rewrite <- beq_nat_refl in H2;
+       auto|].
+    apply Nat.eqb_neq in n0;
+      rewrite n0 in H2;
+      inversion H2.
+    apply Nat.lt_neq, Nat.eqb_neq in l;
+      rewrite Nat.eqb_sym in H2;
+      rewrite l in H2;
+      inversion H2.
+
+    simpl in H3; inversion H3; subst.
+    rewrite raise_n_e_fn_simpl.
+    erewrite H, H0, H1 with (m:=m); simpl; auto;
+      apply closed_exp_fn in H2; crush.
+
+    simpl in H3; inversion H3; subst.
+    destruct v as [r|r];
+      [inversion H3|].
+    destruct (le_lt_dec n r).
+    rewrite raise_n_e_abstract_ge_simpl; auto.
+    destruct (Nat.eq_dec n r);
+      subst;
+      simpl;
+      [rewrite <- beq_nat_refl;
+       rewrite <- beq_nat_refl in H3;
+       auto|].
+    apply Nat.eqb_neq in n0;
+      rewrite n0 in H3;
+      inversion H3.
+    apply Nat.lt_neq, Nat.eqb_neq in l;
+      rewrite Nat.eqb_sym in H3;
+      rewrite l in H3;
+      inversion H3.
+
+    simpl in H1; inversion H1; subst.
+    rewrite raise_n_e_acc_simpl.
+    erewrite H with (m:=m); simpl; auto;
+      apply closed_exp_acc in H0; auto.
+
+    simpl in H1; inversion H1; subst.
+    destruct v as [r|r];
+      [inversion H1|].
+    destruct (le_lt_dec n r).
+    rewrite raise_n_e_abstract_ge_simpl; auto.
+    destruct (Nat.eq_dec n r);
+      subst;
+      simpl;
+      [rewrite <- beq_nat_refl;
+       rewrite <- beq_nat_refl in H1;
+       auto|].
+    apply Nat.eqb_neq in n0;
+      rewrite n0 in H1;
+      inversion H1.
+    apply Nat.lt_neq, Nat.eqb_neq in l0;
+      rewrite Nat.eqb_sym in H1;
+      rewrite l0 in H1;
+      inversion H1.
+
+    destruct v0 as [r|r];
+      simpl in H0.
+    rewrite raise_n_e_concrete_simpl; simpl; auto.
+    destruct (le_lt_dec n r).
+    rewrite raise_n_e_abstract_ge_simpl; auto.
+    destruct (Nat.eq_dec n r); subst;
+      [rewrite <- beq_nat_refl in H0;
+       simpl;
+       rewrite <- beq_nat_refl;
+       auto
+      |].
+    apply Nat.eqb_neq in n0;
+      rewrite n0 in H0;
+      rewrite H0 in H.
+    apply H in l; inversion l; subst.
+    inversion H3; crush.
+    assert (Ha : r <> n);
+      [apply Nat.lt_neq; auto|];
+      apply Nat.eqb_neq in Ha;
+      rewrite Nat.eqb_sym in H0;
+      rewrite Ha in H0;
+      rewrite H0 in H.
+    rewrite raise_n_e_abstract_lt_simpl; auto.
+    simpl.
+    assert (Hb : n + m <> r);
+      [crush|].
+    apply Nat.eqb_neq in Hb;
+      rewrite Hb; auto.
+
+    simpl in H0; inversion H0; subst.
+    destruct v as [r|r];
+      [inversion H0|].
+    destruct (le_lt_dec n0 r).
+    rewrite raise_n_e_abstract_ge_simpl; auto.
+    destruct (Nat.eq_dec n0 r);
+      subst;
+      simpl;
+      [rewrite <- beq_nat_refl;
+       rewrite <- beq_nat_refl in H0;
+       auto|].
+    apply Nat.eqb_neq in n1;
+      rewrite n1 in H0;
+      inversion H0.
+    apply Nat.lt_neq, Nat.eqb_neq in l;
+      rewrite Nat.eqb_sym in H0;
+      rewrite l in H0;
+      inversion H0.
+
+    simpl in H2; inversion H2; subst.
+    destruct v as [r|r];
+      [inversion H2|].
+    destruct (le_lt_dec n r).
+    rewrite raise_n_e_abstract_ge_simpl; auto.
+    destruct (Nat.eq_dec n r);
+      subst;
+      simpl;
+      [rewrite <- beq_nat_refl;
+       rewrite <- beq_nat_refl in H2;
+       auto|].
+    apply Nat.eqb_neq in n0;
+      rewrite n0 in H2;
+      inversion H2.
+    apply Nat.lt_neq, Nat.eqb_neq in l;
+      rewrite Nat.eqb_sym in H2;
+      rewrite l in H2;
+      inversion H2.
+
+    simpl in H2; inversion H2; subst.
+    rewrite raise_n_e_cast_simpl.
+    erewrite H, H0 with (m:=m); simpl; auto;
+      apply closed_exp_cast in H1; destruct H1; auto.
+
+    simpl in H1; inversion H1; subst.
+    rewrite raise_n_d_equal_simpl.
+    erewrite H with (m:=m); simpl; auto;
+      apply closed_decl_equal in H0; auto.
+
+    simpl in H2; inversion H2; subst.
+    rewrite raise_n_d_value_simpl.
+    erewrite H, H0 with (m:=m); simpl; auto;
+      apply closed_decl_value in H1; crush.
+
+    simpl in H2; inversion H2; subst.
+    rewrite raise_n_ds_con_simpl.
+    erewrite H, H0 with (m:=m); simpl; auto;
+      apply closed_decls_con in H1; destruct H1; auto.
   Qed.
+  
+  Lemma raise_closed_substitution_type :
+    (forall t n, closed_ty t n ->
+            forall p t', t = ([p /t n] t') ->
+                    forall m, t = [p /t n + m] (raise_n_t m t' n)).
+  Proof.
+    destruct raise_closed_substitution; crush.
+  Qed.
+  
+  Lemma raise_closed_substitution_decl_ty :
+    (forall s n, closed_decl_ty s n ->
+            forall p s', s = ([p /s n] s') ->
+                    forall m, s = [p /s n + m] (raise_n_s m s' n)).
+  Proof.
+    destruct raise_closed_substitution; crush.
+  Qed.
+  
+  Lemma raise_closed_substitution_decl_tys :
+    (forall ss n, closed_decl_tys ss n ->
+             forall p ss', ss = ([p /ss n] ss') ->
+                      forall m, ss = [p /ss n + m] (raise_n_ss m ss' n)).
+  Proof.
+    destruct raise_closed_substitution; crush.
+  Qed.
+  
+  Lemma raise_closed_substitution_exp :
+    (forall e n, closed_exp e n ->
+            forall p e', e = ([p /e n] e') ->
+                    forall m, e = [p /e n + m] (raise_n_e m e' n)).
+  Proof.
+    destruct raise_closed_substitution; crush.
+  Qed.
+  
+  Lemma raise_closed_substitution_decl :
+    (forall d n, closed_decl d n ->
+            forall p d', d = ([p /d n] d') ->
+                    forall m, d = [p /d n + m] (raise_n_d m d' n)).
+  Proof.
+    destruct raise_closed_substitution; crush.
+  Qed.
+  
+  Lemma raise_closed_substitution_decls :
+    (forall ds n, closed_decls ds n ->
+             forall p ds', ds = ([p /ds n] ds') ->
+                      forall m, ds = [p /ds n + m] (raise_n_ds m ds' n)).
+  Proof.
+    destruct raise_closed_substitution; crush.
+  Qed.
+
+  Lemma closed_ge_type :
+    forall i t n, closed_ty t i ->
+             i <= n -> closed_ty t n.
+  Proof.    
+  Admitted.
 
   Lemma typing_p_exist_subst :
     (forall Sig G p t, Sig en G vdash p pathType t ->
                 forall p1 G1 G2 n p',
                   G = ([p1 /env 0] G1) ++ G2 ->
                   p = ([p1 /e n] p') ->
-                  closed_env G2 ->
-                  closed_env Sig ->
+                  n = length G1 ->
+                  closed_env G 0 ->
+                  closed_env Sig 0 ->
                   Sig en G2 vdash p1 wf_e ->                  
-                  exists m t', t = [p1 /t m] t').
+                  exists t', t = [p1 /t n] t').
   Proof.
     intros Sig G p t Htyp; destruct Htyp; intros.
 
+    assert (Hleng : n < length G);
+      [unfold mapping in H;
+       apply get_some_index in H;
+       rewrite rev_length in H;
+       auto|].
     destruct p'; simpl in H1; inversion H1; subst; auto.
     destruct v as [r|r];
       inversion H1; subst.
@@ -3147,53 +3452,103 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct get_some_app with (G1:=rev G2)(G2:=rev ([p1 /env 0] G1))(n:=r) as [Ha|Ha];
       destruct Ha as [Ha Hb].
 
-    exists 0, t; rewrite closed_subst_type; auto.
-    apply H2;
-      apply in_rev;
-      apply get_in with (n:=r);
-      rewrite <- Hb; auto.
+    exists t; rewrite closed_subst_type; auto.
+    apply H3;
+      [apply in_or_app;
+       right;
+       apply in_rev;
+       apply get_in with (n:=r);
+       rewrite <- Hb; auto
+      |crush].
 
     rewrite Hb in H.
+    assert (Hget : get (r - length (rev G2)) (rev ([p1 /env 0] G1)) = Some t);
+      [auto|].
     apply mapping_subst with (p:=p1)(n:=0)(G':=G1) in H; auto;
       simpl in H.
-    exists (r - length (rev G2)); auto.
-    destruct (Nat.eq_dec n0 r) as [Heq|Heq]; subst;
-      [rewrite <- beq_nat_refl in H1
+    destruct H as [t' Heq].
+    apply raise_closed_substitution_type with (m:=length (G1 ++ G2) - r) in Heq.
+    rewrite rev_length, app_length in Heq.
+    rewrite plus_comm in Heq.
+    simpl in Heq.
+    rewrite Nat.add_sub_assoc in Heq;
+      [|rewrite rev_length in Ha; auto].
+    rewrite Nat.sub_add in Heq.
+    rewrite Nat.add_sub in Heq.
+    exists (raise_n_t (length G1 + length G2 - r) t' (r - length G2)); auto.
+    rewrite app_length, subst_length in Hleng; crush.
+    unfold closed_env in H3.
+    apply closed_ge_type with (i:=0);
+      [|crush].
+    apply H3.
+    apply in_or_app;
+      left;
+      apply in_rev;
+      apply get_in with (n:=r - length (rev G2)); auto.
+
+    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
+      [subst;
+       rewrite <- beq_nat_refl in H1;
+       subst
       |apply Nat.eqb_neq in Heq;
        rewrite Heq in H1;
-       inversion H1];
-      subst.
-    inversion H4; subst.
+       inversion H1].
+    inversion H5; subst.
     unfold mapping in H;
-      rewrite rev_app_distr in H;
-      rewrite <- rev_length in H8;
-      apply get_app_l with (G2:=rev ([v_ Var n /env 0] G1)) in H8;
-      rewrite H in H8.
-    exists 0, t; rewrite closed_subst_type; auto.
-    apply H2;
+      rewrite rev_app_distr, get_app_l in H;
+      [|rewrite rev_length; auto].
+    exists t; rewrite closed_subst_type; auto.
+    apply H3;
+      [|crush].
+    apply in_or_app;
+      right;
       apply in_rev;
       apply get_in with (n0:=n); auto.
+    
+    destruct p'; inversion H1.    
 
-    exists 0, t; rewrite closed_subst_type; auto.
-    apply H3;
-      apply in_rev;
-      apply get_in with (n0:=i); auto.
-
-    destruct p'; simpl in H0; inversion H0; subst.
     destruct v as [r|r];
-      [inversion H0|].
+      [inversion H7|simpl in H7].
     destruct (Nat.eq_dec n r) as [Heq|Heq];
-      [subst; rewrite <- beq_nat_refl in H0; subst
+      [subst;
+       rewrite <- beq_nat_refl in H7;
+       subst
       |apply Nat.eqb_neq in Heq;
-       rewrite Heq in H0;
-       inversion H0].
-    exists 0, t; rewrite closed_subst_type; auto.
-    apply wf_closed_type with (Sig:=Sig)(G:=G2);
-      inversion H3; auto.
-    
-    exists n, t0; auto.
-    
+       rewrite Heq in H7;
+       inversion H7].
+    exists t; rewrite closed_subst_type; auto.
+    apply H4;
+      [|crush].
+    apply in_rev.
+    apply get_in with (n:=i); auto.
+
+    exists t; rewrite closed_subst_type; auto.
+    apply H4;
+      [|crush].
+    apply in_rev, get_in with (n1:=i); auto.
+
+    destruct p'; inversion H0; simpl in H0.
+    destruct v as [r|r];
+      [inversion H6|simpl in H0].
+    destruct (Nat.eq_dec n r) as [Heq|Heq];
+      [subst;
+       rewrite <- beq_nat_refl in H6;
+       subst
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H6;
+       inversion H6].
+    exists t; rewrite closed_subst_type; auto.
+    apply wf_closed_type with (Sig:=Sig)(G:=G2); auto.
+    inversion H4; auto.
+    exists t0; auto.
   Qed.
+
+  Lemma typing_p_subst:
+    (forall Sig G p t, Sig en G vdash p pathType t).
+  Proof.
+
+  Qed.
+        
   
 (*
   Lemma typing_p_subst :
