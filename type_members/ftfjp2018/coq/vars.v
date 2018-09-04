@@ -1041,7 +1041,183 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   where "p1 'reduce_ds' p2" := (reduction_ds p1 p2).
 
+
+  Inductive lt_t : ty -> nat -> Prop :=
+  | lt_top : forall n, lt_t top n
+  | lt_bot : forall n, lt_t bot n
+  | lt_sel : forall p L n, lt_e p n ->
+                      lt_t (sel p L) n
+  | lt_arr : forall t1 t2 n, lt_t t1 n ->
+                        lt_t t2 n ->
+                        lt_t (t1 arr t2) n
+  | lt_str : forall ss n, lt_ss ss n ->
+                     lt_t (str ss) n
+
+  with
+  lt_s : decl_ty -> nat -> Prop :=
+  | lts_upper : forall L t n, lt_t t n ->
+                         lt_s (type L ext t) n
+  | lts_lower : forall L t n, lt_t t n ->
+                         lt_s (type L sup t) n
+  | lts_equal : forall L t n, lt_t t n ->
+                         lt_s (type L eqt t) n
+  | lts_value : forall l t n, lt_t t n ->
+                         lt_s (val l oft t) n
+
+  with
+  lt_ss : decl_tys -> nat -> Prop :=
+  | lts_nil : forall n, lt_ss dt_nil n
+  | lts_con : forall n s ss, lt_s s n ->
+                        lt_ss ss n ->
+                        lt_ss (dt_con s ss) n
+
+  with
+  lt_e : exp -> nat -> Prop :=
+  | lt_concrete : forall r n, r < n ->
+                         lt_e (c_ r) n
+  | lt_abstract : forall r n, lt_e (a_ r) n
+  | lt_loc : forall i n, lt_e (i_ i) n
+  | lt_cast : forall e t n, lt_e e n ->
+                       lt_t t n ->
+                       lt_e (e cast t) n
+  | lt_fn : forall t1 e t2 n, lt_t t1 n ->
+                         lt_e e n ->
+                         lt_t t2 n ->
+                         lt_e (fn t1 in_exp e off t2) n
+  | lt_app : forall e1 e2 n, lt_e e1 n ->
+                        lt_e e2 n ->
+                        lt_e (e_app e1 e2) n
+  | lt_acc : forall e l n, lt_e e n ->
+                      lt_e (e_acc e l) n
+  | lt_new : forall ds n, lt_ds ds n ->
+                     lt_e (new ds) n
+
+  with
+  lt_d : decl -> nat -> Prop :=
+  | ltd_equal : forall L t n, lt_t t n ->
+                         lt_d (type L eqe t) n
+  | ltd_value : forall l e t n, lt_e e n ->
+                           lt_t t n ->
+                           lt_d (val l assgn e oft t) n
+
+  with
+  lt_ds : decls -> nat -> Prop :=
+  | ltd_nil : forall n, lt_ds d_nil n
+  | ltd_con : forall d ds n, lt_d d n ->
+                        lt_ds ds n ->
+                        lt_ds (d_con d ds) n.
+                      
+
+  Hint Constructors lt_t lt_s lt_ss lt_e lt_d lt_ds.
+
+  Scheme lt_t_mutind := Induction for lt_t Sort Prop
+    with lt_s_mutind := Induction for lt_s Sort Prop
+    with lt_ss_mutind := Induction for lt_ss Sort Prop
+    with lt_e_mutind := Induction for lt_e Sort Prop
+    with lt_d_mutind := Induction for lt_d Sort Prop
+    with lt_ds_mutind := Induction for lt_ds Sort Prop.
+
+  Combined Scheme lt_mutind from lt_t_mutind, lt_s_mutind, lt_ss_mutind, lt_e_mutind, lt_d_mutind, lt_ds_mutind.
+
+  Definition lt_env (G : env)(n : nat) := forall t, In t G -> lt_t t n.
+
+  Reserved Notation "n 'notin_t' t" (at level 80).
+  Reserved Notation "n 'notin_s' s" (at level 80).
+  Reserved Notation "n 'notin_ss' ss" (at level 80).
+  Reserved Notation "n 'notin_e' e" (at level 80).
+  Reserved Notation "n 'notin_d' d" (at level 80).
+  Reserved Notation "n 'notin_ds' ds" (at level 80).
+  Reserved Notation "n 'notin_v' v" (at level 80).
+
+  Inductive notin_var : nat -> var -> Prop :=
+  | ni_abs : forall n m, n notin_v (Abs m)
+  | ni_con : forall n m, n <> m ->
+                    n notin_v (Var m)
+                      where "n 'notin_v' v" := (notin_var n v).
   
+  Inductive notin_ty : nat -> ty -> Prop :=
+  | ni_top : forall n, n notin_t top
+  | ni_bot : forall n, n notin_t bot
+  | ni_arr : forall n t1 t2, n notin_t t1 ->
+                        n notin_t t2 ->
+                        n notin_t (t1 arr t2)
+  | ni_sel : forall n p l, n notin_e p ->
+                      n notin_t (sel p l)
+  | ni_str : forall n ss, n notin_ss ss ->
+                     n notin_t (str ss)
+  where "n 'notin_t' t" := (notin_ty n t)
+
+  with
+  notin_decl_ty : nat -> decl_ty -> Prop :=
+  | nis_lower : forall n l t, n notin_t t ->
+                         n notin_s (type l sup t)
+  | nis_upper : forall n l t, n notin_t t ->
+                         n notin_s (type l ext t)
+  | nis_equal : forall n l t, n notin_t t ->
+                         n notin_s (type l eqt t)
+  | nis_value : forall n l t, n notin_t t ->
+                         n notin_s (val l oft t)
+  where "n 'notin_s' s" := (notin_decl_ty n s)
+
+  with
+  notin_decl_tys : nat -> decl_tys -> Prop :=
+  | nis_nil : forall n, n notin_ss dt_nil
+  | nis_con : forall n s ss, n notin_s s ->
+                          n notin_ss ss ->
+                          n notin_ss (dt_con s ss)
+  where "n 'notin_ss' d" := (notin_decl_tys n d)
+                              
+  with
+  notin_exp : nat -> exp -> Prop :=
+  | ni_var : forall v n, n notin_v v ->
+                    n notin_e (v_ v)
+  | ni_loc : forall i n, n notin_e (i_ i)
+  | ni_cast : forall e t n, n notin_e e ->
+                       n notin_t t ->
+                       n notin_e (e cast t)
+  | ni_fn : forall t1 e t2 n, n notin_t t1 ->
+                         n notin_e e ->
+                         n notin_t t2 ->
+                         n notin_e (fn t1 in_exp e off t2)
+  | ni_app : forall e1 e2 n, n notin_e e1 ->
+                        n notin_e e2 ->
+                        n notin_e (e_app e1 e2)
+  | ni_acc : forall e l n, n notin_e e ->
+                      n notin_e (e_acc e l)
+  | ni_new : forall ds n, n notin_ds ds ->
+                     n notin_e (new ds)
+  where "n 'notin_e' e" := (notin_exp n e)
+
+  with
+  notin_decl : nat -> decl -> Prop :=
+  | nid_equal : forall L t n, n notin_t t ->
+                         n notin_d (type L eqe t)
+  | nid_value : forall l e t n, n notin_e e ->
+                           n notin_t t ->
+                           n notin_d (val l assgn e oft t)
+  where "n 'notin_d' d" := (notin_decl n d)
+
+  with
+  notin_decls : nat -> decls -> Prop :=
+  | nid_nil : forall n, n notin_ds d_nil
+  | nid_con : forall n d ds, n notin_d d ->
+                        n notin_ds ds ->
+                        n notin_ds (d_con d ds)
+  where "n 'notin_ds' ds" := (notin_decls n ds).
+                      
+
+  Hint Constructors notin_var notin_ty notin_decl_ty notin_decl_tys notin_exp notin_decl notin_decls.
+
+  Scheme notin_ty_mutind := Induction for notin_ty Sort Prop
+    with notin_decl_ty_mutind := Induction for notin_decl_ty Sort Prop
+    with notin_decl_tys_mutind := Induction for notin_decl_tys Sort Prop
+    with notin_exp_mutind := Induction for notin_exp Sort Prop
+    with notin_decl_mutind := Induction for notin_decl Sort Prop
+    with notin_decls_mutind := Induction for notin_decls Sort Prop.
+
+  Combined Scheme notin_mutind from notin_ty_mutind, notin_decl_ty_mutind, notin_decl_tys_mutind,
+  notin_exp_mutind, notin_decl_mutind, notin_decls_mutind.
+
 
   Reserved Notation "Sig 'en' G 'vdash' t 'wf_t'" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' d 'wf_s'" (at level 80).
@@ -1062,7 +1238,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | wf_bot : forall Sig G, Sig en G vdash bot wf_t
                       
   | wf_arr : forall Sig G t1 t2, Sig en G vdash t1 wf_t ->
-                          Sig en t1::G vdash t2 wf_t ->
+                          (length G) notin_t t2 ->
+                          Sig en t1::G vdash ([c_ length G /t 0] t2) wf_t ->
                           Sig en G vdash (t1 arr t2) wf_t
 
   | wf_sel_upper : forall Sig G p L t, Sig en G vdash p wf_e ->
@@ -1075,7 +1252,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                 Sig en G vdash p ni (type L sup t) ->
                                 Sig en G vdash (sel p L) wf_t
 
-  | wf_str : forall Sig G ss, Sig en (str ss)::G vdash ([c_ length G /ss 0] ss) wf_ss ->
+  | wf_str : forall Sig G ss, (length G) notin_ss ss ->
+                       Sig en (str ss)::G vdash ([c_ length G /ss 0] ss) wf_ss ->
                        Sig en G vdash (str ss) wf_t
 
   where "Sig 'en' G 'vdash' t 'wf_t'" := (wf_ty Sig G t)
@@ -1116,7 +1294,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                       Sig en G vdash (i_ i) wf_e
 
   | wf_fn : forall Sig G t1 e t2, Sig en G vdash t1 wf_t ->
+                           (length G) notin_e e ->
                            Sig en t1::G vdash ([c_ length G /e 0] e) wf_e ->
+                           (length G) notin_t t2 ->
                            Sig en t1::G vdash ([c_ length G /t 0] t2) wf_t ->
                            Sig en t1::G vdash ([c_ length G /e 0] e) hasType ([c_ length G /t 0] t2) ->
                            Sig en G vdash fn t1 in_exp e off t2 wf_e
@@ -1138,6 +1318,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                             Sig en G vdash e cast t wf_e
 
   | wf_new : forall Sig G ds ss, Sig en G vdash new ds hasType str ss ->
+                          (length G) notin_ds ds ->
                           Sig en (str ss)::G vdash ([c_ length G /ds 0] ds) wf_ds ->
                           Sig en G vdash new ds wf_e
 
@@ -1539,7 +1720,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct d; crush.
   Qed.
   
-  Lemma notin_dty_rjump :
+  Lemma not_in_decl_tys_rjump :
     forall s ss, (forall s', in_dty s' ss ->
                    id_t s' <> id_t s) ->
             forall i n,
@@ -1557,7 +1738,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       contradiction Ha; auto.
   Qed.
   
-  Lemma notin_d_rjump :
+  Lemma not_in_decls_rjump :
     forall d ds, (forall d', in_d d' ds ->
                    id_d d' <> id_d d) ->
             forall i n,
@@ -1573,6 +1754,561 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply H in Ha.
     rewrite Hcontra in Ha;
       contradiction Ha; auto.
+  Qed.
+
+  Lemma notin_rjump_mutind :
+    (forall n t, n notin_t t ->
+            forall i m, (n [i] rjump_n m) notin_t (t [i] rjump_t m)) /\
+    (forall n s, n notin_s s ->
+            forall i m, (n [i] rjump_n m) notin_s (s [i] rjump_s m)) /\
+    (forall n ss, n notin_ss ss ->
+            forall i m, (n [i] rjump_n m) notin_ss (ss [i] rjump_ss m)) /\
+    (forall n e, n notin_e e ->
+            forall i m, (n [i] rjump_n m) notin_e (e [i] rjump_e m)) /\
+    (forall n d, n notin_d d ->
+            forall i m, (n [i] rjump_n m) notin_d (d [i] rjump_d m)) /\
+    (forall n ds, n notin_ds ds ->
+            forall i m, (n [i] rjump_n m) notin_ds (ds [i] rjump_ds m)).
+  Proof.
+    apply notin_mutind; intros; crush.
+
+    destruct v as [r|r]; simpl; auto.
+    inversion n0; subst.
+    unfold right_jump_n.
+    destruct (le_gt_dec i n) as [Heq1|Heq1];
+      [rewrite (leb_correct i n Heq1)
+      |rewrite (leb_correct_conv n i Heq1)];
+      (destruct (le_gt_dec i r) as [Heq2|Heq2];
+       [rewrite (leb_correct i r Heq2)
+       |rewrite (leb_correct_conv r i Heq2)]); crush.
+  Qed.
+
+  Lemma notin_rjump_type :
+    (forall n t, n notin_t t ->
+            forall i m, (n [i] rjump_n m) notin_t (t [i] rjump_t m)).
+  Proof.
+    destruct notin_rjump_mutind; crush.
+  Qed.
+
+  Lemma notin_rjump_decl_ty :
+    (forall n s, n notin_s s ->
+            forall i m, (n [i] rjump_n m) notin_s (s [i] rjump_s m)).
+  Proof.
+    destruct notin_rjump_mutind; crush.
+  Qed.
+
+  Lemma notin_rjump_decl_tys :
+    (forall n ss, n notin_ss ss ->
+            forall i m, (n [i] rjump_n m) notin_ss (ss [i] rjump_ss m)).
+  Proof.
+    destruct notin_rjump_mutind; crush.
+  Qed.
+
+  Lemma notin_rjump_exp :
+    (forall n e, n notin_e e ->
+            forall i m, (n [i] rjump_n m) notin_e (e [i] rjump_e m)).
+  Proof.
+    destruct notin_rjump_mutind; crush.
+  Qed.
+
+  Lemma notin_rjump_decl :
+    (forall n d, n notin_d d ->
+            forall i m, (n [i] rjump_n m) notin_d (d [i] rjump_d m)).
+  Proof.
+    destruct notin_rjump_mutind; crush.
+  Qed.
+
+  Lemma notin_rjump_decls :
+    (forall n ds, n notin_ds ds ->
+            forall i m, (n [i] rjump_n m) notin_ds (ds [i] rjump_ds m)).
+  Proof.
+    destruct notin_rjump_mutind; crush.
+  Qed.
+
+  Lemma lt_rjump_mutind :
+    (forall t i, lt_t t i ->
+            forall n, (t [i] rjump_t n) = t) /\
+    (forall s i, lt_s s i ->
+            forall n, (s [i] rjump_s n) = s) /\
+    (forall ss i, lt_ss ss i ->
+            forall n, (ss [i] rjump_ss n) = ss) /\
+    (forall e i, lt_e e i ->
+            forall n, (e [i] rjump_e n) = e) /\
+    (forall d i, lt_d d i ->
+            forall n, (d [i] rjump_d n) = d) /\
+    (forall ds i, lt_ds ds i ->
+            forall n, (ds [i] rjump_ds n) = ds).
+  Proof.
+    apply lt_mutind; intros; crush.
+
+    unfold right_jump_n;
+      rewrite leb_correct_conv; auto.
+  Qed.
+
+  Lemma lt_rjump_type :
+    (forall t i, lt_t t i ->
+            forall n, (t [i] rjump_t n) = t).
+  Proof.
+    destruct lt_rjump_mutind; crush.
+  Qed.
+
+  Lemma lt_rjump_decl_ty :
+    (forall s i, lt_s s i ->
+            forall n, (s [i] rjump_s n) = s).
+  Proof.
+    destruct lt_rjump_mutind; crush.
+  Qed.
+
+
+  Lemma lt_rjump_decl_tys :
+    (forall ss i, lt_ss ss i ->
+            forall n, (ss [i] rjump_ss n) = ss).
+  Proof.
+    destruct lt_rjump_mutind; crush.
+  Qed.
+
+
+  Lemma lt_rjump_exp :
+    (forall e i, lt_e e i ->
+            forall n, (e [i] rjump_e n) = e).
+  Proof.
+    destruct lt_rjump_mutind; crush.
+  Qed.
+
+
+  Lemma lt_rjump_decl :
+    (forall d i, lt_d d i ->
+            forall n, (d [i] rjump_d n) = d).
+  Proof.
+    destruct lt_rjump_mutind; crush.
+  Qed.
+
+
+  Lemma lt_rjump_decls :
+    (forall ds i, lt_ds ds i ->
+            forall n, (ds [i] rjump_ds n) = ds).
+  Proof.
+    destruct lt_rjump_mutind; crush.
+  Qed.
+
+  Lemma lt_rjump_env :
+    forall G i, lt_env G i ->
+           forall n, (G [i] rjump_env n) = G.
+  Proof.
+    intro G; induction G as [|t' G']; intros; simpl; auto.
+
+    rewrite lt_rjump_type; [|apply H; apply in_eq].
+    rewrite IHG'; auto.
+
+    intros t Hin; apply H; crush.
+  Qed.
+  
+  Lemma lt_notin_S_n_mutind :
+    (forall n t, n notin_t t ->
+            lt_t t (S n) ->
+            lt_t t n) /\
+    (forall n s, n notin_s s ->
+            lt_s s (S n) ->
+            lt_s s n) /\
+    (forall n ss, n notin_ss ss ->
+            lt_ss ss (S n) ->
+            lt_ss ss n) /\
+    (forall n e, n notin_e e ->
+            lt_e e (S n) ->
+            lt_e e n) /\
+    (forall n d, n notin_d d ->
+            lt_d d (S n) ->
+            lt_d d n) /\
+    (forall n ds, n notin_ds ds ->
+            lt_ds ds (S n) ->
+            lt_ds ds n).
+  Proof.
+    apply notin_mutind; intros; auto;
+      try solve
+          [try (inversion H0);
+           try (inversion H1);
+           try (inversion H2);
+           try (crush)].
+
+    inversion H; subst;
+      auto.
+    inversion n0; subst; crush.
+  Qed.
+
+  Lemma lt_notin_S_n_type :
+    (forall n t, n notin_t t ->
+            lt_t t (S n) ->
+            lt_t t n).
+  Proof.
+    destruct lt_notin_S_n_mutind; crush.
+  Qed.
+
+  Lemma lt_notin_S_n_decl_ty :
+    (forall n s, n notin_s s ->
+            lt_s s (S n) ->
+            lt_s s n).
+  Proof.
+    destruct lt_notin_S_n_mutind; crush.
+  Qed.
+
+  Lemma lt_notin_S_n_decl_tys :
+    (forall n ss, n notin_ss ss ->
+            lt_ss ss (S n) ->
+            lt_ss ss n).
+  Proof.
+    destruct lt_notin_S_n_mutind; crush.
+  Qed.
+
+  Lemma lt_notin_S_n_exp :
+    (forall n e, n notin_e e ->
+            lt_e e (S n) ->
+            lt_e e n).
+  Proof.
+    destruct lt_notin_S_n_mutind; crush.
+  Qed.
+
+  Lemma lt_notin_S_n_decl :
+    (forall n d, n notin_d d ->
+            lt_d d (S n) ->
+            lt_d d n).
+  Proof.
+    destruct lt_notin_S_n_mutind; crush.
+  Qed.
+
+  Lemma lt_notin_S_n_decls :
+    (forall n ds, n notin_ds ds ->
+            lt_ds ds (S n) ->
+            lt_ds ds n).
+  Proof.
+    destruct lt_notin_S_n_mutind; crush.
+  Qed.
+
+  Lemma lt_subst_components_mutind :
+    (forall t n, lt_t t n ->
+            forall p m t', t = ([p /t m] t') ->
+                      lt_t t' n) /\
+    (forall s n, lt_s s n ->
+            forall p m s', s = ([p /s m] s') ->
+                      lt_s s' n) /\
+    (forall ss n, lt_ss ss n ->
+             forall p m ss', ss = ([p /ss m] ss') ->
+                        lt_ss ss' n) /\
+    (forall e n, lt_e e n ->
+            forall p m e', e = ([p /e m] e') ->
+                      lt_e e' n) /\
+    (forall d n, lt_d d n ->
+            forall p m d', d = ([p /d m] d') ->
+                      lt_d d' n) /\
+    (forall ds n, lt_ds ds n ->
+             forall p m ds', ds = ([p /ds m] ds') ->
+                        lt_ds ds' n).
+  Proof.
+    apply lt_mutind; intros;
+      try solve [try (destruct t');
+                 try (destruct s');
+                 try (destruct ss');
+                 try (destruct d');
+                 try (destruct ds');
+                 try (simpl in H; inversion H);
+                 try (simpl in H0; inversion H0);
+                 try (simpl in H1; inversion H1);
+                 eauto];
+      try solve [destruct e';
+                 try (simpl in H; inversion H);
+                 try (simpl in H0; inversion H0);
+                 try (simpl in H1; inversion H1);
+                 try (simpl in H2; inversion H2);
+                 eauto;
+                 destruct v; auto;
+                 try (inversion H);
+                 try (inversion H0);
+                 try (inversion H1);
+                 try (inversion H2);
+                 subst; auto].
+  Qed.
+
+  Lemma lt_subst_components_type :
+    (forall t n, lt_t t n ->
+            forall p m t', t = ([p /t m] t') ->
+                      lt_t t' n).
+  Proof.
+    destruct lt_subst_components_mutind; crush.
+  Qed.
+
+  Lemma lt_subst_components_decl_ty :
+    (forall s n, lt_s s n ->
+            forall p m s', s = ([p /s m] s') ->
+                      lt_s s' n).
+  Proof.
+    destruct lt_subst_components_mutind; crush.
+  Qed.
+
+  Lemma lt_subst_components_decl_tys :
+    (forall ss n, lt_ss ss n ->
+             forall p m ss', ss = ([p /ss m] ss') ->
+                        lt_ss ss' n).
+  Proof.
+    destruct lt_subst_components_mutind; crush.
+  Qed.
+
+  Lemma lt_subst_components_exp :
+    (forall e n, lt_e e n ->
+            forall p m e', e = ([p /e m] e') ->
+                      lt_e e' n).
+  Proof.
+    destruct lt_subst_components_mutind; crush.
+  Qed.
+
+  Lemma lt_subst_components_decl :
+    (forall d n, lt_d d n ->
+            forall p m d', d = ([p /d m] d') ->
+                      lt_d d' n).
+  Proof.
+    destruct lt_subst_components_mutind; crush.
+  Qed.
+
+  Lemma lt_subst_components_decls :
+    (forall ds n, lt_ds ds n ->
+             forall p m ds', ds = ([p /ds m] ds') ->
+                        lt_ds ds' n).
+  Proof.
+    destruct lt_subst_components_mutind; crush.
+  Qed.
+
+  Lemma lt_n_Sn_mutind :
+    (forall t n, lt_t t n ->
+            lt_t t (S n)) /\
+    (forall s n, lt_s s n ->
+            lt_s s (S n)) /\
+    (forall ss n, lt_ss ss n ->
+             lt_ss ss (S n)) /\
+    (forall e n, lt_e e n ->
+            lt_e e (S n)) /\
+    (forall d n, lt_d d n ->
+            lt_d d (S n)) /\
+    (forall ds n, lt_ds ds n ->
+             lt_ds ds (S n)).
+  Proof.
+    apply lt_mutind; intros; auto.
+  Qed.
+
+  Lemma lt_n_Sn_type :
+    (forall t n, lt_t t n ->
+            lt_t t (S n)).
+  Proof.
+    destruct lt_n_Sn_mutind; crush.
+  Qed.
+
+  Lemma lt_n_Sn_decl_ty :
+    (forall s n, lt_s s n ->
+            lt_s s (S n)).
+  Proof.
+    destruct lt_n_Sn_mutind; crush.
+  Qed.
+
+  Lemma lt_n_Sn_decl_tys :
+    (forall ss n, lt_ss ss n ->
+             lt_ss ss (S n)).
+  Proof.
+    destruct lt_n_Sn_mutind; crush.
+  Qed.
+
+  Lemma lt_n_Sn_exp :
+    (forall e n, lt_e e n ->
+            lt_e e (S n)).
+  Proof.
+    destruct lt_n_Sn_mutind; crush.
+  Qed.
+
+  Lemma lt_n_Sn_decl :
+    (forall d n, lt_d d n ->
+            lt_d d (S n)).
+  Proof.
+    destruct lt_n_Sn_mutind; crush.
+  Qed.
+
+  Lemma lt_n_Sn_decls :
+    (forall ds n, lt_ds ds n ->
+             lt_ds ds (S n)).
+  Proof.
+    destruct lt_n_Sn_mutind; crush.
+  Qed.
+
+  Lemma lt_n_ge_mutind :
+    (forall t n, lt_t t n ->
+            forall m, n <= m ->
+                 lt_t t m) /\
+    (forall s n, lt_s s n ->
+            forall m, n <= m ->
+                 lt_s s m) /\
+    (forall ss n, lt_ss ss n ->
+            forall m, n <= m ->
+                 lt_ss ss m) /\
+    (forall e n, lt_e e n ->
+            forall m, n <= m ->
+                 lt_e e m) /\
+    (forall d n, lt_d d n ->
+            forall m, n <= m ->
+                 lt_d d m) /\
+    (forall ds n, lt_ds ds n ->
+            forall m, n <= m ->
+                 lt_ds ds m).
+  Proof.
+    apply lt_mutind; intros; crush.
+  Qed.
+
+  Lemma lt_n_ge_type :
+    (forall t n, lt_t t n ->
+            forall m, n <= m ->
+                 lt_t t m).
+  Proof.
+    destruct lt_n_ge_mutind; crush.
+  Qed.
+
+  Lemma lt_n_ge_decl_ty :
+    (forall s n, lt_s s n ->
+            forall m, n <= m ->
+                 lt_s s m).
+  Proof.
+    destruct lt_n_ge_mutind; crush.
+  Qed.
+
+  Lemma lt_n_ge_decl_tys :
+    (forall ss n, lt_ss ss n ->
+            forall m, n <= m ->
+                 lt_ss ss m).
+  Proof.
+    destruct lt_n_ge_mutind; crush.
+  Qed.
+
+  Lemma lt_n_ge_exp :
+    (forall e n, lt_e e n ->
+            forall m, n <= m ->
+                 lt_e e m).
+  Proof.
+    destruct lt_n_ge_mutind; crush.
+  Qed.
+
+  Lemma lt_n_ge_decl :
+    (forall d n, lt_d d n ->
+            forall m, n <= m ->
+                 lt_d d m).
+  Proof.
+    destruct lt_n_ge_mutind; crush.
+  Qed.
+
+  Lemma lt_n_ge_decls :
+    (forall ds n, lt_ds ds n ->
+            forall m, n <= m ->
+                 lt_ds ds m).
+  Proof.
+    destruct lt_n_ge_mutind; crush.
+  Qed.
+    
+  Lemma wf_lt_mutind :
+    (forall Sig G t, Sig en G vdash t wf_t ->
+              lt_t t (length G)) /\
+    (forall Sig G s, Sig en G vdash s wf_s ->
+              lt_s s (length G)) /\
+    (forall Sig G ss, Sig en G vdash ss wf_ss ->
+               lt_ss ss (length G)) /\
+    (forall Sig G e, Sig en G vdash e wf_e ->
+              lt_e e (length G)) /\
+    (forall Sig G d, Sig en G vdash d wf_d ->
+              lt_d d (length G)) /\
+    (forall Sig G ds, Sig en G vdash ds wf_ds ->
+               lt_ds ds (length G)).
+  Proof.
+    apply wf_mutind; crush.
+
+    apply lt_subst_components_type with (p:=v_ Var (length G))
+                                        (m:=0)(t':=t2)in H0; auto.
+    apply lt_notin_S_n_type in H0; auto.
+
+    apply lt_subst_components_decl_tys with (p:=v_ Var (length G))
+                                            (m:=0)(ss':=ss)in H; auto.
+    apply lt_notin_S_n_decl_tys in H; auto.
+
+    apply lt_subst_components_type with (p:=v_ Var (length G))
+                                        (m:=0)(t':=t2)in H1; auto.
+    apply lt_notin_S_n_type in H1; auto.
+    apply lt_subst_components_exp with (p:=v_ Var (length G))
+                                       (m:=0)(e':=e)in H0; auto.
+    apply lt_notin_S_n_exp in H0; auto.
+
+    apply lt_subst_components_decls with (p:=v_ Var (length G))
+                                         (m:=0)(ds':=ds)in H; auto.
+    apply lt_notin_S_n_decls in H; auto.
+
+  Qed.
+
+  Lemma wf_lt_type :
+    (forall Sig G t, Sig en G vdash t wf_t ->
+              lt_t t (length G)).
+  Proof.
+    destruct wf_lt_mutind; crush.
+  Qed.
+
+  Lemma wf_lt_decl_ty :
+    (forall Sig G s, Sig en G vdash s wf_s ->
+              lt_s s (length G)).
+  Proof.
+    destruct wf_lt_mutind; crush.
+  Qed.
+
+  Lemma wf_lt_decl_tys :
+    (forall Sig G ss, Sig en G vdash ss wf_ss ->
+               lt_ss ss (length G)).
+  Proof.
+    destruct wf_lt_mutind; crush.
+  Qed.
+
+  Lemma wf_lt_exp :
+    (forall Sig G e, Sig en G vdash e wf_e ->
+              lt_e e (length G)).
+  Proof.
+    destruct wf_lt_mutind; crush.
+  Qed.
+
+  Lemma wf_lt_decl :
+    (forall Sig G d, Sig en G vdash d wf_d ->
+              lt_d d (length G)).
+  Proof.
+    destruct wf_lt_mutind; crush.
+  Qed.
+
+  Lemma wf_lt_decls :
+    (forall Sig G ds, Sig en G vdash ds wf_ds ->
+               lt_ds ds (length G)).
+  Proof.
+    destruct wf_lt_mutind; crush.
+  Qed.
+
+  Lemma wf_lt_env :
+    forall Sig G, Sig evdash G wf_env ->
+           lt_env G (length G).
+  Proof.
+    intros Sig G Hwf; induction Hwf;
+      intros t' Hin;
+      inversion Hin; subst; simpl.
+    
+    apply wf_lt_type in H; apply lt_n_Sn_type; auto.
+
+    apply lt_n_Sn_type;
+      apply IHHwf; auto.
+    
+  Qed.
+
+  Lemma wf_lt_store_type :
+    forall Sig, Sig wf_st ->
+         forall n, lt_env Sig n.
+  Proof.
+    intros Sig Hwf; induction Hwf; intros;
+      intros t Hin; inversion Hin; subst.
+
+    apply lt_n_ge_type with (n:=0); [|crush].
+    apply wf_lt_type in H; simpl; auto.
+    apply IHHwf; auto.
   Qed.
 
   (*closed*)
@@ -1610,6 +2346,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Proof.
     destruct closed_rjump_mutind; crush.
   Qed.
+
+  
 
   Lemma is_path_rjump :
     (forall p, is_path p ->
@@ -2124,9 +2862,27 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*wf-arr*)
     simpl; apply wf_arr; auto.
-    assert (Hwf : (Sig [i]rjump_env n) en ((t1::G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n) vdash t2 [i]rjump_t n wf_t);
-      [apply H0; crush|
-       auto].
+    assert (Hjump : length ((G1 [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)) =
+                    (length G [i] rjump_n n0));
+      [|rewrite Hjump; apply notin_rjump_type; auto].
+    repeat rewrite app_length, rjump_length; subst.
+    unfold right_jump_n;
+      rewrite leb_correct;
+      rewrite app_length; crush.
+    assert (Hwf : (Sig [i]rjump_env n0) en ((t1::G1) [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0) vdash
+                              ([v_ Var (length G) /t 0] t2) [i]rjump_t n0 wf_t);
+      [apply H0; subst; auto
+      |auto].
+    repeat rewrite app_length, rjump_length;
+      rewrite <- H2, <- H3.
+    rewrite rjump_subst_distr_type in Hwf;
+      simpl in Hwf.
+    unfold right_jump_n in Hwf;
+      rewrite leb_correct in Hwf;
+      [|subst; rewrite app_length; crush].
+    rewrite H1, app_length, <- H2 in Hwf.
+    assert (Hleng : length G1 + (n0 + i) = (length G1 + i + n0));
+      [crush|rewrite Hleng; auto].
 
     (*wf-sel-upper*)
     simpl; apply wf_sel_upper with (t:=t [i0] rjump_t n); auto.
@@ -2140,8 +2896,16 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*wf-struct*)
     simpl; apply wf_str; auto.
-    assert (Hwf : (Sig [i]rjump_env n) en ((str ss :: G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
-                             vdash ([v_ Var (length G) /ss 0] ss) [i]rjump_ss n wf_ss);
+    assert (Hjump : length ((G1 [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)) =
+                    (length G [i] rjump_n n0));
+      [|rewrite Hjump; apply notin_rjump_decl_tys; auto].
+    repeat rewrite app_length, rjump_length; subst.
+    unfold right_jump_n;
+      rewrite leb_correct;
+      rewrite app_length; crush.
+    
+    assert (Hwf : (Sig [i]rjump_env n0) en ((str ss :: G1) [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)
+                              vdash ([v_ Var (length G) /ss 0] ss) [i]rjump_ss n0 wf_ss);
       [apply H; simpl; crush|].
     rewrite rjump_subst_distr_decl_tys in Hwf.
     simpl in Hwf.
@@ -2154,13 +2918,13 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     unfold right_jump_n in Hwf;
       rewrite Hleng in Hwf.
     rewrite H0, app_length, <- H1 in Hwf.
-    assert (Hleng' : (length G1 + (n + i)) = (length G1 + i + n));
+    assert (Hleng' : (length G1 + (n0 + i)) = (length G1 + i + n0));
       [crush|
       rewrite Hleng'; auto].
 
     (*wf-decl-tys*)
     simpl; apply wft_con; auto.
-    apply notin_dty_rjump; auto.
+    apply not_in_decl_tys_rjump; auto.
 
     (*wf-var*)
     simpl; apply wf_var.
@@ -2183,9 +2947,17 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*wf-fn*)
     simpl; apply wf_fn; auto.
+    assert (Hjump : length ((G1 [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)) =
+                    (length G [i] rjump_n n1));
+      [|rewrite Hjump; apply notin_rjump_exp; auto].
+    repeat rewrite app_length, rjump_length; subst.
+    unfold right_jump_n;
+      rewrite leb_correct;
+      rewrite app_length; crush.
+    
     repeat rewrite app_length, rjump_length.
-    assert (Hwf : (Sig [i]rjump_env n) en ((t1::G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
-                             vdash ([v_ Var (length G) /e 0] e) [i]rjump_e n wf_e);
+    assert (Hwf : (Sig [i]rjump_env n1) en ((t1::G1) [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)
+                              vdash ([v_ Var (length G) /e 0] e) [i]rjump_e n1 wf_e);
       [apply H0; simpl; subst; auto|].
     rewrite rjump_subst_distr_exp in Hwf; simpl in Hwf;
       assert (Hleng : i <=? length G = true);
@@ -2197,12 +2969,19 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        rewrite Hleng in Hwf].
     rewrite H2, app_length in Hwf.
     rewrite <- H4.
-    assert (Hleng' : (length G1 + (n + length G2)) = (length G1 + length G2 + n));
+    assert (Hleng' : (length G1 + (n1 + length G2)) = (length G1 + length G2 + n1));
       [crush
       |rewrite Hleng'; auto].
 
-    assert (Hwf : (Sig [i]rjump_env n) en ((t1::G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
-                             vdash ([v_ Var (length G) /t 0] t2) [i]rjump_t n wf_t);
+    assert (Hjump : length ((G1 [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)) =
+                    (length G [i] rjump_n n1));
+      [|rewrite Hjump; apply notin_rjump_type; auto].
+    repeat rewrite app_length, rjump_length; subst.
+    unfold right_jump_n;
+      rewrite leb_correct;
+      rewrite app_length; crush.
+    assert (Hwf : (Sig [i]rjump_env n1) en ((t1::G1) [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)
+                              vdash ([v_ Var (length G) /t 0] t2) [i]rjump_t n1 wf_t);
       [apply H1; simpl; subst; auto|].
     rewrite rjump_subst_distr_type in Hwf; simpl in Hwf;
       assert (Hleng : i <=? length G = true);
@@ -2215,12 +2994,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite H2, app_length in Hwf.
     repeat rewrite app_length, rjump_length.
     rewrite <- H4.
-    assert (Hleng' : (length G1 + (n + length G2)) = (length G1 + length G2 + n));
+    assert (Hleng' : (length G1 + (n1 + length G2)) = (length G1 + length G2 + n1));
       [crush
       |rewrite Hleng'; auto].
 
     apply typing_weakening_exp with (G1:=t1::G1)(G2:=G2)
-                                    (G':=G')(i:=i)(n:=n) in t;
+                                    (G':=G')(i:=i)(n:=n1) in t;
       try solve [crush].
     rewrite rjump_subst_distr_type, rjump_subst_distr_exp in t;
       simpl in t;
@@ -2232,7 +3011,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     repeat rewrite app_length, rjump_length;
       rewrite <- H3, <- H4.
     rewrite H2, app_length, <- H3 in t.
-    assert (Hleng' : (length G1 + (n + i)) = (length G1 + i + n));
+    assert (Hleng' : (length G1 + (n1 + i)) = (length G1 + i + n1));
       [crush
       |rewrite Hleng'; auto].
 
@@ -2254,11 +3033,21 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply sub_weakening_type with (G1:=G)(G2:=G); auto.
 
     (*wf-new*)
-    simpl; apply wf_new with (ss:=ss [i] rjump_ss n).
+    simpl; apply wf_new with (ss:=ss [i] rjump_ss n0).
     apply typing_weakening_exp with (G1:=G1)(G2:=G2)
-                                    (G':=G')(i:=i)(n:=n) in t; auto.
-    assert (Hwf : (Sig [i]rjump_env n) en ((str ss :: G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
-                             vdash ([v_ Var (length G) /ds 0] ds) [i]rjump_ds n wf_ds);
+                                    (G':=G')(i:=i)(n:=n0) in t; auto.
+    
+    assert (Hjump : length ((G1 [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)) =
+                    (length G [i] rjump_n n0));
+      [|rewrite Hjump; apply notin_rjump_decls; auto].
+    repeat rewrite app_length, rjump_length; subst.
+    unfold right_jump_n;
+      rewrite leb_correct;
+      rewrite app_length; crush.
+
+    
+    assert (Hwf : (Sig [i]rjump_env n0) en ((str ss :: G1) [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)
+                              vdash ([v_ Var (length G) /ds 0] ds) [i]rjump_ds n0 wf_ds);
       [apply H; crush
       |].
     rewrite rjump_subst_distr_decls in Hwf;
@@ -2271,13 +3060,110 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        crush
       |rewrite Hleng in Hwf].
     repeat rewrite app_length, rjump_length.
-    assert (Hleng' : length G1 + (length G' + length G2) = length G +n );
+    assert (Hleng' : length G1 + (length G' + length G2) = length G + n0);
       [|rewrite Hleng'; auto].
     rewrite H0, app_length, <- H2; crush.
 
     (*wf-decls*)
     simpl; apply wfe_con; auto.
-    apply notin_d_rjump; auto.
+    apply not_in_decls_rjump; auto.
+  Qed.
+
+  
+  Lemma wf_weakening_type :
+    (forall Sig G t, Sig en G vdash t wf_t ->
+              forall G1 G2,
+                G = G1 ++ G2 ->
+                forall G' i n,
+                  i = length G2 ->
+                  n = length G' ->
+                  (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (t [i] rjump_t n) wf_t).
+  Proof.
+    destruct wf_weakening_mutind; crush.
+  Qed.
+
+  Lemma wf_weakening_decl_ty :
+    
+    (forall Sig G s, Sig en G vdash s wf_s ->
+              forall G1 G2,
+                G = G1 ++ G2 ->
+                forall G' i n,
+                  i = length G2 ->
+                  n = length G' ->
+                  (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (s [i] rjump_s n) wf_s).
+  Proof.
+    destruct wf_weakening_mutind; crush.
+  Qed.
+
+  Lemma wf_weakening_decl_tys :
+    
+    (forall Sig G ss, Sig en G vdash ss wf_ss ->
+               forall G1 G2,
+                 G = G1 ++ G2 ->
+                 forall G' i n,
+                   i = length G2 ->
+                   n = length G' ->
+                   (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (ss [i] rjump_ss n) wf_ss).
+
+  Proof.
+    destruct wf_weakening_mutind; crush.
+  Qed.
+
+  Lemma wf_weakening_exp :    
+    (forall Sig G e, Sig en G vdash e wf_e ->
+              forall G1 G2,
+                G = G1 ++ G2 ->
+                forall G' i n,
+                  i = length G2 ->
+                  n = length G' ->
+                  (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (e [i] rjump_e n) wf_e).
+  Proof.
+    destruct wf_weakening_mutind; crush.
+  Qed.
+
+  Lemma wf_weakening_decl :
+    
+    (forall Sig G d, Sig en G vdash d wf_d ->
+              forall G1 G2,
+                G = G1 ++ G2 ->
+                forall G' i n,
+                  i = length G2 ->
+                  n = length G' ->
+                  (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (d [i] rjump_d n) wf_d).
+  Proof.
+    destruct wf_weakening_mutind; crush.
+  Qed.
+
+  Lemma wf_weakening_decls :    
+    (forall Sig G ds, Sig en G vdash ds wf_ds ->
+               forall G1 G2,
+                 G = G1 ++ G2 ->
+                 forall G' i n,
+                   i = length G2 ->
+                   n = length G' ->
+                   (Sig [i] rjump_env n) en (G1 [i] rjump_env n) ++ G' ++ (G2 [i] rjump_env n) vdash (ds [i] rjump_ds n) wf_ds).
+  Proof.
+    destruct wf_weakening_mutind; crush.
+  Qed.
+
+  Lemma wf_weakening_actual_type :
+    forall Sig G t, Sig en G vdash t wf_t ->
+             Sig evdash G wf_env ->
+             Sig wf_st -> 
+             forall G', Sig en G'++G vdash t wf_t.
+  Proof.
+    intros.
+    assert (Hwf : Sig en G vdash t wf_t); [auto|].
+    apply wf_weakening_type with (G1:=nil)(G2:=G)
+                                 (G':=G')(i:=length G)
+                                 (n:=length G') in H; auto.
+    simpl in H.
+    rewrite lt_rjump_env in H.
+    rewrite lt_rjump_env in H.
+    rewrite lt_rjump_type in H; auto.
+    apply wf_lt_type with (Sig:=Sig); auto.
+    apply wf_lt_env with (Sig:=Sig); auto.
+    apply wf_lt_store_type; auto.
   Qed.
   
   Lemma closed_subst_neq_mutind :
@@ -2562,14 +3448,17 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Proof.
     apply wf_mutind; intros; crush.
 
-    eapply closed_subst_neq_decl_tys with (n:=S n) in H; auto.
+    eapply closed_subst_neq_type with (n:=S n0) in H0; auto.
+    auto.
+    
+    eapply closed_subst_neq_decl_tys with (n:=S n0) in H; auto.
     auto.
 
-    eapply closed_subst_neq_exp with (n:=S n) in H0; auto.
-    eapply closed_subst_neq_type with (n:=S n) in H1; auto.
+    eapply closed_subst_neq_exp with (n:=S n1) in H0; auto.
+    eapply closed_subst_neq_type with (n:=S n1) in H1; auto.
     auto.
 
-    eapply closed_subst_neq_decls with (n:=S n) in H; auto.
+    eapply closed_subst_neq_decls with (n:=S n0) in H; auto.
     auto.
   Qed.
 
@@ -3543,10 +4432,91 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     exists t0; auto.
   Qed.
 
-  Lemma typing_p_subst:
-    (forall Sig G p t, Sig en G vdash p pathType t).
+  Lemma wf_rjump_type :
+    (forall Sig G t, Sig en G vdash t wf_t ->
+              forall i n, length G <= i ->
+                     (t [i] rjump_t n) = t).
   Proof.
+    intros.
+    apply wf_lt_type in H; auto.
+    apply lt_n_ge_type with (m:=i) in H; auto.
+    apply lt_rjump_type; auto.
+  Qed.
 
+  Lemma wf_rjump_decl_ty :
+    (forall Sig G s, Sig en G vdash s wf_s ->
+              forall i n, length G <= i ->
+                     (s [i] rjump_s n) = s).
+  Proof.
+    intros.
+    apply wf_lt_decl_ty in H; auto.
+    apply lt_n_ge_decl_ty with (m:=i) in H; auto.
+    apply lt_rjump_decl_ty; auto.
+  Qed.
+
+  Lemma wf_rjump_decl_tys :
+    (forall Sig G ss, Sig en G vdash ss wf_ss ->
+              forall i n, length G <= i ->
+                     (ss [i] rjump_ss n) = ss).
+  Proof.
+    intros.
+    apply wf_lt_decl_tys in H; auto.
+    apply lt_n_ge_decl_tys with (m:=i) in H; auto.
+    apply lt_rjump_decl_tys; auto.
+  Qed.
+
+  Lemma wf_rjump_exp :
+    (forall Sig G e, Sig en G vdash e wf_e ->
+              forall i n, length G <= i ->
+                     (e [i] rjump_e n) = e).
+  Proof.
+    intros.
+    apply wf_lt_exp in H; auto.
+    apply lt_n_ge_exp with (m:=i) in H; auto.
+    apply lt_rjump_exp; auto.
+  Qed.
+
+  Lemma wf_rjump_decl :
+    (forall Sig G d, Sig en G vdash d wf_d ->
+              forall i n, length G <= i ->
+                     (d [i] rjump_d n) = d).
+  Proof.
+    intros.
+    apply wf_lt_decl in H; auto.
+    apply lt_n_ge_decl with (m:=i) in H; auto.
+    apply lt_rjump_decl; auto.
+  Qed.
+
+  Lemma wf_rjump_decls :
+    (forall Sig G ds, Sig en G vdash ds wf_ds ->
+              forall i n, length G <= i ->
+                     (ds [i] rjump_ds n) = ds).
+  Proof.
+    intros.
+    apply wf_lt_decls in H; auto.
+    apply lt_n_ge_decls with (m:=i) in H; auto.
+    apply lt_rjump_decls; auto.
+  Qed.
+  
+  Lemma typing_p_subst:
+    (forall Sig G p t, Sig en G vdash p pathType t ->
+                forall p1 G1 G2 n p' t',
+                  G = ([p1 /env 0] G1) ++ G2 ->
+                  p = ([p1 /e n] p') ->
+                  t = ([p1 /t n] t') ->
+                  n = length G1 ->
+                  closed_env G 0 ->
+                  closed_env Sig 0 ->
+                  forall p2 tp, 
+                    Sig en G2 vdash p1 pathType tp ->
+                    Sig en G2 vdash p2 pathType tp ->
+                    Sig en ([p2 /env n] G1) ++ G2 vdash ([p2 /e n] p') pathType ([p2 /t n] t')).
+  Proof.
+    intros Sig G p t Htyp;
+      destruct Htyp; intros.
+
+    destruct p'; simpl in H1; inversion H1; subst.
+    
   Qed.
         
   
@@ -7518,6 +8488,7 @@ Qed.
   Proof.
     destruct notin_subst_mutind; crush.
   Qed.
+  
 
   Lemma subst_env_get_le :
     forall G n t x m, n <= m -> get n G = Some t -> get n ([x /e m] G) = Some ([x rshift_v n /t m - n] t).
