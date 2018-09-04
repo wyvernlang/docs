@@ -1538,8 +1538,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve get_cons_dec.
-    
-
+  
   (*Right Jump/Raise/Substitution*)
 
   Lemma raise_rjump_distr_mutind :
@@ -3432,6 +3431,64 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite rev_length, subst_length; auto.
   Qed.
 
+  Lemma mapping_subst_switch :
+    forall G r t, r mapsto t elem G ->
+             forall p1 n G',
+               G = ([p1 /env n] G') ->
+               exists t', t = ([p1 /t n + r] t') /\
+                     forall p2, r mapsto ([p2 /t n + r] t') elem ([p2 /env n] G').
+  Proof.
+    intro G; induction G as [|t1 G1]; intros;
+      destruct G' as [|t2 G2];
+      try (rewrite subst_cons in H0; inversion H0);
+      try (rewrite subst_nil in H0; inversion H0).
+
+    unfold mapping in H;
+      simpl in H;
+      rewrite get_empty in H;
+      inversion H; auto.
+
+    
+    unfold mapping in H; simpl in H.
+    apply get_cons_dec in H;
+      destruct H as [Ha|Ha];
+      destruct Ha as [Ha Hb]. 
+    apply IHG1 with (p1:=p1)(n:=n)(G':=G2) in Hb; auto.
+    destruct Hb as [t' Hb];
+      destruct Hb as [Hb Hc].
+    exists t'; split; auto; intros.
+    unfold mapping.
+    rewrite subst_cons.
+    assert (Happ : (([p2 /t n + length G2] t2) :: ([p2 /env n] G2)) =
+                   (([p2 /t n + length G2] t2) :: nil) ++ ([p2 /env n] G2));
+      [auto|].
+    rewrite Happ.
+    rewrite rev_app_distr.
+    rewrite get_app_l;
+      [
+      |subst; rewrite rev_length, subst_length;
+       rewrite rev_length, subst_length in Ha; auto].
+    apply Hc.
+    
+    subst.
+    exists t2; split;
+      [rewrite rev_length;
+       rewrite subst_length;
+       auto
+      |intros].
+    unfold mapping.
+    assert (Happ : ([p2 /env n] t2 :: G2) =
+                   (([p2 /t n + length G2] t2)::nil) ++ ([p2 /env n] G2));
+      [rewrite subst_cons; auto
+      |rewrite Happ].
+    rewrite rev_app_distr;
+      rewrite get_app_r;
+      [repeat rewrite rev_length, subst_length; simpl
+      |repeat rewrite rev_length, subst_length; auto].
+    rewrite Nat.sub_diag; simpl; auto.
+  Qed.
+ 
+  
   Lemma wf_closed_mutind :
     (forall Sig G t, Sig en G vdash t wf_t ->
               forall n, closed_t n t) /\
@@ -4499,23 +4556,68 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
   
   Lemma typing_p_subst:
-    (forall Sig G p t, Sig en G vdash p pathType t ->
-                forall p1 G1 G2 n p' t',
+    (forall Sig G p t1, Sig en G vdash p pathType t1 ->
+                forall p1 G1 G2 n p',
                   G = ([p1 /env 0] G1) ++ G2 ->
                   p = ([p1 /e n] p') ->
-                  t = ([p1 /t n] t') ->
                   n = length G1 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
-                  forall p2 tp, 
+                  forall p2 tp,
                     Sig en G2 vdash p1 pathType tp ->
                     Sig en G2 vdash p2 pathType tp ->
-                    Sig en ([p2 /env n] G1) ++ G2 vdash ([p2 /e n] p') pathType ([p2 /t n] t')).
+                    exists t', t1 = ([p1 /t n] t') /\
+                          Sig en ([p2 /env n] G1) ++ G2 vdash ([p2 /e n] p') pathType ([p2 /t n] t')).
   Proof.
     intros Sig G p t Htyp;
       destruct Htyp; intros.
 
     destruct p'; simpl in H1; inversion H1; subst.
+    destruct v as [r|r];
+      [inversion H1; subst
+      |destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
+       subst;
+       [rewrite <- beq_nat_refl in H1; subst
+       |apply Nat.eqb_neq in Heq; rewrite Heq in H1; inversion H1]].
+
+    unfold mapping in H.
+    rewrite rev_app_distr in H.
+    destruct (get_some_app (rev G2) (rev ([p1 /env 0] G1)) r) as [Ha|Ha];
+      destruct Ha as [Ha Hb];
+      rewrite Hb in H.
+    assert (Hclosed : closed_t (length G1) t);
+      [apply H3;
+       [apply in_or_app;
+        right;
+        apply get_in in H;
+        apply in_rev in H;
+        auto
+       |crush]
+      |].
+    exists t; split;
+      (rewrite closed_subst_type; auto).
+    simpl.
+    apply pt_var.
+    unfold mapping;
+      rewrite rev_app_distr;
+      rewrite get_app_l;
+      auto.
+
+    destruct mapping_subst_switch with (G:=[p1 /env 0]G1)(r:=r - length (rev G2))
+                                       (t:=t)(p1:=p1)(G':=G1)(n:=0) as [t' Hc]; 
+      auto; destruct Hc as [Hc Hd].
+    rewrite plus_0_l in Hc.
+    
+    rewrite raise_closed_substitution_type with (t:=([p1 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
+                                                (p:=p1)(t':=t')(m:=length G1 - (r - length (rev G2))) in Hc; auto.
+    assert (Hlt : r - length (rev G2) < length (rev ([p1 /env 0] G1)));
+      [apply get_some_index with (t:=t); auto
+      |repeat rewrite rev_length in Hlt;
+       rewrite subst_length in Hlt].
+    assert (r - length (rev G2) + (length G1 - (r - length (rev G2))) =
+            length G1);
+      [|].
+    SearchAbout minus.
     
   Qed.
         
