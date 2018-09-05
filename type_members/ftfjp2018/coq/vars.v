@@ -2444,6 +2444,30 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     
   Qed.
 
+  Lemma typing_p_weakening_actual :
+    forall Sig G p t, Sig en G vdash p pathType t ->
+               Sig en G vdash p wf_e ->
+               Sig en G vdash t wf_t ->
+               Sig evdash G wf_env ->
+               Sig wf_st ->
+               forall G', Sig en G' ++ G vdash p pathType t.
+  Proof.
+    intros.
+
+    apply typing_p_weakening with (G1:=nil)(G2:=G)
+                                  (i:=length G)
+                                  (n:=length G')
+                                  (G':=G')in H;
+      auto.
+    simpl in H.
+    rewrite lt_rjump_env, lt_rjump_env,
+    lt_rjump_exp, lt_rjump_type in H; auto.
+    apply wf_lt_type with (Sig:=Sig); auto.
+    apply wf_lt_exp with (Sig:=Sig); auto.
+    apply wf_lt_env with (Sig:=Sig); auto.
+    apply wf_lt_store_type with (Sig:=Sig); auto.
+  Qed.
+  
   Lemma has_contains_weakening_mutind :
     (forall Sig G p d, Sig en G vdash p ni d ->
                 forall G1 G2,
@@ -3526,6 +3550,13 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct wf_closed_mutind; auto.
   Qed.
 
+  Lemma wf_closed_exp :
+    (forall Sig G e, Sig en G vdash e wf_e ->
+              forall n, closed_e n e).
+  Proof.
+    destruct wf_closed_mutind; crush.
+  Qed.
+
   Lemma raise_n_t_top_simpl :
     forall n i, raise_n_t n top i = top.
   Proof.
@@ -4557,28 +4588,34 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   
   Lemma typing_p_subst:
     (forall Sig G p t1, Sig en G vdash p pathType t1 ->
+                 Sig wf_st ->
                 forall p1 G1 G2 n p',
                   G = ([p1 /env 0] G1) ++ G2 ->
                   p = ([p1 /e n] p') ->
                   n = length G1 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
+                  Sig evdash G2 wf_env ->
                   forall p2 tp,
+                    closed_env (([p2 /env 0] G1) ++ G2) 0 ->
                     Sig en G2 vdash p1 pathType tp ->
                     Sig en G2 vdash p2 pathType tp ->
+                    Sig en G2 vdash p1 wf_e ->
+                    Sig en G2 vdash p2 wf_e ->
+                    Sig en G2 vdash tp wf_t ->
                     exists t', t1 = ([p1 /t n] t') /\
-                          Sig en ([p2 /env n] G1) ++ G2 vdash ([p2 /e n] p') pathType ([p2 /t n] t')).
+                          Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /e n] p') pathType ([p2 /t n] t')).
   Proof.
     intros Sig G p t Htyp;
       destruct Htyp; intros.
 
-    destruct p'; simpl in H1; inversion H1; subst.
+    destruct p'; simpl in H2; inversion H2; subst.
     destruct v as [r|r];
-      [inversion H1; subst
+      [inversion H2; subst
       |destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
        subst;
-       [rewrite <- beq_nat_refl in H1; subst
-       |apply Nat.eqb_neq in Heq; rewrite Heq in H1; inversion H1]].
+       [rewrite <- beq_nat_refl in H2; subst
+       |apply Nat.eqb_neq in Heq; rewrite Heq in H2; inversion H2]].
 
     unfold mapping in H.
     rewrite rev_app_distr in H.
@@ -4586,7 +4623,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       destruct Ha as [Ha Hb];
       rewrite Hb in H.
     assert (Hclosed : closed_t (length G1) t);
-      [apply H3;
+      [apply H4;
        [apply in_or_app;
         right;
         apply get_in in H;
@@ -4614,41 +4651,134 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       [apply get_some_index with (t:=t); auto
       |repeat rewrite rev_length in Hlt;
        rewrite subst_length in Hlt].
-    assert (r - length (rev G2) + (length G1 - (r - length (rev G2))) =
+    assert (Heq : r - length (rev G2) + (length G1 - (r - length (rev G2))) =
             length G1);
-      [|].
-    SearchAbout minus.
+      [rewrite Nat.add_sub_assoc;
+       [|rewrite rev_length; crush];
+       rewrite minus_plus; auto
+      |rewrite Heq in Hc].
+    remember (raise_n_t (length G1 - (r - length (rev G2))) t' (r - length (rev G2))) as t''.
+    exists t''; split; auto.
+    simpl.
+    apply pt_var.
+    unfold mapping;
+      rewrite rev_app_distr;
+      rewrite get_app_r; auto.
+    unfold mapping in Hd.
+    rewrite Hd.
+    rewrite plus_0_l.
+    rewrite raise_closed_substitution_type with (t:=([p2 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
+                                                (p:=p2)(t':=t')(m:=length G1 - (r - length (rev G2))); auto.
+    rewrite <- Heqt''.
+    rewrite Heq; auto.
+
+    intros n Hle; apply H7;
+      [|crush].
+    apply in_rev.
+    apply get_in with (n0:=r).
+    rewrite rev_app_distr.
+    rewrite get_app_r; auto.
+    
+    
+    intros n Hle; apply H4;
+      [|crush].
+    apply in_rev.
+    apply get_in with (n0:=r).
+    rewrite rev_app_distr.
+    rewrite get_app_r; auto.
+    rewrite H, Hc; auto.
+    
+    rewrite <- beq_nat_refl in H14.
+    simpl; rewrite <- beq_nat_refl.
+    exists t; split;
+      [rewrite closed_subst_type; auto|].
+    apply H4;
+      [|crush].
+    rewrite in_rev.
+    apply get_in with (n0:=n).
+    auto.
+    
+    rewrite closed_subst_type;
+      [|apply H4;[|crush]].
+    apply path_typing_uniqueness with (t:=t) in H8; subst; auto.
+    apply typing_p_weakening_actual; auto.
+    unfold mapping in H.
+    rewrite rev_app_distr in H.
+    rewrite get_app_l in H; auto.
+    inversion H8; subst.
+    unfold mapping in H12.
+    apply get_some_index in H13; auto.
+    apply in_rev, get_in with (n0:=n); auto.
+
+    (*store location*)
+    destruct p';
+      simpl in H2;
+      inversion H2; subst.
+    destruct v as [r|r];
+      [inversion H2|].
+    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
+      subst;
+      [rewrite <- beq_nat_refl in H2
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H2;
+       inversion H2].
+    subst.
+    apply path_typing_uniqueness with (t:=t) in H8; subst; auto.
+    exists t; split;
+      [rewrite closed_subst_type;
+       auto|].
+    apply H5; [|crush].
+    apply in_rev, get_in with (n:=i); auto.
+
+    simpl; rewrite <- beq_nat_refl, closed_subst_type.
+    apply typing_p_weakening_actual; auto.
+    apply H5;
+      [|crush].
+    apply in_rev, get_in with (n:=i); auto.
+
+    exists t; split;
+      [|crush].
+    rewrite closed_subst_type; auto.
+    apply H5;
+      [apply in_rev, get_in with (n:=n0); auto|crush].
+    rewrite closed_subst_type; auto.
+    apply H5;
+      [apply in_rev, get_in with (n:=n0); auto|crush].
+
+    (*cast*)
+    destruct p';
+      simpl in H1;
+      inversion H1; subst.
+    destruct v as [r|r];
+      [inversion H1|].
+    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
+      subst;
+      [rewrite <- beq_nat_refl in H1
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H1;
+       inversion H1].
+    subst.
+    simpl; rewrite <- beq_nat_refl.
+    inversion H7; subst.
+    exists tp; split.
+    assert (Hclosed : closed_e (length G1) (p cast tp));
+      [apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto
+      |rewrite closed_subst_type; auto;
+       inversion Hclosed; auto].
+    rewrite closed_subst_type.
+    apply typing_p_weakening_actual; auto.
+    apply wf_closed_type with (Sig:=Sig)(G:=G2); auto.
+
+    exists t0; split; simpl; auto.
     
   Qed.
-        
-  
-(*
-  Lemma typing_p_subst :
-    (forall Sig G p t, Sig en G vdash p pathType t ->
-                forall p1 n G1 G2 p' t',
-                  G = ([p1 /env n] G1) ++ G2 ->
-                  closed_env n G2 ->
-                  closed_env n Sig ->
-                  (p = [p1 /e n] p') ->
-                  (t = [p1 /t n] t') ->
-                  forall p2 tp, Sig en G1 vdash p1 pathType tp ->
-                           Sig en G1 vdash p2 pathType tp ->
-                           Sig en ([p2 /env n] G2) ++ G1 vdash ([p2 /e n] p') hasType ([p2 /t n] t')).
-  Proof.
-    intros Sig G p t Htyp;
-      induction Htyp; intros.
-
-    (*pt-var*)
-    simpl.
-  Admitted.
-*)
 
   Lemma has_contains_subst_mutind :
     (forall Sig G p s, Sig en G vdash p ni s ->
                 forall p1 n G1 G2 p' s',
                   G = ([p1 /env n] G1) ++ G2 ->
-                  closed_env n G2 ->
-                  closed_env n Sig ->
+                  closed_env G2 n ->
+                  closed_env Sig n ->
                   (p = [p1 /e n] p') ->
                   (s = [p1 /s n] s') ->
                   forall p2 tp, Sig en G1 vdash p1 pathType tp ->
@@ -4658,8 +4788,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     (forall Sig G t s, Sig en G vdash s cont t ->
                 forall p1 n G1 G2 t' s',
                   G = ([p1 /env n] G1) ++ G2 ->
-                  closed_env n G2 ->
-                  closed_env n Sig ->
+                  closed_env G2 n ->
+                  closed_env Sig n ->
                   (t = [p1 /t n] t') ->
                   (s = [p1 /s n] s') ->
                   forall p2 tp, Sig en G1 vdash p1 pathType tp ->
