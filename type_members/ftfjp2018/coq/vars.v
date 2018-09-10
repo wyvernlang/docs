@@ -4578,8 +4578,67 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     assert (Hlt2 : r + 1 < S m); [crush|].
     apply Nat.ltb_lt in Hlt1;
       apply Nat.ltb_lt in Hlt2;
-      rewrite Hlt1, Hlt2.
-    
+      rewrite Hlt1, Hlt2, Hnlt1; auto.
+
+    assert (Hnlt3 : ~r + 1 < S m); [crush|].
+    apply Nat.ltb_nlt in Hnlt2;
+      apply Nat.ltb_nlt in Hnlt3.
+    rewrite Hnlt2, Hnlt3.
+    assert (Hnlt4: r + 1 <? n = false);
+      [apply Nat.ltb_nlt; apply Nat.ltb_nlt in Hnlt1; crush|].
+    rewrite Hnlt4; auto.
+  Qed.
+
+  Lemma raise_add_type :
+    (forall t n m, n <= m -> ((t raise_t n) raise_t S m)  = ((t raise_t m) raise_t n)).
+  Proof.
+    destruct raise_add_mutind; crush.
+  Qed.
+
+  Lemma raise_add_decl_ty :
+    (forall s n m, n <= m -> ((s raise_s n) raise_s S m)  = ((s raise_s m) raise_s n)).
+  Proof.
+    destruct raise_add_mutind; crush.
+  Qed.
+
+  Lemma raise_add_decl_tys :
+    (forall ss n m, n <= m -> ((ss raise_ss n) raise_ss S m)  = ((ss raise_ss m) raise_ss n)).
+  Proof.
+    destruct raise_add_mutind; crush.
+  Qed.
+
+  Lemma raise_add_exp :
+    (forall e n m, n <= m -> ((e raise_e n) raise_e S m)  = ((e raise_e m) raise_e n)).
+  Proof.
+    destruct raise_add_mutind; crush.
+  Qed.
+
+  Lemma raise_add_decl :
+    (forall d n m, n <= m -> ((d raise_d n) raise_d S m)  = ((d raise_d m) raise_d n)).
+  Proof.
+    destruct raise_add_mutind; crush.
+  Qed.
+
+  Lemma raise_add_decls :
+    (forall ds n m, n <= m -> ((ds raise_ds n) raise_ds S m)  = ((ds raise_ds m) raise_ds n)).
+  Proof.
+    destruct raise_add_mutind; crush.
+  Qed.
+
+  Lemma raise_S :
+    forall n m, (S n raise_n S m) = S (n raise_n m).
+  Proof.
+    intros.
+
+    unfold raise_nat.
+    destruct (lt_dec n m) as [Hlt1|Hlt1];
+      [assert (Hlt2 : S n < S m); [crush|];
+       apply Nat.ltb_lt in Hlt1;
+       apply Nat.ltb_lt in Hlt2
+      |assert (Hlt2 : ~S n < S m); [crush|];
+       apply Nat.ltb_nlt in Hlt1;
+       apply Nat.ltb_nlt in Hlt2];
+      rewrite Hlt1, Hlt2; auto.
   Qed.
 
   Lemma raise_subst_distr_mutind :
@@ -4594,48 +4653,143 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       try solve [crush];
       intros; simpl.
 
+    (*struct type*)
     rewrite H.
-    
+    rewrite raise_add_exp; [|crush].
+    rewrite raise_S; auto.
+
+    (*arrow type*)
+    rewrite H, H0.
+    rewrite raise_add_exp; [|crush].
+    rewrite raise_S; auto.
+
+    (*new*)
+    rewrite H.
+    rewrite raise_add_exp; [|crush].
+    rewrite raise_S; auto.
+
+    (*funciton*)
+    rewrite H, H0, H1.
+    rewrite raise_add_exp; [|crush].
+    rewrite raise_S; auto.
+
+    (*variable*)
+    destruct v as [r|r]; simpl; auto.
+    destruct (Nat.eq_dec n r) as [Heq|Heq]; subst;
+      [repeat rewrite <- beq_nat_refl; auto
+      |unfold raise_nat;
+       assert (Htmp : n <> r); [auto|];
+       apply (Nat.eqb_neq) in Htmp;
+       rewrite Htmp].
+    simpl.
+    unfold raise_nat.
+    destruct (lt_dec r m) as [Hlt1|Hlt1].
+    apply Nat.ltb_lt in Hlt1;
+      rewrite Hlt1.
+    destruct (lt_dec n m) as [Hlt2|Hlt2].
+    apply Nat.ltb_lt in Hlt2;
+      rewrite Hlt2.
+    rewrite Htmp; auto.
+    apply (Nat.ltb_nlt) in Hlt2;
+      rewrite Hlt2.
+    destruct (Nat.eq_dec (n + 1) r) as [Heq2|Heq2]; subst;
+      [|apply Nat.eqb_neq in Heq2; rewrite Heq2; auto].
+    apply Nat.ltb_lt in Hlt1;
+      apply Nat.ltb_nlt in Hlt2; crush.
+
+    apply Nat.ltb_nlt in Hlt1;
+      rewrite Hlt1.
+    destruct (lt_dec n m) as [Hlt2|Hlt2];
+      [apply Nat.ltb_lt in Hlt2;
+       rewrite Hlt2|].
+    assert (Hneq : n <> r + 1); [|apply Nat.eqb_neq in Hneq; rewrite Hneq; auto].
+    apply Nat.ltb_lt in Hlt2;
+      apply Nat.ltb_nlt in Hlt1;
+      crush.
+    apply Nat.ltb_nlt in Hlt2;
+      rewrite Hlt2.
+    assert (Hneq' : n + 1 <> r + 1);
+      [crush
+      |apply Nat.eqb_neq in Hneq';
+       rewrite Hneq'; auto].
   Qed.
+
+  Lemma raise_subst_distr_type :
+    (forall t p n m, (([p /t n] t) raise_t m) = ([p raise_e m /t n raise_n m] (t raise_t m))).
+  Proof.
+    destruct raise_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_subst_distr_decl_ty :
+    (forall s p n m, (([p /s n] s) raise_s m) = ([p raise_e m /s n raise_n m] (s raise_s m))).
+  Proof.
+    destruct raise_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_subst_distr_decl_tys :
+    (forall ss p n m, (([p /ss n] ss) raise_ss m) = ([p raise_e m /ss n raise_n m] (ss raise_ss m))).
+  Proof.
+    destruct raise_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_subst_distr_exp :
+    (forall e p n m, (([p /e n] e) raise_e m) = ([p raise_e m /e n raise_n m] (e raise_e m))).
+  Proof.
+    destruct raise_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_subst_distr_decl :
+    (forall d p n m, (([p /d n] d) raise_d m) = ([p raise_e m /d n raise_n m] (d raise_d m))).
+  Proof.
+    destruct raise_subst_distr_mutind; crush.
+  Qed.
+
+  Lemma raise_subst_distr_decls :
+    (forall ds p n m, (([p /ds n] ds) raise_ds m) = ([p raise_e m /ds n raise_n m] (ds raise_ds m))).
+  Proof.
+    destruct raise_subst_distr_mutind; crush.
+  Qed.
+  
 
   Lemma subst_distr_mutind :
     (forall t n m, n <> m ->
               forall p1 p2, closed_exp p1 0  ->
                        closed_exp p2 0 ->
-                       ([p1 /t n] ([p2 /t m] t)) = ([([p1 /e n] p2) /t m]([p1 /t n] t))) /\
+                       ([p1 /t n] ([p2 /t m] t)) = ([p2 /t m]([p1 /t n] t))) /\
     
     (forall s n m, n <> m ->
               forall p1 p2, closed_exp p1 0  ->
                        closed_exp p2 0 ->
-                       ([p1 /s n] ([p2 /s m] s)) = ([([p1 /e n] p2) /s m]([p1 /s n] s))) /\
+                       ([p1 /s n] ([p2 /s m] s)) = ([p2 /s m]([p1 /s n] s))) /\
     
     (forall ss n m, n <> m ->
                forall p1 p2, closed_exp p1 0  ->
                         closed_exp p2 0 ->
-                        ([p1 /ss n] ([p2 /ss m] ss)) = ([([p1 /e n] p2) /ss m]([p1 /ss n] ss))) /\
+                        ([p1 /ss n] ([p2 /ss m] ss)) = ([p2 /ss m]([p1 /ss n] ss))) /\
     
     (forall e n m, n <> m ->
               forall p1 p2, closed_exp p1 0  ->
                        closed_exp p2 0 ->
-                       ([p1 /e n] ([p2 /e m] e)) = ([([p1 /e n] p2) /e m]([p1 /e n] e))) /\
+                       ([p1 /e n] ([p2 /e m] e)) = ([p2 /e m]([p1 /e n] e))) /\
     
     (forall d n m, n <> m ->
               forall p1 p2, closed_exp p1 0  ->
                        closed_exp p2 0 ->
-                       ([p1 /d n] ([p2 /d m] d)) = ([([p1 /e n] p2) /d m]([p1 /d n] d))) /\
+                       ([p1 /d n] ([p2 /d m] d)) = ([p2 /d m]([p1 /d n] d))) /\
     
     (forall ds n m, n <> m ->
                forall p1 p2, closed_exp p1 0  ->
                         closed_exp p2 0 ->
-                        ([p1 /ds n] ([p2 /ds m] ds)) = ([([p1 /e n] p2) /ds m]([p1 /ds n] ds))).
+                        ([p1 /ds n] ([p2 /ds m] ds)) = ([p2 /ds m]([p1 /ds n] ds))).
   Proof.
 
     apply type_exp_mutind; intros; auto.
 
     (*struct type*)
     simpl.
-    rewrite H; auto.
+    rewrite H; auto;
     rewrite raise_closed_exp with (n:=0); auto.
+
     
     
   Qed.
