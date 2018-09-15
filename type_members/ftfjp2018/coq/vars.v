@@ -9,7 +9,19 @@ Require Export Coq.Program.Tactics.
 Require Export Recdef.
 Set Implicit Arguments.
 
+(*TODO:
+ * Strengthening: This can probably be done by introducing just a single right step function.
 
+
+ * Narrowing: Only relevant for membership. Potentially not necessary if a 
+ * limited form of membership is defined on only structure types, then extended 
+ * to selection types by including a substitution of a well-formed receiver 
+ * featuring a series of upcasts as appropriate. This would then be equivalent
+ * to regular membership. This equivalence would be sufficient to demonstrate 
+ * for the purposes of type preservation.
+
+
+*)
 
 
 Inductive var : Type :=
@@ -699,7 +711,30 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Scheme has_mut_ind := Induction for has Sort Prop
                         with contains_mut_ind := Induction for contains Sort Prop.             
 
-  Combined Scheme has_contains_mutind from has_mut_ind, contains_mut_ind. 
+  Combined Scheme has_contains_mutind from has_mut_ind, contains_mut_ind.
+
+  Reserved Notation "Sig 'en' G 'vdash' p 'ni_s' s" (at level 80).
+  Reserved Notation "Sig 'en' G 'vdash' s 'cont_s' t" (at level 80).
+  
+  Inductive strict_has : env -> env -> exp -> decl_ty -> Prop :=
+  | h_struct : forall Sig G p ss s, Sig en G vdash p pathType (str ss) ->
+                             Sig en G vdash s cont_s (str ss) ->
+                             Sig en G vdash p ni_s ([p /s 0] s)
+  | h_upper : forall Sig G p p' l' t s, Sig en G vdash p pathType (sel p' l') ->
+                                 Sig en G vdash p' ni_s (type l' ext t) ->
+                                 Sig en G vdash (p cast t) ni_s s ->
+                                 Sig en G vdash p ni_s s
+  | h_equal : forall Sig G p p' l' t s, Sig en G vdash p pathType (sel p' l') ->
+                                 Sig en G vdash p' ni_s (type l' eqt t) ->
+                                 Sig en G vdash (p cast t) ni_s s ->
+                                 Sig en G vdash p ni_s s
+  where "Sig 'en' G 'vdash' p 'ni_s' s" := (strict_has Sig G p s)
+                                     
+  with
+  strict_contains : env -> env -> ty -> decl_ty -> Prop :=
+  | strict_cont : forall Sig G ss s, in_dty s ss ->
+                                Sig en G vdash s cont_s (str ss)
+  where "Sig 'en' G 'vdash' s 'cont_s' t" := (strict_contains Sig G t s).
   (*
   Fixpoint left_jump_env (G : env) (n : nat) (i : option nat) : env :=
     match G with
@@ -1795,7 +1830,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite Hcontra in Ha;
       contradiction Ha; auto.
   Qed.
-
+  
   Lemma notin_rjump_mutind :
     (forall n t, n notin_t t ->
             forall i m, (n [i] rjump_n m) notin_t (t [i] rjump_t m)) /\
@@ -3887,6 +3922,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_ty_top.
+  Hint Rewrite closed_ty_top.
 
   Lemma closed_ty_bot :
     forall i, closed_ty bot i.
@@ -3895,6 +3931,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_ty_bot.
+  Hint Rewrite closed_ty_bot.
 
   Lemma closed_ty_sel :
     forall i p l, closed_ty (sel p l) i <-> closed_exp p i.
@@ -3907,6 +3944,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_ty_sel.
+  Hint Rewrite closed_ty_sel.
 
   Lemma closed_ty_arr :
     forall i t1 t2, closed_ty (t1 arr t2) i <-> closed_ty t1 i /\ closed_ty t2 (S i).
@@ -3930,6 +3968,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_ty_arr.
+  Hint Rewrite closed_ty_arr.
 
   Lemma closed_ty_str :
     forall i ss, closed_ty (str ss) i <-> closed_decl_tys ss (S i).
@@ -3947,6 +3986,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_ty_str.
+  Hint Rewrite closed_ty_str.
 
   Lemma closed_decl_ty_upper :
     forall i L t, closed_decl_ty (type L ext t) i <-> closed_ty t i.
@@ -3959,6 +3999,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_ty_upper.
+  Hint Rewrite closed_decl_ty_upper.
 
   Lemma closed_decl_ty_lower :
     forall i L t, closed_decl_ty (type L sup t) i <-> closed_ty t i.
@@ -3971,6 +4012,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_ty_lower.
+  Hint Rewrite closed_decl_ty_lower.
 
   Lemma closed_decl_ty_equal :
     forall i L t, closed_decl_ty (type L eqt t) i <-> closed_ty t i.
@@ -3983,6 +4025,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_ty_equal.
+  Hint Rewrite closed_decl_ty_equal.
 
   Lemma closed_decl_ty_value :
     forall i l t, closed_decl_ty (val l oft t) i <-> closed_ty t i.
@@ -3995,6 +4038,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_ty_value.
+  Hint Rewrite closed_decl_ty_value.
 
   Lemma closed_decl_tys_nil :
     forall i, closed_decl_tys dt_nil i.
@@ -4003,6 +4047,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_tys_nil.
+  Hint Rewrite closed_decl_tys_nil.
 
   Lemma closed_decl_tys_con :
     forall i s ss, closed_decl_tys (dt_con s ss) i <-> closed_decl_ty s i /\ closed_decl_tys ss i.
@@ -4019,6 +4064,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_tys_con.
+  Hint Rewrite closed_decl_tys_con.
 
   Lemma closed_exp_var :
     forall i n, closed_exp (c_ n) i.
@@ -4027,6 +4073,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_exp_var.
+  Hint Rewrite closed_exp_var.
 
 
   Lemma closed_exp_loc :
@@ -4036,6 +4083,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_exp_loc.
+  Hint Rewrite closed_exp_loc.
 
 
   Lemma closed_exp_cast :
@@ -4050,6 +4098,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_exp_cast.
+  Hint Rewrite closed_exp_cast.
 
 
   Lemma closed_exp_fn :
@@ -4075,6 +4124,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_exp_fn.
+  Hint Rewrite closed_exp_fn.
 
 
   Lemma closed_exp_app :
@@ -4090,6 +4140,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_exp_app.
+  Hint Rewrite closed_exp_app.
 
 
   Lemma closed_exp_acc :
@@ -4102,6 +4153,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_exp_acc.
+  Hint Rewrite closed_exp_acc.
 
 
   Lemma closed_exp_new :
@@ -4118,6 +4170,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_exp_new.
+  Hint Rewrite closed_exp_new.
 
   Lemma closed_decl_equal :
     forall i L t, closed_decl (type L eqe t) i <-> closed_ty t i.
@@ -4128,6 +4181,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_equal.
+  Hint Rewrite closed_decl_equal.
   
   Lemma closed_decl_value:
     forall i l e t, closed_decl (val l assgn e oft t) i <-> (closed_exp e i) /\ (closed_ty t i).
@@ -4142,6 +4196,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decl_value.
+  Hint Rewrite closed_decl_value.
 
 
   Lemma closed_decls_nil :
@@ -4151,6 +4206,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decls_nil.
+  Hint Rewrite closed_decls_nil.
 
   Lemma closed_decls_con :
     forall i d ds, closed_decls (d_con d ds) i <-> (closed_decl d i) /\ (closed_decls ds i).
@@ -4165,6 +4221,78 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Hint Resolve closed_decls_con.
+  Hint Rewrite closed_decls_con.
+
+  Lemma closed_ty_le :
+    forall t n, closed_ty t n ->
+           forall m, n <= m ->
+                closed_ty t m.
+  Proof.
+    intros.
+
+    intros n' Hle;
+      apply H; crush.
+  Qed.
+
+  Lemma closed_decl_ty_le :
+    forall s n, closed_decl_ty s n ->
+           forall m, n <= m ->
+                closed_decl_ty s m.
+  Proof.
+    intros.
+
+    intros n' Hle;
+      apply H; crush.
+  Qed.
+
+  Lemma closed_decl_tys_le :
+    forall ss n, closed_decl_tys ss n ->
+            forall m, n <= m ->
+                 closed_decl_tys ss m.
+  Proof.
+    intros.
+
+    intros n' Hle;
+      apply H; crush.
+  Qed.
+
+  Lemma closed_exp_le :
+    forall e n, closed_exp e n ->
+           forall m, n <= m ->
+                closed_exp e m.
+  Proof.
+    intros.
+
+    intros n' Hle;
+      apply H; crush.
+  Qed.
+
+  Lemma closed_decl_le :
+    forall d n, closed_decl d n ->
+           forall m, n <= m ->
+                closed_decl d m.
+  Proof.
+    intros.
+
+    intros n' Hle;
+      apply H; crush.
+  Qed.
+
+  Lemma closed_decls_le :
+    forall ds n, closed_decls ds n ->
+            forall m, n <= m ->
+                 closed_decls ds m.
+  Proof.
+    intros.
+
+    intros n' Hle;
+      apply H; crush.
+  Qed.
+
+  Hint Rewrite closed_ty_le closed_decl_ty_le closed_decl_tys_le
+       closed_exp_le closed_decl_le closed_decls_le.
+  Hint Resolve closed_ty_le closed_decl_ty_le closed_decl_tys_le
+       closed_exp_le closed_decl_le closed_decls_le.
   
   Lemma raise_closed_substitution :
     (forall t n, closed_ty t n ->
@@ -4476,7 +4604,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct raise_closed_substitution; crush.
   Qed.
 
-  Lemma raise_closed_mutind :
+  Lemma raise_closed_le_mutind :
     (forall t n, closed_ty t n ->
             forall m, n <= m ->
                  (t raise_t m) = t) /\
@@ -4505,7 +4633,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*struct type*)
     rewrite H with (n:=S n); crush.
-    apply closed_ty_str; auto.
 
     (*selection type*)
     rewrite H with (n:=n); auto.
@@ -4582,53 +4709,151 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     
   Qed.
 
-  Lemma raise_closed_type :
+  Lemma raise_closed_le_type :
     (forall t n, closed_ty t n ->
             forall m, n <= m ->
                  (t raise_t m) = t).
   Proof.
-    destruct raise_closed_mutind; crush.
+    destruct raise_closed_le_mutind; crush.
   Qed.
 
-  Lemma raise_closed_decl_ty :
+  Lemma raise_closed_le_decl_ty :
     (forall s n, closed_decl_ty s n ->
             forall m, n <= m ->
                  (s raise_s m) = s).
   Proof.
-    destruct raise_closed_mutind; crush.
+    destruct raise_closed_le_mutind; crush.
   Qed.
 
-  Lemma raise_closed_decl_tys :
+  Lemma raise_closed_le_decl_tys :
     (forall ss n, closed_decl_tys ss n ->
              forall m, n <= m ->
                   (ss raise_ss m) = ss).
   Proof.
-    destruct raise_closed_mutind; crush.
+    destruct raise_closed_le_mutind; crush.
   Qed.
 
-  Lemma raise_closed_exp :
+  Lemma raise_closed_le_exp :
     (forall e n, closed_exp e n ->
             forall m, n <= m ->
                  (e raise_e m) = e).
   Proof.
-    destruct raise_closed_mutind; crush.
+    destruct raise_closed_le_mutind; crush.
   Qed.
 
-  Lemma raise_closed_decl :
+  Lemma raise_closed_le_decl :
     (forall d n, closed_decl d n ->
             forall m, n <= m ->
                  (d raise_d m) = d).
   Proof.
-    destruct raise_closed_mutind; crush.
+    destruct raise_closed_le_mutind; crush.
   Qed.
 
-  Lemma raise_closed_decls :
+  Lemma raise_closed_le_decls :
     (forall ds n, closed_decls ds n ->
              forall m, n <= m ->
                   (ds raise_ds m) = ds).
   Proof.
-    destruct raise_closed_mutind; crush.
+    destruct raise_closed_le_mutind; crush.
   Qed.
+
+  Lemma raise_closed_S_n_mutind :
+    (forall t n, closed_ty t n ->
+            forall m, closed_ty (t raise_t m) (S n)) /\
+    
+    (forall s n, closed_decl_ty s n ->
+            forall m, closed_decl_ty (s raise_s m) (S n)) /\
+    
+    (forall ss n, closed_decl_tys ss n ->
+             forall m, closed_decl_tys (ss raise_ss m) (S n)) /\
+    
+    (forall e n, closed_exp e n ->
+            forall m, closed_exp (e raise_e m) (S n)) /\
+    
+    (forall d n, closed_decl d n ->
+            forall m, closed_decl (d raise_d m) (S n)) /\
+    
+    (forall ds n, closed_decls ds n ->
+             forall m, closed_decls (ds raise_ds m) (S n)).
+  Proof.
+    apply type_exp_mutind; intros; simpl; auto;
+      try solve [crush].
+    
+    (*var*)
+    destruct v as [|r]; simpl; auto.
+    unfold raise_nat.
+    unfold closed_exp in H.
+    intros n' Hle.
+    destruct (lt_dec r m) as [Hlt|Hlt];
+      [apply Nat.ltb_lt in Hlt
+      |apply Nat.ltb_nlt in Hlt];
+      rewrite Hlt; [crush|].
+    destruct n' as [|n'']; [crush|].
+    apply le_S_n in Hle; apply H in Hle.
+    inversion Hle; subst.
+    inversion H2; subst.
+    crush.
+  Qed.    
+
+  Lemma raise_closed_S_n_type :
+    (forall t n, closed_ty t n ->
+            forall m, closed_ty (t raise_t m) (S n)).
+  Proof.
+    destruct raise_closed_S_n_mutind; crush.
+  Qed.
+
+  Hint Rewrite raise_closed_S_n_type.
+  Hint Resolve raise_closed_S_n_type.
+
+  Lemma raise_closed_S_n_decl_ty :    
+    (forall s n, closed_decl_ty s n ->
+            forall m, closed_decl_ty (s raise_s m) (S n)).
+  Proof.
+    destruct raise_closed_S_n_mutind; crush.
+  Qed.
+
+  Hint Rewrite raise_closed_S_n_decl_ty.
+  Hint Resolve raise_closed_S_n_decl_ty.
+
+  Lemma raise_closed_S_n_decl_tys :    
+    (forall ss n, closed_decl_tys ss n ->
+             forall m, closed_decl_tys (ss raise_ss m) (S n)).
+  Proof.
+    destruct raise_closed_S_n_mutind; crush.
+  Qed.
+
+  Hint Rewrite raise_closed_S_n_decl_tys.
+  Hint Resolve raise_closed_S_n_decl_tys.
+
+  Lemma raise_closed_S_n_exp :
+    (forall e n, closed_exp e n ->
+            forall m, closed_exp (e raise_e m) (S n)).
+  Proof.
+    destruct raise_closed_S_n_mutind; crush.
+  Qed.
+
+  Hint Rewrite raise_closed_S_n_exp.
+  Hint Resolve raise_closed_S_n_exp.
+
+  Lemma raise_closed_S_n_decl :    
+    (forall d n, closed_decl d n ->
+            forall m, closed_decl (d raise_d m) (S n)).
+  Proof.
+    destruct raise_closed_S_n_mutind; crush.
+  Qed.
+
+  Hint Rewrite raise_closed_S_n_decl.
+  Hint Resolve raise_closed_S_n_decl.
+
+  Lemma raise_closed_S_n_decls :
+    (forall ds n, closed_decls ds n ->
+             forall m, closed_decls (ds raise_ds m) (S n)).
+  Proof.
+    destruct raise_closed_S_n_mutind; crush.
+  Qed.
+
+  Hint Rewrite raise_closed_S_n_decls.
+  Hint Resolve raise_closed_S_n_decls.
 
   Lemma raise_add_mutind :
     (forall t n m, n <= m -> ((t raise_t n) raise_t S m)  = ((t raise_t m) raise_t n)) /\
@@ -4855,11 +5080,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                  try (rewrite H);
                  try (rewrite H0);
                  try (rewrite H1);
-                 try (rewrite raise_closed_exp with (n:=0); auto);
+                 try (rewrite raise_closed_le_exp with (n:=0); auto);
                  try (rewrite raise_subst_distr_exp; simpl;
                       unfold raise_nat;
                       assert (Hnlt : ~ n < 0); [crush|apply Nat.ltb_nlt in Hnlt];
-                      rewrite Hnlt, Nat.add_1_r, raise_closed_exp with (e:=p1)(n:=0); auto);
+                      rewrite Hnlt, Nat.add_1_r, raise_closed_le_exp with (e:=p1)(n:=0); auto);
                  auto].
 
     (*var*)
@@ -4979,7 +5204,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
             try (rewrite H0);
             try (rewrite H1);
             auto;
-            try (rewrite raise_closed_exp with (n:=0); auto)
+            try (rewrite raise_closed_le_exp with (n:=0); auto)
           ].
 
     (*var*)
@@ -5293,6 +5518,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     
   Qed.
 
+  (*
   Lemma closed_raise_zero :
     (forall t n, closed_ty t n ->
             closed_ty (t raise_t 0) (S n)) /\
@@ -5310,72 +5536,391 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply type_exp_mutind; intros; auto.
 
     simpl.
-  Qed.
+  Qed.*)
 
-  Lemma closed_subst_hole :
-    (forall t n m o, n <> o ->
-                m <= n ->
-                closed_t n t ->
-                forall e, closed_exp e m ->
-                     closed_ty ([e /t o] t) m) /\
+  Lemma closed_subst_hole_mutind :
+    (forall t n, closed_ty t (S n) ->
+            forall e, closed_exp e n ->
+                 closed_ty ([e /t n] t) n) /\
     
-    (forall s n m o, n <> o ->
-                m <= n ->
-                closed_s n s ->
-                forall e, closed_exp e m ->
-                     closed_decl_ty ([e /s o] s) m) /\
+    (forall s n, closed_decl_ty s (S n) ->
+            forall e, closed_exp e n ->
+                 closed_decl_ty ([e /s n] s) n) /\
     
-    (forall ss n m o, n <> o ->
-                 m <= n ->
-                 closed_ss n ss ->
-                 forall e, closed_exp e m ->
-                      closed_decl_tys ([e /ss o] ss) m) /\
+    (forall ss n, closed_decl_tys ss (S n) ->
+             forall e, closed_exp e n ->
+                  closed_decl_tys ([e /ss n] ss) n) /\
     
-    (forall e n m o, n <> o ->
-                m <= n ->
-                closed_e n e ->
-                forall e, closed_exp e m ->
-                     closed_exp ([e /e o] e) m) /\
+    (forall e n, closed_exp e (S n) ->
+            forall e', closed_exp e' n ->
+                  closed_exp ([e' /e n] e) n) /\
     
-    (forall d n m o, n <> o ->
-                m <= n ->
-                closed_d n d ->
-                forall e, closed_exp e m ->
-                     closed_decl ([e /d o] d) m) /\
+    (forall d n, closed_decl d (S n) ->
+            forall e, closed_exp e n ->
+                 closed_decl ([e /d n] d) n) /\
     
-    (forall ds n m o, n <> o ->
-                 m <= n ->
-                 closed_ds n ds ->
-                 forall e, closed_exp e m ->
-                      closed_decls ([e /ds o] ds) m).
+    (forall ds n, closed_decls ds (S n) ->
+             forall e, closed_exp e n ->
+                  closed_decls ([e /ds n] ds) n).
   Proof.
-    apply type_exp_mutind; intros; auto.
+    apply type_exp_mutind; intros; simpl; auto;
+      try solve [crush].
 
-    (*struct type*)
-    simpl.
-
-    
+    (*var*)
+    destruct v as [|r]; [crush|].
+    destruct (Nat.eq_dec n r) as [Heq|Heq];
+      [subst; rewrite <- beq_nat_refl; auto
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq].
+    intros n' Hle.
+    destruct (le_lt_or_eq n n'); subst; auto.
+    apply cl_var, cl_abstract.
+    apply Nat.eqb_neq in Heq; auto.
   Qed.
+
+  Lemma closed_subst_hole_type :
+    (forall t n, closed_ty t (S n) ->
+            forall e, closed_exp e n ->
+                 closed_ty ([e /t n] t) n).
+  Proof.
+    destruct closed_subst_hole_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_hole_type.
+  Hint Resolve closed_subst_hole_type.
+
+  Lemma closed_subst_hole_decl_ty :
+    (forall s n, closed_decl_ty s (S n) ->
+            forall e, closed_exp e n ->
+                 closed_decl_ty ([e /s n] s) n).
+  Proof.
+    destruct closed_subst_hole_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_hole_decl_ty.
+  Hint Resolve closed_subst_hole_decl_ty.
+
+  Lemma closed_subst_hole_decl_tys :
+    (forall ss n, closed_decl_tys ss (S n) ->
+             forall e, closed_exp e n ->
+                  closed_decl_tys ([e /ss n] ss) n).
+  Proof.
+    destruct closed_subst_hole_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_hole_decl_tys.
+  Hint Resolve closed_subst_hole_decl_tys.
+
+  Lemma closed_subst_hole_exp :
+    (forall e n, closed_exp e (S n) ->
+            forall e', closed_exp e' n ->
+                  closed_exp ([e' /e n] e) n).
+  Proof.
+    destruct closed_subst_hole_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_hole_exp.
+  Hint Resolve closed_subst_hole_exp.
+
+  Lemma closed_subst_hole_decl :
+    (forall d n, closed_decl d (S n) ->
+            forall e, closed_exp e n ->
+                 closed_decl ([e /d n] d) n).
+  Proof.
+    destruct closed_subst_hole_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_hole_decl.
+  Hint Resolve closed_subst_hole_decl.
+
+  Lemma closed_subst_hole_decls :
+    (forall ds n, closed_decls ds (S n) ->
+             forall e, closed_exp e n ->
+                  closed_decls ([e /ds n] ds) n).
+  Proof.
+    destruct closed_subst_hole_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_hole_decls.
+  Hint Resolve closed_subst_hole_decls.
+
+  Lemma closed_in_dty :
+    forall s ss, in_dty s ss ->
+            forall n, closed_decl_tys ss n ->
+                 closed_decl_ty s n.
+  Proof.
+    intros s ss Hin; induction Hin; intros;
+
+    apply closed_decl_tys_con in H; destruct H; auto.
+  Qed.
+
+  Lemma closed_subst_components_mutind :
+    (forall t n, closed_ty t n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_ty ([p /t m] t) n) /\
+    
+    (forall s n, closed_decl_ty s n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decl_ty ([p /s m] s) n) /\
+    
+    (forall ss n, closed_decl_tys ss n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decl_tys ([p /ss m] ss) n) /\
+    
+    (forall e n, closed_exp e n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_exp ([p /e m] e) n) /\
+    
+    (forall d n, closed_decl d n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decl ([p /d m] d) n) /\
+    
+    (forall ds n, closed_decls ds n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decls ([p /ds m] ds) n).
+  Proof.
+    apply type_exp_mutind; intros;
+      try solve [crush].
+
+    (*var*)
+    destruct v as [|r]; [crush|simpl].
+    destruct (Nat.eq_dec m r) as [Heq|Heq];
+      [subst; rewrite <- beq_nat_refl; auto
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq; auto].
+  Qed.
+
+  Lemma closed_subst_components_type :
+    (forall t n, closed_ty t n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_ty ([p /t m] t) n).
+  Proof.
+    destruct closed_subst_components_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_components_type.
+  Hint Resolve closed_subst_components_type.
+
+  Lemma closed_subst_components_decl_ty :
+    (forall s n, closed_decl_ty s n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decl_ty ([p /s m] s) n).
+  Proof.
+    destruct closed_subst_components_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_components_decl_ty.
+  Hint Resolve closed_subst_components_decl_ty.
+
+  Lemma closed_subst_components_decl_tys :
+    (forall ss n, closed_decl_tys ss n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decl_tys ([p /ss m] ss) n).
+  Proof.
+    destruct closed_subst_components_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_components_decl_tys.
+  Hint Resolve closed_subst_components_decl_tys.
+
+  Lemma closed_subst_components_exp :
+    (forall e n, closed_exp e n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_exp ([p /e m] e) n).
+  Proof.
+    destruct closed_subst_components_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_components_exp.
+  Hint Resolve closed_subst_components_exp.
+
+  Lemma closed_subst_components_decl :
+    (forall d n, closed_decl d n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decl ([p /d m] d) n).
+  Proof.
+    destruct closed_subst_components_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_components_decl.
+  Hint Resolve closed_subst_components_decl.
+
+  Lemma closed_subst_components_decls :
+    (forall ds n, closed_decls ds n ->
+            forall p, closed_exp p n ->
+                 forall m, closed_decls ([p /ds m] ds) n).
+  Proof.
+    destruct closed_subst_components_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_components_decls.
+  Hint Resolve closed_subst_components_decls.
+    
 
   Lemma closed_has_contains_mutind :
     (forall Sig G p s, Sig en G vdash p ni s ->
-                forall m, closed_env Sig m ->
-                     closed_env G m ->
-                     closed_exp p m ->
-                     closed_decl_ty s m) /\
+                closed_env Sig 0 ->
+                closed_env G 0 ->
+                closed_exp p 0 ->
+                closed_decl_ty s 0) /\
     (forall Sig G t s, Sig en G vdash s cont t ->
-                forall m, closed_env Sig m ->
-                     closed_env G m ->
-                     closed_ty t m ->
-                     forall n, n <> 0 ->
-                          m <= n ->
-                          closed_s n s).
+                closed_env Sig 0 ->
+                closed_env G 0 ->
+                closed_ty t 0 ->
+                closed_decl_ty s 1).
   Proof.
     apply has_contains_mutind; intros.
 
+    apply closed_subst_hole_decl_ty; [|auto].
+    apply H; auto.
+    apply closed_typing_p with (Sig:=Sig)(G:=G)(p:=p); auto.
+
+    apply -> closed_ty_str in H1;
+      apply closed_in_dty with (s:=d) in H1; auto.
     
+    assert (Hclosed : closed_ty t 0);
+      [apply -> closed_decl_ty_upper;
+       apply H; auto;
+       apply -> closed_ty_sel; eauto|].
+    apply closed_subst_components_decl_ty; [apply H0; auto|].
+    apply closed_exp_cast; split; intros n' Hle; [|crush].
+    apply cl_var, cl_abstract; crush.
     
+    assert (Hclosed : closed_ty t 0);
+      [apply -> closed_decl_ty_equal;
+       apply H; auto;
+       apply -> closed_ty_sel; eauto|].
+    apply closed_subst_components_decl_ty; [apply H0; auto|].
+    apply closed_exp_cast; split; intros n' Hle; [|crush].
+    apply cl_var, cl_abstract; crush.
   Qed.
+    
+
+  Lemma closed_has :
+    (forall Sig G p s, Sig en G vdash p ni s ->
+                closed_env Sig 0 ->
+                closed_env G 0 ->
+                closed_exp p 0 ->
+                closed_decl_ty s 0).
+  Proof.
+    destruct closed_has_contains_mutind; crush.
+  Qed.
+    
+
+  Lemma closed_contains :
+    (forall Sig G t s, Sig en G vdash s cont t ->
+                closed_env Sig 0 ->
+                closed_env G 0 ->
+                closed_ty t 0 ->
+                closed_decl_ty s 1).
+  Proof.
+    destruct closed_has_contains_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_has closed_contains.
+  Hint Resolve closed_has closed_contains.
+
+  Lemma closed_subst_switch_mutind :
+    (forall t p1 n m, closed_ty ([p1 /t n] t) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_ty ([p2 /t n] t) m) /\
+    (forall s p1 n m, closed_decl_ty ([p1 /s n] s) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_decl_ty ([p2 /s n] s) m) /\
+    (forall ss p1 n m, closed_decl_tys ([p1 /ss n] ss) m ->
+                  forall p2, closed_exp p2 m ->
+                        closed_decl_tys ([p2 /ss n] ss) m) /\
+    (forall e p1 n m, closed_exp ([p1 /e n] e) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_exp ([p2 /e n] e) m) /\
+    (forall d p1 n m, closed_decl ([p1 /d n] d) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_decl ([p2 /d n] d) m) /\
+    (forall ds p1 n m, closed_decls ([p1 /ds n] ds) m ->
+                  forall p2, closed_exp p2 m ->
+                        closed_decls ([p2 /ds n] ds) m).
+  Proof.
+    apply type_exp_mutind; intros; simpl; auto;
+      try solve [crush; eauto].
+
+    (*var*)
+    destruct v as [|r]; [crush|].
+    simpl in H.
+    destruct (Nat.eq_dec n r) as [Heq|Heq];
+      [subst;
+       rewrite <- beq_nat_refl;
+       auto
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq;
+       rewrite Heq in H;
+       auto].
+  Qed.
+
+  Lemma closed_subst_switch_type :
+    (forall t p1 n m, closed_ty ([p1 /t n] t) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_ty ([p2 /t n] t) m).
+  Proof.
+    destruct closed_subst_switch_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_switch_type.
+  Hint Resolve closed_subst_switch_type.
+
+  Lemma closed_subst_switch_decl_ty :
+    (forall s p1 n m, closed_decl_ty ([p1 /s n] s) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_decl_ty ([p2 /s n] s) m).
+  Proof.
+    destruct closed_subst_switch_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_switch_decl_ty.
+  Hint Resolve closed_subst_switch_decl_ty.
+
+  Lemma closed_subst_switch_decl_tys :
+    (forall ss p1 n m, closed_decl_tys ([p1 /ss n] ss) m ->
+                  forall p2, closed_exp p2 m ->
+                        closed_decl_tys ([p2 /ss n] ss) m).
+  Proof.
+    destruct closed_subst_switch_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_switch_decl_tys.
+  Hint Resolve closed_subst_switch_decl_tys.
+
+  Lemma closed_subst_switch_exp :
+    (forall e p1 n m, closed_exp ([p1 /e n] e) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_exp ([p2 /e n] e) m).
+  Proof.
+    destruct closed_subst_switch_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_switch_exp.
+  Hint Resolve closed_subst_switch_exp.
+
+  Lemma closed_subst_switch_decl :
+    (forall d p1 n m, closed_decl ([p1 /d n] d) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_decl ([p2 /d n] d) m).
+  Proof.
+    destruct closed_subst_switch_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_switch_decl.
+  Hint Resolve closed_subst_switch_decl.
+
+  Lemma closed_subst_switch_decls :
+    (forall ds p1 n m, closed_decls ([p1 /ds n] ds) m ->
+                  forall p2, closed_exp p2 m ->
+                        closed_decls ([p2 /ds n] ds) m).
+  Proof.
+    destruct closed_subst_switch_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_subst_switch_decls.
+  Hint Resolve closed_subst_switch_decls.
   
   Lemma typing_p_subst:
     (forall Sig G p t1, Sig en G vdash p pathType t1 ->
@@ -5620,7 +6165,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       [|destruct Hc as [m Hc];
         destruct Hc as [Hc Hd];
         destruct Hd as [Hd He]].
-    admit. (*closed type in a closed environment*)
+    apply closed_typing_p with (Sig:=Sig)(G:=G)(p:=p); auto. 
     exists ([raise_n_e m p' n /s 0] s'), m; split; [auto|split].
     subst.
     rewrite closed_subst_distr_decl_ty.
@@ -5653,16 +6198,17 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite <- raise_closed_substitution_exp with (e:=[p2 /e n] p'); auto.
     apply has_path with (t:=[p2 /t n] t'); auto.
     apply closed_ge_exp with (i:=0); [|crush].
-    admit. (*since p and p2 are closed*)
+    apply closed_subst_switch_exp with (p1:=p1); [crush|].
+    intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto.
 
     (*contains-struct*)
     destruct t';
       simpl in H4;
       inversion H4;
       subst; simpl.
-    rewrite raise_closed_exp with (n:=0) in i; auto;
+    rewrite raise_closed_le_exp with (n:=0) in i; auto;
       try (intros j Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto).
-    rewrite raise_closed_exp with (n:=0); auto;
+    rewrite raise_closed_le_exp with (n:=0); auto;
       try (intros j Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto).    
     destruct in_dty_subst_switch with (ss:=d0)(s:=d)(p1:=p1)(p2:=p2)(n:=S n) as [s' Ha]; auto; subst.
     destruct Ha as [Ha Hb]; subst.
@@ -5680,7 +6226,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       destruct s'; simpl in Hb; inversion Hb; subst.
     destruct H0 with (p2:=p1)(n0:=n + m1)(G3:=G1)(G4:=G2)(t':=t0)(p3:=p2)(tp:=tp) as [s' Hd]; auto.
     crush.
-    admit. (*need lemma showing that a closed has contains preserved closedness*)
+    apply closed_has in h; auto.
+    apply -> closed_decl_ty_upper; eauto.
+    apply -> closed_ty_sel; eauto.
     destruct Hd as [m2 Hd];
       destruct Hd as [Hd He];
       destruct He as [He Hf].
@@ -5691,16 +6239,24 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     assert (Hneq : n + (m1 + m2) <> 0); [crush|apply Nat.eqb_neq in Hneq; rewrite Hneq].
     rewrite plus_assoc.
     rewrite <- raise_closed_substitution_type with (t:=[p1 /t n + m1] t0); auto.
-    admit.
-    admit.
+    apply closed_ty_le with (n:=0); [|crush].
+    apply closed_has in h; auto.
+    apply -> closed_decl_ty_upper; eauto.
+    apply -> closed_ty_sel; eauto.
+    intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto.
     rewrite subst_distr_decl_ty;
       [|crush|auto].
     simpl.
     assert (Hneq : n + (m1 + m2) <> 0); [crush|apply Nat.eqb_neq in Hneq; rewrite Hneq].
     rewrite plus_assoc.
     rewrite <- raise_closed_substitution_type with (t:=[p2 /t n + m1] t0); auto.
-    admit. (*closed stuff. MUST FIX!!!!*)
-    admit. (*replace p2 wf with p2 closed in premises*)
+    apply closed_ty_le with (n:=0); [|crush].
+    apply closed_subst_switch_type with (p1:=p1).
+    apply closed_has in h; auto.
+    apply -> closed_decl_ty_upper; eauto.
+    apply -> closed_ty_sel; eauto.
+    intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto.
+    intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto.
     
     (*contains-equal*)
     destruct t'; simpl in H6; inversion H6; subst.
@@ -5712,37 +6268,43 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       destruct s'; simpl in Hb; inversion Hb; subst.
     destruct H0 with (p2:=p1)(n0:=n + m1)(G3:=G1)(G4:=G2)(t':=t0)(p3:=p2)(tp:=tp) as [s' Hd]; auto.
     crush.
-    admit. (*need lemma showing that a closed has contains preserved closedness*)
+    apply closed_has in h; auto.
+    apply -> closed_decl_ty_equal; eauto.
+    apply -> closed_ty_sel; eauto.
     destruct Hd as [m2 Hd];
       destruct Hd as [Hd He];
       destruct He as [He Hf].
     exists ([(v_ Abs 0) cast (raise_n_t m2 t0 (n + m1)) /s 0] s'), (m1 + m2); split; [crush|split; subst].
-    admit. (*subst_distr_decl_ty*)
+    rewrite subst_distr_decl_ty with (p1:=p1);
+      [|crush|].
+    simpl.
+    assert (Hneq : n + (m1 + m2) <> 0); [crush|apply Nat.eqb_neq in Hneq; rewrite Hneq].
+    rewrite plus_assoc.
+    rewrite <- raise_closed_substitution_type with (t:=[p1 /t n + m1] t0); auto.
+    apply closed_ty_le with (n:=0); [|crush].
+    apply closed_has in h; auto.
+    apply -> closed_decl_ty_equal; eauto.
+    apply -> closed_ty_sel; eauto.
+    intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto.
     rewrite subst_distr_decl_ty;
       [|crush|auto].
     simpl.
     assert (Hneq : n + (m1 + m2) <> 0); [crush|apply Nat.eqb_neq in Hneq; rewrite Hneq].
     rewrite plus_assoc.
     rewrite <- raise_closed_substitution_type with (t:=[p2 /t n + m1] t0); auto.
-    admit. (*closed stuff. MUST FIX!!!!*)
-    admit. (*replace p2 wf with p2 closed in premises*)
-    
+    apply closed_ty_le with (n:=0); [|crush].
+    apply closed_subst_switch_type with (p1:=p1).
+    apply closed_has in h; auto.
+    apply -> closed_decl_ty_equal; eauto.
+    apply -> closed_ty_sel; eauto.
+    intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto.
+    intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto.  
   Qed.
-                  
-  
-  Lemma typing_p_wf :
-    forall Sig G p t, Sig en G vdash p pathType t ->
-               Sig en G vdash p wf_e ->
-               Sig evdash G wf_env ->
-               Sig wf_st ->
-               Sig en G vdash t wf_t.
+
+  Lemma subtyping_subst_mutind :
+    (forall Sig G1 t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2).
   Proof.
-    intros.
 
-    inversion H; subst.
-
-    
-    
   Qed.
 
   Lemma member_uniqueness_mutind :
