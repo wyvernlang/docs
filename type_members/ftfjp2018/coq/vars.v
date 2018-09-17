@@ -6302,9 +6302,59 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Qed.
 
   Lemma subtyping_subst_mutind :
-    (forall Sig G1 t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2).
+    (forall Sig G1 t1 t2 G2,
+        Sig en G1 vdash t1 <; t2 dashv G2 ->
+        Sig wf_st ->
+        forall p1 n1 n2 G3 G4 G5 G6 t1' t2',
+          G1 = ([p1 /env 0] G3) ++ G4 ->
+          G2 = ([p1 /env 0] G5) ++ G6 ->
+          closed_env G1 0 ->
+          closed_env G2 0 ->
+          closed_ty t1 0 ->
+          closed_ty t2 0 ->
+          n1 >= length G3 ->
+          n2 >= length G5 ->
+          Sig evdash G4 wf_env ->
+          Sig evdash G6 wf_env ->
+          t1 = ([p1 /t n1] t1') ->
+          t2 = ([p1 /t n1] t2') ->
+          forall p2 tp1 tp2,
+            closed_env (([p2 /env 0] G3) ++ G4) 0 ->
+            closed_env (([p2 /env 0] G5) ++ G6) 0 ->
+            Sig en G4 vdash p1 pathType tp1 ->
+            Sig en G4 vdash p2 pathType tp1 ->
+            Sig en G6 vdash p1 pathType tp2 ->
+            Sig en G6 vdash p2 pathType tp2 ->
+            Sig en G4 vdash p1 wf_e ->
+            Sig en G4 vdash p2 wf_e ->
+            Sig en G4 vdash tp1 wf_t ->
+            Sig en G6 vdash p1 wf_e ->
+            Sig en G6 vdash p2 wf_e ->
+            Sig en G6 vdash tp2 wf_t ->
+            Sig en (([p2 /env 0] G3) ++ G4) vdash ([p2 /t n1] t1') <; ([p2 /t n2] t2') dashv (([p2 /env 0] G5) ++ G6)).
   Proof.
 
+    (forall Sig G p s, Sig en G vdash p ni s ->
+                Sig wf_st ->
+                forall p1 n G1 G2 p',
+                  G = ([p1 /env 0] G1) ++ G2 ->
+                  closed_env G 0 ->
+                  closed_env Sig 0 ->
+                  n >= length G1 ->
+                  (p = [p1 /e n] p') ->
+                  Sig evdash G2 wf_env ->
+                  forall p2 tp, 
+                    closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+                    closed_exp p 0 ->
+                    Sig en G2 vdash p1 pathType tp ->
+                    Sig en G2 vdash p2 pathType tp ->
+                    Sig en G2 vdash p1 wf_e ->
+                    Sig en G2 vdash p2 wf_e ->
+                    Sig en G2 vdash tp wf_t ->
+                    exists s' m, m > 0 /\
+                            s = ([p1 /s n + m] s') /\
+                            Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /e n] p') ni ([p2 /s n + m] s')) /\
+    
   Qed.
 
   Lemma member_uniqueness_mutind :
