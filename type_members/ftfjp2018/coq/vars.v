@@ -525,6 +525,85 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     map (fun (t : ty) => t [i] rjump_t n) G.
 
   Notation "G '[' i ']' 'rjump_env' n" :=(right_jump_env G i n)(at level 80).
+
+  Fixpoint rename_v (x : var)(n m : nat) : var :=
+    match x with
+    | Abs n' => if n' =? n
+               then Abs m
+               else x
+    | _ => x
+    end.
+
+  Notation "x '[' n 'maps_v' m ']'" := (rename_v x n m)(at level 80).
+
+  Reserved Notation "t '[' n 'maps_t' m ']'" (at level 80).
+  Reserved Notation "s '[' n 'maps_s' m ']'" (at level 80).
+  Reserved Notation "ss '[' n 'maps_ss' m ']'" (at level 80).
+  Reserved Notation "e '[' n 'maps_e' m ']'" (at level 80).
+  Reserved Notation "d '[' n 'maps_d' m ']'" (at level 80).
+  Reserved Notation "ds '[' n 'maps_ds' m ']'" (at level 80).
+
+  Fixpoint rename_t (t : ty)(n m : nat) : ty :=
+    match t with
+    | top => top
+    | bot => bot
+    | t1 arr t2 => (t1 [n maps_t m]) arr (t2 [S n maps_t S m])
+    | sel p l => sel (p [n maps_e m]) l
+    | str ss => str (ss [S n maps_ss S m])
+    end
+  where "t '[' n 'maps_t' m ']'" := (rename_t t n m)
+
+  with
+  rename_s (s : decl_ty)(n m : nat) : decl_ty :=
+    match s with
+    | type l ext t => type l ext (t [n maps_t m])
+    | type l sup t => type l sup (t [n maps_t m])
+    | type l eqt t => type l eqt (t [n maps_t m])
+    | val l oft t => val l oft (t [n maps_t m])
+    end
+  where "s '[' n 'maps_s' m ']'" := (rename_s s n m)
+
+  with
+  rename_ss (ss : decl_tys)(n m : nat) : decl_tys :=
+    match ss with
+    | dt_nil => dt_nil
+    | dt_con s ss' => dt_con (s [n maps_s m]) (ss' [n maps_ss m])
+    end
+  where "ss '[' n 'maps_ss' m ']'" := (rename_ss ss n m)
+
+  with
+  rename_e (e : exp)(n m : nat) : exp :=
+    match e with
+    | v_ x => v_ (x [n maps_v m])
+    | i_ i => i_ i
+    | e' cast t => (e' [n maps_e m]) cast (t [n maps_t m])
+    | fn t1 in_exp e0 off t2 => fn (t1 [n maps_t m]) in_exp (e0 [S n maps_e S m]) off (t2 [S n maps_t S m])
+    | e_app e1 e2 => e_app (e1 [n maps_e m]) (e2 [n maps_e m])
+    | e_acc e' l => e_acc (e' [n maps_e m]) l
+    | new ds => new (ds [S n maps_ds S m])
+    end
+  where "e '[' n 'maps_e' m ']'" := (rename_e e n m)
+
+  with
+  rename_d (d : decl)(n m : nat) : decl :=
+    match d with
+    | type l eqe t => type l eqe (t [n maps_t m])
+    | val l assgn e oft t => val l assgn (e [n maps_e m]) oft (t [n maps_t m])
+    end
+  where "d '[' n 'maps_d' m ']'" := (rename_d d n m)
+
+  with
+  rename_ds (ds : decls)(n m : nat) : decls :=
+    match ds with
+    | d_nil => d_nil
+    | d_con d ds' => d_con (d [n maps_d m]) (ds' [n maps_ds m])
+    end
+  where "ds '[' n 'maps_ds' m ']'" := (rename_ds ds n m).
+                                      
+      
+      
+  
+  
   
   Reserved Notation "'[' p '/t' n ']' ds" (at level 80).
   Reserved Notation "'[' p '/s' n ']' ds" (at level 80).
@@ -1166,92 +1245,188 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | ge_bot : forall n, ge_t bot n
   | ge_arr : forall t1 t2 n, *)
 
-  Reserved Notation "n 'notin_t' t" (at level 80).
-  Reserved Notation "n 'notin_s' s" (at level 80).
-  Reserved Notation "n 'notin_ss' ss" (at level 80).
-  Reserved Notation "n 'notin_e' e" (at level 80).
-  Reserved Notation "n 'notin_d' d" (at level 80).
-  Reserved Notation "n 'notin_ds' ds" (at level 80).
-  Reserved Notation "n 'notin_v' v" (at level 80).
+  Reserved Notation "n 'unbound_t' t" (at level 80).
+  Reserved Notation "n 'unbound_s' s" (at level 80).
+  Reserved Notation "n 'unbound_ss' ss" (at level 80).
+  Reserved Notation "n 'unbound_e' e" (at level 80).
+  Reserved Notation "n 'unbound_d' d" (at level 80).
+  Reserved Notation "n 'unbound_ds' ds" (at level 80).
+  Reserved Notation "n 'unbound_v' v" (at level 80).
 
-  Inductive notin_var : nat -> var -> Prop :=
-  | ni_abs : forall n m, n notin_v (Abs m)
-  | ni_con : forall n m, n <> m ->
-                    n notin_v (Var m)
-                      where "n 'notin_v' v" := (notin_var n v).
+  Inductive unbound_var : nat -> var -> Prop :=
+  | ub_abs : forall n m, n unbound_v (Abs m)
+  | ub_con : forall n m, n <> m ->
+                    n unbound_v (Var m)
+                      where "n 'unbound_v' v" := (unbound_var n v).
   
-  Inductive notin_ty : nat -> ty -> Prop :=
-  | ni_top : forall n, n notin_t top
-  | ni_bot : forall n, n notin_t bot
-  | ni_arr : forall n t1 t2, n notin_t t1 ->
-                        n notin_t t2 ->
-                        n notin_t (t1 arr t2)
-  | ni_sel : forall n p l, n notin_e p ->
-                      n notin_t (sel p l)
-  | ni_str : forall n ss, n notin_ss ss ->
-                     n notin_t (str ss)
-  where "n 'notin_t' t" := (notin_ty n t)
+  Inductive unbound_ty : nat -> ty -> Prop :=
+  | ub_top : forall n, n unbound_t top
+  | ub_bot : forall n, n unbound_t bot
+  | ub_arr : forall n t1 t2, n unbound_t t1 ->
+                        n unbound_t t2 ->
+                        n unbound_t (t1 arr t2)
+  | ub_sel : forall n p l, n unbound_e p ->
+                      n unbound_t (sel p l)
+  | ub_str : forall n ss, n unbound_ss ss ->
+                     n unbound_t (str ss)
+  where "n 'unbound_t' t" := (unbound_ty n t)
 
   with
-  notin_decl_ty : nat -> decl_ty -> Prop :=
-  | nis_lower : forall n l t, n notin_t t ->
-                         n notin_s (type l sup t)
-  | nis_upper : forall n l t, n notin_t t ->
-                         n notin_s (type l ext t)
-  | nis_equal : forall n l t, n notin_t t ->
-                         n notin_s (type l eqt t)
-  | nis_value : forall n l t, n notin_t t ->
-                         n notin_s (val l oft t)
-  where "n 'notin_s' s" := (notin_decl_ty n s)
+  unbound_decl_ty : nat -> decl_ty -> Prop :=
+  | ubs_lower : forall n l t, n unbound_t t ->
+                         n unbound_s (type l sup t)
+  | ubs_upper : forall n l t, n unbound_t t ->
+                         n unbound_s (type l ext t)
+  | ubs_equal : forall n l t, n unbound_t t ->
+                         n unbound_s (type l eqt t)
+  | ubs_value : forall n l t, n unbound_t t ->
+                         n unbound_s (val l oft t)
+  where "n 'unbound_s' s" := (unbound_decl_ty n s)
 
   with
-  notin_decl_tys : nat -> decl_tys -> Prop :=
-  | nis_nil : forall n, n notin_ss dt_nil
-  | nis_con : forall n s ss, n notin_s s ->
-                          n notin_ss ss ->
-                          n notin_ss (dt_con s ss)
-  where "n 'notin_ss' d" := (notin_decl_tys n d)
+  unbound_decl_tys : nat -> decl_tys -> Prop :=
+  | ubs_nil : forall n, n unbound_ss dt_nil
+  | ubs_con : forall n s ss, n unbound_s s ->
+                          n unbound_ss ss ->
+                          n unbound_ss (dt_con s ss)
+  where "n 'unbound_ss' d" := (unbound_decl_tys n d)
                               
   with
-  notin_exp : nat -> exp -> Prop :=
-  | ni_var : forall v n, n notin_v v ->
-                    n notin_e (v_ v)
-  | ni_loc : forall i n, n notin_e (i_ i)
-  | ni_cast : forall e t n, n notin_e e ->
-                       n notin_t t ->
-                       n notin_e (e cast t)
-  | ni_fn : forall t1 e t2 n, n notin_t t1 ->
-                         n notin_e e ->
-                         n notin_t t2 ->
-                         n notin_e (fn t1 in_exp e off t2)
-  | ni_app : forall e1 e2 n, n notin_e e1 ->
-                        n notin_e e2 ->
-                        n notin_e (e_app e1 e2)
-  | ni_acc : forall e l n, n notin_e e ->
-                      n notin_e (e_acc e l)
-  | ni_new : forall ds n, n notin_ds ds ->
-                     n notin_e (new ds)
-  where "n 'notin_e' e" := (notin_exp n e)
+  unbound_exp : nat -> exp -> Prop :=
+  | ub_var : forall v n, n unbound_v v ->
+                    n unbound_e (v_ v)
+  | ub_loc : forall i n, n unbound_e (i_ i)
+  | ub_cast : forall e t n, n unbound_e e ->
+                       n unbound_t t ->
+                       n unbound_e (e cast t)
+  | ub_fn : forall t1 e t2 n, n unbound_t t1 ->
+                         n unbound_e e ->
+                         n unbound_t t2 ->
+                         n unbound_e (fn t1 in_exp e off t2)
+  | ub_app : forall e1 e2 n, n unbound_e e1 ->
+                        n unbound_e e2 ->
+                        n unbound_e (e_app e1 e2)
+  | ub_acc : forall e l n, n unbound_e e ->
+                      n unbound_e (e_acc e l)
+  | ub_new : forall ds n, n unbound_ds ds ->
+                     n unbound_e (new ds)
+  where "n 'unbound_e' e" := (unbound_exp n e)
 
   with
-  notin_decl : nat -> decl -> Prop :=
-  | nid_equal : forall L t n, n notin_t t ->
-                         n notin_d (type L eqe t)
-  | nid_value : forall l e t n, n notin_e e ->
-                           n notin_t t ->
-                           n notin_d (val l assgn e oft t)
-  where "n 'notin_d' d" := (notin_decl n d)
+  unbound_decl : nat -> decl -> Prop :=
+  | ubd_equal : forall L t n, n unbound_t t ->
+                         n unbound_d (type L eqe t)
+  | ubd_value : forall l e t n, n unbound_e e ->
+                           n unbound_t t ->
+                           n unbound_d (val l assgn e oft t)
+  where "n 'unbound_d' d" := (unbound_decl n d)
 
   with
-  notin_decls : nat -> decls -> Prop :=
-  | nid_nil : forall n, n notin_ds d_nil
-  | nid_con : forall n d ds, n notin_d d ->
-                        n notin_ds ds ->
-                        n notin_ds (d_con d ds)
-  where "n 'notin_ds' ds" := (notin_decls n ds).
+  unbound_decls : nat -> decls -> Prop :=
+  | ubd_nil : forall n, n unbound_ds d_nil
+  | ubd_con : forall n d ds, n unbound_d d ->
+                        n unbound_ds ds ->
+                        n unbound_ds (d_con d ds)
+  where "n 'unbound_ds' ds" := (unbound_decls n ds).
                       
 
-  Hint Constructors notin_var notin_ty notin_decl_ty notin_decl_tys notin_exp notin_decl notin_decls.
+  Hint Constructors unbound_var unbound_ty unbound_decl_ty unbound_decl_tys unbound_exp unbound_decl unbound_decls.
+
+  Scheme unbound_ty_mutind := Induction for unbound_ty Sort Prop
+    with unbound_decl_ty_mutind := Induction for unbound_decl_ty Sort Prop
+    with unbound_decl_tys_mutind := Induction for unbound_decl_tys Sort Prop
+    with unbound_exp_mutind := Induction for unbound_exp Sort Prop
+    with unbound_decl_mutind := Induction for unbound_decl Sort Prop
+    with unbound_decls_mutind := Induction for unbound_decls Sort Prop.
+
+  Combined Scheme unbound_mutind from unbound_ty_mutind, unbound_decl_ty_mutind, unbound_decl_tys_mutind,
+  unbound_exp_mutind, unbound_decl_mutind, unbound_decls_mutind.
+
+  Reserved Notation "e 'notin_t' t" (at level 80).
+  Reserved Notation "e 'notin_s' s" (at level 80).
+  Reserved Notation "e 'notin_ss' ss" (at level 80).
+  Reserved Notation "e1 'notin_e' e2" (at level 80).
+  Reserved Notation "e 'notin_d' d" (at level 80).
+  Reserved Notation "e 'notin_ds' ds" (at level 80).
+  Reserved Notation "e 'notin_v' v" (at level 80).
+
+  Inductive notin_ty : exp -> ty -> Prop :=
+  | ni_top : forall e, e notin_t top
+  | ni_bot : forall e, e notin_t bot
+  | ni_arr : forall e t1 t2, e notin_t t1 ->
+                        (e raise_e 0) notin_t t2 ->
+                        e notin_t (t1 arr t2)
+  | ni_sel : forall e p l, e notin_e p ->
+                      e notin_t (sel p l)
+  | ni_str : forall e ss, (e raise_e 0) notin_ss ss ->
+                     e notin_t (str ss)
+  where "e 'notin_t' t" := (notin_ty e t)
+
+  with
+  notin_decl_ty : exp -> decl_ty -> Prop :=
+  | nit_upper : forall e l t, e notin_t t ->
+                         e notin_s (type l ext t)
+  | nit_lower : forall e l t, e notin_t t ->
+                         e notin_s (type l sup t)
+  | nit_equal : forall e l t, e notin_t t ->
+                         e notin_s (type l eqt t)
+  | nit_value : forall e l t, e notin_t t ->
+                         e notin_s (val l oft t)
+  where "e 'notin_s' s" := (notin_decl_ty e s)
+
+  with
+  notin_decl_tys : exp -> decl_tys -> Prop :=
+  | nit_nil : forall e, e notin_ss dt_nil
+  | nit_con : forall e s ss, e notin_s s ->
+                        e notin_ss ss ->
+                        e notin_ss (dt_con s ss)
+  where "e 'notin_ss' ss" := (notin_decl_tys e ss)
+
+  with
+  notin_exp : exp -> exp -> Prop :=
+  | ni_var : forall e x, e <> (v_ x) ->
+                    e notin_e (v_ x)
+  | ni_loc : forall e i, e <> (i_ i) ->
+                    e notin_e (i_ i)
+  | ni_cast : forall e e' t, e notin_e e' ->
+                        e notin_t t ->
+                        e <> (e' cast t) ->
+                        e notin_e (e' cast t)
+  | ni_fn : forall e t1 e' t2, e notin_t t1 ->
+                          e notin_e e' ->
+                          e notin_t t2 ->
+                          e <> (fn t1 in_exp e' off t2) ->
+                          e notin_e (fn t1 in_exp e' off t2)
+  | ni_app : forall e e1 e2, e notin_e e1 ->
+                        e notin_e e2 ->
+                        e <> (e_app e1 e2) ->
+                        e notin_e (e_app e1 e2)
+  | ni_acc : forall e e' l, e notin_e e' ->
+                       e <> (e_acc e' l) ->
+                       e notin_e (e_acc e' l)
+  | ni_new : forall e ds, e notin_ds ds ->
+                     e <> (new ds) ->
+                     e notin_e (new ds)
+  where "e 'notin_e' e'" := (notin_exp e e')
+
+  with
+  notin_decl : exp -> decl -> Prop :=
+  | nie_equal : forall e t l, e notin_t t ->
+                         e notin_d (type l eqe t)
+  | nie_value : forall e l e' t, e notin_e e' ->
+                            e notin_t t ->
+                            e notin_d (val l assgn e' oft t)
+  where "e 'notin_d' d" := (notin_decl e d)
+
+  with
+  notin_decls : exp -> decls -> Prop :=
+  | nie_nil : forall e, e notin_ds d_nil
+  | nie_con : forall e d ds, e notin_d d ->
+                        e notin_ds ds ->
+                        e notin_ds (d_con d ds)
+  where "e 'notin_ds' ds" := (notin_decls e ds).
+  
+  Hint Constructors notin_ty notin_decl_ty notin_decl_tys notin_exp notin_decl notin_decls.
 
   Scheme notin_ty_mutind := Induction for notin_ty Sort Prop
     with notin_decl_ty_mutind := Induction for notin_decl_ty Sort Prop
@@ -1262,7 +1437,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Combined Scheme notin_mutind from notin_ty_mutind, notin_decl_ty_mutind, notin_decl_tys_mutind,
   notin_exp_mutind, notin_decl_mutind, notin_decls_mutind.
-
+  
+  Inductive root : nat -> exp -> Prop :=
+  | root_var : forall r, root r (c_ r)
+  | root_loc : forall i, root i (i_ i)
+  | root_cast : forall r p t, root r p ->
+                         root r (p cast t).
 
   Reserved Notation "Sig 'en' G 'vdash' t 'wf_t'" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' d 'wf_s'" (at level 80).
@@ -1283,7 +1463,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | wf_bot : forall Sig G, Sig en G vdash bot wf_t
                       
   | wf_arr : forall Sig G t1 t2, Sig en G vdash t1 wf_t ->
-                          (length G) notin_t t2 ->
+                          (length G) unbound_t t2 ->
                           Sig en t1::G vdash ([c_ length G /t 0] t2) wf_t ->
                           Sig en G vdash (t1 arr t2) wf_t
 
@@ -1297,7 +1477,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                 Sig en G vdash p ni (type L sup t) ->
                                 Sig en G vdash (sel p L) wf_t
 
-  | wf_str : forall Sig G ss, (length G) notin_ss ss ->
+  | wf_str : forall Sig G ss, (length G) unbound_ss ss ->
                        Sig en (str ss)::G vdash ([c_ length G /ss 0] ss) wf_ss ->
                        Sig en G vdash (str ss) wf_t
 
@@ -1339,9 +1519,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                       Sig en G vdash (i_ i) wf_e
 
   | wf_fn : forall Sig G t1 e t2, Sig en G vdash t1 wf_t ->
-                           (length G) notin_e e ->
+                           (length G) unbound_e e ->
                            Sig en t1::G vdash ([c_ length G /e 0] e) wf_e ->
-                           (length G) notin_t t2 ->
+                           (length G) unbound_t t2 ->
                            Sig en t1::G vdash ([c_ length G /t 0] t2) wf_t ->
                            Sig en t1::G vdash ([c_ length G /e 0] e) hasType ([c_ length G /t 0] t2) ->
                            Sig en G vdash fn t1 in_exp e off t2 wf_e
@@ -1363,7 +1543,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                             Sig en G vdash e cast t wf_e
 
   | wf_new : forall Sig G ds ss, Sig en G vdash new ds hasType str ss ->
-                          (length G) notin_ds ds ->
+                          (length G) unbound_ds ds ->
                           Sig en (str ss)::G vdash ([c_ length G /ds 0] ds) wf_ds ->
                           Sig en G vdash new ds wf_e
 
@@ -1831,24 +2011,24 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       contradiction Ha; auto.
   Qed.
   
-  Lemma notin_rjump_mutind :
-    (forall n t, n notin_t t ->
-            forall i m, (n [i] rjump_n m) notin_t (t [i] rjump_t m)) /\
-    (forall n s, n notin_s s ->
-            forall i m, (n [i] rjump_n m) notin_s (s [i] rjump_s m)) /\
-    (forall n ss, n notin_ss ss ->
-            forall i m, (n [i] rjump_n m) notin_ss (ss [i] rjump_ss m)) /\
-    (forall n e, n notin_e e ->
-            forall i m, (n [i] rjump_n m) notin_e (e [i] rjump_e m)) /\
-    (forall n d, n notin_d d ->
-            forall i m, (n [i] rjump_n m) notin_d (d [i] rjump_d m)) /\
-    (forall n ds, n notin_ds ds ->
-            forall i m, (n [i] rjump_n m) notin_ds (ds [i] rjump_ds m)).
+  Lemma unbound_rjump_mutind :
+    (forall n t, n unbound_t t ->
+            forall i m, (n [i] rjump_n m) unbound_t (t [i] rjump_t m)) /\
+    (forall n s, n unbound_s s ->
+            forall i m, (n [i] rjump_n m) unbound_s (s [i] rjump_s m)) /\
+    (forall n ss, n unbound_ss ss ->
+            forall i m, (n [i] rjump_n m) unbound_ss (ss [i] rjump_ss m)) /\
+    (forall n e, n unbound_e e ->
+            forall i m, (n [i] rjump_n m) unbound_e (e [i] rjump_e m)) /\
+    (forall n d, n unbound_d d ->
+            forall i m, (n [i] rjump_n m) unbound_d (d [i] rjump_d m)) /\
+    (forall n ds, n unbound_ds ds ->
+            forall i m, (n [i] rjump_n m) unbound_ds (ds [i] rjump_ds m)).
   Proof.
-    apply notin_mutind; intros; crush.
+    apply unbound_mutind; intros; crush.
 
     destruct v as [r|r]; simpl; auto.
-    inversion n0; subst.
+    inversion u; subst.
     unfold right_jump_n.
     destruct (le_gt_dec i n) as [Heq1|Heq1];
       [rewrite (leb_correct i n Heq1)
@@ -1858,46 +2038,46 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        |rewrite (leb_correct_conv r i Heq2)]); crush.
   Qed.
 
-  Lemma notin_rjump_type :
-    (forall n t, n notin_t t ->
-            forall i m, (n [i] rjump_n m) notin_t (t [i] rjump_t m)).
+  Lemma unbound_rjump_type :
+    (forall n t, n unbound_t t ->
+            forall i m, (n [i] rjump_n m) unbound_t (t [i] rjump_t m)).
   Proof.
-    destruct notin_rjump_mutind; crush.
+    destruct unbound_rjump_mutind; crush.
   Qed.
 
-  Lemma notin_rjump_decl_ty :
-    (forall n s, n notin_s s ->
-            forall i m, (n [i] rjump_n m) notin_s (s [i] rjump_s m)).
+  Lemma unbound_rjump_decl_ty :
+    (forall n s, n unbound_s s ->
+            forall i m, (n [i] rjump_n m) unbound_s (s [i] rjump_s m)).
   Proof.
-    destruct notin_rjump_mutind; crush.
+    destruct unbound_rjump_mutind; crush.
   Qed.
 
-  Lemma notin_rjump_decl_tys :
-    (forall n ss, n notin_ss ss ->
-            forall i m, (n [i] rjump_n m) notin_ss (ss [i] rjump_ss m)).
+  Lemma unbound_rjump_decl_tys :
+    (forall n ss, n unbound_ss ss ->
+            forall i m, (n [i] rjump_n m) unbound_ss (ss [i] rjump_ss m)).
   Proof.
-    destruct notin_rjump_mutind; crush.
+    destruct unbound_rjump_mutind; crush.
   Qed.
 
-  Lemma notin_rjump_exp :
-    (forall n e, n notin_e e ->
-            forall i m, (n [i] rjump_n m) notin_e (e [i] rjump_e m)).
+  Lemma unbound_rjump_exp :
+    (forall n e, n unbound_e e ->
+            forall i m, (n [i] rjump_n m) unbound_e (e [i] rjump_e m)).
   Proof.
-    destruct notin_rjump_mutind; crush.
+    destruct unbound_rjump_mutind; crush.
   Qed.
 
-  Lemma notin_rjump_decl :
-    (forall n d, n notin_d d ->
-            forall i m, (n [i] rjump_n m) notin_d (d [i] rjump_d m)).
+  Lemma unbound_rjump_decl :
+    (forall n d, n unbound_d d ->
+            forall i m, (n [i] rjump_n m) unbound_d (d [i] rjump_d m)).
   Proof.
-    destruct notin_rjump_mutind; crush.
+    destruct unbound_rjump_mutind; crush.
   Qed.
 
-  Lemma notin_rjump_decls :
-    (forall n ds, n notin_ds ds ->
-            forall i m, (n [i] rjump_n m) notin_ds (ds [i] rjump_ds m)).
+  Lemma unbound_rjump_decls :
+    (forall n ds, n unbound_ds ds ->
+            forall i m, (n [i] rjump_n m) unbound_ds (ds [i] rjump_ds m)).
   Proof.
-    destruct notin_rjump_mutind; crush.
+    destruct unbound_rjump_mutind; crush.
   Qed.
 
   Lemma lt_rjump_mutind :
@@ -1978,27 +2158,27 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     intros t Hin; apply H; crush.
   Qed.
   
-  Lemma lt_notin_S_n_mutind :
-    (forall n t, n notin_t t ->
+  Lemma lt_unbound_S_n_mutind :
+    (forall n t, n unbound_t t ->
             lt_t t (S n) ->
             lt_t t n) /\
-    (forall n s, n notin_s s ->
+    (forall n s, n unbound_s s ->
             lt_s s (S n) ->
             lt_s s n) /\
-    (forall n ss, n notin_ss ss ->
+    (forall n ss, n unbound_ss ss ->
             lt_ss ss (S n) ->
             lt_ss ss n) /\
-    (forall n e, n notin_e e ->
+    (forall n e, n unbound_e e ->
             lt_e e (S n) ->
             lt_e e n) /\
-    (forall n d, n notin_d d ->
+    (forall n d, n unbound_d d ->
             lt_d d (S n) ->
             lt_d d n) /\
-    (forall n ds, n notin_ds ds ->
+    (forall n ds, n unbound_ds ds ->
             lt_ds ds (S n) ->
             lt_ds ds n).
   Proof.
-    apply notin_mutind; intros; auto;
+    apply unbound_mutind; intros; auto;
       try solve
           [try (inversion H0);
            try (inversion H1);
@@ -2007,55 +2187,55 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     inversion H; subst;
       auto.
-    inversion n0; subst; crush.
+    inversion u; subst; crush.
   Qed.
 
-  Lemma lt_notin_S_n_type :
-    (forall n t, n notin_t t ->
+  Lemma lt_unbound_S_n_type :
+    (forall n t, n unbound_t t ->
             lt_t t (S n) ->
             lt_t t n).
   Proof.
-    destruct lt_notin_S_n_mutind; crush.
+    destruct lt_unbound_S_n_mutind; crush.
   Qed.
 
-  Lemma lt_notin_S_n_decl_ty :
-    (forall n s, n notin_s s ->
+  Lemma lt_unbound_S_n_decl_ty :
+    (forall n s, n unbound_s s ->
             lt_s s (S n) ->
             lt_s s n).
   Proof.
-    destruct lt_notin_S_n_mutind; crush.
+    destruct lt_unbound_S_n_mutind; crush.
   Qed.
 
-  Lemma lt_notin_S_n_decl_tys :
-    (forall n ss, n notin_ss ss ->
+  Lemma lt_unbound_S_n_decl_tys :
+    (forall n ss, n unbound_ss ss ->
             lt_ss ss (S n) ->
             lt_ss ss n).
   Proof.
-    destruct lt_notin_S_n_mutind; crush.
+    destruct lt_unbound_S_n_mutind; crush.
   Qed.
 
-  Lemma lt_notin_S_n_exp :
-    (forall n e, n notin_e e ->
+  Lemma lt_unbound_S_n_exp :
+    (forall n e, n unbound_e e ->
             lt_e e (S n) ->
             lt_e e n).
   Proof.
-    destruct lt_notin_S_n_mutind; crush.
+    destruct lt_unbound_S_n_mutind; crush.
   Qed.
 
-  Lemma lt_notin_S_n_decl :
-    (forall n d, n notin_d d ->
+  Lemma lt_unbound_S_n_decl :
+    (forall n d, n unbound_d d ->
             lt_d d (S n) ->
             lt_d d n).
   Proof.
-    destruct lt_notin_S_n_mutind; crush.
+    destruct lt_unbound_S_n_mutind; crush.
   Qed.
 
-  Lemma lt_notin_S_n_decls :
-    (forall n ds, n notin_ds ds ->
+  Lemma lt_unbound_S_n_decls :
+    (forall n ds, n unbound_ds ds ->
             lt_ds ds (S n) ->
             lt_ds ds n).
   Proof.
-    destruct lt_notin_S_n_mutind; crush.
+    destruct lt_unbound_S_n_mutind; crush.
   Qed.
 
   Lemma lt_subst_components_mutind :
@@ -2298,22 +2478,22 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     apply lt_subst_components_type with (p:=v_ Var (length G))
                                         (m:=0)(t':=t2)in H0; auto.
-    apply lt_notin_S_n_type in H0; auto.
+    apply lt_unbound_S_n_type in H0; auto.
 
     apply lt_subst_components_decl_tys with (p:=v_ Var (length G))
                                             (m:=0)(ss':=ss)in H; auto.
-    apply lt_notin_S_n_decl_tys in H; auto.
+    apply lt_unbound_S_n_decl_tys in H; auto.
 
     apply lt_subst_components_type with (p:=v_ Var (length G))
                                         (m:=0)(t':=t2)in H1; auto.
-    apply lt_notin_S_n_type in H1; auto.
+    apply lt_unbound_S_n_type in H1; auto.
     apply lt_subst_components_exp with (p:=v_ Var (length G))
                                        (m:=0)(e':=e)in H0; auto.
-    apply lt_notin_S_n_exp in H0; auto.
+    apply lt_unbound_S_n_exp in H0; auto.
 
     apply lt_subst_components_decls with (p:=v_ Var (length G))
                                          (m:=0)(ds':=ds)in H; auto.
-    apply lt_notin_S_n_decls in H; auto.
+    apply lt_unbound_S_n_decls in H; auto.
 
   Qed.
 
@@ -3000,15 +3180,15 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*wf-arr*)
     simpl; apply wf_arr; auto.
-    assert (Hjump : length ((G1 [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)) =
-                    (length G [i] rjump_n n0));
-      [|rewrite Hjump; apply notin_rjump_type; auto].
+    assert (Hjump : length ((G1 [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)) =
+                    (length G [i] rjump_n n));
+      [|rewrite Hjump; apply unbound_rjump_type; auto].
     repeat rewrite app_length, rjump_length; subst.
     unfold right_jump_n;
       rewrite leb_correct;
       rewrite app_length; crush.
-    assert (Hwf : (Sig [i]rjump_env n0) en ((t1::G1) [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0) vdash
-                              ([v_ Var (length G) /t 0] t2) [i]rjump_t n0 wf_t);
+    assert (Hwf : (Sig [i]rjump_env n) en ((t1::G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n) vdash
+                              ([v_ Var (length G) /t 0] t2) [i]rjump_t n wf_t);
       [apply H0; subst; auto
       |auto].
     repeat rewrite app_length, rjump_length;
@@ -3019,7 +3199,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       rewrite leb_correct in Hwf;
       [|subst; rewrite app_length; crush].
     rewrite H1, app_length, <- H2 in Hwf.
-    assert (Hleng : length G1 + (n0 + i) = (length G1 + i + n0));
+    assert (Hleng : length G1 + (n + i) = (length G1 + i + n));
       [crush|rewrite Hleng; auto].
 
     (*wf-sel-upper*)
@@ -3034,16 +3214,16 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*wf-struct*)
     simpl; apply wf_str; auto.
-    assert (Hjump : length ((G1 [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)) =
-                    (length G [i] rjump_n n0));
-      [|rewrite Hjump; apply notin_rjump_decl_tys; auto].
+    assert (Hjump : length ((G1 [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)) =
+                    (length G [i] rjump_n n));
+      [|rewrite Hjump; apply unbound_rjump_decl_tys; auto].
     repeat rewrite app_length, rjump_length; subst.
     unfold right_jump_n;
       rewrite leb_correct;
       rewrite app_length; crush.
     
-    assert (Hwf : (Sig [i]rjump_env n0) en ((str ss :: G1) [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)
-                              vdash ([v_ Var (length G) /ss 0] ss) [i]rjump_ss n0 wf_ss);
+    assert (Hwf : (Sig [i]rjump_env n) en ((str ss :: G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
+                              vdash ([v_ Var (length G) /ss 0] ss) [i]rjump_ss n wf_ss);
       [apply H; simpl; crush|].
     rewrite rjump_subst_distr_decl_tys in Hwf.
     simpl in Hwf.
@@ -3056,7 +3236,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     unfold right_jump_n in Hwf;
       rewrite Hleng in Hwf.
     rewrite H0, app_length, <- H1 in Hwf.
-    assert (Hleng' : (length G1 + (n0 + i)) = (length G1 + i + n0));
+    assert (Hleng' : (length G1 + (n + i)) = (length G1 + i + n));
       [crush|
       rewrite Hleng'; auto].
 
@@ -3085,17 +3265,17 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*wf-fn*)
     simpl; apply wf_fn; auto.
-    assert (Hjump : length ((G1 [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)) =
-                    (length G [i] rjump_n n1));
-      [|rewrite Hjump; apply notin_rjump_exp; auto].
+    assert (Hjump : length ((G1 [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)) =
+                    (length G [i] rjump_n n));
+      [|rewrite Hjump; apply unbound_rjump_exp; auto].
     repeat rewrite app_length, rjump_length; subst.
     unfold right_jump_n;
       rewrite leb_correct;
       rewrite app_length; crush.
     
     repeat rewrite app_length, rjump_length.
-    assert (Hwf : (Sig [i]rjump_env n1) en ((t1::G1) [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)
-                              vdash ([v_ Var (length G) /e 0] e) [i]rjump_e n1 wf_e);
+    assert (Hwf : (Sig [i]rjump_env n) en ((t1::G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
+                              vdash ([v_ Var (length G) /e 0] e) [i]rjump_e n wf_e);
       [apply H0; simpl; subst; auto|].
     rewrite rjump_subst_distr_exp in Hwf; simpl in Hwf;
       assert (Hleng : i <=? length G = true);
@@ -3107,19 +3287,19 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        rewrite Hleng in Hwf].
     rewrite H2, app_length in Hwf.
     rewrite <- H4.
-    assert (Hleng' : (length G1 + (n1 + length G2)) = (length G1 + length G2 + n1));
+    assert (Hleng' : (length G1 + (n + length G2)) = (length G1 + length G2 + n));
       [crush
       |rewrite Hleng'; auto].
 
-    assert (Hjump : length ((G1 [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)) =
-                    (length G [i] rjump_n n1));
-      [|rewrite Hjump; apply notin_rjump_type; auto].
+    assert (Hjump : length ((G1 [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)) =
+                    (length G [i] rjump_n n));
+      [|rewrite Hjump; apply unbound_rjump_type; auto].
     repeat rewrite app_length, rjump_length; subst.
     unfold right_jump_n;
       rewrite leb_correct;
       rewrite app_length; crush.
-    assert (Hwf : (Sig [i]rjump_env n1) en ((t1::G1) [i]rjump_env n1) ++ G' ++ (G2 [i]rjump_env n1)
-                              vdash ([v_ Var (length G) /t 0] t2) [i]rjump_t n1 wf_t);
+    assert (Hwf : (Sig [i]rjump_env n) en ((t1::G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
+                              vdash ([v_ Var (length G) /t 0] t2) [i]rjump_t n wf_t);
       [apply H1; simpl; subst; auto|].
     rewrite rjump_subst_distr_type in Hwf; simpl in Hwf;
       assert (Hleng : i <=? length G = true);
@@ -3132,12 +3312,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite H2, app_length in Hwf.
     repeat rewrite app_length, rjump_length.
     rewrite <- H4.
-    assert (Hleng' : (length G1 + (n1 + length G2)) = (length G1 + length G2 + n1));
+    assert (Hleng' : (length G1 + (n + length G2)) = (length G1 + length G2 + n));
       [crush
       |rewrite Hleng'; auto].
 
     apply typing_weakening_exp with (G1:=t1::G1)(G2:=G2)
-                                    (G':=G')(i:=i)(n:=n1) in t;
+                                    (G':=G')(i:=i)(n:=n) in t;
       try solve [crush].
     rewrite rjump_subst_distr_type, rjump_subst_distr_exp in t;
       simpl in t;
@@ -3149,7 +3329,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     repeat rewrite app_length, rjump_length;
       rewrite <- H3, <- H4.
     rewrite H2, app_length, <- H3 in t.
-    assert (Hleng' : (length G1 + (n1 + i)) = (length G1 + i + n1));
+    assert (Hleng' : (length G1 + (n + i)) = (length G1 + i + n));
       [crush
       |rewrite Hleng'; auto].
 
@@ -3171,21 +3351,21 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply sub_weakening_type with (G1:=G)(G2:=G); auto.
 
     (*wf-new*)
-    simpl; apply wf_new with (ss:=ss [i] rjump_ss n0).
+    simpl; apply wf_new with (ss:=ss [i] rjump_ss n).
     apply typing_weakening_exp with (G1:=G1)(G2:=G2)
-                                    (G':=G')(i:=i)(n:=n0) in t; auto.
+                                    (G':=G')(i:=i)(n:=n) in t; auto.
     
-    assert (Hjump : length ((G1 [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)) =
-                    (length G [i] rjump_n n0));
-      [|rewrite Hjump; apply notin_rjump_decls; auto].
+    assert (Hjump : length ((G1 [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)) =
+                    (length G [i] rjump_n n));
+      [|rewrite Hjump; apply unbound_rjump_decls; auto].
     repeat rewrite app_length, rjump_length; subst.
     unfold right_jump_n;
       rewrite leb_correct;
       rewrite app_length; crush.
 
     
-    assert (Hwf : (Sig [i]rjump_env n0) en ((str ss :: G1) [i]rjump_env n0) ++ G' ++ (G2 [i]rjump_env n0)
-                              vdash ([v_ Var (length G) /ds 0] ds) [i]rjump_ds n0 wf_ds);
+    assert (Hwf : (Sig [i]rjump_env n) en ((str ss :: G1) [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n)
+                             vdash ([v_ Var (length G) /ds 0] ds) [i]rjump_ds n wf_ds);
       [apply H; crush
       |].
     rewrite rjump_subst_distr_decls in Hwf;
@@ -3198,7 +3378,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        crush
       |rewrite Hleng in Hwf].
     repeat rewrite app_length, rjump_length.
-    assert (Hleng' : length G1 + (length G' + length G2) = length G + n0);
+    assert (Hleng' : length G1 + (length G' + length G2) = length G + n);
       [|rewrite Hleng'; auto].
     rewrite H0, app_length, <- H2; crush.
 
@@ -3644,17 +3824,17 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Proof.
     apply wf_mutind; intros; crush.
 
-    eapply closed_subst_neq_type with (n:=S n0) in H0; auto.
+    eapply closed_subst_neq_type with (n:=S n) in H0; auto.
     auto.
     
-    eapply closed_subst_neq_decl_tys with (n:=S n0) in H; auto.
+    eapply closed_subst_neq_decl_tys with (n:=S n) in H; auto.
     auto.
 
-    eapply closed_subst_neq_exp with (n:=S n1) in H0; auto.
-    eapply closed_subst_neq_type with (n:=S n1) in H1; auto.
+    eapply closed_subst_neq_exp with (n:=S n) in H0; auto.
+    eapply closed_subst_neq_type with (n:=S n) in H1; auto.
     auto.
 
-    eapply closed_subst_neq_decls with (n:=S n0) in H; auto.
+    eapply closed_subst_neq_decls with (n:=S n) in H; auto.
     auto.
   Qed.
 
@@ -4602,6 +4782,81 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                       forall m, ds = [p /ds n + m] (raise_n_ds m ds' n)).
   Proof.
     destruct raise_closed_substitution; crush.
+  Qed.
+
+  Lemma rename_closed_subst_mutind :
+    (forall t p n m, closed_t m ([p /t n] t) ->
+                ([p /t n] t) = ([p /t m] (t [n maps_t m]))) /\
+    (forall s p n m, closed_s m ([p /s n] s) ->
+                ([p /s n] s) = ([p /s m] (s [n maps_s m]))) /\
+    (forall ss p n m, closed_ss m ([p /ss n] ss) ->
+                 ([p /ss n] ss) = ([p /ss m] (ss [n maps_ss m]))) /\
+    (forall e p n m, closed_e m ([p /e n] e) ->
+                ([p /e n] e) = ([p /e m] (e [n maps_e m]))) /\
+    (forall d p n m, closed_d m ([p /d n] d) ->
+                ([p /d n] d) = ([p /d m] (d [n maps_d m]))) /\
+    (forall ds p n m, closed_ds m ([p /ds n] ds) ->
+                 ([p /ds n] ds) = ([p /ds m] (ds [n maps_ds m]))).
+  Proof.
+    apply type_exp_mutind; intros; simpl; auto;
+      try solve [try (erewrite H; inversion H0; crush);
+                 try (erewrite H, H0; inversion H1; crush);
+                 try (erewrite H, H0, H1; inversion H2; crush)].
+
+    (*var*)
+    simpl; destruct v as [|r]; [auto|simpl].
+    destruct (Nat.eq_dec n r) as [Heq|Heq];
+      [subst; simpl; repeat rewrite <- beq_nat_refl; auto
+      |assert (Heq' : r <> n); [crush|]].
+    apply Nat.eqb_neq in Heq;
+      apply Nat.eqb_neq in Heq';
+      rewrite Heq, Heq'.
+    simpl in H; rewrite Heq in H;
+      inversion H; subst.
+    inversion H2; subst.
+    apply Nat.eqb_neq in H3; rewrite H3; auto.
+  Qed.
+
+  Lemma rename_closed_subst_type :
+    (forall t p n m, closed_t m ([p /t n] t) ->
+                ([p /t n] t) = ([p /t m] (t [n maps_t m]))).
+  Proof.
+    destruct rename_closed_subst_mutind; crush.
+  Qed.
+
+  Lemma rename_closed_subst_decl_ty :
+    (forall s p n m, closed_s m ([p /s n] s) ->
+                ([p /s n] s) = ([p /s m] (s [n maps_s m]))).
+  Proof.
+    destruct rename_closed_subst_mutind; crush.
+  Qed.
+
+  Lemma rename_closed_subst_decl_tys :
+    (forall ss p n m, closed_ss m ([p /ss n] ss) ->
+                 ([p /ss n] ss) = ([p /ss m] (ss [n maps_ss m]))).
+  Proof.
+    destruct rename_closed_subst_mutind; crush.
+  Qed.
+
+  Lemma rename_closed_subst_exp :
+    (forall e p n m, closed_e m ([p /e n] e) ->
+                ([p /e n] e) = ([p /e m] (e [n maps_e m]))).
+  Proof.
+    destruct rename_closed_subst_mutind; crush.
+  Qed.
+
+  Lemma rename_closed_subst_decl :
+    (forall d p n m, closed_d m ([p /d n] d) ->
+                ([p /d n] d) = ([p /d m] (d [n maps_d m]))).
+  Proof.
+    destruct rename_closed_subst_mutind; crush.
+  Qed.
+
+  Lemma rename_closed_subst_decls :
+    (forall ds p n m, closed_ds m ([p /ds n] ds) ->
+                 ([p /ds n] ds) = ([p /ds m] (ds [n maps_ds m]))).
+  Proof.
+    destruct rename_closed_subst_mutind; crush.
   Qed.
 
   Lemma raise_closed_le_mutind :
@@ -5923,12 +6178,27 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Hint Resolve closed_subst_switch_decls.
   
   Lemma typing_p_subst:
-    (forall Sig G p t1, Sig en G vdash p pathType t1 ->
-                 Sig wf_st ->
-                forall p1 G1 G2 n p',
+    (forall Sig G p t, Sig en G vdash p pathType t ->
+                Sig wf_st ->
+                forall p1 G1 G2 n p' t',
                   G = ([p1 /env 0] G1) ++ G2 ->
                   p = ([p1 /e n] p') ->
-                  n >= length G1 ->
+                  t = ([p1 /t n] t') ->
+                  p1 notin_t t' ->
+                      
+
+  Hint Constructors unbound_var unbound_ty unbound_decl_ty unbound_decl_tys unbound_exp unbound_decl unbound_decls.
+
+  Scheme unbound_ty_mutind := Induction for unbound_ty Sort Prop
+    with unbound_decl_ty_mutind := Induction for unbound_decl_ty Sort Prop
+    with unbound_decl_tys_mutind := Induction for unbound_decl_tys Sort Prop
+    with unbound_exp_mutind := Induction for unbound_exp Sort Prop
+    with unbound_decl_mutind := Induction for unbound_decl Sort Prop
+    with unbound_decls_mutind := Induction for unbound_decls Sort Prop.
+
+  Combined Scheme unbound_mutind from unbound_ty_mutind, unbound_decl_ty_mutind, unbound_decl_tys_mutind,
+  unbound_exp_mutind, unbound_decl_mutind, unbound_decls_mutind.
+                  n = length G1 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
                   Sig evdash G2 wf_env ->
@@ -5939,8 +6209,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                     Sig en G2 vdash p1 wf_e ->
                     Sig en G2 vdash p2 wf_e ->
                     Sig en G2 vdash tp wf_t ->
-                    exists t', t1 = ([p1 /t n] t') /\
-                          Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /e n] p') pathType ([p2 /t n] t')).
+                    Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /e n] p') pathType ([p2 /t n] t')).
   Proof.
     intros Sig G p t Htyp;
       destruct Htyp; intros.
@@ -5948,7 +6217,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct p'; simpl in H2; inversion H2; subst.
     destruct v as [r|r];
       [inversion H2; subst
-      |destruct (Nat.eq_dec n0 r) as [Heq|Heq];
+      |destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
        subst;
        [rewrite <- beq_nat_refl in H2; subst
        |apply Nat.eqb_neq in Heq; rewrite Heq in H2; inversion H2]].
@@ -5958,7 +6227,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct (get_some_app (rev G2) (rev ([p1 /env 0] G1)) r) as [Ha|Ha];
       destruct Ha as [Ha Hb];
       rewrite Hb in H.
-    assert (Hclosed : closed_t n0 t);
+    assert (Hclosed : closed_t (length G1) t);
       [apply H4;
        [apply in_or_app;
         right;
@@ -5982,18 +6251,18 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite plus_0_l in Hc.
     
     rewrite raise_closed_substitution_type with (t:=([p1 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
-                                                (p:=p1)(t':=t')(m:=n0 - (r - length (rev G2))) in Hc; auto.
+                                                (p:=p1)(t':=t')(m:=(length G1) - (r - length (rev G2))) in Hc; auto.
     assert (Hlt : r - length (rev G2) < length (rev ([p1 /env 0] G1)));
       [apply get_some_index with (t:=t); auto
       |repeat rewrite rev_length in Hlt;
        rewrite subst_length in Hlt].
-    assert (Heq : r - length (rev G2) + (n0 - (r - length (rev G2))) =
-            n0);
+    assert (Heq : r - length (rev G2) + ((length G1) - (r - length (rev G2))) =
+            (length G1));
       [rewrite Nat.add_sub_assoc;
        [|rewrite rev_length; crush];
        rewrite minus_plus; auto
       |rewrite Heq in Hc].
-    remember (raise_n_t (n0 - (r - length (rev G2))) t' (r - length (rev G2))) as t''.
+    remember (raise_n_t ((length G1) - (r - length (rev G2))) t' (r - length (rev G2))) as t''.
     exists t''; split; auto.
     simpl.
     apply pt_var.
@@ -6004,14 +6273,14 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite Hd.
     rewrite plus_0_l.
     rewrite raise_closed_substitution_type with (t:=([p2 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
-                                                (p:=p2)(t':=t')(m:=n0 - (r - length (rev G2))); auto.
+                                                (p:=p2)(t':=t')(m:=(length G1) - (r - length (rev G2))); auto.
     rewrite <- Heqt''.
     rewrite Heq; auto.
 
     intros n Hle; apply H7;
       [|crush].
     apply in_rev.
-    apply get_in with (n1:=r).
+    apply get_in with (n0:=r).
     rewrite rev_app_distr.
     rewrite get_app_r; auto.
     
@@ -6019,7 +6288,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     intros n Hle; apply H4;
       [|crush].
     apply in_rev.
-    apply get_in with (n1:=r).
+    apply get_in with (n0:=r).
     rewrite rev_app_distr.
     rewrite get_app_r; auto.
     rewrite H, Hc; auto.
@@ -6042,8 +6311,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite rev_app_distr in H.
     rewrite get_app_l in H; auto.
     inversion H8; subst.
-    unfold mapping in H15.
-    apply get_some_index in H15; auto.
+    unfold mapping in H13.
+    apply get_some_index in H13; auto.
     apply in_rev, get_in with (n0:=n); auto.
 
     (*store location*)
@@ -6052,7 +6321,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       inversion H2; subst.
     destruct v as [r|r];
       [inversion H2|].
-    destruct (Nat.eq_dec n r) as [Heq|Heq];
+    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
       subst;
       [rewrite <- beq_nat_refl in H2
       |apply Nat.eqb_neq in Heq;
@@ -6076,10 +6345,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       [|crush].
     rewrite closed_subst_type; auto.
     apply H5;
-      [apply in_rev, get_in with (n1:=n0); auto|crush].
+      [apply in_rev, get_in with (n:=n0); auto|crush].
     rewrite closed_subst_type; auto.
     apply H5;
-      [apply in_rev, get_in with (n1:=n0); auto|crush].
+      [apply in_rev, get_in with (n:=n0); auto|crush].
 
     (*cast*)
     destruct p';
@@ -6087,7 +6356,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       inversion H1; subst.
     destruct v as [r|r];
       [inversion H1|].
-    destruct (Nat.eq_dec n r) as [Heq|Heq];
+    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
       subst;
       [rewrite <- beq_nat_refl in H1
       |apply Nat.eqb_neq in Heq;
@@ -6097,7 +6366,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     simpl; rewrite <- beq_nat_refl.
     inversion H7; subst.
     exists tp; split.
-    assert (Hclosed : closed_e r (p cast tp));
+    assert (Hclosed : closed_e (length G1) (p cast tp));
       [apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto
       |rewrite closed_subst_type; auto;
        inversion Hclosed; auto].
@@ -6116,7 +6385,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                   G = ([p1 /env 0] G1) ++ G2 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
-                  n >= length G1 ->
+                  n = length G1 ->
                   (p = [p1 /e n] p') ->
                   Sig evdash G2 wf_env ->
                   forall p2 tp, 
@@ -6127,9 +6396,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                     Sig en G2 vdash p1 wf_e ->
                     Sig en G2 vdash p2 wf_e ->
                     Sig en G2 vdash tp wf_t ->
-                    exists s' m, m > 0 /\
-                            s = ([p1 /s n + m] s') /\
-                            Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /e n] p') ni ([p2 /s n + m] s')) /\
+                    exists s', s = ([p1 /s n] s') /\
+                          Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /e n] p') ni ([p2 /s n] s')) /\
     
     (forall Sig G t s, Sig en G vdash s cont t ->
                  Sig wf_st ->
@@ -6148,9 +6416,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                     Sig en G2 vdash p1 wf_e ->
                     Sig en G2 vdash p2 wf_e ->
                     Sig en G2 vdash tp wf_t ->
-                    exists s' m, m > 0 /\
-                            s = ([p1 /s n + m] s') /\
-                            Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /s n + m] s') cont ([p2 /t n] t')).
+                    exists s', s = ([p1 /s S n] s') /\
+                          Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /s S n] s') cont ([p2 /t n] t')).
   Proof.
     apply has_contains_mutind; intros.
     
@@ -6317,7 +6584,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
           Sig evdash G4 wf_env ->
           Sig evdash G6 wf_env ->
           t1 = ([p1 /t n1] t1') ->
-          t2 = ([p1 /t n1] t2') ->
+          t2 = ([p1 /t n2] t2') ->
           forall p2 tp1 tp2,
             closed_env (([p2 /env 0] G3) ++ G4) 0 ->
             closed_env (([p2 /env 0] G5) ++ G6) 0 ->
@@ -6331,29 +6598,114 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
             Sig en G6 vdash p1 wf_e ->
             Sig en G6 vdash p2 wf_e ->
             Sig en G6 vdash tp2 wf_t ->
-            Sig en (([p2 /env 0] G3) ++ G4) vdash ([p2 /t n1] t1') <; ([p2 /t n2] t2') dashv (([p2 /env 0] G5) ++ G6)).
+            Sig en (([p2 /env 0] G3) ++ G4) vdash ([p2 /t n1] t1') <; ([p2 /t n2] t2') dashv (([p2 /env 0] G5) ++ G6)) /\
+    
+    (forall Sig G1 s1 s2 G2,
+        Sig en G1 vdash s1 <;; s2 dashv G2 ->
+        Sig wf_st ->
+        forall p1 n1 n2 G3 G4 G5 G6 s1' s2',
+          G1 = ([p1 /env 0] G3) ++ G4 ->
+          G2 = ([p1 /env 0] G5) ++ G6 ->
+          closed_env G1 0 ->
+          closed_env G2 0 ->
+          closed_decl_ty s1 0 ->
+          closed_decl_ty s2 0 ->
+          n1 >= length G3 ->
+          n2 >= length G5 ->
+          Sig evdash G4 wf_env ->
+          Sig evdash G6 wf_env ->
+          s1 = ([p1 /s n1] s1') ->
+          s2 = ([p1 /s n2] s2') ->
+          forall p2 tp1 tp2,
+            closed_env (([p2 /env 0] G3) ++ G4) 0 ->
+            closed_env (([p2 /env 0] G5) ++ G6) 0 ->
+            Sig en G4 vdash p1 pathType tp1 ->
+            Sig en G4 vdash p2 pathType tp1 ->
+            Sig en G6 vdash p1 pathType tp2 ->
+            Sig en G6 vdash p2 pathType tp2 ->
+            Sig en G4 vdash p1 wf_e ->
+            Sig en G4 vdash p2 wf_e ->
+            Sig en G4 vdash tp1 wf_t ->
+            Sig en G6 vdash p1 wf_e ->
+            Sig en G6 vdash p2 wf_e ->
+            Sig en G6 vdash tp2 wf_t ->
+            Sig en (([p2 /env 0] G3) ++ G4) vdash ([p2 /s n1] s1') <;; ([p2 /s n2] s2') dashv (([p2 /env 0] G5) ++ G6)) /\
+    
+    (forall Sig G1 ss1 ss2 G2,
+        Sig en G1 vdash ss1 <;;; ss2 dashv G2 ->
+        Sig wf_st ->
+        forall p1 n1 n2 G3 G4 G5 G6 ss1' ss2',
+          G1 = ([p1 /env 0] G3) ++ G4 ->
+          G2 = ([p1 /env 0] G5) ++ G6 ->
+          closed_env G1 0 ->
+          closed_env G2 0 ->
+          closed_decl_tys ss1 0 ->
+          closed_decl_tys ss2 0 ->
+          n1 >= length G3 ->
+          n2 >= length G5 ->
+          Sig evdash G4 wf_env ->
+          Sig evdash G6 wf_env ->
+          ss1 = ([p1 /ss n1] ss1') ->
+          ss2 = ([p1 /ss n2] ss2') ->
+          forall p2 tp1 tp2,
+            closed_env (([p2 /env 0] G3) ++ G4) 0 ->
+            closed_env (([p2 /env 0] G5) ++ G6) 0 ->
+            Sig en G4 vdash p1 pathType tp1 ->
+            Sig en G4 vdash p2 pathType tp1 ->
+            Sig en G6 vdash p1 pathType tp2 ->
+            Sig en G6 vdash p2 pathType tp2 ->
+            Sig en G4 vdash p1 wf_e ->
+            Sig en G4 vdash p2 wf_e ->
+            Sig en G4 vdash tp1 wf_t ->
+            Sig en G6 vdash p1 wf_e ->
+            Sig en G6 vdash p2 wf_e ->
+            Sig en G6 vdash tp2 wf_t ->
+            Sig en (([p2 /env 0] G3) ++ G4) vdash ([p2 /ss n1] ss1') <;;; ([p2 /ss n2] ss2') dashv (([p2 /env 0] G5) ++ G6)).
   Proof.
+    apply sub_mutind; intros; auto.
 
-    (forall Sig G p s, Sig en G vdash p ni s ->
-                Sig wf_st ->
-                forall p1 n G1 G2 p',
-                  G = ([p1 /env 0] G1) ++ G2 ->
-                  closed_env G 0 ->
-                  closed_env Sig 0 ->
-                  n >= length G1 ->
-                  (p = [p1 /e n] p') ->
-                  Sig evdash G2 wf_env ->
-                  forall p2 tp, 
-                    closed_env (([p2 /env 0] G1) ++ G2) 0 ->
-                    closed_exp p 0 ->
-                    Sig en G2 vdash p1 pathType tp ->
-                    Sig en G2 vdash p2 pathType tp ->
-                    Sig en G2 vdash p1 wf_e ->
-                    Sig en G2 vdash p2 wf_e ->
-                    Sig en G2 vdash tp wf_t ->
-                    exists s' m, m > 0 /\
-                            s = ([p1 /s n + m] s') /\
-                            Sig en ([p2 /env 0] G1) ++ G2 vdash ([p2 /e n] p') ni ([p2 /s n + m] s')) /\
+    (*s-top*)
+    destruct t2'; simpl in H11; inversion H11; subst; auto.
+
+    (*s-bot*)
+    destruct t1'; simpl in H10; inversion H10; subst; auto.
+
+    (*s-refl*)
+    (*problem: [p1 /t n1] t1' = sel p L = [p1 /t n2] t2'
+               =/=> [p2 /t n1] t1' = [p2 /t n2] t2'
+
+      counter-example: [r / n1] n1 = [r / n2] r = r
+                  but: [r' / n1] n1 = r' =/= [r' / n2] r = r'
+
+      we are missing Property P, the fact that p1 and p2 are not in t1' or t2', 
+      i.e. t2' =/= r in the above example. 
+
+      there are 2 places where substitution is performed. 
+      (1) When adding a type to the context and renaming 
+          the abstract variable to the new concrete one, and 
+      (2) when performing member retrieval, which is actually
+          just a complex form of (1)
+      P holds obviously holds in (1), but (2) is more difficult. 
+*)
+    admit.
+
+    (*s-arr*)
+    destruct t1'0, t2'0; inversion H12; inversion H13; subst; simpl.
+    repeat rewrite app_length, subst_length in e0.
+    apply s_arr with (i:=length (([p2 /env 0] G3) ++ G4)); auto.
+
+    apply H with (p2:=p1)(tp1:=tp1)(tp2:=tp2); auto.
+    apply closed_ty_arr in H6; destruct H6; auto.
+    apply closed_ty_arr in H7; destruct H7; auto.
+    repeat rewrite app_length, subst_length; auto.
+    (*problem: n1 and n2 have to equal the length of G3 for the
+               context substitutions to make sense. This can be 
+               worked around by demonstrating since [p1 / n1] t1'
+               is closed, we can rename n1 to anything we like as
+               long as we do the appropriate rename in t1'. This 
+               must then be taken into account in has_contains_subst,
+               changing the premise to n1 = n2 = length G3*)
+    
     
   Qed.
 
@@ -6538,74 +6890,72 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                       
   
 
-  Reserved Notation "n 'notin_t' t" (at level 80).
-  Reserved Notation "n 'notin_dt' d" (at level 80).
-  Reserved Notation "n 'notin_dts' p" (at level 80).
-  Reserved Notation "n 'notin_v' v" (at level 80).
+  Reserved Notation "n 'unbound_t' t" (at level 80).
+  Reserved Notation "n 'unbound_dt' d" (at level 80).
+  Reserved Notation "n 'unbound_dts' p" (at level 80).
+  Reserved Notation "n 'unbound_v' v" (at level 80).
 
-  Inductive notin_var : nat -> var -> Prop :=
-  | ni_abs : forall n m, n notin_v (a_ m)
+  Inductive unbound_var : nat -> var -> Prop :=
+  | ni_abs : forall n m, n unbound_v (a_ m)
   | ni_con : forall n m, n <> m ->
-                    n notin_v (c_ m)
-                      where "n 'notin_v' p" := (notin_var n p).
+                    n unbound_v (c_ m)
+                      where "n 'unbound_v' p" := (unbound_var n p).
   
-  Inductive notin_ty : nat -> ty -> Prop :=
-  | ni_top : forall n, n notin_t top
-  | ni_bot : forall n, n notin_t bot
-  | ni_arr : forall n t1 t2, n notin_t t1 ->
-                          (S n) notin_t t2 ->
-                          n notin_t (t1 arr t2)
-  | ni_sel : forall n x l, n notin_v x ->
-                      n notin_t (sel x l)
-  | ni_str : forall n ds, (S n) notin_dts ds ->
-                     n notin_t (str ds)
-                       where "n 'notin_t' t" := (notin_ty n t)
+  Inductive unbound_ty : nat -> ty -> Prop :=
+  | ni_top : forall n, n unbound_t top
+  | ni_bot : forall n, n unbound_t bot
+  | ni_arr : forall n t1 t2, n unbound_t t1 ->
+                          (S n) unbound_t t2 ->
+                          n unbound_t (t1 arr t2)
+  | ni_sel : forall n x l, n unbound_v x ->
+                      n unbound_t (sel x l)
+  | ni_str : forall n ds, (S n) unbound_dts ds ->
+                     n unbound_t (str ds)
+                       where "n 'unbound_t' t" := (unbound_ty n t)
 
   with
-  notin_decl_ty : nat -> decl_ty -> Prop :=
-  | ni_low_dt : forall n l t, n notin_t t ->
-                         n notin_dt (type l sup t)
-  | ni_upp_dt : forall n l t, n notin_t t ->
-                         n notin_dt (type l ext t)
-  | ni_val_dt : forall n l t, n notin_t t ->
-                         n notin_dt (val l ofv t)
-                           where "n 'notin_dt' d" := (notin_decl_ty n d)
+  unbound_decl_ty : nat -> decl_ty -> Prop :=
+  | ni_low_dt : forall n l t, n unbound_t t ->
+                         n unbound_dt (type l sup t)
+  | ni_upp_dt : forall n l t, n unbound_t t ->
+                         n unbound_dt (type l ext t)
+  | ni_val_dt : forall n l t, n unbound_t t ->
+                         n unbound_dt (val l ofv t)
+                           where "n 'unbound_dt' d" := (unbound_decl_ty n d)
 
   with
-  notin_decl_tys : nat -> decl_tys -> Prop :=
-  | ni_nil_dt : forall n, n notin_dts dt_nil
-  | ni_con_dt : forall n d ds, n notin_dt d ->
-                          n notin_dts ds ->
-                          n notin_dts (dt_con d ds)
-                          where "n 'notin_dts' d" := (notin_decl_tys n d)
+  unbound_decl_tys nat -> decl_tys -> Prop :=
+  | ni_nil_dt : forall n, n unbound_dts dt_nil
+  | ni_con_dt : forall n d ds, n unbound_dt d ->
+                          n unbound_dts ds ->
+                          n unbound_dts (dt_con d ds)
+                          where "n 'unbound_dts' d" := (unbound_decl_tys n d)
 
   (*with
-  notin_path : nat -> path -> Prop :=
-  | ni_abs : forall n m, n notin_p (a_ m)
+  unbound_path : nat -> path -> Prop :=
+  | ni_abs : forall n m, n unbound_p (a_ m)
   | ni_con : forall n m, n <> m ->
-                    n notin_p (c_ m)
-  | ni_cast : forall n p t, n notin_p p ->
-                       n notin_t t ->
-                       n notin_p (p cast t)
-                         where "n 'notin_p' p" := (notin_path n p)*).
+                    n unbound_p (c_ m)
+  | ni_cast : forall n p t, n unbound_p p ->
+                       n unbound_t t ->
+                       n unbound_p (p cast t)
+                         where "n 'unbound_p' p" := (unbound_path n p)*).
 
-  Hint Constructors notin_var notin_ty notin_decl_ty notin_decl_tys.
+  Hint Constructors unbound_var unbound_ty unbound_decl_ty unbound_decl_tys Scheme unbound_ty_mutind := Induction for unbound_ty Sort Prop
+    with unbound_decl_ty_mutind := Induction for unbound_decl_ty Sort Prop
+    with unbound_decl_tys mutind := Induction for unbound_decl_tys Sort Prop.
 
-  Scheme notin_ty_mutind := Induction for notin_ty Sort Prop
-    with notin_decl_ty_mutind := Induction for notin_decl_ty Sort Prop
-    with notin_decl_tys_mutind := Induction for notin_decl_tys Sort Prop.
+  Combined Scheme unbound_mutind from unbound_ty_mutind, unbound_decl_ty_mutind, unbound_decl_tys mutind.
 
-  Combined Scheme notin_mutind from notin_ty_mutind, notin_decl_ty_mutind, notin_decl_tys_mutind.
+  Reserved Notation "n 'unbound_e' G" (at level 80).
 
-  Reserved Notation "n 'notin_e' G" (at level 80).
-
-  Inductive notin_env : nat -> env -> Prop :=
-  | ni_nil : forall n, n notin_e nil
-  | ni_cons_O : forall G t, O notin_e (t::G)
-  | ni_cons_S : forall n G t, n notin_t t ->
-                         n notin_e G ->
-                         (S n) notin_e (t::G)
-                         where "n 'notin_e' G" := (notin_env n G).
+  Inductive unbound_env : nat -> env -> Prop :=
+  | ni_nil : forall n, n unbound_e nil
+  | ni_cons_O : forall G t, O unbound_e (t::G)
+  | ni_cons_S : forall n G t, n unbound_t t ->
+                         n unbound_e G ->
+                         (S n) unbound_e (t::G)
+                         where "n 'unbound_e' G" := (unbound_env n G).
 
   Reserved Notation "G 'vdash' t 'wf_t'" (at level 80).
   Reserved Notation "G 'vdash' d 'wf_d'" (at level 80).
@@ -6665,7 +7015,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | wf_bot : forall G, G vdash bot wf_t
   | wf_arr : forall G t1 t2, G vdash t1 wf_t ->
                         (t1)::G vdash t2 wf_t ->
-                        0 notin_t t2 ->
+                        0 unbound_t t2 ->
                         G vdash (t1 arr t2)  wf_t
   | wf_sel_lower : forall G x l t, G vdash x ni (type l sup t) ->
                               G vdash x wf_v ->
@@ -6674,7 +7024,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                               G vdash x wf_v ->
                               G vdash (sel x l) wf_t
   | wf_struct : forall G ds, (str ds)::G vdash ([ c_ O /dts O] ds) wf_ds ->
-                        0 notin_dts ds ->
+                        0 unbound_dts ds ->
                         G vdash (str ds) wf_t
 
   where "G 'vdash' t 'wf_t'" := (wf_ty G t)
@@ -7154,27 +7504,27 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Hint Resolve ge_lt_n_type ge_lt_n_decl_ty ge_lt_n_decl_tys.
   Hint Rewrite ge_lt_n_type ge_lt_n_decl_ty ge_lt_n_decl_tys.
 
-  Lemma ge_notin_Sn_var :
+  Lemma ge_unbound_Sn_var :
     forall v n, ge_var v n ->
-           n notin_v v ->
+           n unbound_v v ->
            ge_var v (S n).
   Proof.
     intros.
     inversion H; inversion H0; crush.
   Qed.
 
-  Hint Rewrite ge_notin_Sn_var.
-  Hint Resolve ge_notin_Sn_var.
+  Hint Rewrite ge_unbound_Sn_var.
+  Hint Resolve ge_unbound_Sn_var.
 
-  Lemma ge_notin_Sn_mutind :
+  Lemma ge_unbound_Sn_mutind :
     (forall t n, ge_type t n ->
-            n notin_t t ->
+            n unbound_t t ->
             ge_type t (S n)) /\
     (forall d n, ge_decl_ty d n ->
-            n notin_dt d ->
+            n unbound_dt d ->
             ge_decl_ty d (S n)) /\
     (forall ds n, ge_decl_tys ds n ->
-            n notin_dts ds ->
+            n unbound_dts ds ->
             ge_decl_tys ds (S n)).
   Proof.
     apply type_mutind; intros; auto.
@@ -7195,89 +7545,85 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Qed.
 
-  Lemma ge_notin_Sn_type :
+  Lemma ge_unbound_Sn_type :
     (forall t n, ge_type t n ->
-            n notin_t t ->
+            n unbound_t t ->
             ge_type t (S n)).
   Proof.
-    destruct ge_notin_Sn_mutind; crush.
+    destruct ge_unbound_Sn_mutind; crush.
   Qed.
 
-  Lemma ge_notin_Sn_decl_ty :
+  Lemma ge_unbound_Sn_decl_ty :
     (forall d n, ge_decl_ty d n ->
-            n notin_dt d ->
+            n unbound_dt d ->
             ge_decl_ty d (S n)).
   Proof.
-    destruct ge_notin_Sn_mutind; crush.
+    destruct ge_unbound_Sn_mutind; crush.
   Qed.
 
-  Lemma ge_notin_Sn_decl_tys :
+  Lemma ge_unbound_Sn_decl_tys :
     (forall ds n, ge_decl_tys ds n ->
-            n notin_dts ds ->
+            n unbound_dts ds ->
             ge_decl_tys ds (S n)).
   Proof.
-    destruct ge_notin_Sn_mutind; crush.
+    destruct ge_unbound_Sn_mutind; crush.
   Qed.
 
-  Hint Resolve ge_notin_Sn_type ge_notin_Sn_decl_ty ge_notin_Sn_decl_tys.
-  Hint Rewrite ge_notin_Sn_type ge_notin_Sn_decl_ty ge_notin_Sn_decl_tys.
+  Hint Resolve ge_unbound_Sn_type ge_unbound_Sn_decl_ty ge_unbound_Sn_decl_tys.
+  Hint Rewrite ge_unbound_Sn_type ge_unbound_Sn_decl_ty ge_unbound_Sn_decl_tys.
 
-  Lemma ge_implies_notin_var :
+  Lemma ge_implies_unbound_var :
     forall v n, ge_var v n ->
            forall m, m < n ->
-                m notin_v v.
+                m unbound_v v.
   Proof.
     intros.
     inversion H; crush.
   Qed.
 
-  Hint Rewrite ge_implies_notin_var.
-  Hint Resolve ge_implies_notin_var.
+  Hint Rewrite ge_implies_unbound_var.
+  Hint Resolve ge_implies_unbound_var.
 
-  Lemma ge_implies_notin_mutind :
+  Lemma ge_implies_unbound_mutind :
     (forall t n, ge_type t n ->
             forall m, m < n ->
-                 m notin_t t) /\
+                 m unbound_t t) /\
     (forall d n, ge_decl_ty d n ->
             forall m, m < n ->
-                 m notin_dt d) /\
+                 m unbound_dt d) /\
     (forall ds n, ge_decl_tys ds n ->
             forall m, m < n ->
-                 m notin_dts ds).
+                 m unbound_dts ds).
   Proof.
     apply ge_mutind; crush.
     apply ni_sel.
-    apply ge_implies_notin_var with (n := n); auto.
+    apply ge_implies_unbound_var with (n := n); auto.
   Qed.
 
-  Lemma ge_implies_notin_type :
+  Lemma ge_implies_unbound_type :
     (forall t n, ge_type t n ->
             forall m, m < n ->
-                 m notin_t t).
+                 m unbound_t t).
   Proof.
-    destruct ge_implies_notin_mutind; crush.
+    destruct ge_implies_unbound_mutind; crush.
   Qed.
 
-  Lemma ge_implies_notin_decl_ty :
+  Lemma ge_implies_unbound_decl_ty :
     (forall d n, ge_decl_ty d n ->
             forall m, m < n ->
-                 m notin_dt d).
+                 m unbound_dt d).
   Proof.
-    destruct ge_implies_notin_mutind; crush.
+    destruct ge_implies_unbound_mutind; crush.
   Qed.
 
-  Lemma ge_implies_notin_decl_tys :
-    (forall ds n, ge_decl_tys ds n ->
+  Lemma ge_implies_unbound_decl_tys forall ds n, ge_decl_tys ds n ->
             forall m, m < n ->
-                 m notin_dts ds).
+                 m unbound_dts ds).
   Proof.
-    destruct ge_implies_notin_mutind; crush.
+    destruct ge_implies_unbound_mutind; crush.
   Qed.
 
-  Hint Resolve ge_implies_notin_type ge_implies_notin_decl_ty ge_implies_notin_decl_tys.
-  Hint Rewrite ge_implies_notin_type ge_implies_notin_decl_ty ge_implies_notin_decl_tys.
-
-  Lemma ge_shift_var :
+  Hint Resolve ge_implies_unbound_type ge_implies_unbound_decl_ty ge_implies_unbound_decl_tys Hint Rewrite ge_implies_unbound_type ge_implies_unbound_decl_ty ge_implies_unbound_decl_tys Lemma ge_shift_var :
     forall v n, ge_var v n -> forall m, ge_var (v lshift_v m) n.
   Proof.
     intros; inversion H; crush.
@@ -8290,18 +8636,18 @@ Qed.
   (*
   Lemma subst_implies_equality :
     (forall t1 t2 p n, ([p /t n] t1) = ([p /t n] t2) ->
-                  n notin_t t1 ->
-                  n notin_t t2 ->
+                  n unbound_t t1 ->
+                  n unbound_t t2 ->
                   struct_equiv_type t1 t2 ->
                   t1 = t2) /\
     (forall d1 d2 p n, ([p /d n] d1) = ([p /d n] d2) -> 
-                  n notin_d d1 ->
-                  n notin_d d2 ->
+                  n unbound_d d1 ->
+                  n unbound_d d2 ->
                   struct_equiv_decl d1 d2 ->
                   d1 = d2) /\
     (forall p1 p2 p n, ([p /p n] p1) = ([p /p n] p2) -> 
-                  n notin_p p1 ->
-                  n notin_p p2 ->
+                  n unbound_p p1 ->
+                  n unbound_p p2 ->
                   struct_equiv_path p1 p2 ->
                   p1 = p2).
   Proof.
@@ -9288,7 +9634,7 @@ Qed.
 
     apply ge_str.
     apply subst_ge_decl_tys in H.
-    apply ge_notin_Sn_decl_tys; auto.
+    apply ge_unbound_Sn_decl_tys; auto.
   Qed.
 
   Lemma ge_wf_type :
@@ -9390,7 +9736,7 @@ Qed.
     assert (Htemp : length G1 + 1 = S (length G1));
       [crush|
        rewrite Htemp; clear Htemp; auto].
-    apply ge_implies_notin_type with (n:=1); auto.
+    apply ge_implies_unbound_type with (n:=1); auto.
     apply ge_ljump_type; auto.
     assert (Htemp : ge_type (t1 arr t2) 0);
       [apply ge_wf_type with (G:=G1++G2); auto|
@@ -9430,7 +9776,7 @@ Qed.
        rewrite Htemp;
        rewrite Htemp in Hwf; clear Htemp].
     rewrite ljump_subst_decl_tys in Hwf; auto.
-    apply ge_implies_notin_decl_tys with (n:=1); auto.
+    apply ge_implies_unbound_decl_tys with (n:=1); auto.
     apply ge_ljump_decl_tys; auto.
     assert (Htemp : ge_type (str ds) 0);
       [apply ge_wf_type with (G:=G1++G2); auto|
@@ -9946,7 +10292,7 @@ Qed.
     apply ge_sel; destruct x; crush.
 
     apply ge_str.
-    apply ge_notin_Sn_decl_tys; auto.
+    apply ge_unbound_Sn_decl_tys; auto.
     apply subst_ge_decl_tys with (v:=c_ 0)(x:=0); auto.
         
   Qed.
@@ -10162,43 +10508,43 @@ Qed.
     intros; simpl; auto.
   Qed.
 
-  Lemma notin_lshift_var :
-    forall v n, n notin_v v -> forall m, (n + m) notin_v (v lshift_v m).
+  Lemma unbound_lshift_var :
+    forall v n, n unbound_v v -> forall m, (n + m) unbound_v (v lshift_v m).
   Proof.
     intros v n Hni; induction Hni; crush.
   Qed.
 
-  Lemma notin_lshift_mutind :
-    (forall n t, n notin_t t -> forall m, n + m notin_t (t lshift_t m)) /\
-    (forall n d, n notin_dt d -> forall m, n + m notin_dt (d lshift_dt m)) /\
-    (forall n ds, n notin_dts ds -> forall m, n + m notin_dts (ds lshift_dts m)).
+  Lemma unbound_lshift_mutind :
+    (forall n t, n unbound_t t -> forall m, n + m unbound_t (t lshift_t m)) /\
+    (forall n d, n unbound_dt d -> forall m, n + m unbound_dt (d lshift_dt m)) /\
+    (forall n ds, n unbound_dts ds -> forall m, n + m unbound_dts (ds lshift_dts m)).
   Proof.
-    apply notin_mutind; crush.
+    apply unbound_mutind; crush.
 
     apply ni_sel.
-    apply notin_lshift_var; auto.
+    apply unbound_lshift_var; auto.
   Qed.
 
-  Lemma notin_lshift_type :
-    (forall n t, n notin_t t -> forall m, n + m notin_t (t lshift_t m)).
+  Lemma unbound_lshift_type :
+    (forall n t, n unbound_t t -> forall m, n + m unbound_t (t lshift_t m)).
   Proof.
-    destruct notin_lshift_mutind; crush.
+    destruct unbound_lshift_mutind; crush.
   Qed.
 
-  Lemma notin_lshift_decl_ty :
-    (forall n d, n notin_dt d -> forall m, n + m notin_dt (d lshift_dt m)).
+  Lemma unbound_lshift_decl_ty :
+    (forall n d, n unbound_dt d -> forall m, n + m unbound_dt (d lshift_dt m)).
   Proof.
-    destruct notin_lshift_mutind; crush.
+    destruct unbound_lshift_mutind; crush.
   Qed.
 
-  Lemma notin_lshift_decl_tys :
-    (forall n ds, n notin_dts ds -> forall m, n + m notin_dts (ds lshift_dts m)).
+  Lemma unbound_lshift_decl_tys :
+    (forall n ds, n unbound_dts ds -> forall m, n + m unbound_dts (ds lshift_dts m)).
   Proof.
-    destruct notin_lshift_mutind; crush.
+    destruct unbound_lshift_mutind; crush.
   Qed.
 
-  Lemma notin_subst_var :
-    forall v x n, n notin_v v -> n notin_v x -> forall m, n notin_v ([x /v m] v).
+  Lemma unbound_subst_var :
+    forall v x n, n unbound_v v -> n unbound_v x -> forall m, n unbound_v ([x /v m] v).
   Proof.
     intros; destruct v; crush.
     destruct (eq_nat_dec m n0);
@@ -10207,28 +10553,28 @@ Qed.
       rewrite Hneqb; auto.
   Qed.
   
-  Lemma notin_subst_mutind :
-    (forall t x n, n notin_t t -> n notin_v x -> forall m, n notin_t ([x /t m] t)) /\
-    (forall d x n, n notin_dt d -> n notin_v x -> forall m, n notin_dt ([x /dt m] d)) /\
-    (forall ds x n, n notin_dts ds -> n notin_v x -> forall m, n notin_dts ([x /dts m] ds)).
+  Lemma unbound_subst_mutind :
+    (forall t x n, n unbound_t t -> n unbound_v x -> forall m, n unbound_t ([x /t m] t)) /\
+    (forall d x n, n unbound_dt d -> n unbound_v x -> forall m, n unbound_dt ([x /dt m] d)) /\
+    (forall ds x n, n unbound_dts ds -> n unbound_v x -> forall m, n unbound_dts ([x /dts m] ds)).
   Proof.
     apply type_mutind; intros; auto.
 
     apply ni_str.
     apply H.
     inversion H0; auto.
-    apply notin_lshift_var with (m:=1) in H1.
+    apply unbound_lshift_var with (m:=1) in H1.
     rewrite Nat.add_1_r in H1; crush.
     
     apply ni_sel.
-    apply notin_subst_var; auto.
+    apply unbound_subst_var; auto.
     inversion H; auto.
 
     apply ni_arr; fold subst;
     inversion H1; subst; auto.
     apply H0; auto.
     rewrite <- Nat.add_1_r;
-      apply notin_lshift_var; auto.
+      apply unbound_lshift_var; auto.
 
     apply ni_upp_dt; fold subst; inversion H0; auto.
 
@@ -10240,22 +10586,22 @@ Qed.
 
   Qed.
   
-  Lemma notin_subst_type :
-    (forall t x n, n notin_t t -> n notin_v x -> forall m, n notin_t ([x /t m] t)).
+  Lemma unbound_subst_type :
+    (forall t x n, n unbound_t t -> n unbound_v x -> forall m, n unbound_t ([x /t m] t)).
   Proof.
-    destruct notin_subst_mutind; crush.
+    destruct unbound_subst_mutind; crush.
   Qed.
   
-  Lemma notin_subst_decl_ty :
-    (forall d x n, n notin_dt d -> n notin_v x -> forall m, n notin_dt ([x /dt m] d)).
+  Lemma unbound_subst_decl_ty :
+    (forall d x n, n unbound_dt d -> n unbound_v x -> forall m, n unbound_dt ([x /dt m] d)).
   Proof.
-    destruct notin_subst_mutind; crush.
+    destruct unbound_subst_mutind; crush.
   Qed.
   
-  Lemma notin_subst_decl_tys :
-    (forall ds x n, n notin_dts ds -> n notin_v x -> forall m, n notin_dts ([x /dts m] ds)).
+  Lemma unbound_subst_decl_tys :
+    (forall ds x n, n unbound_dts ds -> n unbound_v x -> forall m, n unbound_dts ([x /dts m] ds)).
   Proof.
-    destruct notin_subst_mutind; crush.
+    destruct unbound_subst_mutind; crush.
   Qed.
   
 
@@ -10611,7 +10957,7 @@ Qed.
                            v = ([x /v n] v') ->
                            forall x' tx, G vdash x hasType tx ->
                                     G vdash x' hasType tx ->
-                                    n notin_e G ->
+                                    n unbound_e G ->
                                     G vdash ([x /v n] v) hasType ).
 
   Lemma subst_has_contains_mutind :
@@ -10686,7 +11032,7 @@ Qed.
 
     admit. (*typing weakening*)
 
-    apply notin_subst_type; auto.
+    apply unbound_subst_type; auto.
     admit.
     destruct x'; crush.
 
@@ -10696,7 +11042,7 @@ Qed.
 
     
     
-    SearchAbout notin_ty.
+    SearchAbout unbound_ty.
     
     
   Qed.
@@ -10704,19 +11050,19 @@ Qed.
   Lemma subst_wf_mutind :
     (forall G t, G vdash t wf_t -> forall G1 tg G2, G = G1++tg::G2 ->
                                      forall n, n = length G1 ->
-                                          n notin_e G1 ->
+                                          n unbound_e G1 ->
                                            forall t', t = ([c_ n /t n] t') ->
                                                  forall  x, G2 vdash x hasType tg ->
                                                        G1++G2 vdash [x /t n] t' wf_t) /\
     (forall G d, G vdash d wf_d -> forall G1 tg G2, G = G1++tg::G2 ->
                                      forall n, n = length G1 ->
-                                          n notin_e G1 ->
+                                          n unbound_e G1 ->
                                            forall d', d = ([c_ n /dt n] d') ->
                                                  forall  x, G2 vdash x hasType tg ->
                                                        G1++G2 vdash [x /dt n] d' wf_d) /\
     (forall G ds, G vdash ds wf_ds -> forall G1 tg G2, G = G1++tg::G2 ->
                                         forall n, n = length G1 ->
-                                             n notin_e G1 ->
+                                             n unbound_e G1 ->
                                              forall ds', ds = ([c_ n /dts n] ds') ->
                                                     forall  x, G2 vdash x hasType tg ->
                                                           forall i, i = Some n ->
@@ -10794,12 +11140,12 @@ Qed.
     apply wf_decl_tys_unique with (d1:=[c_ 0 /dt 0]d0)(d2:=[c_ 0 /dt 0]d) in H4; auto.
     apply subst_equals_decl_ty with (n:=1) in H4; subst; auto.
     apply ge_in_dty with (ds:=ds); auto.
-    apply ge_notin_Sn_decl_tys; auto.
+    apply ge_unbound_Sn_decl_tys; auto.
     apply subst_ge_decl_tys with (v:=c_ 0)(x:=0).
     apply wf_ge_O_decl_tys with (G:=str ds ::G).
     inversion H; subst; auto.
     apply ge_in_dty with (ds:=ds); auto.
-    apply ge_notin_Sn_decl_tys; auto.
+    apply ge_unbound_Sn_decl_tys; auto.
     apply subst_ge_decl_tys with (v:=c_ 0)(x:=0).
     apply wf_ge_O_decl_tys with (G:=str ds ::G).
     inversion H; subst; auto.
