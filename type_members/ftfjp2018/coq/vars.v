@@ -1393,8 +1393,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                         e <> (e' cast t) ->
                         e notin_e (e' cast t)
   | ni_fn : forall e t1 e' t2, e notin_t t1 ->
-                          e notin_e e' ->
-                          e notin_t t2 ->
+                          (e raise_e 0) notin_e e' ->
+                          (e raise_e 0) notin_t t2 ->
                           e <> (fn t1 in_exp e' off t2) ->
                           e notin_e (fn t1 in_exp e' off t2)
   | ni_app : forall e e1 e2, e notin_e e1 ->
@@ -1404,7 +1404,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | ni_acc : forall e e' l, e notin_e e' ->
                        e <> (e_acc e' l) ->
                        e notin_e (e_acc e' l)
-  | ni_new : forall e ds, e notin_ds ds ->
+  | ni_new : forall e ds, (e raise_e 0) notin_ds ds ->
                      e <> (new ds) ->
                      e notin_e (new ds)
   where "e 'notin_e' e'" := (notin_exp e e')
@@ -1437,6 +1437,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Combined Scheme notin_mutind from notin_ty_mutind, notin_decl_ty_mutind, notin_decl_tys_mutind,
   notin_exp_mutind, notin_decl_mutind, notin_decls_mutind.
+
+  Definition notin_environment (e : exp)(G : env) := forall t, In t G -> e notin_t t.
+
+  Notation "e 'notin_env' G" := (notin_environment e G)(at level 80).
   
   Inductive root : nat -> exp -> Prop :=
   | root_var : forall r, root r (c_ r)
@@ -6176,6 +6180,70 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Rewrite closed_subst_switch_decls.
   Hint Resolve closed_subst_switch_decls.
+
+  Lemma notin_subst_closed_mutind :
+    (forall t e n, e notin_t ([e /t n] t) -> closed_t n t) /\
+    (forall s e n, e notin_s ([e /s n] s) -> closed_s n s) /\
+    (forall ss e n, e notin_ss ([e /ss n] ss) -> closed_ss n ss) /\
+    (forall e' e n, e notin_e ([e /e n] e') -> closed_e n e') /\
+    (forall d e n, e notin_d ([e /d n] d) -> closed_d n d) /\
+    (forall ds e n, e notin_ds ([e /ds n] ds) -> closed_ds n ds).
+  Proof.
+    apply type_exp_mutind; intros; auto;
+      try solve [try (inversion H0; subst);
+                 try (inversion H1; subst);
+                 try (inversion H2; subst);
+                 try (eapply H);
+                 try (eapply H0);
+                 try (eapply H1);
+                 eauto].
+
+    (*var*)
+    destruct v as [|r]; auto.
+    simpl in H;
+      destruct (Nat.eq_dec n r) as [Heq|Heq];
+      [subst; rewrite <- beq_nat_refl in H;
+       inversion H; auto
+      |auto].
+  Qed.
+
+  Lemma notin_subst_closed_type :
+    (forall t e n, e notin_t ([e /t n] t) -> closed_t n t).
+  Proof.
+    destruct notin_subst_closed_mutind; crush.
+  Qed.
+
+  Lemma notin_subst_closed_decl_ty :
+    (forall s e n, e notin_s ([e /s n] s) -> closed_s n s).
+  Proof.
+    destruct notin_subst_closed_mutind; crush.
+  Qed.
+
+  Lemma notin_subst_closed_decl_tys :
+    (forall ss e n, e notin_ss ([e /ss n] ss) -> closed_ss n ss).
+  Proof.
+    destruct notin_subst_closed_mutind; crush.
+  Qed.
+
+  Lemma notin_subst_closed_exp :
+    (forall e' e n, e notin_e ([e /e n] e') -> closed_e n e').
+  Proof.
+    destruct notin_subst_closed_mutind; crush.
+  Qed.
+
+  Lemma notin_subst_closed_decl :
+    (forall d e n, e notin_d ([e /d n] d) -> closed_d n d).
+  Proof.
+    destruct notin_subst_closed_mutind; crush.
+  Qed.
+
+  Lemma notin_subst_closed_decls :
+    (forall ds e n, e notin_ds ([e /ds n] ds) -> closed_ds n ds).
+  Proof.
+    destruct notin_subst_closed_mutind; crush.
+  Qed.
+
+  
   
   Lemma typing_p_subst:
     (forall Sig G p t, Sig en G vdash p pathType t ->
@@ -6185,19 +6253,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                   p = ([p1 /e n] p') ->
                   t = ([p1 /t n] t') ->
                   p1 notin_t t' ->
-                      
-
-  Hint Constructors unbound_var unbound_ty unbound_decl_ty unbound_decl_tys unbound_exp unbound_decl unbound_decls.
-
-  Scheme unbound_ty_mutind := Induction for unbound_ty Sort Prop
-    with unbound_decl_ty_mutind := Induction for unbound_decl_ty Sort Prop
-    with unbound_decl_tys_mutind := Induction for unbound_decl_tys Sort Prop
-    with unbound_exp_mutind := Induction for unbound_exp Sort Prop
-    with unbound_decl_mutind := Induction for unbound_decl Sort Prop
-    with unbound_decls_mutind := Induction for unbound_decls Sort Prop.
-
-  Combined Scheme unbound_mutind from unbound_ty_mutind, unbound_decl_ty_mutind, unbound_decl_tys_mutind,
-  unbound_exp_mutind, unbound_decl_mutind, unbound_decls_mutind.
+                  p1 notin_env (G1 ++ G2) ->
                   n = length G1 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
@@ -6227,17 +6283,14 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct (get_some_app (rev G2) (rev ([p1 /env 0] G1)) r) as [Ha|Ha];
       destruct Ha as [Ha Hb];
       rewrite Hb in H.
-    assert (Hclosed : closed_t (length G1) t);
-      [apply H4;
-       [apply in_or_app;
-        right;
-        apply get_in in H;
-        apply in_rev in H;
-        auto
-       |crush]
-      |].
-    exists t; split;
-      (rewrite closed_subst_type; auto).
+    assert (Hclosed : closed_t (length G1) t');
+      [apply notin_subst_closed_type with (e:=p1);
+       apply H5;
+       apply in_or_app; right;
+       apply in_rev;
+       apply get_in with (n:=r); auto|].
+    rewrite closed_subst_type in H; auto.
+    rewrite closed_subst_type; auto.
     simpl.
     apply pt_var.
     unfold mapping;
