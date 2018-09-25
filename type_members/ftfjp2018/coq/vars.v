@@ -1441,6 +1441,15 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Definition notin_environment (e : exp)(G : env) := forall t, In t G -> e notin_t t.
 
   Notation "e 'notin_env' G" := (notin_environment e G)(at level 80).
+
+  (*strict syntactic sub element*)
+  Inductive synsub : exp -> exp -> Prop :=
+  | syn_cast1 : forall e t, synsub p (p cast t)
+  | syn_cast2 : forall e t e', synsub e e' ->
+                          synsub e (e' cast t)
+  | syn_new : forall e ds, (e raise_e 0) notin_ds ds ->
+                      sysn
+                          
   
   Inductive root : nat -> exp -> Prop :=
   | root_var : forall r, root r (c_ r)
@@ -3754,12 +3763,89 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite rev_length, subst_length; auto.
   Qed.
 
+  Lemma subst_equality_closed_mutind :
+    (forall e p n, ([p /e n] e) = p ->
+              closed_e n e \/ p = (a_ n)).
+  Proof.
+    intro e; induction e; intros; auto.
+
+    destruct p; simpl in H; inversion H; subst.
+    
+  Qed.
+
+  Lemma subst_equality_mutind :
+    (forall t1 t2 p n, ([p /t n] t1) = ([p /t n] t2) ->
+                  p notin_t t1 ->
+                  p notin_t t2 ->
+                  t1 = t2) /\
+    (forall s1 s2 p n, ([p /s n] s1) = ([p /s n] s2) ->
+                  p notin_s s1 ->
+                  p notin_s s2 ->
+                  s1 = s2) /\
+    (forall ss1 ss2 p n, ([p /ss n] ss1) = ([p /ss n] ss2) ->
+                    p notin_ss ss1 ->
+                    p notin_ss ss2 ->
+                    ss1 = ss2) /\
+    (forall e1 e2 p n, ([p /e n] e1) = ([p /e n] e2) ->
+                  p notin_e e1 ->
+                  p notin_e e2 ->
+                  e1 = e2) /\
+    (forall d1 d2 p n, ([p /d n] d1) = ([p /d n] d2) ->
+                  p notin_d d1 ->
+                  p notin_d d2 ->
+                  d1 = d2) /\
+    (forall ds1 ds2 p n, ([p /ds n] ds1) = ([p /ds n] ds2) ->
+                    p notin_ds ds1 ->
+                    p notin_ds ds2 ->
+                    ds1 = ds2).
+  Proof.
+    apply type_exp_mutind; intros; simpl;
+      try solve [try (destruct t2);
+                 try (destruct s2);
+                 try (destruct ss2);
+                 try (destruct d2);
+                 try (destruct ds2);
+                 try (simpl in H);
+                 try (simpl in H0);
+                 try (simpl in H1);
+                 try (inversion H);
+                 try (inversion H0);
+                 try (inversion H1);
+                 try (erewrite H; eauto);
+                 try (erewrite H0; eauto);
+                 try (inversion H1);
+                 try (inversion H2);
+                 try (inversion H3);
+                 auto].
+
+    (*new*)
+    destruct e2;
+      simpl in H0;
+      inversion H0; subst.
+    erewrite H; eauto.
+    inversion H1; auto.
+    inversion H2; auto.
+
+    destruct v as [|r]; [inversion H0|].
+    admit.
+
+    destruct e2;
+      simpl in H1;
+      inversion H1; subst.
+    erewrite H, H0; inversion H2; inversion H3; eauto.
+
+    destruct v as [|r]; [inversion H1|].
+    
+  Qed.
+
   Lemma mapping_subst_switch :
     forall G r t, r mapsto t elem G ->
              forall p1 n G',
                G = ([p1 /env n] G') ->
-               exists t', t = ([p1 /t n + r] t') /\
-                     forall p2, r mapsto ([p2 /t n + r] t') elem ([p2 /env n] G').
+               p1 notin_env G' ->
+               forall t', p1 notin_t t' ->
+                     t = ([p1 /t n + r] t') /\
+                     forall p2, r mapsto ([p2 /t n + r] t') elem ([p2 /env n] G') .
   Proof.
     intro G; induction G as [|t1 G1]; intros;
       destruct G' as [|t2 G2];
@@ -3770,13 +3856,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       simpl in H;
       rewrite get_empty in H;
       inversion H; auto.
-
     
     unfold mapping in H; simpl in H.
     apply get_cons_dec in H;
       destruct H as [Ha|Ha];
       destruct Ha as [Ha Hb]. 
-    apply IHG1 with (p1:=p1)(n:=n)(G':=G2) in Hb; auto.
+    apply IHG1 with (p1:=p1)(n:=n)(G':=G2)(t':=t') in Hb; auto.
     destruct Hb as [t' Hb];
       destruct Hb as [Hb Hc].
     exists t'; split; auto; intros.
@@ -6298,13 +6383,15 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       rewrite get_app_l;
       auto.
 
-    destruct mapping_subst_switch with (G:=[p1 /env 0]G1)(r:=r - length (rev G2))
-                                       (t:=t)(p1:=p1)(G':=G1)(n:=0) as [t' Hc]; 
+    destruct mapping_subst_switch
+      with (G:=[p1 /env 0]G1)(r:=r - length (rev G2))
+           (t:=t)(p1:=p1)(G':=G1)(n:=0) as [t' Hc]; 
       auto; destruct Hc as [Hc Hd].
     rewrite plus_0_l in Hc.
     
-    rewrite raise_closed_substitution_type with (t:=([p1 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
-                                                (p:=p1)(t':=t')(m:=(length G1) - (r - length (rev G2))) in Hc; auto.
+    rewrite raise_closed_substitution_type
+      with (t:=([p1 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
+           (p:=p1)(t':=t')(m:=(length G1) - (r - length (rev G2))) in Hc; auto.
     assert (Hlt : r - length (rev G2) < length (rev ([p1 /env 0] G1)));
       [apply get_some_index with (t:=t); auto
       |repeat rewrite rev_length in Hlt;
