@@ -4,9 +4,6 @@ Require Export Arith.
 Require Export Peano_dec.
 Require Export Coq.Arith.PeanoNat.
 Require Import CpdtTactics.
-Require Export Coq.Program.Wf.
-Require Export Coq.Program.Tactics.
-Require Export Recdef.
 Set Implicit Arguments.
 
 (*TODO:
@@ -1442,14 +1439,56 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Notation "e 'notin_env' G" := (notin_environment e G)(at level 80).
 
-  (*strict syntactic sub element*)
-  Inductive synsub : exp -> exp -> Prop :=
-  | syn_cast1 : forall e t, synsub p (p cast t)
-  | syn_cast2 : forall e t e', synsub e e' ->
-                          synsub e (e' cast t)
-  | syn_new : forall e ds, (e raise_e 0) notin_ds ds ->
-                      sysn
-                          
+  Fixpoint synsize_t (t : ty) : nat :=
+    match t with
+    | top => 0
+    | bot => 0
+    | t1 arr t2 => 1 + synsize_t t1 + synsize_t t2
+    | str ss => 1 + synsize_ss ss
+    | sel p l => 1 + synsize_e p
+    end
+
+  with
+  synsize_s (s : decl_ty) : nat :=
+    match s with
+    | type l ext t => 1 + synsize_t t
+    | type l sup t => 1 + synsize_t t
+    | type l eqt t => 1 + synsize_t t
+    | val l oft t => 1 + synsize_t t
+    end
+
+  with
+  synsize_ss (ss : decl_tys) : nat :=
+    match ss with
+    | dt_nil => 0
+    | dt_con s ss => 1 + synsize_s s + synsize_ss ss
+    end
+
+  with
+  synsize_e (e : exp) : nat :=
+    match e with
+    | fn t1 in_exp e off t2 => 1 + synsize_t t1 + synsize_e e + synsize_t t2
+    | e_app e1 e2 => 1 + synsize_e e1 + synsize_e e2
+    | e_acc e' _ => 1 + synsize_e e'
+    | new ds => 1 + synsize_ds ds
+    | e' cast t => 1 + synsize_e e' + synsize_t t
+    | _ => 0
+    end
+
+  with
+  synsize_d (d : decl) : nat :=
+    match d with
+    | type _ eqe t => 1 + synsize_t t
+    | val _ assgn e oft t => 1 + synsize_e e + synsize_t t
+    end
+
+  with
+  synsize_ds (ds : decls) : nat :=
+    match ds with
+    | d_nil => 0
+    | d_con d ds => 1 + synsize_d d + synsize_ds ds
+    end.
+  
   
   Inductive root : nat -> exp -> Prop :=
   | root_var : forall r, root r (c_ r)
@@ -3763,16 +3802,274 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite rev_length, subst_length; auto.
   Qed.
 
-  Lemma subst_equality_closed_mutind :
-    (forall e p n, ([p /e n] e) = p ->
-              closed_e n e \/ p = (a_ n)).
+  Lemma subst_synsize_mutind :
+    (forall t e n, synsize_t ([e /t n] t) >= synsize_t t) /\
+    (forall s e n, synsize_s ([e /s n] s) >= synsize_s s) /\
+    (forall ss e n, synsize_ss ([e /ss n] ss) >= synsize_ss ss) /\
+    (forall e' e n, synsize_e ([e /e n] e') >= synsize_e e') /\
+    (forall d e n, synsize_d ([e /d n] d) >= synsize_d d) /\
+    (forall ds e n, synsize_ds ([e /ds n] ds) >= synsize_ds ds).
   Proof.
-    intro e; induction e; intros; auto.
-
-    destruct p; simpl in H; inversion H; subst.
-    
+    apply type_exp_mutind; intros; simpl in *; auto;
+      try solve [try apply le_n_S;
+                 repeat apply plus_le_compat;
+                 try apply H;
+                 try apply H0;
+                 try apply H1;
+                 crush].
   Qed.
 
+  Lemma synsize_raise_mutind :
+    (forall t n, synsize_t (t raise_t n) = synsize_t t) /\
+    (forall s n, synsize_s (s raise_s n) = synsize_s s) /\
+    (forall ss n, synsize_ss (ss raise_ss n) = synsize_ss ss) /\
+    (forall e n, synsize_e (e raise_e n) = synsize_e e) /\
+    (forall d n, synsize_d (d raise_d n) = synsize_d d) /\
+    (forall ds n, synsize_ds (ds raise_ds n) = synsize_ds ds).
+  Proof.
+    apply type_exp_mutind; intros; simpl in *; auto.
+  Qed.
+
+  Lemma synsize_raise_type :
+    (forall t n, synsize_t (t raise_t n) = synsize_t t).
+  Proof.
+    destruct synsize_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_type.
+
+  Lemma synsize_raise_decl_ty :
+    (forall s n, synsize_s (s raise_s n) = synsize_s s).
+  Proof.
+    destruct synsize_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_decl_ty.
+
+  Lemma synsize_raise_decl_tys :
+    (forall ss n, synsize_ss (ss raise_ss n) = synsize_ss ss).
+  Proof.
+    destruct synsize_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_decl_tys.
+
+  Lemma synsize_raise_exp :
+    (forall e n, synsize_e (e raise_e n) = synsize_e e).
+  Proof.
+    destruct synsize_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_exp.
+
+  Lemma synsize_raise_decl :
+    (forall d n, synsize_d (d raise_d n) = synsize_d d).
+  Proof.
+    destruct synsize_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_decl.
+
+  Lemma synsize_raise_decls :
+    (forall ds n, synsize_ds (ds raise_ds n) = synsize_ds ds).
+  Proof.
+    destruct synsize_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_decls.
+
+
+  
+  Lemma synsize_raise_subst_mutind :
+    (forall t e n m, synsize_t ([e raise_e m /t n] t) = synsize_t ([e /t n] t)) /\
+    (forall s e n m, synsize_s ([e raise_e m /s n] s) = synsize_s ([e /s n] s)) /\
+    (forall ss e n m, synsize_ss ([e raise_e m /ss n] ss) = synsize_ss ([e /ss n] ss)) /\
+    (forall e' e n m, synsize_e ([e raise_e m /e n] e') = synsize_e ([e /e n] e')) /\
+    (forall d e n m, synsize_d ([e raise_e m /d n] d) = synsize_d ([e /d n] d)) /\
+    (forall ds e n m, synsize_ds ([e raise_e m /ds n] ds) = synsize_ds ([e /ds n] ds)).
+  Proof.
+    apply type_exp_mutind; intros; simpl in *; auto;
+      try solve [repeat rewrite H;
+                 repeat rewrite H0;
+                 repeat rewrite H1;
+                 auto].
+
+    destruct v as [r|r]; auto.
+    destruct (Nat.eq_dec n r) as [|Hneq];
+      [subst; rewrite <- beq_nat_refl; rewrite synsize_raise_exp; auto
+      |apply Nat.eqb_neq in Hneq;
+       rewrite Hneq; auto].
+  Qed.
+
+  Lemma synsize_raise_subst_type :
+    (forall t e n m, synsize_t ([e raise_e m /t n] t) = synsize_t ([e /t n] t)).
+  Proof.
+    destruct synsize_raise_subst_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_subst_type.
+
+  Lemma synsize_raise_subst_decl_ty :
+    (forall s e n m, synsize_s ([e raise_e m /s n] s) = synsize_s ([e /s n] s)).
+  Proof.
+    destruct synsize_raise_subst_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_subst_decl_ty.
+
+  Lemma synsize_raise_subst_decl_tys :
+    (forall ss e n m, synsize_ss ([e raise_e m /ss n] ss) = synsize_ss ([e /ss n] ss)).
+  Proof.
+    destruct synsize_raise_subst_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_subst_decl_tys.
+
+  Lemma synsize_raise_subst_exp :
+    (forall e' e n m, synsize_e ([e raise_e m /e n] e') = synsize_e ([e /e n] e')).
+  Proof.
+    destruct synsize_raise_subst_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_subst_exp.
+
+  Lemma synsize_raise_subst_decl :
+    (forall d e n m, synsize_d ([e raise_e m /d n] d) = synsize_d ([e /d n] d)).
+  Proof.
+    destruct synsize_raise_subst_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_subst_decl.
+
+  Lemma synsize_raise_subst_decls :
+    (forall ds e n m, synsize_ds ([e raise_e m /ds n] ds) = synsize_ds ([e /ds n] ds)).
+  Proof.
+    destruct synsize_raise_subst_mutind; crush.
+  Qed.
+
+  Hint Rewrite synsize_raise_subst_decls.
+
+  Lemma subst_synsize_alt_mutind :
+    (forall t e n, synsize_t ([e /t n] t) >= synsize_e e \/ closed_t n t) /\
+    (forall s e n, synsize_s ([e /s n] s) >= synsize_e e \/ closed_s n s) /\
+    (forall ss e n, synsize_ss ([e /ss n] ss) >= synsize_e e \/ closed_ss n ss) /\
+    (forall e' e n, (synsize_e ([e /e n] e') > synsize_e e) \/ closed_e n e' \/ (e' = a_ n)) /\
+    (forall d e n, synsize_d ([e /d n] d) >= synsize_e e \/ closed_d n d) /\
+    (forall ds e n, synsize_ds ([e /ds n] ds) >= synsize_e e \/ closed_ds n ds).
+  Proof.
+    apply type_exp_mutind; intros; simpl in *; auto;
+      try solve [ try (edestruct H; [left|right; eauto]);
+                  try (edestruct H0; [left|right; eauto]);
+                  try apply le_S;
+                  try rewrite synsize_raise_subst_decl_tys; eauto].
+    
+    (*sel*)
+    destruct (H e0 n) as [|Ha];
+      [left; apply le_S; crush
+      |destruct Ha as [Ha|Ha];
+       [right; eauto
+       |subst; simpl; rewrite <- beq_nat_refl; crush]].
+
+    (*arr*)
+    destruct (H e n), (H0 (e raise_e 0) (S n)); [left|left|left|right]; eauto;
+    try solve [apply le_S;
+               apply le_plus_trans;
+               auto].
+    rewrite plus_comm.
+    apply le_S.
+    apply le_plus_trans.
+    crush.
+
+    (*t-con*)
+    destruct (H e n), (H0 e n); [left|left|left|right]; eauto;
+    try solve [apply le_S;
+               apply le_plus_trans;
+               auto].
+    rewrite plus_comm.
+    apply le_S.
+    apply le_plus_trans.
+    crush.
+
+    (*new*)
+    destruct (H (e raise_e 0)  (S n)); [left|right]; eauto.
+    rewrite synsize_raise_subst_decls in *.
+    rewrite synsize_raise_exp in H0; crush.
+    
+    (*app*)
+    destruct (H e1 n) as [Ha|Ha], (H0 e1 n) as [Hb|Hb];
+      [crush
+      |destruct Hb as [Hb|Hb]; crush
+      |destruct Ha as [Ha|Ha]; crush
+      |destruct Ha as [Ha|Ha], Hb as [Hb|Hb];
+       [crush| | |]];
+       subst; simpl; rewrite <- beq_nat_refl; crush.
+
+    (*fn*)
+    destruct (H e0 n);
+      [left; crush
+      |destruct (H0 (e0 raise_e 0) (S n)) as [|Ha];
+       [left; crush
+       |destruct (H1 (e0 raise_e 0) (S n));
+        [left; crush|]]].
+    destruct Ha as [Ha|Ha];
+      [crush|subst; simpl; rewrite <- beq_nat_refl].
+    rewrite synsize_raise_exp; crush.
+
+    (*acc*)
+    destruct (H e0 n) as [|Ha];
+      [crush
+      |destruct Ha;
+       [crush|subst]].
+    simpl; rewrite <- beq_nat_refl; crush.
+
+    (*var*)
+    destruct v as [r|r];
+      [crush|destruct (Nat.eq_dec n r); subst; auto].
+
+    (*cast*)
+    destruct (H e0 n) as [Ha|Ha];
+      [left; crush
+      |destruct (H0 e0 n) as [Hb|Hb];
+       [left; crush|]].
+    destruct Ha as [Ha|Ha];
+      [right; left; crush|subst].
+    simpl; rewrite <- beq_nat_refl; left; crush.
+
+    (*e value*)
+    destruct (H e0 n) as [|Ha];
+      [left; crush|].
+    destruct (H0 e0 n) as [|Hb];
+      [left; crush|].
+    destruct Ha; [right; crush|subst].
+    simpl; rewrite <- beq_nat_refl; crush.
+
+    (*e con*)
+    destruct (H e n) as [|Ha];
+      [left; crush|].
+    destruct (H0 e n) as [|Hb];
+      [left; crush|crush].
+  Qed.
+
+  Lemma subst_synsize_alt_exp :
+    (forall e' e n, (synsize_e ([e /e n] e') > synsize_e e) \/ closed_e n e' \/ (e' = a_ n)).
+  Proof.
+    destruct subst_synsize_alt_mutind; crush.
+  Qed.
+
+  Lemma subst_notin_itself :
+    (forall e n e', ([e /e n] e') = e ->
+               e notin_e e' ->
+               e' = (a_ n)).
+  Proof.
+    intros.
+    destruct (subst_synsize_alt_exp e' e n) as [Ha|Ha];
+      [rewrite H in Ha; crush
+      |destruct Ha as [Ha|Ha];
+       [|inversion Ha]]; auto.
+    rewrite closed_subst_exp in H;
+      subst; inversion H0; crush.
+  Qed.
+  
   Lemma subst_equality_mutind :
     (forall t1 t2 p n, ([p /t n] t1) = ([p /t n] t2) ->
                   p notin_t t1 ->
@@ -3820,31 +4117,180 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*new*)
     destruct e2;
-      simpl in H0;
+      try solve [simpl in H0;
+                 inversion H0; subst].
+    simpl in H0;
       inversion H0; subst.
     erewrite H; eauto.
     inversion H1; auto.
     inversion H2; auto.
 
-    destruct v as [|r]; [inversion H0|].
-    admit.
+    remember (new d) as e;
+      simpl in H0.
+    destruct v as [|r]; [subst; inversion H0|].
+    destruct (Nat.eq_dec n r) as [|Heq];
+      [subst; rewrite <- beq_nat_refl in H0
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H0;
+       subst; inversion H0].
+    apply subst_notin_itself in H0;
+      [inversion H0|auto].
 
+    (*app*)
     destruct e2;
-      simpl in H1;
+      try solve [simpl in H1;
+                 inversion H1; subst].
+    simpl in H1;
       inversion H1; subst.
-    erewrite H, H0; inversion H2; inversion H3; eauto.
+    erewrite H, H0;
+      try solve [inversion H2;
+                 inversion H3;
+                 eauto].
 
-    destruct v as [|r]; [inversion H1|].
+    remember (e_app e e0) as e';
+      simpl in H1.
+    destruct v as [|r]; [subst; inversion H1|].
+    destruct (Nat.eq_dec n r) as [|Heq];
+      [subst; rewrite <- beq_nat_refl in H1
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H1;
+       subst; inversion H1].
+    apply subst_notin_itself in H1;
+      [inversion H1|auto].
+
+    (*fn*)
+    destruct e2;
+      try solve [simpl in H2;
+                 inversion H2; subst].
+    simpl in H2;
+      inversion H2; subst.
+    erewrite H, H0, H1;
+      try solve [inversion H3;
+                 inversion H4;
+                 eauto].
+
+    remember (fn t in_exp e off t0) as e';
+      simpl in H2.
+    destruct v as [|r]; [subst; inversion H2|].
+    destruct (Nat.eq_dec n r) as [|Heq];
+      [subst; rewrite <- beq_nat_refl in H2
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H2;
+       subst; inversion H2].
+    apply subst_notin_itself in H2;
+      [inversion H2|auto].
+
+    (*acc*)
+    destruct e2;
+      try solve [simpl in H0;
+                 inversion H0; subst].
+    simpl in H0;
+      inversion H0; subst.
+    erewrite H;
+      try solve [inversion H1;
+                 inversion H2;
+                 eauto].
+
+    remember (e_acc e l) as e';
+      simpl in H0.
+    destruct v as [|r]; [subst; inversion H0|].
+    destruct (Nat.eq_dec n r) as [|Heq];
+      [subst; rewrite <- beq_nat_refl in H0
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H0;
+       subst; inversion H0].
+    apply subst_notin_itself in H0;
+      [inversion H0|auto].
+
+    (*var*)
+    remember e2 as e'.
+    destruct e2;
+      try solve [simpl in H;
+                 inversion H; subst];
+
+      try solve [destruct v as [|r]; [subst; inversion H|];
+                 destruct (Nat.eq_dec n r) as [Heq|Heq];
+                   [rewrite Heq in H; simpl in H; rewrite <- beq_nat_refl in H
+                   |simpl in H;
+                    apply Nat.eqb_neq in Heq;
+                    rewrite Heq in H;
+                    subst; inversion H];
+                   symmetry in H; apply subst_notin_itself in H;
+                   [subst; inversion H|auto]];
+      subst.
+    destruct v as [r1|r1]; destruct v0 as [r2|r2]; simpl in H; auto.
+    destruct (Nat.eq_dec n r2) as [Heq1|Heq1];
+      [subst; rewrite <- beq_nat_refl in H; subst; inversion H0; crush
+      |apply Nat.eqb_neq in Heq1;
+       rewrite Heq1 in H; inversion H].
+    destruct (Nat.eq_dec n r1) as [Heq1|Heq1];
+      [subst; rewrite <- beq_nat_refl in H;
+       subst; inversion H1; crush
+      |apply Nat.eqb_neq in Heq1;
+       rewrite Heq1 in H; inversion H].
+    destruct (Nat.eq_dec n r1) as [Heq1|Heq1];
+      [subst; rewrite <- beq_nat_refl in H;
+       subst; inversion H1; crush
+      |apply Nat.eqb_neq in Heq1;
+       rewrite Heq1 in H; inversion H].
+    destruct (Nat.eq_dec r1 r2) as [Heq1|Heq1];
+      [subst; auto
+      |apply Nat.eqb_neq in Heq1;
+       rewrite Heq1 in H; crush].
+    destruct (Nat.eq_dec n r2) as [Heq2|Heq2];
+      [subst; rewrite <- beq_nat_refl in H; inversion H0; crush
+      |apply Nat.eqb_neq in Heq2;
+       rewrite Heq2 in H; crush].
+
+    (*loc*)
+    simpl in *.
+    destruct e2; 
+      try solve [simpl in H;
+                 inversion H; subst].
+    simpl in H;
+      inversion H; subst.
+
+    destruct v as [|r]; [subst; inversion H|].
+    destruct (Nat.eq_dec n0 r) as [|Heq];
+      [subst; rewrite <- beq_nat_refl in H
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H;
+       subst; inversion H].
+    inversion H0; crush.
+    simpl in H; auto.
+
+    (*cast*)
+    destruct e2;
+      try solve [simpl in H1;
+                 inversion H1; subst].
+
+    remember (e cast t) as e';
+      simpl in H1.
+    destruct v as [|r]; [subst; inversion H1|].
+    destruct (Nat.eq_dec n r) as [|Heq];
+      [subst; rewrite <- beq_nat_refl in H1
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq in H1;
+       subst; inversion H1].
+    apply subst_notin_itself in H1;
+      [inversion H1|auto].
     
+    simpl in H1;
+      inversion H1; subst.
+    erewrite H, H0;
+      try solve [inversion H2;
+                 inversion H3;
+                 eauto].
   Qed.
-
+   
+  
   Lemma mapping_subst_switch :
     forall G r t, r mapsto t elem G ->
              forall p1 n G',
                G = ([p1 /env n] G') ->
                p1 notin_env G' ->
                forall t', p1 notin_t t' ->
-                     t = ([p1 /t n + r] t') /\
+                     t = ([p1 /t n + r] t') ->
                      forall p2, r mapsto ([p2 /t n + r] t') elem ([p2 /env n] G') .
   Proof.
     intro G; induction G as [|t1 G1]; intros;
@@ -3862,9 +4308,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       destruct H as [Ha|Ha];
       destruct Ha as [Ha Hb]. 
     apply IHG1 with (p1:=p1)(n:=n)(G':=G2)(t':=t') in Hb; auto.
-    destruct Hb as [t' Hb];
-      destruct Hb as [Hb Hc].
-    exists t'; split; auto; intros.
+    destruct Hb as [Hb Hc].
+    split; auto; intros.
     unfold mapping.
     rewrite subst_cons.
     assert (Happ : (([p2 /t n + length G2] t2) :: ([p2 /env n] G2)) =
@@ -3877,9 +4322,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       |subst; rewrite rev_length, subst_length;
        rewrite rev_length, subst_length in Ha; auto].
     apply Hc.
+    intros  t'' Hin;
+      apply H1, in_cons; auto.
+    
     
     subst.
-    exists t2; split;
+    split;
       [rewrite rev_length;
        rewrite subst_length;
        auto
