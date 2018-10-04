@@ -3778,7 +3778,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Lemma mapping_subst :
     forall G r t, r mapsto t elem G ->
              forall p n G', G = ([p /env n] G') ->
-                       exists t', t = ([p /t n + r] t').
+                       p notin_env G' ->
+                       exists t', (t = ([p /t n + r] t')) /\ p notin_t t'.
   Proof.
     intro G; induction G as [|t1 G1]; intros.
 
@@ -3796,10 +3797,14 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply get_cons_dec in H;
       destruct H as [Ha|Ha];
       destruct Ha as [Ha Hb].
-    destruct IHG1 with (r:=r)(t:=t)(p0:=p)(n0:=n)(G'0:=G') as [t']; auto.
+    destruct IHG1 with (r:=r)(t:=t)(p0:=p)(n0:=n)(G'0:=G') as [t' Hc]; auto;
+      [intros t' Hin;
+       apply H1, in_cons; auto
+      |destruct Hc as [Hc Hd]].
     exists t'; auto.
     exists t0; subst.
-    rewrite rev_length, subst_length; auto.
+    rewrite rev_length, subst_length; split; auto.
+    apply H1, in_eq.
   Qed.
 
   Lemma subst_synsize_mutind :
@@ -4282,7 +4287,61 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                  inversion H3;
                  eauto].
   Qed.
-   
+  
+  Lemma subst_equality_type :
+    (forall t1 t2 p n, ([p /t n] t1) = ([p /t n] t2) ->
+                  p notin_t t1 ->
+                  p notin_t t2 ->
+                  t1 = t2).
+  Proof.
+    destruct subst_equality_mutind; crush.
+  Qed.
+  
+  Lemma subst_equality_decl_ty :
+    (forall s1 s2 p n, ([p /s n] s1) = ([p /s n] s2) ->
+                  p notin_s s1 ->
+                  p notin_s s2 ->
+                  s1 = s2).
+  Proof.
+    destruct subst_equality_mutind; crush.
+  Qed.
+  
+  Lemma subst_equality_decl_tys :
+    (forall ss1 ss2 p n, ([p /ss n] ss1) = ([p /ss n] ss2) ->
+                    p notin_ss ss1 ->
+                    p notin_ss ss2 ->
+                    ss1 = ss2).
+  Proof.
+    destruct subst_equality_mutind; crush.
+  Qed.
+  
+  Lemma subst_equality_exp :
+    (forall e1 e2 p n, ([p /e n] e1) = ([p /e n] e2) ->
+                  p notin_e e1 ->
+                  p notin_e e2 ->
+                  e1 = e2).
+  Proof.
+    destruct subst_equality_mutind; crush.
+  Qed.
+  
+  Lemma subst_equality_decl :
+    (forall d1 d2 p n, ([p /d n] d1) = ([p /d n] d2) ->
+                  p notin_d d1 ->
+                  p notin_d d2 ->
+                  d1 = d2).
+  Proof.
+    destruct subst_equality_mutind; crush.
+  Qed.
+  
+  Lemma subst_equality_decls :
+    (forall ds1 ds2 p n, ([p /ds n] ds1) = ([p /ds n] ds2) ->
+                    p notin_ds ds1 ->
+                    p notin_ds ds2 ->
+                    ds1 = ds2).
+  Proof.
+    destruct subst_equality_mutind; crush.
+  Qed.
+
   
   Lemma mapping_subst_switch :
     forall G r t, r mapsto t elem G ->
@@ -4307,9 +4366,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply get_cons_dec in H;
       destruct H as [Ha|Ha];
       destruct Ha as [Ha Hb]. 
-    apply IHG1 with (p1:=p1)(n:=n)(G':=G2)(t':=t') in Hb; auto.
-    destruct Hb as [Hb Hc].
-    split; auto; intros.
+    apply IHG1 with (p1:=p1)(n:=n)(G':=G2)(t':=t')(p2:=p2) in Hb; auto.
+    destruct Hb as [Hb].
     unfold mapping.
     rewrite subst_cons.
     assert (Happ : (([p2 /t n + length G2] t2) :: ([p2 /env n] G2)) =
@@ -4318,32 +4376,25 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite Happ.
     rewrite rev_app_distr.
     rewrite get_app_l;
-      [
+      [auto
       |subst; rewrite rev_length, subst_length;
        rewrite rev_length, subst_length in Ha; auto].
-    apply Hc.
     intros  t'' Hin;
       apply H1, in_cons; auto.
-    
-    
-    subst.
-    split;
-      [rewrite rev_length;
-       rewrite subst_length;
-       auto
-      |intros].
+
     unfold mapping.
-    assert (Happ : ([p2 /env n] t2 :: G2) =
-                   (([p2 /t n + length G2] t2)::nil) ++ ([p2 /env n] G2));
-      [rewrite subst_cons; auto
-      |rewrite Happ].
-    rewrite rev_app_distr;
-      rewrite get_app_r;
-      [repeat rewrite rev_length, subst_length; simpl
-      |repeat rewrite rev_length, subst_length; auto].
-    rewrite Nat.sub_diag; simpl; auto.
+    rewrite subst_cons; simpl.
+    assert (Hleng : r = (length G2));
+      [inversion H0; subst; rewrite rev_length, subst_length; auto|].
+    rewrite get_app_r; rewrite rev_length, subst_length;
+      [rewrite Hleng, Nat.sub_diag; simpl|crush].
+    subst.
+    inversion H0; subst.
+    rewrite rev_length, subst_length in H3.
+    apply subst_equality_type in H3; subst; auto.
+    apply H1, in_eq.
   Qed.
- 
+
   
   Lemma wf_closed_mutind :
     (forall Sig G t, Sig en G vdash t wf_t ->
@@ -6102,11 +6153,13 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                 forall p1 G1 G2 n p',
                   G = ([p1 /env 0] G1) ++ G2 ->
                   p = ([p1 /e n] p') ->
+                  p1 notin_e p' ->
+                  p1 notin_env (G1 ++ G2) ->
                   n = length G1 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
                   Sig en G2 vdash p1 wf_e ->                  
-                  exists t', t = [p1 /t n] t').
+                  exists t', (t = [p1 /t n] t') /\ p1 notin_t t').
   Proof.
     intros Sig G p t Htyp; destruct Htyp; intros.
 
@@ -6124,8 +6177,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct get_some_app with (G1:=rev G2)(G2:=rev ([p1 /env 0] G1))(n:=r) as [Ha|Ha];
       destruct Ha as [Ha Hb].
 
-    exists t; rewrite closed_subst_type; auto.
-    apply H3;
+    exists t; rewrite closed_subst_type; [split|]; auto.
+    apply H3, in_or_app; right;
+      apply in_rev, get_in with (n:=r);
+      rewrite Hb in H; auto.
+    apply H5;
       [apply in_or_app;
        right;
        apply in_rev;
@@ -6138,7 +6194,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       [auto|].
     apply mapping_subst with (p:=p1)(n:=0)(G':=G1) in H; auto;
       simpl in H.
-    destruct H as [t' Heq].
+    destruct H as [t' Heq];
+      destruct Heq as [Heq Hni].
     apply raise_closed_substitution_type with (m:=length (G1 ++ G2) - r) in Heq.
     rewrite rev_length, app_length in Heq.
     rewrite plus_comm in Heq.
