@@ -6148,6 +6148,530 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Proof.    
   Admitted.
 
+  Lemma closed_raise_mutind :
+    (forall n t, closed_t n t ->
+            forall m, m <= n ->
+                 closed_t (S n) (t raise_t m)) /\
+  
+    (forall n s, closed_s n s ->
+            forall m, m <= n ->
+                 closed_s (S n) (s raise_s m)) /\
+  
+    (forall n ss, closed_ss n ss ->
+            forall m, m <= n ->
+                 closed_ss (S n) (ss raise_ss m)) /\
+  
+    (forall n e, closed_e n e ->
+            forall m, m <= n ->
+                 closed_e (S n) (e raise_e m)) /\
+  
+    (forall n d, closed_d n d ->
+            forall m, m <= n ->
+                 closed_d (S n) (d raise_d m)) /\
+  
+    (forall n ds, closed_ds n ds ->
+            forall m, m <= n ->
+                 closed_ds (S n) (ds raise_ds m)).
+  Proof.
+    apply closed_mutind; intros; simpl; auto;
+    try solve [assert (Hle1 : S m <= S n);
+               crush].
+
+    (*var*)
+    destruct x as [r|r]; simpl; auto.
+    inversion c; subst.
+    apply cl_var, cl_abstract.
+    unfold raise_nat.
+    destruct (lt_dec r m) as [Hlt|Hlt];
+      assert (Hlt' := Hlt);
+      [apply Nat.ltb_lt in Hlt
+      |apply Nat.ltb_nlt in Hlt];
+      rewrite Hlt;
+      crush.
+  Qed.
+
+  Lemma closed_raise_type :
+    (forall n t, closed_t n t ->
+            forall m, m <= n ->
+                 closed_t (S n) (t raise_t m)).
+  Proof.
+    destruct closed_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_raise_type.
+
+  Lemma closed_raise_decl_ty :  
+    (forall n s, closed_s n s ->
+            forall m, m <= n ->
+                 closed_s (S n) (s raise_s m)).
+  Proof.
+    destruct closed_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_raise_decl_ty.
+
+  Lemma closed_raise_decl_tys :
+    (forall n ss, closed_ss n ss ->
+            forall m, m <= n ->
+                 closed_ss (S n) (ss raise_ss m)).
+  Proof.
+    destruct closed_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_raise_decl_tys.
+
+  Lemma closed_raise_exp :
+    (forall n e, closed_e n e ->
+            forall m, m <= n ->
+                 closed_e (S n) (e raise_e m)).
+  Proof.
+    destruct closed_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_raise_exp.
+
+  Lemma closed_raise_decl :  
+    (forall n d, closed_d n d ->
+            forall m, m <= n ->
+                 closed_d (S n) (d raise_d m)).
+  Proof.
+    destruct closed_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_raise_decl.
+
+  Lemma closed_raise_decls :
+    (forall n ds, closed_ds n ds ->
+            forall m, m <= n ->
+                 closed_ds (S n) (ds raise_ds m)).
+  Proof.
+    destruct closed_raise_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_raise_decls.
+
+  Lemma closed_rename_mutind :
+    (forall t n m, closed_t m (t [n maps_t m]) ->
+              closed_t n t) /\
+  
+    (forall s n m, closed_s m (s [n maps_s m]) ->
+              closed_s n s) /\
+    
+    (forall ss n m, closed_ss m (ss [n maps_ss m]) ->
+               closed_ss n ss) /\
+    
+    (forall e n m, closed_e m (e [n maps_e m]) ->
+              closed_e n e) /\
+    
+    (forall d n m, closed_d m (d [n maps_d m]) ->
+              closed_d n d) /\
+    
+    (forall ds n m, closed_ds m (ds [n maps_ds m]) ->
+               closed_ds n ds).
+  Proof.
+    apply type_exp_mutind; intros; simpl in *; auto;
+      try solve [inversion H0; subst; eauto];
+      try solve [inversion H1; subst; eauto];
+      try solve [inversion H2; subst; eauto].
+
+    (*var*)
+    destruct v as [r|r]; simpl in H; auto.
+    destruct (Nat.eq_dec r n) as [Heq|Heq];
+      [subst; rewrite <- beq_nat_refl in H;
+       inversion H; subst;
+       inversion H2; auto
+      |auto].
+  Qed.
+
+  Lemma closed_rename_type :
+    (forall t n m, closed_t m (t [n maps_t m]) ->
+              closed_t n t).
+  Proof.
+    destruct closed_rename_mutind; crush.
+  Qed.
+
+  Lemma closed_rename_decl_ty :
+    (forall s n m, closed_s m (s [n maps_s m]) ->
+              closed_s n s).
+  Proof.
+    destruct closed_rename_mutind; crush.
+  Qed.
+
+  Lemma closed_rename_decl_tys :
+    (forall ss n m, closed_ss m (ss [n maps_ss m]) ->
+               closed_ss n ss).
+  Proof.
+    destruct closed_rename_mutind; crush.
+  Qed.
+
+  Lemma closed_rename_exp :
+    (forall e n m, closed_e m (e [n maps_e m]) ->
+              closed_e n e).
+  Proof.
+    destruct closed_rename_mutind; crush.
+  Qed.
+
+  Lemma closed_rename_decl :
+    (forall d n m, closed_d m (d [n maps_d m]) ->
+              closed_d n d).
+  Proof.
+    destruct closed_rename_mutind; crush.
+  Qed.
+
+  Lemma closed_rename_decls :
+    (forall ds n m, closed_ds m (ds [n maps_ds m]) ->
+               closed_ds n ds).
+  Proof.
+    destruct closed_rename_mutind; crush.
+  Qed.
+
+  Lemma closed_rename_rewrite_mutind :
+    (forall n t, closed_t n t ->
+            forall m, (t [n maps_t m]) = t) /\
+    
+    (forall n s, closed_s n s ->
+            forall m, (s [n maps_s m]) = s) /\
+    
+    (forall n ss, closed_ss n ss ->
+             forall m, (ss [n maps_ss m]) = ss) /\
+    
+    (forall n e, closed_e n e ->
+            forall m, (e [n maps_e m]) = e) /\
+    
+    (forall n d, closed_d n d ->
+            forall m, (d [n maps_d m]) = d) /\
+    
+    (forall n ds, closed_ds n ds ->
+             forall m, (ds [n maps_ds m]) = ds).
+  Proof.
+    apply closed_mutind; intros; simpl in *; eauto;
+      try solve [try (rewrite H);
+                 try (rewrite H0);
+                 try (rewrite H1);
+                 auto].
+
+    (*var*)
+    destruct x as [r|r]; simpl; auto.
+    inversion c; subst.
+    assert (Heq : r <> n);
+      [crush
+      |apply Nat.eqb_neq in Heq].
+    rewrite Heq; auto.
+  Qed.
+
+  Lemma closed_rename_rewrite_type :
+    (forall n t, closed_t n t ->
+            forall m, (t [n maps_t m]) = t).
+  Proof.
+    destruct closed_rename_rewrite_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_rename_rewrite_type.
+  Hint Resolve closed_rename_rewrite_type.
+
+  Lemma closed_rename_rewrite_decl_ty :
+    (forall n s, closed_s n s ->
+            forall m, (s [n maps_s m]) = s).
+  Proof.
+    destruct closed_rename_rewrite_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_rename_rewrite_decl_ty.
+  Hint Resolve closed_rename_rewrite_decl_ty.
+
+  Lemma closed_rename_rewrite_decl_tys :
+    (forall n ss, closed_ss n ss ->
+             forall m, (ss [n maps_ss m]) = ss).
+  Proof.
+    destruct closed_rename_rewrite_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_rename_rewrite_decl_tys.
+  Hint Resolve closed_rename_rewrite_decl_tys.
+
+  Lemma closed_rename_rewrite_exp :
+    (forall n e, closed_e n e ->
+            forall m, (e [n maps_e m]) = e).
+  Proof.
+    destruct closed_rename_rewrite_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_rename_rewrite_exp.
+  Hint Resolve closed_rename_rewrite_exp.
+
+  Lemma closed_rename_rewrite_decl :
+    (forall n d, closed_d n d ->
+            forall m, (d [n maps_d m]) = d).
+  Proof.
+    destruct closed_rename_rewrite_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_rename_rewrite_decl.
+  Hint Resolve closed_rename_rewrite_decl.
+
+  Lemma closed_rename_rewrite_decls :
+    (forall n ds, closed_ds n ds ->
+             forall m, (ds [n maps_ds m]) = ds).
+  Proof.
+    destruct closed_rename_rewrite_mutind; crush.
+  Qed.
+
+  Hint Rewrite closed_rename_rewrite_decls.
+  Hint Resolve closed_rename_rewrite_decls.
+  
+  Lemma notin_rename_mutind :
+    (forall e t, e notin_t t ->
+            forall n, closed_e n e ->
+                 forall m, e notin_t (t [m maps_t n])) /\
+    
+    (forall e s, e notin_s s ->
+            forall n, closed_e n e ->
+                 forall m, e notin_s (s [m maps_s n])) /\
+    
+    (forall e ss, e notin_ss ss ->
+            forall n, closed_e n e ->
+                 forall m, e notin_ss (ss [m maps_ss n])) /\
+    
+    (forall e e', e notin_e e' ->
+            forall n, closed_e n e ->
+                 forall m, e notin_e (e' [m maps_e n])) /\
+    
+    (forall e d, e notin_d d ->
+            forall n, closed_e n e ->
+                 forall m, e notin_d (d [m maps_d n])) /\
+    
+    (forall e ds, e notin_ds ds ->
+            forall n, closed_e n e ->
+                 forall m, e notin_ds (ds [m maps_ds n])).
+  Proof.
+    apply notin_mutind; intros;
+      try solve [simpl; auto];
+      try solve [try (apply ni_arr; auto; apply H0);
+                 try (apply ni_str; auto; apply H);
+                 apply closed_raise_exp; crush].
+
+    (*var*)
+    simpl.
+    destruct x as [r|r]; auto.
+    simpl.
+    destruct (Nat.eq_dec r m) as [Heq|Heq];
+      [subst; rewrite <- beq_nat_refl
+      |apply Nat.eqb_neq in Heq;
+       rewrite Heq; auto].
+    apply ni_var;
+      intro Hcontra; subst.
+    inversion H; subst.
+    inversion H2; auto.
+
+    (*cast*)
+    simpl;
+      apply ni_cast; auto.
+    assert (Hrem : (e' cast t) [m maps_e n2] = ((e' [m maps_e n2]) cast (t [m maps_t n2])));
+      [auto
+      |rewrite <- Hrem].
+    intro Hcontra;
+      rewrite Hcontra in H1.
+    apply closed_rename_exp in H1.
+    rewrite closed_rename_rewrite_exp in Hcontra; auto.
+
+    (*fn*)
+    simpl; apply ni_fn; auto;
+    try (try (apply H0);
+         try (apply H1);
+         apply closed_raise_exp; crush).
+    assert (Hrem : (fn t1 [m maps_t n3] in_exp e' [S m maps_e S n3] off (t2 [S m maps_t S n3])) = ((fn t1 in_exp e' off t2)[m maps_e n3]));
+      [auto
+      |rewrite Hrem].
+    intro Hcontra;
+      rewrite Hcontra in H2.
+    apply closed_rename_exp in H2.
+    rewrite closed_rename_rewrite_exp in Hcontra; auto.
+
+    (*app*)
+    simpl; apply ni_app; auto.
+    assert (Hrem : (e_app (e1 [m maps_e n2]) (e2 [m maps_e n2]) = ((e_app e1 e2)[m maps_e n2])));
+      [auto
+      |rewrite Hrem].
+    intro Hcontra;
+      rewrite Hcontra in H1.
+    apply closed_rename_exp in H1.
+    rewrite closed_rename_rewrite_exp in Hcontra; auto.
+
+    (*fn*)
+    simpl; apply ni_acc; auto.
+    assert (Hrem : (e_acc (e' [m maps_e n1]) l) = ((e_acc e' l)[m maps_e n1]));
+      [auto
+      |rewrite Hrem].
+    intro Hcontra;
+      rewrite Hcontra in H0.
+    apply closed_rename_exp in H0.
+    rewrite closed_rename_rewrite_exp in Hcontra; auto.
+
+    (*new*)
+    simpl; apply ni_new; auto;
+    try (try (apply H);
+         apply closed_raise_exp; crush).
+    assert (Hrem : (new (ds [S m maps_ds S n1])) = ((new ds)[m maps_e n1]));
+      [auto
+      |rewrite Hrem].
+    intro Hcontra;
+      rewrite Hcontra in H0.
+    apply closed_rename_exp in H0.
+    rewrite closed_rename_rewrite_exp in Hcontra; auto.
+  Qed.
+  
+  Lemma notin_rename_type :
+    (forall e t, e notin_t t ->
+            forall n, closed_e n e ->
+                 forall m, e notin_t (t [m maps_t n])).
+  Proof.
+    destruct notin_rename_mutind; crush.
+  Qed.
+  
+  Lemma notin_rename_decl_ty :
+    (forall e s, e notin_s s ->
+            forall n, closed_e n e ->
+                 forall m, e notin_s (s [m maps_s n])).
+  Proof.
+    destruct notin_rename_mutind; crush.
+  Qed.
+  
+  Lemma notin_rename_decl_tys :    
+    (forall e ss, e notin_ss ss ->
+            forall n, closed_e n e ->
+                 forall m, e notin_ss (ss [m maps_ss n])).
+  Proof.
+    destruct notin_rename_mutind; crush.
+  Qed.
+  
+  Lemma notin_rename_exp :    
+    (forall e e', e notin_e e' ->
+            forall n, closed_e n e ->
+                 forall m, e notin_e (e' [m maps_e n])).
+  Proof.
+    destruct notin_rename_mutind; crush.
+  Qed.
+  
+  Lemma notin_rename_decl :
+    (forall e d, e notin_d d ->
+            forall n, closed_e n e ->
+                 forall m, e notin_d (d [m maps_d n])).
+  Proof.
+    destruct notin_rename_mutind; crush.
+  Qed.
+  
+  Lemma notin_rename_decls :
+    (forall e ds, e notin_ds ds ->
+            forall n, closed_e n e ->
+                 forall m, e notin_ds (ds [m maps_ds n])).
+  Proof.
+    destruct notin_rename_mutind; crush.
+  Qed.
+
+  Lemma synsize_notin_mutind :
+    (forall t e, synsize_e e > synsize_t t ->
+            e notin_t t) /\
+    (forall s e, synsize_e e > synsize_s s ->
+            e notin_s s) /\
+    (forall ss e, synsize_e e > synsize_ss ss ->
+             e notin_ss ss) /\
+    (forall e' e, synsize_e e > synsize_e e' ->
+             e notin_e e') /\
+    (forall d e, synsize_e e > synsize_d d ->
+            e notin_d d) /\
+    (forall ds e, synsize_e e > synsize_ds ds ->
+             e notin_ds ds).
+  Proof.
+    apply type_exp_mutind; intros; simpl in *; auto;
+      try solve [crush].
+
+    (*str*)
+    apply ni_str.
+    rewrite <- synsize_raise_exp with (n:=0) in H0.
+    crush.
+
+    (*arr*)
+    apply ni_arr.
+    apply H; crush.
+    rewrite <- synsize_raise_exp with (n:=0) in H1;
+      apply H0;
+      crush.
+
+    (*new*)
+    apply ni_new;
+      [|crush].
+    rewrite <- synsize_raise_exp with (n:=0) in H0.
+    crush.
+
+    (*app*)
+    apply ni_app;
+    crush.
+
+    (*fn*)
+    apply ni_fn;
+      [crush
+      |
+      |
+      |crush];
+      rewrite <- synsize_raise_exp with (n:=0) in H2;
+      crush.
+
+    (*acc*)
+    apply ni_acc;
+      crush.
+
+    (*var*)
+    apply ni_var; crush.
+
+    (*loc*)
+    apply ni_loc; crush.
+
+    (*cast*)
+    apply ni_cast; crush.
+  Qed.
+
+  Lemma synsize_notin_type :
+    (forall t e, synsize_e e > synsize_t t ->
+            e notin_t t).
+  Proof.
+    destruct synsize_notin_mutind; crush.
+  Qed.
+
+  Lemma synsize_notin_decl_ty :
+    (forall s e, synsize_e e > synsize_s s ->
+            e notin_s s).
+  Proof.
+    destruct synsize_notin_mutind; crush.
+  Qed.
+
+  Lemma synsize_notin_decl_tys :
+    (forall ss e, synsize_e e > synsize_ss ss ->
+             e notin_ss ss).
+  Proof.
+    destruct synsize_notin_mutind; crush.
+  Qed.
+
+  Lemma synsize_notin_exp :
+    (forall e' e, synsize_e e > synsize_e e' ->
+             e notin_e e').
+  Proof.
+    destruct synsize_notin_mutind; crush.
+  Qed.
+
+  Lemma synsize_notin_decl :
+    (forall d e, synsize_e e > synsize_d d ->
+            e notin_d d).
+  Proof.
+    destruct synsize_notin_mutind; crush.
+  Qed.
+
+  Lemma synsize_notin_decls :
+    (forall ds e, synsize_e e > synsize_ds ds ->
+             e notin_ds ds).
+  Proof.
+    destruct synsize_notin_mutind; crush.
+  Qed.
+
   Lemma typing_p_exist_subst :
     (forall Sig G p t, Sig en G vdash p pathType t ->
                 forall p1 G1 G2 n p',
@@ -6155,10 +6679,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                   p = ([p1 /e n] p') ->
                   p1 notin_e p' ->
                   p1 notin_env (G1 ++ G2) ->
+                  p1 notin_env Sig ->
                   n = length G1 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
-                  Sig en G2 vdash p1 wf_e ->                  
+                  closed_exp p1 0 ->
                   exists t', (t = [p1 /t n] t') /\ p1 notin_t t').
   Proof.
     intros Sig G p t Htyp; destruct Htyp; intros.
@@ -6181,7 +6706,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     apply H3, in_or_app; right;
       apply in_rev, get_in with (n:=r);
       rewrite Hb in H; auto.
-    apply H5;
+    apply H6;
       [apply in_or_app;
        right;
        apply in_rev;
@@ -6190,30 +6715,20 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       |crush].
 
     rewrite Hb in H.
-    assert (Hget : get (r - length (rev G2)) (rev ([p1 /env 0] G1)) = Some t);
-      [auto|].
+    assert (Hget := H).
     apply mapping_subst with (p:=p1)(n:=0)(G':=G1) in H; auto;
       simpl in H.
     destruct H as [t' Heq];
       destruct Heq as [Heq Hni].
-    apply raise_closed_substitution_type with (m:=length (G1 ++ G2) - r) in Heq.
-    rewrite rev_length, app_length in Heq.
-    rewrite plus_comm in Heq.
-    simpl in Heq.
-    rewrite Nat.add_sub_assoc in Heq;
-      [|rewrite rev_length in Ha; auto].
-    rewrite Nat.sub_add in Heq.
-    rewrite Nat.add_sub in Heq.
-    exists (raise_n_t (length G1 + length G2 - r) t' (r - length G2)); auto.
-    rewrite app_length, subst_length in Hleng; crush.
-    unfold closed_env in H3.
-    apply closed_ge_type with (i:=0);
-      [|crush].
-    apply H3.
-    apply in_or_app;
-      left;
-      apply in_rev;
-      apply get_in with (n:=r - length (rev G2)); auto.
+    rewrite rename_closed_subst_type with (m:=length G1) in Heq.
+    exists (t' [r - length (rev G2) maps_t length G1]); split; auto.
+    apply notin_rename_type; auto.
+    apply H8; crush.
+    apply H6; [|crush].
+    apply in_or_app; left.
+    apply in_rev, get_in with (n:=r - length(rev G2)); crush.
+    intros t' Hin.
+    apply H3, in_or_app; auto.
 
     destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
       [subst;
@@ -6222,54 +6737,65 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       |apply Nat.eqb_neq in Heq;
        rewrite Heq in H1;
        inversion H1].
-    inversion H5; subst.
+    clear H4 H10.
+
+    
+    destruct get_some_app with (G1:=rev G2)(G2:=rev ([c_ n /env 0] G1))(n:=n) as [Ha|Ha];
+      destruct Ha as [Ha Hb].
+    
     unfold mapping in H;
       rewrite rev_app_distr, get_app_l in H;
-      [|rewrite rev_length; auto].
-    exists t; rewrite closed_subst_type; auto.
-    apply H3;
-      [|crush].
-    apply in_or_app;
+      [|auto].
+    exists t; split;
+      [rewrite closed_subst_type;
+       auto;
+       apply H6; [|crush]
+      |apply H3];
+      apply in_or_app;
       right;
-      apply in_rev;
-      apply get_in with (n0:=n); auto.
-    
-    destruct p'; inversion H1.    
+      apply in_rev, get_in with (n0:=n); auto.
 
-    destruct v as [r|r];
-      [inversion H7|simpl in H7].
-    destruct (Nat.eq_dec n r) as [Heq|Heq];
-      [subst;
-       rewrite <- beq_nat_refl in H7;
-       subst
+    unfold mapping in H;
+      rewrite rev_app_distr, Hb in H.    
+    destruct mapping_subst with (r:=n - length G2)
+                                (t:=t)(p:=c_ n)
+                                (n:=0)(G':=G1)
+                                (G:=([c_ n /env 0] G1)) as [t' Hc]; auto;
+      [rewrite <- rev_length
+      |intros t' Hin;
+       apply H3, in_or_app
+      |destruct Hc as [Hc Hd];
+       simpl in Hc]; auto.
+    exists (t' [n - length G2 maps_t length G1]); split.
+    rewrite <- rename_closed_subst_type; auto.
+    rewrite <- Hc.
+    apply H6; [|crush].
+    apply in_or_app; left.
+    apply in_rev, get_in with (n0:=n - length (rev G2)); auto.
+    apply notin_rename_type; auto.
+
+    exists t; split;
+      [rewrite closed_subst_type; auto;
+       apply H7;
+       [|crush]
+      |apply H4];
+    apply in_rev, get_in with (n0:=i); unfold mapping in H; auto.
+
+    destruct p'; simpl in H0; inversion H0; subst.
+    destruct v as [|r]; [inversion H0|].
+    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
+      [subst; rewrite <- beq_nat_refl in H0; subst
       |apply Nat.eqb_neq in Heq;
-       rewrite Heq in H7;
-       inversion H7].
-    exists t; rewrite closed_subst_type; auto.
-    apply H4;
-      [|crush].
-    apply in_rev.
-    apply get_in with (n:=i); auto.
+       rewrite Heq in H0;
+       inversion H0].
+    exists t; split.
+    apply closed_exp_cast in H7;
+      rewrite closed_subst_type; auto;
+        apply H7; crush.
+    apply synsize_notin_type; simpl; crush.
 
-    exists t; rewrite closed_subst_type; auto.
-    apply H4;
-      [|crush].
-    apply in_rev, get_in with (n1:=i); auto.
-
-    destruct p'; inversion H0; simpl in H0.
-    destruct v as [r|r];
-      [inversion H6|simpl in H0].
-    destruct (Nat.eq_dec n r) as [Heq|Heq];
-      [subst;
-       rewrite <- beq_nat_refl in H6;
-       subst
-      |apply Nat.eqb_neq in Heq;
-       rewrite Heq in H6;
-       inversion H6].
-    exists t; rewrite closed_subst_type; auto.
-    apply wf_closed_type with (Sig:=Sig)(G:=G2); auto.
-    inversion H4; auto.
-    exists t0; auto.
+    exists t0; split; auto.
+    inversion H1; auto.
   Qed.
 
   Lemma wf_rjump_type :
@@ -6833,7 +7359,9 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct notin_subst_closed_mutind; crush.
   Qed.
 
-  
+  Lemma closed_substitution_mutind :
+    (forall t p n m, closed_ty ([p /t n] t) m ->
+                (forall n', n'>)) /\.
   
   Lemma typing_p_subst:
     (forall Sig G p t, Sig en G vdash p pathType t ->
@@ -6866,7 +7394,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       |destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
        subst;
        [rewrite <- beq_nat_refl in H2; subst
-       |apply Nat.eqb_neq in Heq; rewrite Heq in H2; inversion H2]].
+       |apply Nat.eqb_neq in Heq; rewrite Heq in H2; inversion H2]];
+      clear H17.    
 
     unfold mapping in H.
     rewrite rev_app_distr in H.
@@ -6888,9 +7417,27 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       rewrite get_app_l;
       auto.
 
-    destruct mapping_subst_switch
+    rewrite rename_closed_subst_type with (m:=r - length (rev G2)) in H;
+      [
+      |apply H7;
+       [|crush];
+       apply in_or_app;
+       left;
+       apply in_rev, get_in with (n:=r - length (rev G2));
+       auto].
+    apply mapping_subst_switch
       with (G:=[p1 /env 0]G1)(r:=r - length (rev G2))
-           (t:=t)(p1:=p1)(G':=G1)(n:=0) as [t' Hc]; 
+           (t:=[p1 /t r - length (rev G2)] (t'[length G1 maps_t r - length (rev G2)]))
+           (p1:=p1)(G':=G1)(n:=0)
+           (t':=(t'[length G1 maps_t r - length (rev G2)]))(p2:=p2)in H;
+      auto.
+    simpl in *.
+    apply pt_var; unfold mapping.
+    rewrite rev_app_distr.
+    rewrite get_app_r; auto.
+    rewrite rename_closed_subst_type with (m:=r - length (rev G2)); auto.
+
+    
       auto; destruct Hc as [Hc Hd].
     rewrite plus_0_l in Hc.
     
