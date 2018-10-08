@@ -18,8 +18,70 @@ Set Implicit Arguments.
  * for the purposes of type preservation.
 
 
-*)
+ *)
 
+Inductive exp (n : nat): Type :=
+| lambda : exp (S n) -> exp n
+| app : exp n -> exp n -> exp n
+| int :  nat -> exp n
+| var : forall m, m < n -> exp n.
+
+SearchAbout lt.
+
+Check (var (Nat.lt_0_1)).
+Check (var (Nat.lt_0_2)).
+Check (var (Nat.lt_1_2)).
+
+Check (lambda (var (Nat.lt_0_1))).
+Check (lambda (var (Nat.lt_0_2))).
+Check (lambda (var (Nat.lt_1_2))).
+Check (lambda (var (Nat.lt_0_succ 0))).
+
+Check (Nat.lt_lt_succ_r 0 2 (Nat.lt_0_2)).
+
+Definition id : forall (S : Set), S -> S :=
+fun S s => s.
+
+Arguments id {_} s.
+
+Check (id 1).
+
+Definition foo :=
+  id 1. (* We want  to make it clear that the 2nd argument is nat*)
+
+Check @id nat 1.
+Check id (S:=nat) 1.
+
+SearchAbout lt.
+
+Check var.
+Check @var.
+
+  Fixpoint raise {n : nat}(e : exp n) : exp (S n) :=
+    match e with
+    | int _ m => int (S n) 0
+    | app e1 e2 => app (raise e1) (raise e2)
+    | lambda e' => lambda (raise e')
+    | @var _ m P => var (Nat.lt_lt_succ_r m n P)
+    end.
+
+  Definition subst_n {n m : nat} (P : m < (S n)) : nat :=
+    if n =? m
+    then n
+    else m.
+
+  Fixpoint subst {n : nat}(e : exp n)(e' : exp (S n)) : exp n :=
+    match e' with
+    | lambda e0 => lambda (subst (raise e) e0)
+    | int _ m => int n m
+    | app e1 e2 => app (subst e e1) (subst e e2)
+    | @var _ m P => if m =? n
+                   then e
+                   else var (Nat.lt_lt_succ_r m n P)
+    end.
+
+  SearchAbout lt.
+    | var P => var (Nat.lt_lt_succ_r n n P)
 
 Inductive var : Type :=
 | Var : nat -> var  (*concrete variables*)
@@ -7358,10 +7420,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Proof.
     destruct notin_subst_closed_mutind; crush.
   Qed.
-
-  Lemma closed_substitution_mutind :
-    (forall t p n m, closed_ty ([p /t n] t) m ->
-                (forall n', n'>)) /\.
   
   Lemma typing_p_subst:
     (forall Sig G p t, Sig en G vdash p pathType t ->
@@ -7370,8 +7428,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                   G = ([p1 /env 0] G1) ++ G2 ->
                   p = ([p1 /e n] p') ->
                   t = ([p1 /t n] t') ->
+                  p1 notin_e p' ->
                   p1 notin_t t' ->
                   p1 notin_env (G1 ++ G2) ->
+                  p1 notin_env Sig ->
                   n = length G1 ->
                   closed_env G 0 ->
                   closed_env Sig 0 ->
@@ -7395,7 +7455,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        subst;
        [rewrite <- beq_nat_refl in H2; subst
        |apply Nat.eqb_neq in Heq; rewrite Heq in H2; inversion H2]];
-      clear H17.    
+      clear H19.    
 
     unfold mapping in H.
     rewrite rev_app_distr in H.
@@ -7404,7 +7464,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       rewrite Hb in H.
     assert (Hclosed : closed_t (length G1) t');
       [apply notin_subst_closed_type with (e:=p1);
-       apply H5;
+       apply H6;
        apply in_or_app; right;
        apply in_rev;
        apply get_in with (n:=r); auto|].
@@ -7417,9 +7477,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       rewrite get_app_l;
       auto.
 
+    assert (Hget := H); unfold mapping in Hget.
     rewrite rename_closed_subst_type with (m:=r - length (rev G2)) in H;
       [
-      |apply H7;
+      |apply H9;
        [|crush];
        apply in_or_app;
        left;
@@ -7436,138 +7497,107 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite rev_app_distr.
     rewrite get_app_r; auto.
     rewrite rename_closed_subst_type with (m:=r - length (rev G2)); auto.
+    assert (Hclosed : closed_ty ([p2 /t length G1] t') 0); [|apply Hclosed; crush].
+    apply closed_subst_switch_type with (p1:=p1).
+    apply H9, in_or_app;
+      left;
+      apply in_rev, get_in with (n:=r - length (rev G2));
+      auto.
+    intros n Hin;
+      apply wf_closed_exp with (Sig:=Sig)(G:=G2);
+      auto.
+    intros t Hin;
+      apply H6, in_or_app; auto.
+    apply notin_rename_type; auto.
+    apply wf_closed_exp with (Sig:=Sig)(G:=G2);
+      auto.
 
+    simpl; rewrite <- beq_nat_refl.
+    inversion H13; subst.
+    assert (Hleng : n < length (rev G2));
+      [eapply get_some_index; eauto|].
+    unfold mapping in H, H8.
+    rewrite rev_app_distr, get_app_l in H; auto.
+    rewrite H8 in H;
+      inversion H;
+      subst.
+    apply typing_p_weakening_actual with (G':=[p2 /env 0]G1) in H14; auto.
+    assert (Hclosed : closed_t (length G1) t');
+      [apply notin_subst_closed_type with (e:=c_ n),
+                                          H6,
+                                          in_or_app;
+       right;
+       apply in_rev, get_in with (n0:=n);
+       auto
+      |].
+    rewrite closed_subst_type in H14; auto.
+    rewrite closed_subst_type; auto.
+
+    destruct p'; simpl in H2; inversion H2; subst.
     
-      auto; destruct Hc as [Hc Hd].
-    rewrite plus_0_l in Hc.
+    destruct v as [|r];
+      [inversion H2
+      |destruct (Nat.eq_dec (length G1) r) as [|Heq];
+       [subst; rewrite <- beq_nat_refl in H2; subst;
+        simpl; rewrite <- beq_nat_refl
+       |apply Nat.eqb_neq in Heq;
+        rewrite Heq in H2;
+        inversion H2]].
+    apply path_typing_uniqueness with (t:=[i_ i /t length G1] t') in H13;
+      auto; subst.
+    apply typing_p_weakening_actual with (G':=[p2 /env 0]G1) in H14; auto.
+    assert (Hclosed : closed_t (length G1) t');
+      [apply notin_subst_closed_type
+         with (e:=i_ i),
+              H7,
+              in_rev,
+              get_in with (n:=i);
+       auto
+      |].
+    rewrite closed_subst_type in H14; auto.
+    rewrite closed_subst_type; auto.
     
-    rewrite raise_closed_substitution_type
-      with (t:=([p1 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
-           (p:=p1)(t':=t')(m:=(length G1) - (r - length (rev G2))) in Hc; auto.
-    assert (Hlt : r - length (rev G2) < length (rev ([p1 /env 0] G1)));
-      [apply get_some_index with (t:=t); auto
-      |repeat rewrite rev_length in Hlt;
-       rewrite subst_length in Hlt].
-    assert (Heq : r - length (rev G2) + ((length G1) - (r - length (rev G2))) =
-            (length G1));
-      [rewrite Nat.add_sub_assoc;
-       [|rewrite rev_length; crush];
-       rewrite minus_plus; auto
-      |rewrite Heq in Hc].
-    remember (raise_n_t ((length G1) - (r - length (rev G2))) t' (r - length (rev G2))) as t''.
-    exists t''; split; auto.
     simpl.
-    apply pt_var.
-    unfold mapping;
-      rewrite rev_app_distr;
-      rewrite get_app_r; auto.
-    unfold mapping in Hd.
-    rewrite Hd.
-    rewrite plus_0_l.
-    rewrite raise_closed_substitution_type with (t:=([p2 /t r - length (rev G2)] t'))(n:=r - length (rev G2))
-                                                (p:=p2)(t':=t')(m:=(length G1) - (r - length (rev G2))); auto.
-    rewrite <- Heqt''.
-    rewrite Heq; auto.
+    assert (Hclosed : closed_t (length G1) t');
+      [apply notin_subst_closed_type
+         with (e:=p1),
+              H7,
+              in_rev,
+              get_in with (n:=n0);
+       auto
+      |].
+    rewrite closed_subst_type in H; auto.
+    rewrite closed_subst_type; auto.
 
-    intros n Hle; apply H7;
-      [|crush].
-    apply in_rev.
-    apply get_in with (n0:=r).
-    rewrite rev_app_distr.
-    rewrite get_app_r; auto.
-    
-    
-    intros n Hle; apply H4;
-      [|crush].
-    apply in_rev.
-    apply get_in with (n0:=r).
-    rewrite rev_app_distr.
-    rewrite get_app_r; auto.
-    rewrite H, Hc; auto.
-    
-    rewrite <- beq_nat_refl in H14.
-    simpl; rewrite <- beq_nat_refl.
-    exists t; split;
-      [rewrite closed_subst_type; auto|].
-    apply H4;
-      [|crush].
-    rewrite in_rev.
-    apply get_in with (n0:=n).
-    auto.
-    
-    rewrite closed_subst_type;
-      [|apply H4;[|crush]].
-    apply path_typing_uniqueness with (t:=t) in H8; subst; auto.
-    apply typing_p_weakening_actual; auto.
-    unfold mapping in H.
-    rewrite rev_app_distr in H.
-    rewrite get_app_l in H; auto.
-    inversion H8; subst.
-    unfold mapping in H13.
-    apply get_some_index in H13; auto.
-    apply in_rev, get_in with (n0:=n); auto.
-
-    (*store location*)
     destruct p';
-      simpl in H2;
-      inversion H2; subst.
-    destruct v as [r|r];
-      [inversion H2|].
-    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
-      subst;
-      [rewrite <- beq_nat_refl in H2
-      |apply Nat.eqb_neq in Heq;
-       rewrite Heq in H2;
-       inversion H2].
+      try solve [simpl in H1; inversion H1; subst].
+    simpl in H1; inversion H1; subst.
+    destruct v as [|r];
+      [inversion H1
+      |destruct (Nat.eq_dec (length G1) r) as [|Heq];
+       [subst; rewrite <- beq_nat_refl in H1; subst;
+        simpl; rewrite <- beq_nat_refl
+       |apply Nat.eqb_neq in Heq;
+        rewrite Heq in H1;
+        inversion H1]].
+    assert (Hnotin : p1 notin_t([p1 /t length G1] t'));
+      [apply synsize_notin_type;
+       assert (Hsize : synsize_e p1 = (synsize_e ((p cast ([p1 /t length G1] t')))));
+       [rewrite H1; auto|];
+       rewrite Hsize;
+       simpl;
+       crush|].
+    apply notin_subst_closed_type in Hnotin;
+      rewrite (closed_subst_type Hnotin) in *; auto.
     subst.
-    apply path_typing_uniqueness with (t:=t) in H8; subst; auto.
-    exists t; split;
-      [rewrite closed_subst_type;
-       auto|].
-    apply H5; [|crush].
-    apply in_rev, get_in with (n:=i); auto.
+    inversion H12; subst.
+    apply typing_p_weakening_actual with (G':=[p2 /env 0]G1) in H13; auto.
 
-    simpl; rewrite <- beq_nat_refl, closed_subst_type.
-    apply typing_p_weakening_actual; auto.
-    apply H5;
-      [|crush].
-    apply in_rev, get_in with (n:=i); auto.
-
-    exists t; split;
-      [|crush].
-    rewrite closed_subst_type; auto.
-    apply H5;
-      [apply in_rev, get_in with (n:=n0); auto|crush].
-    rewrite closed_subst_type; auto.
-    apply H5;
-      [apply in_rev, get_in with (n:=n0); auto|crush].
-
-    (*cast*)
-    destruct p';
-      simpl in H1;
+    subst.
+    simpl in *;
       inversion H1; subst.
-    destruct v as [r|r];
-      [inversion H1|].
-    destruct (Nat.eq_dec (length G1) r) as [Heq|Heq];
-      subst;
-      [rewrite <- beq_nat_refl in H1
-      |apply Nat.eqb_neq in Heq;
-       rewrite Heq in H1;
-       inversion H1].
-    subst.
-    simpl; rewrite <- beq_nat_refl.
-    inversion H7; subst.
-    exists tp; split.
-    assert (Hclosed : closed_e (length G1) (p cast tp));
-      [apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto
-      |rewrite closed_subst_type; auto;
-       inversion Hclosed; auto].
-    rewrite closed_subst_type.
-    apply typing_p_weakening_actual; auto.
-    apply wf_closed_type with (Sig:=Sig)(G:=G2); auto.
-
-    exists t0; split; simpl; auto.
-    
+    apply subst_equality_type in H7; auto;
+      [subst; auto|inversion H3; auto].
   Qed.
 
   Lemma has_contains_subst_mutind :
