@@ -70,14 +70,27 @@ Check @var.
     then n
     else m.
 
+  SearchAbout lt.
+
+  Check Nat.eq_dec.
+
+  Check (match beq_nat 1 0 with | true => true | false => false end).
+  
+
   Fixpoint subst {n : nat}(e : exp n)(e' : exp (S n)) : exp n :=
     match e' with
     | lambda e0 => lambda (subst (raise e) e0)
     | int _ m => int n m
     | app e1 e2 => app (subst e e1) (subst e e2)
-    | @var _ m P => if m =? n
+    | @var _ m P => match Nat.eq_dec n m as Hle with
+                   | IsEq n m => e
+                   | n <> m => e
+                   end
+(*
+        let H := (n <> m) in
+                   if Nat.eq_dec n m
                    then e
-                   else var (Nat.lt_lt_succ_r m n P)
+                   else var (Nat.lt_lt_succ_r m (S n) P)*)
     end.
 
   SearchAbout lt.
