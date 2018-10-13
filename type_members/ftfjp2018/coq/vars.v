@@ -9136,10 +9136,151 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       |apply closed_has, closed_decl_ty_upper in h; auto;
        apply closed_ty_sel in H12; auto
       |destruct Hc as [Hc Hd]].
-    (*perform subst rename in H4 on the lhs cast
-      subst d into H4 and extract [c_r / S n] from
-      the result. Now demonstrate subst_equality*)
     
+    rewrite rename_closed_subst_type with (m:=S n) in H4; 
+      [
+      |apply closed_has in h;
+       auto;
+       [apply closed_decl_ty_upper in h;
+        apply h; crush|
+        apply closed_ty_sel in H12;
+        auto]].
+    assert (Hrewrite1 : ((v_ Abs 0) cast ([v_ Var r /t S n] (t' [n maps_t S n]))) =
+                        ([v_ Var r /e S n]((v_ Abs 0) cast (t' [n maps_t S n]))));
+      [simpl; auto|rewrite Hrewrite1, Hc in H4].
+    rewrite <- subst_distr_decl_ty in H4;
+      [|auto|auto].
+    apply subst_equality_decl_ty in H4;
+      [
+      |apply unbound_var_notin_decl_ty;
+       apply unbound_subst_components_decl_ty;
+       [apply notin_var_unbound_decl_ty;
+        auto
+       |apply notin_var_unbound_exp, ni_cast;
+        [apply ni_var; crush
+        |apply notin_rename_type;
+         auto;
+         inversion Hb; auto
+        |crush]]
+      |auto].
+
+    
+    assert (Hclosed_p2 : closed_exp p2 0);
+      [intros m Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto|].
+    assert (Hclosed_t' : closed_ty ([v_ Var r /t n] t') 0);
+      [apply closed_has, closed_decl_ty_upper in h;
+       auto;
+       apply closed_ty_sel in H12; auto|].
+    rewrite <- H4.
+    rewrite subst_distr_decl_ty; auto; simpl.
+    rewrite rename_closed_subst_type with (m:=n);
+      [
+      |rewrite rename_closed_subst_type with (m:=S n) in Hclosed_t';
+       auto;
+       [apply closed_subst_switch_type with (p2:=p2) in Hclosed_t';
+        auto;
+        apply Hclosed_t'; crush
+       |apply Hclosed_t'; crush]].
+
+    rewrite rename_inverse_type;
+      [|apply closed_subst_neq_type with (t:=([v_ Var r /t n] t'))
+                                         (p:=c_ r)(m:=n);
+        auto;
+        apply Hclosed_t'; crush].
+    apply cont_upper; auto.
+    assert (Hrewrite2 : (type l' ext ([p2 /t n] t')) = ([p2 /s n] (type l' ext t')));
+      [auto|rewrite Hrewrite2].
+    apply H with (r0:=r)(tp:=tp); auto;
+      [inversion H5; auto
+      |apply closed_ty_sel in H12; auto].
+    apply H0 with (r0:=r)(tp:=tp); auto;
+      inversion Hb; auto.
+
+    (*contains equal*)
+    destruct t' as [|p' l| | |];
+      simpl in H3;
+      try solve [inversion H3].
+
+    destruct has_exists_subst with (Sig:=Sig)(G:=G)(p:=p)
+                                   (s:=type L eqt t)(r:=r)
+                                   (n:=n)(G1:=G1)(G2:=G2)
+                                   (p':=p') as [s Ha];
+      inversion H3;
+      subst p l;
+      auto;
+      [inversion H5; auto
+      |apply closed_ty_sel with (l:=L); auto
+      |destruct Ha as [Ha Hb];
+       destruct s as [| |l' t'|];
+       inversion Ha; subst L t].
+    destruct contains_exists_subst with (Sig:=Sig)(G:=G)(t:=([v_ Var r /t n] t'))
+                                        (s:=d)(r:=r)(n:=n)
+                                        (G1:=G1)(G2:=G2)
+                                        (t':=t') as [s Hc];
+      auto;
+      [inversion Hb; auto
+      |apply closed_has, closed_decl_ty_equal in h; auto;
+       apply closed_ty_sel in H12; auto
+      |destruct Hc as [Hc Hd]].
+    
+    rewrite rename_closed_subst_type with (m:=S n) in H4; 
+      [
+      |apply closed_has in h;
+       auto;
+       [apply closed_decl_ty_equal in h;
+        apply h; crush|
+        apply closed_ty_sel in H12;
+        auto]].
+    assert (Hrewrite1 : ((v_ Abs 0) cast ([v_ Var r /t S n] (t' [n maps_t S n]))) =
+                        ([v_ Var r /e S n]((v_ Abs 0) cast (t' [n maps_t S n]))));
+      [simpl; auto|rewrite Hrewrite1, Hc in H4].
+    rewrite <- subst_distr_decl_ty in H4;
+      [|auto|auto].
+    apply subst_equality_decl_ty in H4;
+      [
+      |apply unbound_var_notin_decl_ty;
+       apply unbound_subst_components_decl_ty;
+       [apply notin_var_unbound_decl_ty;
+        auto
+       |apply notin_var_unbound_exp, ni_cast;
+        [apply ni_var; crush
+        |apply notin_rename_type;
+         auto;
+         inversion Hb; auto
+        |crush]]
+      |auto].
+
+    
+    assert (Hclosed_p2 : closed_exp p2 0);
+      [intros m Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto|].
+    assert (Hclosed_t' : closed_ty ([v_ Var r /t n] t') 0);
+      [apply closed_has, closed_decl_ty_equal in h;
+       auto;
+       apply closed_ty_sel in H12; auto|].
+    rewrite <- H4.
+    rewrite subst_distr_decl_ty; auto; simpl.
+    rewrite rename_closed_subst_type with (m:=n);
+      [
+      |rewrite rename_closed_subst_type with (m:=S n) in Hclosed_t';
+       auto;
+       [apply closed_subst_switch_type with (p2:=p2) in Hclosed_t';
+        auto;
+        apply Hclosed_t'; crush
+       |apply Hclosed_t'; crush]].
+
+    rewrite rename_inverse_type;
+      [|apply closed_subst_neq_type with (t:=([v_ Var r /t n] t'))
+                                         (p:=c_ r)(m:=n);
+        auto;
+        apply Hclosed_t'; crush].
+    apply cont_equal; auto.
+    assert (Hrewrite2 : (type l' eqt ([p2 /t n] t')) = ([p2 /s n] (type l' eqt t')));
+      [auto|rewrite Hrewrite2].
+    apply H with (r0:=r)(tp:=tp); auto;
+      [inversion H5; auto
+      |apply closed_ty_sel in H12; auto].
+    apply H0 with (r0:=r)(tp:=tp); auto;
+      inversion Hb; auto.
   Qed.
    
 (*  
@@ -9345,8 +9486,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
           closed_env G2 0 ->
           closed_ty t1 0 ->
           closed_ty t2 0 ->
-          n1 >= length G3 ->
-          n2 >= length G5 ->
+          n1 = length G3 ->
+          n2 = length G5 ->
           Sig evdash G4 wf_env ->
           Sig evdash G6 wf_env ->
           t1 = ([p1 /t n1] t1') ->
@@ -9376,8 +9517,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
           closed_env G2 0 ->
           closed_decl_ty s1 0 ->
           closed_decl_ty s2 0 ->
-          n1 >= length G3 ->
-          n2 >= length G5 ->
+          n1 = length G3 ->
+          n2 = length G5 ->
           Sig evdash G4 wf_env ->
           Sig evdash G6 wf_env ->
           s1 = ([p1 /s n1] s1') ->
@@ -9407,8 +9548,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
           closed_env G2 0 ->
           closed_decl_tys ss1 0 ->
           closed_decl_tys ss2 0 ->
-          n1 >= length G3 ->
-          n2 >= length G5 ->
+          n1 = length G3 ->
+          n2 = length G5 ->
           Sig evdash G4 wf_env ->
           Sig evdash G6 wf_env ->
           ss1 = ([p1 /ss n1] ss1') ->
