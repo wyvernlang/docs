@@ -1062,7 +1062,102 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   Reserved Notation "Sig 'en' G 'vdash' d 'hasType_d' s" (at level 80).
   Reserved Notation "Sig 'en' G 'vdash' ds 'hasType_ds' ss" (at level 80).
   
+  Reserved Notation "n 'unbound_t' t" (at level 80).
+  Reserved Notation "n 'unbound_s' s" (at level 80).
+  Reserved Notation "n 'unbound_ss' ss" (at level 80).
+  Reserved Notation "n 'unbound_e' e" (at level 80).
+  Reserved Notation "n 'unbound_d' d" (at level 80).
+  Reserved Notation "n 'unbound_ds' ds" (at level 80).
+  Reserved Notation "n 'unbound_v' v" (at level 80).
 
+  Inductive unbound_var : nat -> var -> Prop :=
+  | ub_abs : forall n m, n unbound_v (Abs m)
+  | ub_con : forall n m, n <> m ->
+                    n unbound_v (Var m)
+  where "n 'unbound_v' v" := (unbound_var n v).
+  
+  Inductive unbound_ty : nat -> ty -> Prop :=
+  | ub_top : forall n, n unbound_t top
+  | ub_bot : forall n, n unbound_t bot
+  | ub_arr : forall n t1 t2, n unbound_t t1 ->
+                        n unbound_t t2 ->
+                        n unbound_t (t1 arr t2)
+  | ub_sel : forall n p l, n unbound_e p ->
+                      n unbound_t (sel p l)
+  | ub_str : forall n ss, n unbound_ss ss ->
+                     n unbound_t (str ss)
+  where "n 'unbound_t' t" := (unbound_ty n t)
+
+  with
+  unbound_decl_ty : nat -> decl_ty -> Prop :=
+  | ubs_lower : forall n l t, n unbound_t t ->
+                         n unbound_s (type l sup t)
+  | ubs_upper : forall n l t, n unbound_t t ->
+                         n unbound_s (type l ext t)
+  | ubs_equal : forall n l t, n unbound_t t ->
+                         n unbound_s (type l eqt t)
+  | ubs_value : forall n l t, n unbound_t t ->
+                         n unbound_s (val l oft t)
+  where "n 'unbound_s' s" := (unbound_decl_ty n s)
+
+  with
+  unbound_decl_tys : nat -> decl_tys -> Prop :=
+  | ubs_nil : forall n, n unbound_ss dt_nil
+  | ubs_con : forall n s ss, n unbound_s s ->
+                        n unbound_ss ss ->
+                        n unbound_ss (dt_con s ss)
+  where "n 'unbound_ss' d" := (unbound_decl_tys n d)
+                                
+  with
+  unbound_exp : nat -> exp -> Prop :=
+  | ub_var : forall v n, n unbound_v v ->
+                    n unbound_e (v_ v)
+  | ub_loc : forall i n, n unbound_e (i_ i)
+  | ub_cast : forall e t n, n unbound_e e ->
+                       n unbound_t t ->
+                       n unbound_e (e cast t)
+  | ub_fn : forall t1 e t2 n, n unbound_t t1 ->
+                         n unbound_e e ->
+                         n unbound_t t2 ->
+                         n unbound_e (fn t1 in_exp e off t2)
+  | ub_app : forall e1 e2 n, n unbound_e e1 ->
+                        n unbound_e e2 ->
+                        n unbound_e (e_app e1 e2)
+  | ub_acc : forall e l n, n unbound_e e ->
+                      n unbound_e (e_acc e l)
+  | ub_new : forall ds n, n unbound_ds ds ->
+                     n unbound_e (new ds)
+  where "n 'unbound_e' e" := (unbound_exp n e)
+
+  with
+  unbound_decl : nat -> decl -> Prop :=
+  | ubd_equal : forall L t n, n unbound_t t ->
+                         n unbound_d (type L eqe t)
+  | ubd_value : forall l e t n, n unbound_e e ->
+                           n unbound_t t ->
+                           n unbound_d (val l assgn e oft t)
+  where "n 'unbound_d' d" := (unbound_decl n d)
+
+  with
+  unbound_decls : nat -> decls -> Prop :=
+  | ubd_nil : forall n, n unbound_ds d_nil
+  | ubd_con : forall n d ds, n unbound_d d ->
+                        n unbound_ds ds ->
+                        n unbound_ds (d_con d ds)
+  where "n 'unbound_ds' ds" := (unbound_decls n ds).
+  
+
+  Hint Constructors unbound_var unbound_ty unbound_decl_ty unbound_decl_tys unbound_exp unbound_decl unbound_decls.
+
+  Scheme unbound_ty_mutind := Induction for unbound_ty Sort Prop
+    with unbound_decl_ty_mutind := Induction for unbound_decl_ty Sort Prop
+    with unbound_decl_tys_mutind := Induction for unbound_decl_tys Sort Prop
+    with unbound_exp_mutind := Induction for unbound_exp Sort Prop
+    with unbound_decl_mutind := Induction for unbound_decl Sort Prop
+    with unbound_decls_mutind := Induction for unbound_decls Sort Prop.
+
+  Combined Scheme unbound_mutind from unbound_ty_mutind, unbound_decl_ty_mutind, unbound_decl_tys_mutind,
+  unbound_exp_mutind, unbound_decl_mutind, unbound_decls_mutind.
   
   
   Inductive typing : env -> env -> exp -> ty -> Prop :=
@@ -1091,6 +1186,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                                      Sig en G vdash (e_app e p) hasType ([p cast t1 /t 0] t2)
 
   | t_new : forall Sig G ds ss, Sig en (str ss)::G vdash ([c_ length G /ds 0] ds) hasType_ds ([c_ length G /ss 0] ss) ->
+                         length G unbound_ss ss ->
                          Sig en G vdash new ds hasType str ss
 
   | t_acc_path : forall Sig G p l t, Sig en G vdash p ni (val l oft t) ->
@@ -1325,102 +1421,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | ge_bot : forall n, ge_t bot n
   | ge_arr : forall t1 t2 n, *)
 
-  Reserved Notation "n 'unbound_t' t" (at level 80).
-  Reserved Notation "n 'unbound_s' s" (at level 80).
-  Reserved Notation "n 'unbound_ss' ss" (at level 80).
-  Reserved Notation "n 'unbound_e' e" (at level 80).
-  Reserved Notation "n 'unbound_d' d" (at level 80).
-  Reserved Notation "n 'unbound_ds' ds" (at level 80).
-  Reserved Notation "n 'unbound_v' v" (at level 80).
 
-  Inductive unbound_var : nat -> var -> Prop :=
-  | ub_abs : forall n m, n unbound_v (Abs m)
-  | ub_con : forall n m, n <> m ->
-                    n unbound_v (Var m)
-                      where "n 'unbound_v' v" := (unbound_var n v).
-  
-  Inductive unbound_ty : nat -> ty -> Prop :=
-  | ub_top : forall n, n unbound_t top
-  | ub_bot : forall n, n unbound_t bot
-  | ub_arr : forall n t1 t2, n unbound_t t1 ->
-                        n unbound_t t2 ->
-                        n unbound_t (t1 arr t2)
-  | ub_sel : forall n p l, n unbound_e p ->
-                      n unbound_t (sel p l)
-  | ub_str : forall n ss, n unbound_ss ss ->
-                     n unbound_t (str ss)
-  where "n 'unbound_t' t" := (unbound_ty n t)
-
-  with
-  unbound_decl_ty : nat -> decl_ty -> Prop :=
-  | ubs_lower : forall n l t, n unbound_t t ->
-                         n unbound_s (type l sup t)
-  | ubs_upper : forall n l t, n unbound_t t ->
-                         n unbound_s (type l ext t)
-  | ubs_equal : forall n l t, n unbound_t t ->
-                         n unbound_s (type l eqt t)
-  | ubs_value : forall n l t, n unbound_t t ->
-                         n unbound_s (val l oft t)
-  where "n 'unbound_s' s" := (unbound_decl_ty n s)
-
-  with
-  unbound_decl_tys : nat -> decl_tys -> Prop :=
-  | ubs_nil : forall n, n unbound_ss dt_nil
-  | ubs_con : forall n s ss, n unbound_s s ->
-                          n unbound_ss ss ->
-                          n unbound_ss (dt_con s ss)
-  where "n 'unbound_ss' d" := (unbound_decl_tys n d)
-                              
-  with
-  unbound_exp : nat -> exp -> Prop :=
-  | ub_var : forall v n, n unbound_v v ->
-                    n unbound_e (v_ v)
-  | ub_loc : forall i n, n unbound_e (i_ i)
-  | ub_cast : forall e t n, n unbound_e e ->
-                       n unbound_t t ->
-                       n unbound_e (e cast t)
-  | ub_fn : forall t1 e t2 n, n unbound_t t1 ->
-                         n unbound_e e ->
-                         n unbound_t t2 ->
-                         n unbound_e (fn t1 in_exp e off t2)
-  | ub_app : forall e1 e2 n, n unbound_e e1 ->
-                        n unbound_e e2 ->
-                        n unbound_e (e_app e1 e2)
-  | ub_acc : forall e l n, n unbound_e e ->
-                      n unbound_e (e_acc e l)
-  | ub_new : forall ds n, n unbound_ds ds ->
-                     n unbound_e (new ds)
-  where "n 'unbound_e' e" := (unbound_exp n e)
-
-  with
-  unbound_decl : nat -> decl -> Prop :=
-  | ubd_equal : forall L t n, n unbound_t t ->
-                         n unbound_d (type L eqe t)
-  | ubd_value : forall l e t n, n unbound_e e ->
-                           n unbound_t t ->
-                           n unbound_d (val l assgn e oft t)
-  where "n 'unbound_d' d" := (unbound_decl n d)
-
-  with
-  unbound_decls : nat -> decls -> Prop :=
-  | ubd_nil : forall n, n unbound_ds d_nil
-  | ubd_con : forall n d ds, n unbound_d d ->
-                        n unbound_ds ds ->
-                        n unbound_ds (d_con d ds)
-  where "n 'unbound_ds' ds" := (unbound_decls n ds).
-                      
-
-  Hint Constructors unbound_var unbound_ty unbound_decl_ty unbound_decl_tys unbound_exp unbound_decl unbound_decls.
-
-  Scheme unbound_ty_mutind := Induction for unbound_ty Sort Prop
-    with unbound_decl_ty_mutind := Induction for unbound_decl_ty Sort Prop
-    with unbound_decl_tys_mutind := Induction for unbound_decl_tys Sort Prop
-    with unbound_exp_mutind := Induction for unbound_exp Sort Prop
-    with unbound_decl_mutind := Induction for unbound_decl Sort Prop
-    with unbound_decls_mutind := Induction for unbound_decls Sort Prop.
-
-  Combined Scheme unbound_mutind from unbound_ty_mutind, unbound_decl_ty_mutind, unbound_decl_tys_mutind,
-  unbound_exp_mutind, unbound_decl_mutind, unbound_decls_mutind.
 
   Reserved Notation "e 'notin_t' t" (at level 80).
   Reserved Notation "e 'notin_s' s" (at level 80).
@@ -2725,6 +2726,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     forall n e, closed_e n e -> forall e', ([e' /e n] e) = e.
   Proof.
   Admitted.
+  
+  Lemma closed_subst_decls :
+    forall n ds, closed_ds n ds -> forall e, ([e /ds n] ds) = ds.
+  Proof.
+  Admitted.
 
   Lemma closed_rjump_mutind :
     (forall n t, closed_t n t -> forall i m, closed_t n (t [i] rjump_t m)) /\
@@ -3272,6 +3278,19 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite H0, app_length, <- H1 in Htyp.
     assert (Hleng2 : (length G1 + (n + i)) = (length G1 + i + n));
       [crush|rewrite Hleng2]; auto.
+    assert (Hrewrite : (length ((G1 [i]rjump_env n) ++ G' ++ (G2 [i]rjump_env n))) =
+                       (length G [i] rjump_n n));
+      [
+      |rewrite Hrewrite].
+    repeat rewrite app_length, rjump_length.
+    subst.
+    rewrite app_length.
+    unfold right_jump_n.
+    assert (Hle : length G2 <= length G1 + length G2);
+      [crush
+      |apply leb_correct in Hle;
+       rewrite Hle; crush].
+    apply unbound_rjump_decl_tys; auto.
 
     (*t-acc-path*)
     simpl; apply t_acc_path.
@@ -3706,6 +3725,26 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     rewrite lt_rjump_env in H.
     rewrite lt_rjump_type in H; auto.
     apply wf_lt_type with (Sig:=Sig); auto.
+    apply wf_lt_env with (Sig:=Sig); auto.
+    apply wf_lt_store_type; auto.
+  Qed.
+
+  Lemma wf_weakening_actual_exp :
+    forall Sig G e, Sig en G vdash e wf_e ->
+             Sig evdash G wf_env ->
+             Sig wf_st -> 
+             forall G', Sig en G'++G vdash e wf_e.
+  Proof.
+    intros.
+    assert (Hwf := H).
+    apply wf_weakening_exp with (G1:=nil)(G2:=G)
+                                 (G':=G')(i:=length G)
+                                 (n:=length G') in H; auto.
+    simpl in H.
+    rewrite lt_rjump_env in H.
+    rewrite lt_rjump_env in H.
+    rewrite lt_rjump_exp in H; auto.
+    apply wf_lt_exp with (Sig:=Sig); auto.
     apply wf_lt_env with (Sig:=Sig); auto.
     apply wf_lt_store_type; auto.
   Qed.
@@ -8534,34 +8573,6 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        auto].
   Qed.
   
-  Lemma unbound_subst_components_ :
-    (forall t p n r, r unbound_t t ->
-                r unbound_e p ->
-                r unbound_t ([p /t n] t)) /\
-    
-    (forall s p n r, r unbound_s s ->
-                r unbound_e p ->
-                r unbound_s ([p /s n] s)) /\
-    
-    (forall ss p n r, r unbound_ss ss ->
-                 r unbound_e p ->
-                 r unbound_ss ([p /ss n] ss)) /\
-    
-    (forall e p n r, r unbound_e e ->
-                r unbound_e p ->
-                r unbound_e ([p /e n] e)) /\
-    
-    (forall d p n r, r unbound_d d ->
-                r unbound_e p ->
-                r unbound_d ([p /d n] d)) /\
-    
-    (forall ds p n r, r unbound_ds ds ->
-                 r unbound_e p ->
-                 r unbound_ds ([p /ds n] ds)).
-  Proof.
-    destruct unbound_subst_components_mutind; crush.
-  Qed.
-  
   Lemma unbound_subst_components_type :
     (forall t p n r, r unbound_t t ->
                 r unbound_e p ->
@@ -8627,6 +8638,76 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Rewrite unbound_subst_components_decls.
   Hint Resolve unbound_subst_components_decls.
+
+  Lemma unbound_subst_mutind :
+    (forall t p n r, r unbound_t ([p /t n] t) ->
+                r unbound_t t) /\
+    
+    (forall s p n r, r unbound_s ([p /s n] s) ->
+                r unbound_s s) /\
+    
+    (forall ss p n r, r unbound_ss ([p /ss n] ss) ->
+                 r unbound_ss ss) /\
+    
+    (forall e p n r, r unbound_e ([p /e n] e) ->
+                r unbound_e e) /\
+    
+    (forall d p n r, r unbound_d ([p /d n] d) ->
+                r unbound_d d) /\
+    
+    (forall ds p n r, r unbound_ds ([p /ds n] ds) ->
+                 r unbound_ds ds).
+  Proof.
+    apply type_exp_mutind; intros; eauto;
+      try solve [try (inversion H0);
+                 try (inversion H1);
+                 try (inversion H2);
+                 eauto].
+
+    destruct v; auto.
+  Qed.
+
+  Lemma unbound_subst_type :
+    (forall t p n r, r unbound_t ([p /t n] t) ->
+                r unbound_t t).
+  Proof.
+    destruct unbound_subst_mutind; crush.
+  Qed.
+
+  Lemma unbound_subst_decl_ty :    
+    (forall s p n r, r unbound_s ([p /s n] s) ->
+                r unbound_s s).
+  Proof.
+    destruct unbound_subst_mutind; crush.
+  Qed.
+
+  Lemma unbound_subst_decl_tys :    
+    (forall ss p n r, r unbound_ss ([p /ss n] ss) ->
+                 r unbound_ss ss).
+  Proof.
+    destruct unbound_subst_mutind; crush.
+  Qed.
+
+  Lemma unbound_subst_exp :
+    (forall e p n r, r unbound_e ([p /e n] e) ->
+                r unbound_e e).
+  Proof.
+    destruct unbound_subst_mutind; crush.
+  Qed.
+
+  Lemma unbound_subst_decl :    
+    (forall d p n r, r unbound_d ([p /d n] d) ->
+                r unbound_d d).
+  Proof.
+    destruct unbound_subst_mutind; crush.
+  Qed.
+
+  Lemma unbound_subst_decls :
+    (forall ds p n r, r unbound_ds ([p /ds n] ds) ->
+                 r unbound_ds ds).
+  Proof.
+    destruct unbound_subst_mutind; crush.
+  Qed.
 
   Lemma rename_raise_mutind :
     (forall t i n m, n >= i ->
@@ -10256,14 +10337,412 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     destruct Hd; subst.
     exists (dt_con s' ss'); auto.
   Qed.
+
+  Lemma notin_refl_contra :
+    forall e, e notin_e e -> False.
+  Proof.
+    intros;
+      destruct e;
+      inversion H; crush.
+  Qed.
+
+  Lemma raise_neq_mutind :
+    (forall t1 t2, t1 <> t2 ->
+              forall n, (t1 raise_t n) <> (t2 raise_t n)) /\
+  
+    (forall s1 s2, s1 <> s2 ->
+              forall n, (s1 raise_s n) <> (s2 raise_s n)) /\
+  
+    (forall ss1 ss2, ss1 <> ss2 ->
+                forall n, (ss1 raise_ss n) <> (ss2 raise_ss n)) /\
     
+    (forall e1 e2, e1 <> e2 ->
+              forall n, (e1 raise_e n) <> (e2 raise_e n)) /\
+    
+    (forall d1 d2, d1 <> d2 ->
+              forall n, (d1 raise_d n) <> (d2 raise_d n)) /\
+    
+    (forall ds1 ds2, ds1 <> ds2 ->
+                forall n, (ds1 raise_ds n) <> (ds2 raise_ds n)).
+  Proof.
+    apply type_exp_mutind; intros.
+
+    (*str*)
+    destruct t2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : d <> d0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*sel*)
+    destruct t2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : e <> e0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*arr*)
+    destruct t2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : t <> t2_1);
+      [intro Hcontra1;
+       subst t
+      |eapply H in Hneq; eauto];
+      assert (Hneq : t0 <> t2_2);
+      [crush
+      |eapply H0 in Hneq; eauto].
+
+    (*top*)
+    destruct t2;
+      simpl;
+      try solve [crush].
+
+    (*bot*)
+    destruct t2;
+      simpl;
+      try solve [crush].
+
+    (*upper type*)
+    destruct s2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : t <> t0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*lower type*)
+    destruct s2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : t <> t0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*equal type*)
+    destruct s2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : t <> t0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*value type*)
+    destruct s2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : t <> t0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*nil type*)
+    destruct ss2;
+      simpl;
+      try solve [crush].
+
+    (*con type*)
+    destruct ss2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : d <> d1);
+      [intro Hcontra1;
+       subst d
+      |eapply H in Hneq; eauto];
+      assert (Hneq : d0 <> ss2);
+      [crush
+      |eapply H0 in Hneq; eauto].
+
+    (*new*)
+    destruct e2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : d <> d0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*app*)
+    destruct e2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : e <> e2_1);
+      [intro Hcontra1;
+       subst e
+      |eapply H in Hneq; eauto];
+      assert (Hneq : e0 <> e2_2);
+      [crush
+      |eapply H0 in Hneq; eauto].
+
+    (*fn*)
+    destruct e2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : t <> t1);
+      [intro Hcontra1;
+       subst t
+      |eapply H in Hneq; eauto];
+      assert (Hneq : e <> e2);
+      [intro Hcontra1;
+       subst e
+      |eapply H0 in Hneq; eauto];
+      assert (Hneq : t0 <> t2);
+      [crush
+      |eapply H1 in Hneq; eauto].
+
+    (*acc*)
+    destruct e2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : e <> e2);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*var*)
+    destruct e2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    destruct v, v0;
+      try solve [crush].
+    simpl in H1; unfold raise_nat in H1.
+    destruct (lt_dec n0 n) as [Hlt1|Hlt1];
+      assert (Hlt1' := Hlt1);
+      [apply Nat.ltb_lt in Hlt1
+      |apply Nat.ltb_nlt in Hlt1];
+      rewrite Hlt1 in H1;
+      [destruct (lt_dec n1 n) as [Hlt2|Hlt2];
+       assert (Hlt2' := Hlt2);
+       [apply Nat.ltb_lt in Hlt2
+       |apply Nat.ltb_nlt in Hlt2];
+       rewrite Hlt2 in H1
+      |destruct (lt_dec n1 n) as [Hlt2|Hlt2];
+       assert (Hlt2' := Hlt2);
+       [apply Nat.ltb_lt in Hlt2
+       |apply Nat.ltb_nlt in Hlt2];
+       rewrite Hlt2 in H1];
+      inversion H1; subst;
+        try solve [crush].
+    apply Nat.add_cancel_r in H2; subst n0; crush.
+
+    (*loc*)
+    destruct e2; simpl;
+      try solve [crush].
+
+    (*cast*)
+    destruct e2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : e <> e2);
+      [intro Hcontra1;
+       subst e
+      |eapply H in Hneq; eauto];
+      assert (Hneq : t <> t0);
+      [crush
+      |eapply H0 in Hneq; eauto].
+
+    (*equal exp*)
+    destruct d2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : t <> t0);
+      [crush
+      |eapply H in Hneq; eauto].
+
+    (*value exp*)
+    destruct d2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : e <> e0);
+      [intro Hcontra1;
+       subst e
+      |eapply H in Hneq; eauto];
+      assert (Hneq : t <> t0);
+      [crush
+      |eapply H0 in Hneq; eauto].
+
+    (*nil exp*)
+    destruct ds2;
+      crush.
+
+    (*con exp*)
+    destruct ds2; simpl;
+      try solve [crush].
+    intro Hcontra;
+      inversion Hcontra.
+    assert (Hneq : d <> d1);
+      [intro Hcontra1;
+       subst d
+      |eapply H in Hneq; eauto];
+      assert (Hneq : d0 <> ds2);
+      [crush
+      |eapply H0 in Hneq; eauto].    
+  Qed.
+
+  Lemma raise_neq_type :
+    (forall t1 t2, t1 <> t2 ->
+              forall n, (t1 raise_t n) <> (t2 raise_t n)).
+  Proof.
+    destruct raise_neq_mutind; crush.
+  Qed.
+
+  Lemma raise_neq_decl_ty :
+    (forall s1 s2, s1 <> s2 ->
+              forall n, (s1 raise_s n) <> (s2 raise_s n)).
+  Proof.
+    destruct raise_neq_mutind; crush.
+  Qed.
+
+  Lemma raise_neq_decl_tys :
+    (forall ss1 ss2, ss1 <> ss2 ->
+                forall n, (ss1 raise_ss n) <> (ss2 raise_ss n)).
+  Proof.
+    destruct raise_neq_mutind; crush.
+  Qed.
+
+  Lemma raise_neq_exp :    
+    (forall e1 e2, e1 <> e2 ->
+              forall n, (e1 raise_e n) <> (e2 raise_e n)).
+  Proof.
+    destruct raise_neq_mutind; crush.
+  Qed.
+
+  Lemma raise_neq_decl :    
+    (forall d1 d2, d1 <> d2 ->
+              forall n, (d1 raise_d n) <> (d2 raise_d n)).
+  Proof.
+    destruct raise_neq_mutind; crush.
+  Qed.
+
+  Lemma raise_neq_decls :
+    (forall ds1 ds2, ds1 <> ds2 ->
+                forall n, (ds1 raise_ds n) <> (ds2 raise_ds n)).
+  Proof.
+    destruct raise_neq_mutind; crush.
+  Qed.
+
+  Lemma notin_raise_mutind :
+    (forall e t, e notin_t t ->
+            forall n, (e raise_e n) notin_t  (t raise_t n)) /\
+    
+    (forall e s, e notin_s s ->
+            forall n, (e raise_e n) notin_s  (s raise_s n)) /\
+    
+    (forall e ss, e notin_ss ss ->
+             forall n, (e raise_e n) notin_ss  (ss raise_ss n)) /\
+    
+    (forall e e', e notin_e e' ->
+             forall n, (e raise_e n) notin_e  (e' raise_e n)) /\
+    
+    (forall e d, e notin_d d ->
+            forall n, (e raise_e n) notin_d  (d raise_d n)) /\
+    
+    (forall e ds, e notin_ds ds ->
+             forall n, (e raise_e n) notin_ds  (ds raise_ds n)).
+  Proof.
+    apply notin_mutind; intros; simpl; eauto;
+      try solve [apply raise_neq_exp with (n:=n0) in n; auto];
+      try solve [apply raise_neq_exp with (n:=n1) in n0; auto];
+      try solve [apply raise_neq_exp with (n:=n2) in n1; auto].
+
+    (*arr*)
+    apply ni_arr; auto;
+      assert (Hni : ((e raise_e 0) raise_e (S n1)) notin_t (t2 raise_t (S n1)));
+      [eauto
+      |rewrite raise_add_exp in Hni;
+       [auto|crush]].
+
+    (*str*)
+    apply ni_str; auto;
+      assert (Hni : ((e raise_e 0) raise_e (S n0)) notin_ss (ss raise_ss (S n0)));
+      [eauto
+      |rewrite raise_add_exp in Hni;
+       [auto|crush]].
+
+    (*fn*)
+    apply ni_fn; eauto;
+      apply raise_neq_exp with (n:=n3) in n2;
+      eauto;
+      assert (Hni1 := (H0 (S n3)));
+      assert (Hni2 := (H1 (S n3)));
+      rewrite raise_add_exp in Hni1, Hni2;
+      crush.
+
+    (*new*)
+    apply raise_neq_exp with (n:=n1) in n0; auto.
+    apply ni_new; auto.
+    assert (Hni := H (S n1));
+      rewrite raise_add_exp in Hni;
+      crush.
+    
+  Qed.
+
+  Lemma notin_raise_type :
+    (forall e t, e notin_t t ->
+            forall n, (e raise_e n) notin_t  (t raise_t n)).
+  Proof.
+    destruct notin_raise_mutind; crush.
+  Qed.
+
+  Lemma notin_raise_decl_ty :
+    (forall e s, e notin_s s ->
+            forall n, (e raise_e n) notin_s  (s raise_s n)).
+  Proof.
+    destruct notin_raise_mutind; crush.
+  Qed.
+
+  Lemma notin_raise_decl_tys :
+    (forall e ss, e notin_ss ss ->
+             forall n, (e raise_e n) notin_ss  (ss raise_ss n)).
+  Proof.
+    destruct notin_raise_mutind; crush.
+  Qed.
+
+  Lemma notin_raise_exp :
+    (forall e e', e notin_e e' ->
+             forall n, (e raise_e n) notin_e  (e' raise_e n)).
+  Proof.
+    destruct notin_raise_mutind; crush.
+  Qed.
+
+  Lemma notin_raise_decl :
+    (forall e d, e notin_d d ->
+            forall n, (e raise_e n) notin_d  (d raise_d n)).
+  Proof.
+    destruct notin_raise_mutind; crush.
+  Qed.
+
+  Lemma notin_raise_decls :
+    (forall e ds, e notin_ds ds ->
+             forall n, (e raise_e n) notin_ds  (ds raise_ds n)).
+  Proof.
+    destruct notin_raise_mutind; crush.
+  Qed.
+
   Lemma differing_subst_equality_mutind :
     (forall t1 p1 n1
        t2 p2 n2, ([p1 /t n1] t1) = ([p2 /t n2] t2) ->
                  p1 notin_t t1 ->
                  p2 notin_t t2 ->
+                 p1 notin_e p2 ->
                  p2 notin_e p1 ->
                  n1 <> n2 ->
+                 closed_exp p2 0 ->
                  exists t, t1 = ([p2 /t n2] t) /\
                       (p2 notin_t t)) /\
   
@@ -10271,8 +10750,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        s2 p2 n2, ([p1 /s n1] s1) = ([p2 /s n2] s2) ->
                  p1 notin_s s1 ->
                  p2 notin_s s2 ->
+                 p1 notin_e p2 ->
                  p2 notin_e p1 ->
                  n1 <> n2 ->
+                 closed_exp p2 0 ->
                  exists s, s1 = ([p2 /s n2] s) /\
                       (p2 notin_s s)) /\
   
@@ -10280,8 +10761,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        ss2 p2 n2, ([p1 /ss n1] ss1) = ([p2 /ss n2] ss2) ->
                   p1 notin_ss ss1 ->
                   p2 notin_ss ss2 ->
+                  p1 notin_e p2 ->
                   p2 notin_e p1 ->
                   n1 <> n2 ->
+                  closed_exp p2 0 ->
                   exists ss, ss1 = ([p2 /ss n2] ss) /\
                         (p2 notin_ss ss)) /\
   
@@ -10289,8 +10772,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        e2 p2 n2, ([p1 /e n1] e1) = ([p2 /e n2] e2) ->
                  p1 notin_e e1 ->
                  p2 notin_e e2 ->
+                 p1 notin_e p2 ->
                  p2 notin_e p1 ->
                  n1 <> n2 ->
+                 closed_exp p2 0 ->
                  exists e, e1 = ([p2 /e n2] e) /\
                       (p2 notin_e e)) /\
   
@@ -10298,8 +10783,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        d2 p2 n2, ([p1 /d n1] d1) = ([p2 /d n2] d2) ->
                  p1 notin_d d1 ->
                  p2 notin_d d2 ->
+                 p1 notin_e p2 ->
                  p2 notin_e p1 ->
                  n1 <> n2 ->
+                 closed_exp p2 0 ->
                  exists d, d1 = ([p2 /d n2] d) /\
                       (p2 notin_d d)) /\
   
@@ -10307,8 +10794,10 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        ds2 p2 n2, ([p1 /ds n1] ds1) = ([p2 /ds n2] ds2) ->
                   p1 notin_ds ds1 ->
                   p2 notin_ds ds2 ->
+                  p1 notin_e p2 ->
                   p2 notin_e p1 ->
                   n1 <> n2 ->
+                  closed_exp p2 0 ->
                   exists ds, ds1 = ([p2 /ds n2] ds) /\
                         (p2 notin_ds ds)).
   Proof.
@@ -10317,53 +10806,801 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     (*str*)
     destruct t2 as [ss'| | | |];
       inversion H0.
-    apply H in H6; auto;
+    apply H in H8; auto;
       try solve [inversion H1; auto];
-      try solve [inversion H2; auto].
-    destruct H6 as [ss Ha];
+      try solve [inversion H2; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto];
+      try solve [apply notin_raise_exp; auto].
+    destruct H8 as [ss Ha];
       destruct Ha as [Ha Hb].
     exists (str ss); subst; auto.
-    admit.
+        
+    (*sel*)
+    destruct t2 as [|p' l'| | |];
+      inversion H0;
+      subst.
+    apply H in H8; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto].
+    destruct H8 as [e' Ha];
+      destruct Ha as [Ha Hb].
+    exists (sel e' l'); split; subst; auto.
 
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
+    (*arr*)
+    destruct t2 as [| |t1' t2'| |];
+      inversion H1;
+      subst.
+    apply H in H9;
+      apply H0 in H10;
+      auto;
+      try solve [inversion H2; auto];
+      try solve [inversion H3; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    destruct H9 as [t1 Ha];
+      destruct Ha as [Ha Hb];
+      destruct H10 as [t2 Hc];
+      destruct Hc as [Hc Hd].
+    exists (t1 arr t2); split; subst; auto.
 
-    destruct e2 as [| | | |x| |];
-      try solve [destruct v;
-                inversion H].
+    (*top*)
+    exists top; auto.
+
+    (*bot*)
+    exists bot; auto.
+
+    (*upper type*)
+    destruct s2 as [l' t'| | |];
+      inversion H0;
+      subst.
+    apply H in H9; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto].
+    destruct H9 as [t'' Ha];
+      destruct Ha as [Ha Hb].
+    exists (type l' ext t''); split; subst; auto.
+
+    (*lower type*)
+    destruct s2 as [|l' t'| |];
+      inversion H0;
+      subst.
+    apply H in H9; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto].
+    destruct H9 as [t'' Ha];
+      destruct Ha as [Ha Hb].
+    exists (type l' sup t''); split; subst; auto.
+
+    (*equal type*)
+    destruct s2 as [| |l' t'|];
+      inversion H0;
+      subst.
+    apply H in H9; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto].
+    destruct H9 as [t'' Ha];
+      destruct Ha as [Ha Hb].
+    exists (type l' eqt t''); split; subst; auto.
+
+    (*value type*)
+    destruct s2 as [| | |l' t'];
+      inversion H0;
+      subst.
+    apply H in H9; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto].
+    destruct H9 as [t'' Ha];
+      destruct Ha as [Ha Hb].
+    exists (val l' oft t''); split; subst; auto.
+
+    (*nil type*)
+    exists dt_nil; auto.
+
+    (*con type*)
+    destruct ss2 as [|d' ds'];
+      inversion H1;
+      subst.
+    apply H in H9;
+      apply H0 in H10;
+      auto;
+      try solve [inversion H2; auto];
+      try solve [inversion H3; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    destruct H9 as [s Ha];
+      destruct Ha as [Ha Hb];
+      destruct H10 as [ss Hc];
+      destruct Hc as [Hc Hd].
+    exists (dt_con s ss); split; subst; auto.
+
+    (*new*)
+    destruct e2 as [ds| | | | | |];
+      inversion H0.
+    apply H in H8; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    destruct H8 as [ds' Ha];
+      destruct Ha as [Ha Hb].
+    exists (new ds'); split; subst; auto.
+    apply ni_new; auto.
+    intro Hcontra; subst.
+    apply closed_exp_new in H6.
+    rewrite closed_subst_decls with (n:=S n2)(ds:=ds') in H0;
+      try solve [apply H6; crush].
+    rewrite closed_subst_exp with (n:=n1) in H0;
+      [|apply <- closed_exp_new; eauto; crush].
+    apply subst_notin_itself with (n:=n2) in H2; crush.
+
     destruct v as [x|x];
+      try solve [inversion H8].
+    destruct (n2 =? x);
+      [|inversion H8].
+    assert (Hrewrite : new ([p1 raise_e 0 /ds S n1] d) = [p1 /e n1] (new d));
+      [auto|rewrite Hrewrite in H8].
+    rewrite <- H8 in H3;
+      apply notin_subst_closed_exp in H3;
+      rewrite closed_subst_exp in H8; auto.
+    exists (a_ n2); split; [|apply ni_var; subst; crush].
+    simpl; rewrite <- beq_nat_refl; auto.
+
+    (*app*)
+    destruct e2 as [|e1 e2| | | | |];
+      inversion H1.
+    apply H in H9; auto;
+      try solve [inversion H2; auto];
+      try solve [inversion H3; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    apply H0 in H10; auto;
+      try solve [inversion H2; auto];
+      try solve [inversion H3; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    destruct H9 as [e1' Ha];
+      destruct Ha as [Ha Hb];
+      destruct H10 as [e2' Hc];
+      destruct Hc as [Hc Hd].
+    exists (e_app e1' e2'); subst; split; auto.
+    apply ni_app; auto.
+    intro Hcontra; subst.
+    apply closed_exp_app in H7;
+      destruct H7 as [He Hf].
+    rewrite closed_subst_exp with (n:=n2)(e:=e1') in H1;
+      try solve [apply He; crush].
+    rewrite closed_subst_exp with (n:=n2)(e:=e2') in H1;
+      try solve [apply Hf; crush].
+    rewrite closed_subst_exp with (n:=n1) in H1;
+      [|apply <- (closed_exp_app 0); crush].
+    apply subst_notin_itself with (n:=n2) in H3; crush.
+
+    destruct v as [x|x];
+      try solve [inversion H9].
+    destruct (n2 =? x);
+      [|inversion H9].
+    assert (Hrewrite : e_app ([p1 /e n1] e) ([p1 /e n1] e0) = [p1 /e n1](e_app e e0));
+      [auto|rewrite Hrewrite in H9].
+    rewrite <- H9 in H4;
+      apply notin_subst_closed_exp in H4;
+      rewrite closed_subst_exp in H9; auto.
+    exists (a_ n2); split; [|apply ni_var; subst; crush].
+    simpl; rewrite <- beq_nat_refl; auto.
+
+    (*fn*)
+    destruct e2 as [| |t1 e0 t2| | | |];
+      inversion H2.
+    apply H in H10; auto;
+      try solve [inversion H3; auto];
+      try solve [inversion H4; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    apply H0 in H11; auto;
+      try solve [inversion H3; auto];
+      try solve [inversion H4; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    apply H1 in H12; auto;
+      try solve [inversion H3; auto];
+      try solve [inversion H4; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    destruct H10 as [t1' Ha];
+      destruct Ha as [Ha Hb];
+      destruct H11 as [e0' Hc];
+      destruct Hc as [Hc Hd];
+      destruct H12 as [t2' He];
+      destruct He as [He Hf].
+    exists (fn t1' in_exp e0' off t2'); subst; split; auto.
+    apply ni_fn; auto.
+    intro Hcontra; subst.
+    apply closed_exp_fn in H8;
+      destruct H8 as [Hg Hh];
+      destruct Hh as [Hh Hi].
+    rewrite closed_subst_type with (n:=n2)(t:=t1') in H2;
+      try solve [apply Hg; crush].
+    rewrite closed_subst_exp with (n:=S n2)(e:=e0') in H2;
+      try solve [apply Hh; crush].
+    rewrite closed_subst_type with (n:=S n2)(t:=t2') in H2;
+      try solve [apply Hi; crush].
+    rewrite closed_subst_exp with (n:=n1) in H2;
+      [|apply <- (closed_exp_fn 0); crush].
+    apply subst_notin_itself with (n:=n2) in H4; crush.
+    
+    destruct v as [x|x];
+      try solve [inversion H10].
+    destruct (n2 =? x);
+      [|inversion H10].
+    assert (Hrewrite : (fn ([p1 /t n1] t) in_exp ([p1 raise_e 0 /e S n1] e) off ([p1 raise_e 0 /t S n1] t0)) = [p1 /e n1](fn t in_exp e off t0));
+      [auto|rewrite Hrewrite in H10].
+    rewrite <- H10 in H5;
+      apply notin_subst_closed_exp in H5;
+      rewrite closed_subst_exp in H10; auto.
+    exists (a_ n2); split; [|apply ni_var; subst; crush].
+    simpl; rewrite <- beq_nat_refl; auto.
+
+    (*acc*)
+    destruct e2 as [| | |e' l'| | |];
+      inversion H0.
+    apply H in H8; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto];
+      try solve [apply notin_raise_exp; auto];
+      try solve [rewrite raise_closed_le_exp with (n:=0); auto].
+    destruct H8 as [e'' Ha];
+      destruct Ha as [Ha Hb].
+    exists (e_acc e'' l'); split; subst; auto.
+    apply ni_acc; auto.
+    intro Hcontra; subst.
+    apply closed_exp_acc in H6.
+    rewrite closed_subst_exp with (n:=n2)(e:=e'') in H0;
+      try solve [apply H6; crush].
+    rewrite closed_subst_exp with (n:=n1) in H0;
+      [|apply <- closed_exp_acc; eauto; crush].
+    apply subst_notin_itself with (n:=n2) in H2; crush.
+
+    destruct v as [x|x];
+      try solve [inversion H8].
+    destruct (n2 =? x);
+      [|inversion H8].
+    assert (Hrewrite : e_acc ([p1 /e n1] e) l = [p1 /e n1] (e_acc e l));
+      [auto|rewrite Hrewrite in H8].
+    rewrite <- H8 in H3;
+      apply notin_subst_closed_exp in H3;
+      rewrite closed_subst_exp in H8; auto.
+    exists (a_ n2); split; [|apply ni_var; subst; crush].
+    simpl; rewrite <- beq_nat_refl; auto.
+    
+    (*var*)
+    destruct e2 as [| | | |v'| |];
+      try solve [destruct v;
+                 inversion H];
+    try solve [destruct v as [x|x];
+               inversion H;
+               destruct (n1 =? x);
+               [|inversion H7];
+               exists (a_ x); split;
+               [assert (x = n1);
+                [simpl in H ;
+                 destruct (Nat.eq_dec n1 x) as [|Hneq];
+                 [subst; auto
+                 |apply Nat.eqb_neq in Hneq;
+                  rewrite Hneq in H;
+                  inversion H]
+                |subst x];
+                simpl;
+                apply Nat.eqb_neq in H4;
+                rewrite Nat.eqb_sym, H4; auto|];
+               apply ni_var;
+               intro Hcontra;
+               subst p2;
+               assert (Hle : 0<=x);
+               [crush
+               |apply H5 in Hle];
+               inversion Hle;
+               subst;
+               inversion H9; crush].
+    destruct v as [x|x];
+      destruct v' as [y|y];
+      try solve [simpl in H;
+                 inversion H;
+                 subst;
+                 exists (c_ y);
+                 simpl; split; auto].
+    simpl in H;
+      exists (a_ y); split; auto.
+    simpl in H;
+      exists (a_ x);
+      simpl;
+      destruct (Nat.eq_dec n1 x) as [|Hneq];
+      [subst;
+       rewrite Nat.eqb_sym;
+       apply Nat.eqb_neq in H4;
+       rewrite H4;
+       split; auto;
+       apply ni_var;
+       intro Hcontra;
+       subst p2;
+       assert (Hle : 0 <= x);
+       [crush
+       |apply H5 in Hle;
+        inversion Hle;
+        inversion H8;
+        crush]
+      |apply Nat.eqb_neq in Hneq;
+       rewrite Hneq in H;
+       inversion H].
+    simpl in H;
+      destruct (Nat.eq_dec n1 x) as [|Hneq1]; [subst|];
+      destruct (Nat.eq_dec n2 y) as [|Hneq2];
+      [subst;
+       repeat rewrite <- beq_nat_refl in H;
+       subst;
+       contradiction (notin_refl_contra H2)
+      |exists (a_ x);
+       simpl;
+       apply Nat.eqb_neq in H4;
+       rewrite Nat.eqb_sym, H4;
+       split;
+       auto;
+       apply ni_var;
+       intro Hcontra;
+       subst;
+       assert (Hle : 0 <= x);
+       [crush
+       |apply H5 in Hle;
+        inversion Hle;
+        inversion H8;
+        crush]
+      |subst;
+       apply Nat.eqb_neq in Hneq1;
+       rewrite Hneq1 in H;
+       exists (a_ y); simpl;
+       split; auto
+      |apply Nat.eqb_neq in Hneq1;
+       rewrite Hneq1 in H;
+       exists (a_ y); split; auto].
+
+    (*loc*)
+    destruct e2 as [| | | | |i|];
       inversion H.
-    destruct (n1 =? x);
-      [|inversion H5].
-    exists (a_ x); split.
-    admit.    
+    destruct v as [|x];
+      [inversion H7|].
+    destruct (n2 =? x);
+      [subst|inversion H7].
+    exists (a_ n2); simpl; rewrite <- beq_nat_refl; split; auto.
+    apply ni_var; crush.
+
+    subst; exists (i_ i); split; auto.
     
-      
+    (*cast*)
+    destruct e2 as [| | | | | |e' t'];
+      inversion H1;
+      subst.
+
+    destruct v as [x|x];
+      try solve [inversion H9].
+    destruct (n2 =? x);
+      [|inversion H9].
+    assert (Hrewrite : (([p1 /e n1] e) cast ([p1 /t n1] t)) = [p1 /e n1] (e cast t));
+      [auto|rewrite Hrewrite in H9].
+    rewrite <- H9 in H4;
+      apply notin_subst_closed_exp in H4;
+      rewrite closed_subst_exp in H9; auto.
+    exists (a_ n2); split; [|apply ni_var; subst; crush].
+    simpl; rewrite <- beq_nat_refl; auto.
     
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
-    admit.
+    apply H in H9; auto;
+      try solve [inversion  H2; auto];
+      try solve [inversion  H3; auto].
+    apply H0 in H10; auto;
+      try solve [inversion  H2; auto];
+      try solve [inversion  H3; auto].
+    destruct H9 as [e0 Ha];
+      destruct Ha as [Ha Hb];
+      destruct H10 as [t0 Hc];
+      destruct Hc as [Hc Hd].
+    exists (e0 cast t0); split; subst; auto.
+    apply ni_cast; auto.
+    intro Hcontra; subst.
+    apply closed_exp_cast in H7;
+      destruct H7 as [Ha Hc].
+    rewrite closed_subst_exp with (n:=n2)(e:=e0), closed_subst_type with (n:=n2)(t:=t0) in H1;
+      try solve [apply Ha; crush];
+      try solve [apply Hc; crush].
+    rewrite closed_subst_exp with (n:=n1) in H1;
+      [|apply <- closed_exp_cast; eauto; crush].
+    apply subst_notin_itself with (n:=n2) in H3; crush.
+
+    (*equal exp*)
+    destruct d2 as [l' t'|];
+      inversion H0;
+      subst.
+    apply H in H9; auto;
+      try solve [inversion H1; auto];
+      try solve [inversion H2; auto].
+    destruct H9 as [t'' Ha];
+      destruct Ha as [Ha Hb].
+    exists (type l' eqe t''); split; subst; auto.
+
+    (*value exp*)
+    destruct d2 as [|l' e' t'];
+      inversion H1;
+      subst.
+    apply H in H10;
+      apply H0 in H11; auto;
+      try solve [inversion H2; auto];
+      try solve [inversion H3; auto].
+    destruct H10 as [e'' Ha];
+      destruct Ha as [Ha Hb];
+      destruct H11 as [t'' Hc];
+      destruct Hc as [Hc Hd].
+    exists (val l' assgn e'' oft t''); split; subst; auto.
+
+    (*nil exp*)
+    exists d_nil; split; auto.
+
+    (*con exp*)
+    destruct ds2 as [|d2' ds2'];
+      inversion H1;
+      subst.
+    apply H in H9;
+      apply H0 in H10; auto;
+      try solve [inversion H2; auto];
+      try solve [inversion H3; auto].
+    destruct H9 as [d'' Ha];
+      destruct Ha as [Ha Hb];
+      destruct H10 as [ds'' Hc];
+      destruct Hc as [Hc Hd].
+    exists (d_con d'' ds''); split; subst; auto.
+  Qed.
+
+  Lemma differing_subst_equality_type :
+    (forall t1 p1 n1
+       t2 p2 n2, ([p1 /t n1] t1) = ([p2 /t n2] t2) ->
+                 p1 notin_t t1 ->
+                 p2 notin_t t2 ->
+                 p1 notin_e p2 ->
+                 p2 notin_e p1 ->
+                 n1 <> n2 ->
+                 closed_exp p2 0 ->
+                 exists t, t1 = ([p2 /t n2] t) /\
+                      (p2 notin_t t)).
+  Proof.
+    destruct differing_subst_equality_mutind; crush.
+  Qed.
+
+  Lemma differing_subst_equality_decl_ty :
+    (forall s1 p1 n1
+       s2 p2 n2, ([p1 /s n1] s1) = ([p2 /s n2] s2) ->
+                 p1 notin_s s1 ->
+                 p2 notin_s s2 ->
+                 p1 notin_e p2 ->
+                 p2 notin_e p1 ->
+                 n1 <> n2 ->
+                 closed_exp p2 0 ->
+                 exists s, s1 = ([p2 /s n2] s) /\
+                      (p2 notin_s s)).
+  Proof.
+    destruct differing_subst_equality_mutind; crush.
+  Qed.
+
+  Lemma differing_subst_equality_decl_tys :  
+    (forall ss1 p1 n1
+       ss2 p2 n2, ([p1 /ss n1] ss1) = ([p2 /ss n2] ss2) ->
+                  p1 notin_ss ss1 ->
+                  p2 notin_ss ss2 ->
+                  p1 notin_e p2 ->
+                  p2 notin_e p1 ->
+                  n1 <> n2 ->
+                  closed_exp p2 0 ->
+                  exists ss, ss1 = ([p2 /ss n2] ss) /\
+                        (p2 notin_ss ss)).
+  Proof.
+    destruct differing_subst_equality_mutind; crush.
+  Qed.
+
+  Lemma differing_subst_equality_exp :  
+    (forall e1 p1 n1
+       e2 p2 n2, ([p1 /e n1] e1) = ([p2 /e n2] e2) ->
+                 p1 notin_e e1 ->
+                 p2 notin_e e2 ->
+                 p1 notin_e p2 ->
+                 p2 notin_e p1 ->
+                 n1 <> n2 ->
+                 closed_exp p2 0 ->
+                 exists e, e1 = ([p2 /e n2] e) /\
+                      (p2 notin_e e)).
+  Proof.
+    destruct differing_subst_equality_mutind; crush.
+  Qed.
+
+  Lemma differing_subst_equality_decl :  
+    (forall d1 p1 n1
+       d2 p2 n2, ([p1 /d n1] d1) = ([p2 /d n2] d2) ->
+                 p1 notin_d d1 ->
+                 p2 notin_d d2 ->
+                 p1 notin_e p2 ->
+                 p2 notin_e p1 ->
+                 n1 <> n2 ->
+                 closed_exp p2 0 ->
+                 exists d, d1 = ([p2 /d n2] d) /\
+                      (p2 notin_d d)).
+  Proof.
+    destruct differing_subst_equality_mutind; crush.
+  Qed.
+
+  Lemma differing_subst_equality_decls :  
+    (forall ds1 p1 n1
+       ds2 p2 n2, ([p1 /ds n1] ds1) = ([p2 /ds n2] ds2) ->
+                  p1 notin_ds ds1 ->
+                  p2 notin_ds ds2 ->
+                  p1 notin_e p2 ->
+                  p2 notin_e p1 ->
+                  n1 <> n2 ->
+                  closed_exp p2 0 ->
+                  exists ds, ds1 = ([p2 /ds n2] ds) /\
+                        (p2 notin_ds ds)).
+  Proof.
+    destruct differing_subst_equality_mutind; crush.
+  Qed.
+
+  Lemma wf_unbound_mutind :
+    (forall Sig G t, Sig en G vdash t wf_t ->
+              forall r, r >= length G ->
+                   r unbound_t t) /\
+  
+    (forall Sig G s, Sig en G vdash s wf_s ->
+              forall r, r >= length G ->
+                   r unbound_s s) /\
+  
+    (forall Sig G ss, Sig en G vdash ss wf_ss ->
+               forall r, r >= length G ->
+                    r unbound_ss ss) /\
+  
+    (forall Sig G e, Sig en G vdash e wf_e ->
+              forall r, r >= length G ->
+                   r unbound_e e) /\
+  
+    (forall Sig G d, Sig en G vdash d wf_d ->
+              forall r, r >= length G ->
+                   r unbound_d d) /\
+  
+    (forall Sig G ds, Sig en G vdash ds wf_ds ->
+               forall r, r >= length G ->
+                    r unbound_ds ds).
+  Proof.
+    apply wf_mutind; intros; auto.
+
+    (*arr*)
+    apply ub_arr; auto;
+      apply le_lt_or_eq in H1;
+      destruct H1 as [Ha|Ha];
+      subst;
+      auto;
+      destruct r as [|r'];
+      [crush|];
+      eapply unbound_subst_type;
+      eapply (H0 (S r')); crush.
+
+    (*str*)
+    apply ub_str; auto;
+      apply le_lt_or_eq in H0;
+      destruct H0 as [Ha|Ha];
+      subst;
+      auto;
+      destruct r as [|r'];
+      [crush|];
+      eapply unbound_subst_decl_tys;
+      eapply (H (S r')); crush.
+
+    (*var*)
+    crush.
+
+    (*fn*)
+    apply ub_fn; auto;
+      apply le_lt_or_eq in H2;
+      destruct H2 as [Ha|Ha];
+      subst;
+      auto;
+      [destruct r as [|r'];
+       [crush|];
+       eapply unbound_subst_exp;
+       eapply (H0 (S r')); crush
+      |destruct r as [|r'];
+       [crush|];
+       eapply unbound_subst_type;
+       eapply (H1 (S r')); crush].
+
+    (*new*)
+    apply ub_new; auto;
+      apply le_lt_or_eq in H0;
+      destruct H0 as [Ha|Ha];
+      subst;
+      auto;
+      destruct r as [|r'];
+      [crush|];
+      eapply unbound_subst_decls;
+      eapply (H (S r')); crush.
     
   Qed.
 
-    Lemma typing_exists_subst_mutind :
+  Lemma wf_unbound_type :
+    (forall Sig G t, Sig en G vdash t wf_t ->
+              forall r, r >= length G ->
+                   r unbound_t t).
+  Proof.
+    destruct wf_unbound_mutind; crush.
+  Qed.
+
+  Lemma wf_unbound_decl_ty :
+    (forall Sig G s, Sig en G vdash s wf_s ->
+              forall r, r >= length G ->
+                   r unbound_s s).
+  Proof.
+    destruct wf_unbound_mutind; crush.
+  Qed.
+
+  Lemma wf_unbound_decl_tys :
+    (forall Sig G ss, Sig en G vdash ss wf_ss ->
+               forall r, r >= length G ->
+                    r unbound_ss ss).
+  Proof.
+    destruct wf_unbound_mutind; crush.
+  Qed.
+
+  Lemma wf_unbound_exp :
+    (forall Sig G e, Sig en G vdash e wf_e ->
+              forall r, r >= length G ->
+                   r unbound_e e).
+  Proof.
+    destruct wf_unbound_mutind; crush.
+  Qed.
+
+  Lemma wf_unbound_decl :
+    (forall Sig G d, Sig en G vdash d wf_d ->
+              forall r, r >= length G ->
+                   r unbound_d d).
+  Proof.
+    destruct wf_unbound_mutind; crush.
+  Qed.
+
+  Lemma wf_unbound_decls :
+    (forall Sig G ds, Sig en G vdash ds wf_ds ->
+               forall r, r >= length G ->
+                    r unbound_ds ds).
+  Proof.
+    destruct wf_unbound_mutind; crush.
+  Qed.
+
+  Lemma unbound_in_decl_unbound_in_type :
+    forall d r, r unbound_d d ->
+           forall Sig G s, Sig en G vdash d hasType_d s ->
+                    r unbound_s s.
+  Proof.
+    intro d; destruct d; intros.
+
+    inversion H0; subst; auto.
+    inversion H; auto.
+
+    inversion H0; subst; auto.
+    inversion H; auto.
+  Qed.
+
+  Lemma notin_decl_notin_type :
+    forall Sig G d s, Sig en G vdash d hasType_d s ->
+               forall p n d', d = ([p /d n] d') ->
+                         p notin_d d' ->
+                         exists s', s = ([p /s n] s') /\
+                               p notin_s s'.
+  Proof.
+    intros Sig G d s Htyp; inversion Htyp; intros; auto.
+
+    destruct d';
+      inversion H3;
+      subst L t.
+    exists (type l eqt t0); simpl; subst; split; auto.
+    inversion H4; auto.
+
+    destruct d';
+      inversion H5;
+      subst.
+    exists (val l0 oft t0); simpl; subst; split; auto.
+    inversion H6; auto.
+  Qed.
+
+  Lemma notin_decls_notin_types :
+    forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                 forall p n ds', ds = ([p /ds n] ds') ->
+                           p notin_ds ds' ->
+                           exists ss', ss = ([p /ss n] ss') /\
+                                  p notin_ss ss'.
+  Proof.
+    intros Sig G ds ss Htyp;
+      induction Htyp; intros; auto.
+
+    exists dt_nil; split; auto.
+
+    destruct ds' as [|d'' ds''];
+      inversion H0;
+      subst d ds.
+    apply notin_decl_notin_type with (p:=p)(n:=n)(d':=d'') in H; auto;
+    [|inversion H1; auto].
+    destruct H as [s'' Ha];
+      destruct Ha as [Ha Hb];
+      subst s.
+    destruct IHHtyp with (p0:=p)(n0:=n)(ds':=ds'') as [ss'' Hc]; auto;
+      [inversion H1; auto
+      |destruct Hc as [Hc Hd]];
+      subst ss.
+    exists (dt_con s'' ss''); simpl; subst; split; auto.
+  Qed.
+
+  Lemma rename_is_closed_mutind :
+    (forall t n m, n <> m -> closed_t n (t [n maps_t m])) /\
+  
+    (forall s n m, n <> m -> closed_s n (s [n maps_s m])) /\
+  
+    (forall ss n m, n <> m -> closed_ss n (ss [n maps_ss m])) /\
+  
+    (forall e n m, n <> m -> closed_e n (e [n maps_e m])) /\
+  
+    (forall d n m, n <> m -> closed_d n (d [n maps_d m])) /\
+  
+    (forall ds n m, n <> m -> closed_ds n (ds [n maps_ds m])).
+  Proof.
+    apply type_exp_mutind; intros; auto;
+      try solve [crush].
+
+    (*var*)
+    destruct v as [x|x]; simpl; auto.
+    destruct (Nat.eq_dec x n) as [Heq|Hneq];
+      [subst;
+       rewrite rename_eq
+      |rewrite rename_neq;
+       auto].
+    apply cl_var, cl_abstract; auto.
+  Qed.
+
+  Lemma rename_is_closed_type :
+    (forall t n m, n <> m -> closed_t n (t [n maps_t m])).
+  Proof.
+    destruct rename_is_closed_mutind; crush.
+  Qed.
+
+  Lemma rename_is_closed_decl_ty :
+    (forall s n m, n <> m -> closed_s n (s [n maps_s m])).
+  Proof.
+    destruct rename_is_closed_mutind; crush.
+  Qed.
+
+  Lemma rename_is_closed_decl_tys :
+    (forall ss n m, n <> m -> closed_ss n (ss [n maps_ss m])).
+  Proof.
+    destruct rename_is_closed_mutind; crush.
+  Qed.
+
+  Lemma rename_is_closed_exp :
+    (forall e n m, n <> m -> closed_e n (e [n maps_e m])).
+  Proof.
+    destruct rename_is_closed_mutind; crush.
+  Qed.
+
+  Lemma rename_is_closed_decl :
+    (forall d n m, n <> m -> closed_d n (d [n maps_d m])).
+  Proof.
+    destruct rename_is_closed_mutind; crush.
+  Qed.
+
+  Lemma rename_is_closed_decls :
+    (forall ds n m, n <> m -> closed_ds n (ds [n maps_ds m])).
+  Proof.
+    destruct rename_is_closed_mutind; crush.
+  Qed.
+
+  
+
+    Lemma typing_exists_subst_exp :
     (forall Sig G e t, Sig en G vdash e hasType t ->
                 Sig wf_st ->
                 forall r G1 G2 n e',
@@ -10436,7 +11673,8 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       try solve [inversion H4; auto];
       try solve [apply closed_exp_app in H10;
                  destruct H10;
-                 auto].
+                 auto];
+      try solve [inversion H11; auto].
     destruct tarr as [ | |t1' t2'| |];
       destruct Ha as [Ha Hb];
       inversion Ha;
@@ -10471,6 +11709,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       try solve [apply closed_exp_app in H10;
                  destruct H10;
                  auto];
+      try solve [inversion H11; auto];
       destruct t'' as [| |t1' t2'| |];
       destruct Ha as [Ha Hb];
       inversion Ha;
@@ -10529,11 +11768,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
     (*new*)
     destruct e' as [ds'| | | | | |];
-      inversion H2;
+      inversion H3;
       try solve [destruct v as [x|x];
-                 [inversion H12
+                 [inversion H13
                  |destruct (n =? x);
-                  inversion H12]];
+                  inversion H13]];
       subst ds.
     rewrite closed_subst_distr_decls in H; auto.
     destruct (typing_exists_subst_decls H)
@@ -10541,16 +11780,191 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
            (p:=c_ r)(n0:=S n) as [ss' Ha]; auto;
     [apply unbound_var_notin_decls,
     unbound_subst_components_decls;
-      [inversion H3; subst;
+      [inversion H4; subst;
        apply notin_var_unbound_decls;
        auto
-      |inversion H10; subst;
+      |inversion H11; subst;
        apply ub_var, ub_con; crush]
-     |destruct Ha as [Ha Hb]].
+    |destruct Ha as [Ha Hb]].
+    destruct (differing_subst_equality_decl_tys Ha) as [ss'' Hc]; auto;
+      try solve [inversion H11; subst; apply ni_var;
+                 intro Hcontra; inversion Hcontra; subst;
+                 crush];
+      [apply unbound_var_notin_decl_tys; auto
+      |destruct Hc as [Hc Hd];
+       subst ss].
+    exists (str ss''); subst; simpl; split; auto.
 
+    (*acc path*)
+    destruct e' as [| | |p' l'| | |];
+      inversion H2;
+    try solve [destruct v as [x|x];
+               [inversion H12
+               |destruct (n =? x);
+                inversion H12]];
+    subst p l.
+    destruct (has_exists_subst H)
+      with (r0:=r)(n0:=n)
+           (G1:=G1)(G2:=G2)
+           (p'0:=p')
+      as [s' Ha]; auto;
+      try solve [inversion H3; auto];
+      try solve [eapply closed_exp_acc; eauto];
+      destruct Ha as [Ha Hb];
+      destruct s';
+      inversion Ha;
+      subst l' t.
+    exists t0; split; auto.
+    inversion Hb; auto.
+
+    (*acc*)
+    destruct e' as [| | |e0' l'| | |];
+      inversion H3;
+      try solve [destruct v as [x|x];
+                 [inversion H13
+                 |destruct (n =? x);
+                  inversion H13]].
+    destruct IHHtyp with (r:=r)(G1:=G1)(G2:=G2)(n:=n)(e':=e0') as [t'' Ha];
+      auto;
+      try solve [inversion H4; auto];
+      try solve [apply closed_exp_acc in H10; auto];
+      destruct Ha as [Ha Hb];
+      subst t' l'.
+    destruct (contains_exists_subst H)
+      with (r0:=r)(n0:=n)
+           (G1:=G1)(G2:=G2)
+           (t':=t'')
+      as [s' Hc];
+      auto;
+      [apply closed_typing_exp
+         with (Sig:=Sig)(G:=G)(e:=e);
+       auto;
+       eapply closed_exp_acc; eauto
+      |destruct Hc as [Hc Hd];
+       destruct s';
+       inversion Hc;
+       subst l t].
+    exists (t0[S n maps_t n]); split;
+      [|apply notin_rename_type; 
+        inversion Hd;
+        auto].
+    assert (Hclosed : closed_ty ([c_ r /t S n] t0) 0);
+      [|].
+    intros n' Hin.
+    apply H0.
+    apply closed_typing_exp in Htyp; auto.
+    eapply closed_exp_acc; eauto.
+      
+    rewrite rename_closed_subst_type
+      with (n:=S n)(m:=n); auto.
+    apply Hclosed; crush.
+    Qed.
     
+    Lemma typing_subst :
+    (forall Sig G e t,
+        Sig en G vdash e hasType t ->
+        Sig wf_st ->
+        forall r n G1 G2 e' t',
+          G = ([c_ r /env 0] G1) ++ G2 ->
+          e = ([c_ r /e n] e') ->
+          t = ([c_ r /t n] t') ->
+          (c_ r) notin_e e' ->
+          (c_ r) notin_t t' ->
+          (c_ r) notin_env (G1 ++ G2) ->
+          (c_ r) notin_env Sig ->
+          n = length G1 ->
+          closed_env G 0 ->
+          closed_env Sig 0 ->
+          closed_exp e 0 ->
+          closed_ty t 0 ->
+          Sig evdash G2 wf_env ->
+          forall p2 tp,
+            closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+            Sig en G2 vdash (c_ r) pathType tp ->
+            Sig en G2 vdash p2 pathType tp ->
+            Sig en G2 vdash (c_ r) wf_e ->
+            Sig en G2 vdash p2 wf_e ->
+            Sig en G2 vdash tp wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G1) ++ G2) vdash ([p2 /e n] e') hasType ([p2 /t n] t')).
+    Proof.
+      intros Sig G e t Htyp;
+        induction Htyp; intros; auto.
+
+      (*var*)
+      destruct e' as [| | | |v|i'|];
+        inversion H2.
+      assert (Hptyp := H0);
+        apply typing_p_subst
+          with
+            (G:=G)(p:=[c_ r /e n0](v_ v))
+            (t:=t)(p1:=c_ r)(G1:=G1)
+            (G2:=G2)(n:=n0)(p':=v_ v)
+            (t':=t')(p2:=p2)(tp:=tp)
+        in Hptyp;
+        auto;
+        [|rewrite <- H2; auto].
+      destruct v as [x|x];
+        simpl in *;
+        [inversion Hptyp; auto
+        |destruct (n0 =? x);
+        [|inversion Hptyp]].
+      apply path_typing_implies_typing; auto.
+      apply wf_weakening_actual_exp; auto.
+
+      (*loc*)
+      destruct e' as [| | | |v| |];
+        inversion H2.
+      assert (Hptyp := H0);
+        apply typing_p_subst
+          with
+            (G:=G)(p:=[c_ r /e n](v_ v))
+            (t:=t)(p1:=c_ r)(G1:=G1)
+            (G2:=G2)(n:=n)(p':=v_ v)
+            (t':=t')(p2:=p2)(tp:=tp)
+        in Hptyp;
+        auto;
+        [|rewrite <- H2; auto].
+      destruct v as [x|x];
+        simpl in *;
+        [inversion Hptyp; auto
+        |destruct (n =? x);
+        [|inversion Hptyp]].
+      apply path_typing_implies_typing; auto.
+      apply wf_weakening_actual_exp; auto.
+      
+      assert (Hptyp := H0);
+        apply typing_p_subst
+          with
+            (G:=G)(p:=i_ i)
+            (t:=t)(p1:=c_ r)(G1:=G1)
+            (G2:=G2)(n:=n)(p':=i_ i)
+            (t':=t')(p2:=p2)(tp:=tp)
+        in Hptyp;
+        auto;
+        [|apply ni_loc; crush].
+      simpl in *;
+        inversion H2; subst n0.
+      apply path_typing_implies_typing; auto.
+      apply wf_loc.
+      unfold mapping in H;
+        apply get_some_index in H.
+      rewrite rev_length in H; auto.
+
+      (*cast*)
+      destruct e' as [| | | | | |e0 t0];
+        inversion H2.
+        try solve [destruct v, (n =? m); inversion H22].
+      
+      destruct (typing_exists_subst_exp Htyp)
+        with
+          (r:=r)(G1:=G1)
+          (G2:=G2)(n:=n)
+          (e':=e').
+      
+    Qed.
+      
     
-  Qed.
 
   
 
