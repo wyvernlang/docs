@@ -10188,6 +10188,48 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       try solve [eapply closed_decl_tys_con;
                  eauto].
   Qed.
+    
+  Lemma subtyping_subst_type :
+    (forall Sig G1 t1 t2 G2,
+        Sig en G1 vdash t1 <; t2 dashv G2 ->
+        Sig wf_st ->
+        forall r n G3 G4 G5 G6 t1' t2',
+          G1 = ([c_ r /env 0] G3) ++ G4 ->
+          G2 = ([c_ r /env 0] G5) ++ G6 ->
+          t1 = ([c_ r /t n] t1') ->
+          t2 = ([c_ r /t n] t2') ->
+          (c_ r) notin_t t1' ->
+          (c_ r) notin_t t2' ->
+          (c_ r) notin_env (G3 ++ G4) ->
+          (c_ r) notin_env (G5 ++ G6) ->
+          (c_ r) notin_env Sig ->
+          n = length G3 ->
+          n = length G5 ->
+          closed_env G1 0 ->
+          closed_env G2 0 ->
+          closed_env Sig 0 ->
+          closed_ty t1 0 ->
+          closed_ty t2 0 ->
+          Sig evdash G4 wf_env ->
+          Sig evdash G6 wf_env ->
+          forall p2 tp1 tp2,
+            closed_env (([p2 /env 0] G3) ++ G4) 0 ->
+            closed_env (([p2 /env 0] G5) ++ G6) 0 ->
+            Sig en G4 vdash (c_ r) pathType tp1 ->
+            Sig en G4 vdash p2 pathType tp1 ->
+            Sig en G6 vdash (c_ r) pathType tp2 ->
+            Sig en G6 vdash p2 pathType tp2 ->
+            Sig en G4 vdash (c_ r) wf_e ->
+            Sig en G4 vdash p2 wf_e ->
+            Sig en G4 vdash tp1 wf_t ->
+            Sig en G6 vdash (c_ r) wf_e ->
+            Sig en G6 vdash p2 wf_e ->
+            Sig en G6 vdash tp2 wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G3) ++ G4) vdash ([p2 /t n] t1') <; ([p2 /t n] t2') dashv (([p2 /env 0] G5) ++ G6)).
+  Proof.
+    destruct subtyping_subst_mutind; crush. 
+  Qed.
 
   Lemma path_typing_implies_typing :
     (forall Sig G p t, Sig en G vdash p pathType t ->
@@ -11613,7 +11655,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                   closed_env G 0 ->
                   closed_env Sig 0 ->
                   closed_exp e 0 ->
-                  Sig en G vdash (c_ r) wf_e ->
+                  Sig en G2 vdash (c_ r) wf_e ->
                   exists t', (t = [c_ r /t n] t') /\
                         (c_ r) notin_t t').
     Proof.
@@ -11784,12 +11826,19 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
        apply notin_var_unbound_decls;
        auto
       |inversion H11; subst;
-       apply ub_var, ub_con; crush]
+       apply ub_var, ub_con;
+       apply Nat.lt_neq;
+       rewrite app_length;
+       crush]
     |destruct Ha as [Ha Hb]].
     destruct (differing_subst_equality_decl_tys Ha) as [ss'' Hc]; auto;
-      try solve [inversion H11; subst; apply ni_var;
-                 intro Hcontra; inversion Hcontra; subst;
-                 crush];
+    try solve [inversion H11; subst;
+               apply ni_var;
+               intro Hcontra;
+               inversion Hcontra; subst;
+               rewrite app_length in H7;
+               try (rewrite H7 in H15);
+               try (rewrite <- H7 in H15); crush];
       [apply unbound_var_notin_decl_tys; auto
       |destruct Hc as [Hc Hd];
        subst ss].
@@ -11953,14 +12002,74 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
       (*cast*)
       destruct e' as [| | | | | |e0 t0];
-        inversion H2.
-        try solve [destruct v, (n =? m); inversion H22].
-      
+        inversion H2;
+        try solve [destruct v as [n'|n'];
+                   inversion H22;
+                   destruct (n =? n');
+                   inversion H22];
+        subst e t.      
       destruct (typing_exists_subst_exp Htyp)
         with
-          (r:=r)(G1:=G1)
-          (G2:=G2)(n:=n)
-          (e':=e').
+          (r0:=r)(G1:=G1)
+          (G2:=G2)(n0:=n)
+          (e':=e0)
+        as
+          [t'' Ha];
+        auto;
+        try solve [inversion H4; auto];
+        try solve [eapply closed_exp_cast; eauto];
+        destruct Ha as [Ha Hb].
+      apply subst_equality_type in H23;
+        auto;
+        [subst t'0|inversion H4; auto].
+      simpl; apply t_cast with (t':=[p2 /t n] t'').
+      apply IHHtyp with (r0:=r)(tp:=tp); auto;
+        [inversion H4; auto
+        |eapply closed_exp_cast; eauto
+        |apply closed_typing_exp with (Sig:=Sig)(G:=G)(e:=[c_ r /e n] e0); auto;
+         eapply closed_exp_cast; eauto].
+
+      apply subtyping_subst_type
+        with (G1:=G)(G2:=G)
+             (t1:=t')(t2:=[c_ r /t n]t0)
+             (r:=r)(tp1:=tp)(tp2:=tp);
+        auto.
+      apply closed_typing_exp with (Sig:=Sig)(G:=G)(e:=[c_ r /e n] e0); auto;
+        eapply closed_exp_cast; eauto.
+
+      (*fn*)
+      destruct e' as [| |t1' e0' t2'| | | |];
+        inversion H1;
+        [subst t1 e t2|].
+      destruct t' as [| |t1'' t2''| |];
+        inversion H2.
+      apply subst_equality_type in H21; auto;
+        try solve [inversion H3; auto];
+        try solve [inversion H4; auto];
+        subst t1''.
+      apply subst_equality_type in H22; auto;
+        try solve [inversion H3; auto];
+        try solve [inversion H4; auto];
+        subst t2''.
+      simpl; apply t_fn.
+      
+      assert (Hclosed_p2 : closed_exp p2 0);
+        [intros n' Hle; apply wf_closed_exp with (Sig:=Sig)(G:=G2); auto|].
+      rewrite raise_closed_le_exp with (n:=0); auto.
+      rewrite closed_subst_distr_type; auto.
+      rewrite closed_subst_distr_exp; auto.
+      assert (Hrewrite : ([p2 /t n] t1') :: ([p2 /env 0] G1) ++ G2 =
+                         (([p2 /env 0](t1'::G1)) ++ G2));
+        [rewrite subst_cons; subst; auto
+        |rewrite Hrewrite].
+      apply IHHtyp with (r0:=r)(tp:=tp); auto;
+        try solve [rewrite subst_cons; subst; auto];
+        try solve [try (rewrite closed_subst_distr_exp);
+                   try (rewrite closed_subst_distr_type);
+                   auto;
+                   subst;
+                   repeat rewrite app_length, subst_length;
+                   auto].
       
     Qed.
       
