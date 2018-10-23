@@ -14113,7 +14113,37 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                    auto;
                    inversion H4;
                    eapply closed_exp_fn;
-                   eauto].
+                   eauto];
+        try solve [intros t' Hin;
+                   apply in_app_or in Hin;
+                   destruct Hin as [Hin|Hin];
+                   [rewrite subst_cons in Hin;
+                    inversion Hin;
+                    [subst t';
+                     simpl;
+                     subst n;
+                     apply closed_subst_switch_type with (p1:=c_ r);
+                     eapply closed_exp_fn in H11;
+                     destruct H11;
+                     eauto
+                    |subst G;
+                     apply H13, in_or_app;
+                     auto]
+                   |subst G;
+                    apply H13, in_or_app;
+                    auto]].
+
+      rewrite Hleng, raise_closed_le_exp with (n:=0);
+        auto;
+        apply unbound_subst_components_type;
+        [eapply unbound_subst_type;
+         eauto
+        |eapply wf_unbound_exp with (G:=G2);
+         eauto;
+         subst G;
+         rewrite app_length;
+         crush].
+        
       
     Qed.
 
