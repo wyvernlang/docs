@@ -4640,6 +4640,38 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     simpl; apply in_tail_dty; auto.
   Qed.
 
+  Lemma idt_subst :
+    (forall s p n, id_t ([p /s n]s) = id_t s).
+  Proof.
+    destruct s; intros; simpl; auto.
+  Qed.
+
+  Lemma in_dty_idt_subst_switch :
+    (forall ss s p n, in_dty s ([p /ss n] ss) ->
+                 forall p', exists s', id_t s = id_t s' /\
+                             in_dty s' ([p' /ss n]ss)).
+  Proof.
+    intro ss;
+      induction ss;
+      intros;
+      simpl in H;
+      inversion H;
+      subst.
+    
+    exists ([p' /s n]d); split;
+      [|simpl; apply in_head_dty].
+    repeat rewrite idt_subst; auto.
+
+    apply IHss
+      with
+        (p':=p')
+      in H2.
+    destruct H2 as [s' Ha];
+      destruct Ha as [Ha Hb].
+    exists s'; split; auto;
+      apply in_tail_dty;
+      auto.
+  Qed.
   
   Lemma mapping_subst_switch :
     forall G r t, r mapsto t elem G ->
@@ -8207,6 +8239,38 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Hint Rewrite closed_subst_switch_decls.
   Hint Resolve closed_subst_switch_decls.
+
+  Lemma closed_subst_switch_env :
+    (forall G p1 n m, closed_env ([p1 /env n] G) m ->
+                 forall p2, closed_exp p2 m ->
+                       closed_env ([p2 /env n] G) m).
+  Proof.
+    intros G; induction G as [|t G']; intros.
+
+    intros t' Hin;
+      inversion Hin.
+
+    rewrite subst_cons; simpl;
+      intros t' Hin;
+      inversion Hin;
+      [subst t'|].
+    apply closed_subst_switch_type with (p1:=p1);
+      auto.
+    apply H; rewrite subst_cons;
+      apply in_eq.
+
+    assert (Hclosed_G : closed_env ([p1 /env n]G') m);
+      [intros t'' Hin'';
+       apply H;
+       rewrite subst_cons;
+       apply in_cons;
+       auto|].
+    apply IHG'
+      with
+        (p2:=p2)
+      in Hclosed_G;
+      auto.
+  Qed.
 
   Lemma notin_subst_closed_mutind :
     (forall t e n, e notin_t ([e /t n] t) -> closed_t n t) /\
@@ -13612,10 +13676,444 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                     eauto
                    |try (apply H5);
                     try (apply H8);
+                    auto]];
+        try solve [apply closed_subst_hole_type;
+                   [eapply closed_ty_arr; eauto
+                   |auto]];
+        try solve [rewrite subst_cons; simpl;
+                   intros t Hin;
+                   inversion Hin;
+                   [subst t;
+                    apply closed_subst_switch_type with (p1:=c_ r);
+                    auto;
+                    subst n;
+                    eapply closed_ty_arr in H10;
+                    destruct H10;
+                    eauto
+                   |apply H12;
                     auto]].
 
+      (*sel upper*)
+      destruct t' as [|p' l'| | |];
+        inversion H2;
+        subst p L.
+        
+      destruct (has_exists_subst h)
+        with
+          (G1:=G1)(G2:=G2)
+          (r0:=r)(n0:=n)
+          (p'0:=p')
+        as [s' Ha];
+        auto;
+        [inversion H3; auto
+        |eapply closed_ty_sel; eauto
+        |destruct Ha as [Ha Hb];
+         destruct s' as [l'' t'| | |];
+         inversion Ha;
+         subst l'' t].
 
+      simpl;
+        apply wf_sel_upper
+          with (t:=[p2 /t n]t').
 
+      apply H with (r0:=r)(tp:=tp); auto;
+        [inversion H3; auto
+        |eapply closed_ty_sel;
+         eauto].
+
+      apply is_path_subst; auto.
+      apply subst_is_path
+        with (p':=c_ r)(n:=n);
+        auto.
+
+      assert (Hrewrite : (type l' ext ([p2 /t n] t')) =
+                         ([p2 /s n] (type l' ext t')));
+        [auto
+        |rewrite Hrewrite].
+      apply (has_subst h)
+        with
+          (r0:=r)(tp:=tp);
+        auto.
+      
+      inversion H3; auto.
+      eapply closed_ty_sel; eauto.
+
+      (*sel lower*)
+      destruct t' as [|p' l'| | |];
+        inversion H2;
+        subst p L.
+        
+      destruct (has_exists_subst h)
+        with
+          (G1:=G1)(G2:=G2)
+          (r0:=r)(n0:=n)
+          (p'0:=p')
+        as [s' Ha];
+        auto;
+        [inversion H3; auto
+        |eapply closed_ty_sel; eauto
+        |destruct Ha as [Ha Hb];
+         destruct s' as [|l'' t'| |];
+         inversion Ha;
+         subst l'' t].
+
+      simpl;
+        apply wf_sel_lower
+          with (t:=[p2 /t n]t').
+
+      apply H with (r0:=r)(tp:=tp); auto;
+        [inversion H3; auto
+        |eapply closed_ty_sel;
+         eauto].
+
+      apply is_path_subst; auto.
+      apply subst_is_path
+        with (p':=c_ r)(n:=n);
+        auto.
+
+      assert (Hrewrite : (type l' sup ([p2 /t n] t')) =
+                         ([p2 /s n] (type l' sup t')));
+        [auto
+        |rewrite Hrewrite].
+      apply (has_subst h)
+        with
+          (r0:=r)(tp:=tp);
+        auto.
+      
+      inversion H3; auto.
+      eapply closed_ty_sel; eauto.
+
+      (*sel equal*)
+      destruct t' as [|p' l'| | |];
+        inversion H2;
+        subst p L.
+        
+      destruct (has_exists_subst h)
+        with
+          (G1:=G1)(G2:=G2)
+          (r0:=r)(n0:=n)
+          (p'0:=p')
+        as [s' Ha];
+        auto;
+        [inversion H3; auto
+        |eapply closed_ty_sel; eauto
+        |destruct Ha as [Ha Hb];
+         destruct s' as [| |l'' t'|];
+         inversion Ha;
+         subst l'' t].
+
+      simpl;
+        apply wf_sel_equal
+          with (t:=[p2 /t n]t').
+
+      apply H with (r0:=r)(tp:=tp); auto;
+        [inversion H3; auto
+        |eapply closed_ty_sel;
+         eauto].
+
+      apply is_path_subst; auto.
+      apply subst_is_path
+        with (p':=c_ r)(n:=n);
+        auto.
+
+      assert (Hrewrite : (type l' eqt ([p2 /t n] t')) =
+                         ([p2 /s n] (type l' eqt t')));
+        [auto
+        |rewrite Hrewrite].
+      apply (has_subst h)
+        with
+          (r0:=r)(tp:=tp);
+        auto.
+      
+      inversion H3; auto.
+      eapply closed_ty_sel; eauto.
+
+      (*str*)
+      destruct t' as [ss'| | | |];
+        inversion H2;
+        subst ss.
+
+      assert (Hclosed_p2 : closed_exp p2 0);
+        [intros n' Hle; eapply wf_closed_exp; eauto|].
+      assert (Hleng : length (([p2 /env 0] G1) ++ G2) =
+                      length G);
+        [subst G;
+         repeat rewrite app_length, subst_length;
+         auto|].
+      
+      simpl;
+        apply wf_str.
+
+      apply unbound_subst_components_decl_tys;
+        [rewrite Hleng;
+         apply unbound_subst_decl_tys with (p:=c_ r)(n:=S n);
+         auto                                           
+        |rewrite raise_closed_le_exp with (n:=0);
+         auto;
+         apply wf_unbound_exp with (Sig:=Sig)(G:=G2);
+         auto;
+         rewrite app_length;
+         crush].
+
+      assert (Hrewrite : (str ([p2 raise_e 0 /ss S n] ss') :: ([p2 /env 0] G1) ++ G2) =
+                         (([p2 /env 0] (str ss'::G1)) ++ G2));
+        [rewrite subst_cons; subst n; simpl; auto
+        |rewrite Hrewrite].
+      
+      rewrite raise_closed_le_exp with (n:=0);
+        auto.
+      rewrite closed_subst_distr_decl_tys;
+        auto.
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        try solve [subst n G;
+                   try rewrite subst_cons;
+                   simpl; auto];
+        try solve [rewrite closed_subst_distr_decl_tys;
+                   auto;
+                   rewrite Hleng; auto];
+        try solve [apply unbound_var_notin_decl_tys, unbound_subst_components_decl_tys;
+                   [apply notin_var_unbound_decl_tys;
+                    inversion H3; auto
+                   |apply ub_var, ub_con, Nat.lt_neq;
+                    rewrite app_length;
+                    apply Nat.lt_lt_add_l;
+                    inversion H14; auto]];
+        try solve [intros t Hin;
+                   apply in_app_or in Hin;
+                   destruct Hin as [Hin|Hin];
+                   [inversion Hin;
+                    [subst t; auto
+                    |apply H4; apply in_or_app; auto]
+                   |apply H4; apply in_or_app; auto]];
+        try solve [intros t Hin;
+                   inversion Hin;
+                   [subst t; auto
+                   |apply H7; auto]];
+        try solve [apply closed_subst_hole_decl_tys;
+                   auto;
+                   eapply closed_ty_str; eauto].
+      intros t Hin;
+        apply in_app_or in Hin;
+        destruct Hin as [Hin|Hin];
+        [rewrite subst_cons in Hin;
+         inversion Hin;
+         [subst t; simpl;
+          apply closed_ty_str;
+          rewrite raise_closed_le_exp with (n:=0);
+          auto;
+          apply closed_subst_switch_decl_tys with (p1:=c_ r);
+          [eapply closed_ty_str;
+           subst n;
+           eauto
+          |intros n' Hle; apply Hclosed_p2; crush]
+            
+         |apply H11, in_or_app; auto]
+           
+        |apply H11, in_or_app; auto].
+
+      (*upper*)
+      destruct s' as [l' t'| | |];
+        inversion H2;
+        subst L t.
+      
+      simpl; apply wft_upper.
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H3;
+         auto
+        |eapply closed_decl_ty_upper; eauto].
+
+      (*lower*)
+      destruct s' as [|l' t'| |];
+        inversion H2;
+        subst L t.
+      
+      simpl; apply wft_lower.
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H3;
+         auto
+        |eapply closed_decl_ty_lower; eauto].
+
+      (*equal*)
+      destruct s' as [| |l' t'|];
+        inversion H2;
+        subst L t.
+      
+      simpl; apply wft_equal.
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H3;
+         auto
+        |eapply closed_decl_ty_equal; eauto].
+
+      (*value*)
+      destruct s' as [| | |l' t'];
+        inversion H2;
+        subst l t.
+      
+      simpl; apply wft_value.
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H3;
+         auto
+        |eapply closed_decl_ty_value; eauto].
+
+      (*nil type*)
+      destruct ss';
+        inversion H1;
+        auto.
+
+      (*cons type*)
+      destruct ss' as [|s' ss'];
+        inversion H3;
+        subst s ss.
+
+      simpl; apply wft_con.
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_decl_tys_con; eauto].
+
+      apply H0 with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_decl_tys_con; eauto].
+
+      intros.
+      destruct in_dty_idt_subst_switch
+        with
+          (ss:=ss')(s:=s'0)
+          (p:=p2)(n:=n0)(p':=c_ r)
+        as [s'' Ha];
+        auto;
+        destruct Ha as [Ha Hb];
+        rewrite Ha.
+      destruct in_dty_subst
+        with
+          (ss:=ss')(s:=s'')
+          (p:=c_ r)(n:=n0)
+        as [s0 Hc];
+        auto.
+      rewrite idt_subst;
+        rewrite idt_subst in n.
+      apply n; auto.
+
+      (*var*)
+      destruct e' as [| | | |v| |];
+        inversion H1.
+      destruct v as [x|x];
+        [inversion H18;
+         subst n;
+         simpl;
+         apply wf_var;
+         rewrite app_length, subst_length;
+         subst G;
+         rewrite app_length in l;
+         rewrite subst_length in l;
+         auto
+        |simpl;
+         destruct (n0 =? x);
+         inversion H18;
+         subst n].
+      apply wf_weakening_actual_exp; auto.
+
+      (*loc*)
+      destruct e' as [| | | |v|i'|];
+        inversion H1;
+        [destruct v as [x|x];
+         [inversion H18
+         |destruct (n =? x);
+          inversion H18]
+        |subst i; simpl; auto].
+
+      (*fn*)
+      destruct e' as [| |t1' e' t2'| |v| |];
+        inversion H4;
+        [subst t1 e t2
+        |destruct v as [x|x];
+         [inversion H21
+         |destruct (n =? x);
+          inversion H21]].
+
+      assert (Hclosed_p2 : closed_exp p2 0);
+        [intros n' Hle; eapply wf_closed_exp; eauto|].
+      assert (Hleng : length (([p2 /env 0] G1) ++ G2) =
+                      length G);
+        [subst G;
+         repeat rewrite app_length, subst_length;
+         auto|].
+      assert (HrewriteEnv : (([p2 /t n] t1') :: ([p2 /env 0] G1) ++ G2) =
+                            (([p2 /env 0] (t1' :: G1)) ++ G2));
+        [rewrite subst_cons;
+         simpl;
+         subst n;
+         auto|].
+      
+      simpl;
+        apply wf_fn.
+      
+      apply H with (r0:=r)(tp:=tp); auto;
+        [inversion H5; auto
+        |eapply closed_exp_fn; eauto].
+
+      erewrite raise_closed_le_exp; eauto;
+        rewrite Hleng;
+        apply unbound_subst_components_exp;
+        [eapply unbound_subst_exp; eauto
+        |apply wf_unbound_exp with (Sig:=Sig)(G:=G2);
+         auto;
+         subst G;
+         rewrite app_length;
+         crush].
+
+      rewrite HrewriteEnv.
+      erewrite raise_closed_le_exp; eauto.
+      rewrite closed_subst_distr_exp; auto.
+      apply H0 with (r0:=r)(tp:=tp);
+        auto;
+        try solve [try rewrite subst_cons;
+                   subst n G;
+                   simpl;
+                   auto];
+        try solve [rewrite closed_subst_distr_exp, Hleng;
+                   auto];
+        try solve [apply unbound_var_notin_exp, unbound_subst_components_exp;
+                   [apply notin_var_unbound_exp;
+                    inversion H5; 
+                    auto
+                   |apply ub_var, ub_con, Nat.lt_neq;
+                    rewrite app_length;
+                    apply Nat.lt_lt_add_l;
+                    inversion H16;
+                    auto]];
+        try solve [intros t' Hin;
+                   apply in_app_or in Hin;
+                   destruct Hin as [Hin|];
+                   [inversion Hin;
+                    [subst t';
+                     inversion H5;
+                     auto
+                    |apply H6, in_or_app;
+                     auto]
+                   |apply H6, in_or_app;
+                    auto]];
+        try solve [intros t' Hin;
+                   inversion Hin;
+                   [subst t';
+                    eapply closed_exp_fn; eauto
+                   |apply H9; auto]];
+        try solve [apply closed_subst_hole_exp;
+                   auto;
+                   inversion H4;
+                   eapply closed_exp_fn;
+                   eauto].
       
     Qed.
 
