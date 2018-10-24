@@ -1705,9 +1705,11 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
   | wfe_equal : forall Sig G L t, Sig en G vdash t wf_t ->
                            Sig en G vdash (type L eqe t) wf_d
 
-  | wfe_value : forall Sig G l e t, Sig en G vdash e wf_e ->
-                             Sig en G vdash t wf_t ->
-                             Sig en G vdash (val l assgn e oft t) wf_d
+  | wfe_value : forall Sig G l e t t', Sig en G vdash e wf_e ->
+                                Sig en G vdash t wf_t ->
+                                Sig en G vdash e hasType t' ->
+                                Sig en G vdash t' <; t dashv G ->
+                                Sig en G vdash (val l assgn e oft t) wf_d
 
   where "Sig 'en' G 'vdash' d 'wf_d'" := (wf_decl Sig G d)
 
@@ -3653,6 +3655,12 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       [|rewrite Hleng'; auto].
     rewrite H0, app_length, <- H2; crush.
 
+    simpl; apply wfe_value with (t':=t' [i]rjump_t n); auto.
+    apply typing_weakening_exp with (G:=G);
+      auto.
+    eapply sub_weakening_type;
+      eauto.
+
     (*wf-decls*)
     simpl; apply wfe_con; auto.
     apply not_in_decls_rjump; auto.
@@ -4671,6 +4679,52 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     exists s'; split; auto;
       apply in_tail_dty;
       auto.
+  Qed.
+
+  Lemma  idd_subst:
+    (forall d p n, id_d ([p /d n]d) = id_d d).
+  Proof.
+    destruct d; intros; simpl; auto.
+  Qed.
+  
+  Lemma ind_idd_subst_switch:
+    (forall ds d p n, in_d d ([p /ds n] ds) ->
+                 forall p', exists d', id_d d = id_d d' /\
+                             in_d d' ([p' /ds n]ds)).
+  Proof.
+    intro ds;
+      induction ds;
+      intros;
+      simpl in H;
+      inversion H;
+      subst.
+    
+    exists ([p' /d n]d); split;
+      [|simpl; apply in_head_d].
+    repeat rewrite idd_subst; auto.
+
+    apply IHds
+      with
+        (p':=p')
+      in H2.
+    destruct H2 as [d' Ha];
+      destruct Ha as [Ha Hb].
+    exists d'; split; auto;
+      apply in_tail_d;
+      auto.
+  Qed.
+  
+  Lemma in_d_subst :
+    forall ds d p n, in_d d ([p /ds n] ds) ->
+                exists d', d = ([p /d n] d').
+  Proof.
+    intro ds; induction ds as [|d' ds']; intros; simpl in H;
+      inversion H; subst.
+
+    exists d'; auto.
+
+    apply IHds' in H2; destruct H2 as [d''];
+      exists d''; auto.
   Qed.
   
   Lemma mapping_subst_switch :
@@ -14564,12 +14618,349 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
                           (([p2 /env 0] (str ss' :: G1)) ++ G2));
         [rewrite subst_cons; subst n; simpl; auto
         |rewrite Hrewrite3].
+      assert (Hleng : (length (([p2 /env 0] G1) ++ G2)) =
+                      (length G));
+        [subst G;
+         repeat rewrite app_length, subst_length;
+         auto
+        |].
       erewrite raise_closed_le_exp; eauto.
       rewrite closed_subst_distr_decls; auto.
+      rewrite Hleng.
       apply H with (r0:=r)(tp:=tp);
+        auto;
+        try solve [try rewrite subst_cons;
+                   subst n G;
+                   simpl;
+                   auto];
+        try solve [rewrite closed_subst_distr_decls;
+                   auto];      
+        try solve [apply unbound_var_notin_decls, unbound_subst_components_decls;
+                   [apply notin_var_unbound_decls;
+                    inversion H3; 
+                    auto
+                   |apply ub_var, ub_con, Nat.lt_neq;
+                    rewrite <- Hleng;
+                    rewrite app_length;
+                    apply Nat.lt_lt_add_l;
+                    inversion H14;
+                    auto]];
+        try solve [intros t' Hin;
+                   apply in_app_or in Hin;
+                   destruct Hin as [Hin|];
+                   [inversion Hin;
+                    [subst t';
+                     inversion H3;
+                     auto
+                    |apply H4, in_or_app;
+                     auto]
+                   |apply H4, in_or_app;
+                    auto]];
+        try solve [intros t' Hin;
+                   inversion Hin;
+                   [subst t';
+                    eapply closed_typing_exp; eauto
+                   |apply H7; auto]];        
+        try solve [apply closed_subst_hole_decls;
+                   auto;
+                   inversion H2;
+                   eapply closed_exp_new;
+                   eauto];
+        try solve [intros t' Hin;
+                   apply in_app_or in Hin;
+                   destruct Hin as [Hin|Hin];
+                   [rewrite subst_cons in Hin;
+                    inversion Hin;
+                    [subst t';
+                     simpl;
+                     subst n;
+                     assert (Htmp : (str ([p2 raise_e 0 /ss S (length G1)] ss')) =
+                                    ([p2 /t length G1](str ss')));
+                     [auto|rewrite Htmp];
+                     apply closed_subst_switch_type with (p1:=c_ r); auto;
+                     eapply closed_typing_exp; eauto
+                    |subst G;
+                     apply H11, in_or_app;
+                     auto]
+                   |subst G;
+                    apply H11, in_or_app;
+                    auto]].
+
+      (*decl equal*)
+      destruct d' as [l' t'|];
+        inversion H2;
+        subst L t.
+
+      simpl; apply wfe_equal.
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H3; auto
+        |eapply closed_decl_equal; eauto].
+
+      (*decl value*)
+      destruct d' as [|l' e' t''];
+        inversion H3;
+        subst l e t.
+
+      destruct (typing_exists_subst_exp t0)
+        with
+          (G1:=G1)(G2:=G2)
+          (r0:=r)(n0:=n)
+          (e'0:=e')
+        as [t''' Ha];
+        auto;
+        [inversion H4; auto
+        |eapply closed_decl_value; eauto
+        |destruct Ha as [Ha Hb];
+         subst t'].
+
+      rename t''' into t'.
+      simpl; apply wfe_value with (t':=[p2 /t n] t').
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_decl_value; eauto].
+
+      apply H0 with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_decl_value; eauto].
+
+      apply (typing_subst_exp t0) with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_decl_value; eauto
+        |eapply closed_typing_exp;
+         eauto;
+         eapply closed_decl_value;
+         eauto].
+
+      apply (subtyping_subst_type s)
+        with
+          (r0:=r)(tp1:=tp)(tp2:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_typing_exp;
+         eauto;
+         eapply closed_decl_value;
+         eauto
+        |eapply closed_decl_value;
+         eauto].
+
+      (*decls nil*)
+      destruct ds';
+        inversion H1;
         auto.
+
+      (*decls con*)
+      destruct ds' as [|d' ds'];
+        inversion H3;
+        subst d ds.
       
+      simpl; apply wfe_con.
+
+      apply H with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_decls_con;
+         eauto].
+
+      apply H0 with (r0:=r)(tp:=tp);
+        auto;
+        [inversion H4; auto
+        |eapply closed_decls_con;
+         eauto].
+
+      intros.
+      destruct ind_idd_subst_switch
+        with
+          (ds:=ds')(d:=d'0)
+          (p:=p2)(n:=n0)(p':=c_ r)
+        as [d'' Ha];
+        auto;
+        destruct Ha as [Ha Hb];
+        rewrite Ha.
+      destruct in_d_subst
+        with
+          (ds:=ds')(d:=d'')
+          (p:=c_ r)(n:=n0)
+        as [d0 Hc];
+        auto.
+      rewrite idd_subst;
+        rewrite idd_subst in n.
+      apply n; auto.
     Qed.
+    
+    Lemma wf_subst_type :
+    (forall Sig G t,
+        Sig en G vdash t wf_t ->
+        Sig wf_st ->
+        forall r n G1 G2 t',
+          G = ([c_ r /env 0] G1) ++ G2 ->
+          t = ([c_ r /t n] t') ->
+          (c_ r) notin_t t' ->
+          (c_ r) notin_env (G1 ++ G2) ->
+          (c_ r) notin_env Sig ->
+          n = length G1 ->
+          closed_env G 0 ->
+          closed_env Sig 0 ->
+          closed_ty t 0 ->
+          Sig evdash G2 wf_env ->
+          forall p2 tp,
+            closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+            Sig en G2 vdash (c_ r) pathType tp ->
+            Sig en G2 vdash p2 pathType tp ->
+            Sig en G2 vdash (c_ r) wf_e ->
+            Sig en G2 vdash p2 wf_e ->
+            Sig en G2 vdash tp wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G1) ++ G2) vdash ([p2 /t n] t') wf_t).
+    Proof.
+      destruct wf_subst_mutind; crush.
+    Qed.
+    
+    Lemma wf_subst_decl_ty :
+    (forall Sig G s,
+        Sig en G vdash s wf_s ->
+        Sig wf_st ->
+        forall r n G1 G2 s',
+          G = ([c_ r /env 0] G1) ++ G2 ->
+          s = ([c_ r /s n] s') ->
+          (c_ r) notin_s s' ->
+          (c_ r) notin_env (G1 ++ G2) ->
+          (c_ r) notin_env Sig ->
+          n = length G1 ->
+          closed_env G 0 ->
+          closed_env Sig 0 ->
+          closed_decl_ty s 0 ->
+          Sig evdash G2 wf_env ->
+          forall p2 tp,
+            closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+            Sig en G2 vdash (c_ r) pathType tp ->
+            Sig en G2 vdash p2 pathType tp ->
+            Sig en G2 vdash (c_ r) wf_e ->
+            Sig en G2 vdash p2 wf_e ->
+            Sig en G2 vdash tp wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G1) ++ G2) vdash ([p2 /s n] s') wf_s).
+    Proof.
+      destruct wf_subst_mutind; crush.
+    Qed.
+    
+    Lemma wf_subst_decl_tys :
+    (forall Sig G ss,
+        Sig en G vdash ss wf_ss ->
+        Sig wf_st ->
+        forall r n G1 G2 ss',
+          G = ([c_ r /env 0] G1) ++ G2 ->
+          ss = ([c_ r /ss n] ss') ->
+          (c_ r) notin_ss ss' ->
+          (c_ r) notin_env (G1 ++ G2) ->
+          (c_ r) notin_env Sig ->
+          n = length G1 ->
+          closed_env G 0 ->
+          closed_env Sig 0 ->
+          closed_decl_tys ss 0 ->
+          Sig evdash G2 wf_env ->
+          forall p2 tp,
+            closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+            Sig en G2 vdash (c_ r) pathType tp ->
+            Sig en G2 vdash p2 pathType tp ->
+            Sig en G2 vdash (c_ r) wf_e ->
+            Sig en G2 vdash p2 wf_e ->
+            Sig en G2 vdash tp wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G1) ++ G2) vdash ([p2 /ss n] ss') wf_ss).
+    Proof.
+      destruct wf_subst_mutind; crush.
+    Qed.
+
+    Lemma wf_subst_exp :
+    (forall Sig G e,
+        Sig en G vdash e wf_e ->
+        Sig wf_st ->
+        forall r n G1 G2 e',
+          G = ([c_ r /env 0] G1) ++ G2 ->
+          e = ([c_ r /e n] e') ->
+          (c_ r) notin_e e' ->
+          (c_ r) notin_env (G1 ++ G2) ->
+          (c_ r) notin_env Sig ->
+          n = length G1 ->
+          closed_env G 0 ->
+          closed_env Sig 0 ->
+          closed_exp e 0 ->
+          Sig evdash G2 wf_env ->
+          forall p2 tp,
+            closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+            Sig en G2 vdash (c_ r) pathType tp ->
+            Sig en G2 vdash p2 pathType tp ->
+            Sig en G2 vdash (c_ r) wf_e ->
+            Sig en G2 vdash p2 wf_e ->
+            Sig en G2 vdash tp wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G1) ++ G2) vdash ([p2 /e n] e') wf_e).
+    Proof.
+      destruct wf_subst_mutind; crush.
+    Qed.
+    
+    Lemma wf_subst_decl :    
+    (forall Sig G d,
+        Sig en G vdash d wf_d ->
+        Sig wf_st ->
+        forall r n G1 G2 d',
+          G = ([c_ r /env 0] G1) ++ G2 ->
+          d = ([c_ r /d n] d') ->
+          (c_ r) notin_d d' ->
+          (c_ r) notin_env (G1 ++ G2) ->
+          (c_ r) notin_env Sig ->
+          n = length G1 ->
+          closed_env G 0 ->
+          closed_env Sig 0 ->
+          closed_decl d 0 ->
+          Sig evdash G2 wf_env ->
+          forall p2 tp,
+            closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+            Sig en G2 vdash (c_ r) pathType tp ->
+            Sig en G2 vdash p2 pathType tp ->
+            Sig en G2 vdash (c_ r) wf_e ->
+            Sig en G2 vdash p2 wf_e ->
+            Sig en G2 vdash tp wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G1) ++ G2) vdash ([p2 /d n] d') wf_d).
+    Proof.
+      destruct wf_subst_mutind; crush.
+    Qed.
+    
+    Lemma wf_subst_decls :
+    (forall Sig G ds,
+        Sig en G vdash ds wf_ds ->
+        Sig wf_st ->
+        forall r n G1 G2 ds',
+          G = ([c_ r /env 0] G1) ++ G2 ->
+          ds = ([c_ r /ds n] ds') ->
+          (c_ r) notin_ds ds' ->
+          (c_ r) notin_env (G1 ++ G2) ->
+          (c_ r) notin_env Sig ->
+          n = length G1 ->
+          closed_env G 0 ->
+          closed_env Sig 0 ->
+          closed_decls ds 0 ->
+          Sig evdash G2 wf_env ->
+          forall p2 tp,
+            closed_env (([p2 /env 0] G1) ++ G2) 0 ->
+            Sig en G2 vdash (c_ r) pathType tp ->
+            Sig en G2 vdash p2 pathType tp ->
+            Sig en G2 vdash (c_ r) wf_e ->
+            Sig en G2 vdash p2 wf_e ->
+            Sig en G2 vdash tp wf_t ->
+            is_path p2 ->
+            Sig en (([p2 /env 0] G1) ++ G2) vdash ([p2 /ds n] ds') wf_ds).
+    Proof.
+      destruct wf_subst_mutind; crush.
+    Qed.
+    
     
 
   Lemma member_uniqueness_mutind :
