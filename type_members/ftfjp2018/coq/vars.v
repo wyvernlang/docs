@@ -5,7 +5,6 @@ Require Export Peano_dec.
 Require Export Coq.Arith.PeanoNat.
 Require Import CpdtTactics.
 Set Implicit Arguments.
-
 (*TODO:
  * Strengthening: This can probably be done by introducing just a single right step function.
 
@@ -601,6 +600,93 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     map (fun (t : ty) => t [i] rjump_t n) G.
 
   Notation "G '[' i ']' 'rjump_env' n" :=(right_jump_env G i n)(at level 80).
+          
+
+  Definition left_jump_n (r i n : nat) : nat :=
+      if i <=? r
+      then r - n
+      else r.
+
+  Notation "r '[' i ']' 'ljump_n' n" := (left_jump_n r i n) (at level  80).
+  
+  Reserved Notation "v '[' i ']' 'ljump_v' n" (at level 80).
+  Reserved Notation "t '[' i ']' 'ljump_t' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'ljump_s' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'ljump_ss' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'ljump_d' n" (at level 80).
+  Reserved Notation "d '[' i ']' 'ljump_ds' n" (at level 80).
+  Reserved Notation "p '[' i ']' 'ljump_e' n" (at level 80).
+
+
+  Fixpoint left_jump_v (x : var)(i n : nat) : var :=
+    match x with
+      | Var r => Var (r[i] ljump_n n)
+      | _ => x
+    end.
+
+  Notation "x '[' i ']' 'ljump_v' n" := (left_jump_v x i n) (at level  80).
+
+  Fixpoint left_jump_t (t : ty) (i n : nat) : ty  :=
+    match t with
+      | top => top
+      | bot => bot
+      | t1 arr t2 => (t1 [i] ljump_t n) arr (t2 [i] ljump_t n)
+      | sel p l => sel (p [i] ljump_e n) l
+      | str ss => str (ss [i] ljump_ss n)
+    end
+      where "t '[' i ']' 'ljump_t' n" := (left_jump_t t i n)
+
+  with
+  left_jump_d_ty (s : decl_ty) (i n : nat) : decl_ty :=
+    match s with
+      | type l sup t => type l sup (t[i] ljump_t n)
+      | type l ext t => type l ext (t[i] ljump_t n)
+      | type l eqt t => type l eqt (t[i] ljump_t n)
+      | val l oft t => val l oft (t[i] ljump_t n)
+    end
+      where "d '[' i ']' 'ljump_s' n" := (left_jump_d_ty d i n)
+
+  with
+  left_jump_d_tys (ss : decl_tys) (i n : nat) : decl_tys :=
+    match ss with 
+      | dt_nil => dt_nil
+      | dt_con s ss' => dt_con (s [i] ljump_s n) (ss' [i] ljump_ss n)
+    end
+      where "d '[' i ']' 'ljump_ss' n" := (left_jump_d_tys d i n)
+
+  with
+  left_jump_e (e : exp) (i n : nat) : exp :=
+    match e with
+    | new ds => new (ds [i] ljump_ds n)
+    | e_app e1 e2 => e_app (e1 [i] ljump_e n) (e2 [i] ljump_e n)
+    | fn t1 in_exp e off t2 => fn (t1 [i] ljump_t n) in_exp (e [i] ljump_e n) off (t2 [i] ljump_t n)
+    | e_acc e m => e_acc (e [i] ljump_e n) m
+    | v_ x => v_ (x [i] ljump_v n)
+    | i_ i => i_ i
+    | e cast t => (e [i] ljump_e n) cast (t [i] ljump_t n)
+    end
+      where "e '[' i ']' 'ljump_e' n" := (left_jump_e e i n)        
+                                             
+  with
+  left_jump_d (d : decl) (i n : nat) : decl :=
+    match d with
+      | type l eqe t => type l eqe (t[i] ljump_t n)
+      | val l assgn e oft t => val l assgn (e[i] ljump_e n) oft (t [i] ljump_t n)
+    end
+      where "d '[' i ']' 'ljump_d' n" := (left_jump_d d i n)
+
+  with
+  left_jump_ds (ds : decls) (i n : nat) : decls :=
+    match ds with
+      | d_nil => d_nil
+      | d_con d ds' => d_con (d [i] ljump_d n) (ds' [i] ljump_ds n)
+    end
+  where "d '[' i ']' 'ljump_ds' n" := (left_jump_ds d i n).
+
+  Definition left_jump_env (G : env)(i n : nat) : env :=
+    map (fun (t : ty) => t [i] ljump_t n) G.
+
+  Notation "G '[' i ']' 'ljump_env' n" :=(left_jump_env G i n)(at level 80).
 
   Fixpoint rename (r n m : nat) : nat :=
     if r =? n
@@ -1166,6 +1252,42 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
 
   Combined Scheme unbound_mutind from unbound_ty_mutind, unbound_decl_ty_mutind, unbound_decl_tys_mutind,
   unbound_exp_mutind, unbound_decl_mutind, unbound_decls_mutind.
+
+  Definition range_unbound_t (n1 n2 : nat)(t : ty):= forall r, r >= n1 ->
+                                                       r < n2 ->
+                                                       r unbound_t t.
+  
+  Definition range_unbound_s (n1 n2 : nat)(s : decl_ty):= forall r, r >= n1 ->
+                                                             r < n2 ->
+                                                             r unbound_s s.
+  
+  Definition range_unbound_ss (n1 n2 : nat)(ss : decl_tys):= forall r, r >= n1 ->
+                                                                r < n2 ->
+                                                                r unbound_ss ss.
+  
+  Definition range_unbound_e (n1 n2 : nat)(e : exp):= forall r, r >= n1 ->
+                                                         r < n2 ->
+                                                         r unbound_e e.
+  
+  Definition range_unbound_d (n1 n2 : nat)(d : decl):= forall r, r >= n1 ->
+                                                       r < n2 ->
+                                                       r unbound_d d.
+  
+  Definition range_unbound_ds (n1 n2 : nat)(ds : decls):= forall r, r >= n1 ->
+                                                             r < n2 ->
+                                                             r unbound_ds ds.
+  
+  Definition range_unbound_v (n1 n2 : nat)(v : var):= forall r, r >= n1 ->
+                                                         r < n2 ->
+                                                         r unbound_v v.
+  
+  Notation "'[' n1 'dots' n2 ']' 'runbound_t' t" := (range_unbound_t n1 n2 t)(at level 80).
+  Notation "'[' n1 'dots' n2 ']' 'runbound_s' s" := (range_unbound_s n1 n2 s)(at level 80).
+  Notation "'[' n1 'dots' n2 ']' 'runbound_ss' ss" := (range_unbound_ss n1 n2 ss)(at level 80).
+  Notation "'[' n1 'dots' n2 ']' 'runbound_e' e" := (range_unbound_e n1 n2 e)(at level 80).
+  Notation "'[' n1 'dots' n2 ']' 'runbound_d' d" := (range_unbound_d n1 n2 d)(at level 80).
+  Notation "'[' n1 'dots' n2 ']' 'runbound_ds' ds" := (range_unbound_ds n1 n2 ds)(at level 80).
+  Notation "'[' n1 'dots' n2 ']' 'runbound_v' ds" := (range_unbound_v n1 n2 ds)(at level 80).
   
   
   Inductive typing : env -> env -> exp -> ty -> Prop :=
@@ -14960,8 +15082,338 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
     Proof.
       destruct wf_subst_mutind; crush.
     Qed.
+
+    Lemma ljump_0_mutind :
+      (forall t i, (t [i] ljump_t 0) = t) /\
+      
+      (forall s i, (s [i] ljump_s 0) = s) /\
+      
+      (forall ss i, (ss [i] ljump_ss 0) = ss) /\
+      
+      (forall e i, (e [i] ljump_e 0) = e) /\
+      
+      (forall d i, (d [i] ljump_d 0) = d) /\
+      
+      (forall ds i, (ds [i] ljump_ds 0) = ds).
+    Proof.
+      apply type_exp_mutind; intros; crush.
+
+      destruct v as [x|x]; simpl;
+        auto.
+
+      unfold left_jump_n;
+        destruct (i <=? x);
+        try rewrite <- minus_n_O;
+        auto.
+    Qed.
+
+    Lemma ljump_0_type :
+      (forall t i, (t [i] ljump_t 0) = t).
+    Proof.
+      destruct ljump_0_mutind; crush.
+    Qed.
+
+    Hint Rewrite ljump_0_type.
+    Hint Resolve ljump_0_type.  
+
+    Lemma ljump_0_decl_ty :
+      (forall s i, (s [i] ljump_s 0) = s).
+    Proof.
+      destruct ljump_0_mutind; crush.
+    Qed.
+
+    Hint Rewrite ljump_0_decl_ty.
+    Hint Resolve ljump_0_decl_ty.  
+
+    Lemma ljump_0_decl_tys :
+      (forall ss i, (ss [i] ljump_ss 0) = ss).
+    Proof.
+      destruct ljump_0_mutind; crush.
+    Qed.
+
+    Hint Rewrite ljump_0_decl_tys.
+    Hint Resolve ljump_0_decl_tys.  
+
+    Lemma ljump_0_exp :
+      (forall e i, (e [i] ljump_e 0) = e).
+    Proof.
+      destruct ljump_0_mutind; crush.
+    Qed.
+
+    Hint Rewrite ljump_0_exp.
+    Hint Resolve ljump_0_exp.  
+
+    Lemma ljump_0_decl :
+      (forall d i, (d [i] ljump_d 0) = d).
+    Proof.
+      destruct ljump_0_mutind; crush.
+    Qed.
+
+    Hint Rewrite ljump_0_decl.
+    Hint Resolve ljump_0_decl.  
+
+    Lemma ljump_0_decls :
+      (forall ds i, (ds [i] ljump_ds 0) = ds).
+    Proof.
+      destruct ljump_0_mutind; crush.
+    Qed.
+
+    Hint Rewrite ljump_0_decls.
+    Hint Resolve ljump_0_decls.
+
+    Lemma ljump_0_env :
+      (forall G i, (G [i] ljump_env 0) = G).
+    Proof.
+      intro G;
+        induction G as [|t' G'];
+        intros;
+        simpl;
+        crush.
+    Qed.
+
+    Hint Rewrite ljump_0_env.
+    Hint Resolve ljump_0_env.
+
+    Lemma ljump_get_some :
+      forall G r t, get r G = Some t ->
+               forall i n, get r (G [i] ljump_env n) = Some (t [i] ljump_t  n).
+    Proof.
+      intro G;
+        induction G as [|t' G'];
+        intros.
+
+      rewrite get_empty in H;
+        auto;
+        inversion H.
+
+      destruct r as [|r'];
+        simpl in *;
+        [inversion H;
+         subst;
+         auto|auto].
+    Qed.
+
+    Lemma ljump_app :
+      forall G1 G2 i n, (G1 ++ G2 [i] ljump_env n) = (G1 [i] ljump_env n) ++ (G2 [i] ljump_env n).
+    Proof.
+      intro G1;
+        induction G1 as [|t' G'];
+        intros;
+        simpl in *;
+        auto.
+
+      rewrite IHG';
+        auto.
+    Qed.
+
+    Lemma rev_ljump :
+      forall G i n, rev (G [i] ljump_env n) = ((rev G) [i] ljump_env n).
+    Proof.
+      intros.
+      unfold left_jump_env;
+        rewrite <- map_rev;
+        auto.
+    Qed.
+
+    Lemma ljump_length :
+      forall G i n, length (G [i] ljump_env n) = length G.
+    Proof.
+      intros.
+      unfold left_jump_env;
+        rewrite map_length;
+        auto.
+    Qed.
     
+
+    Lemma ljump_mapping :
+      forall G r t, r mapsto t elem G ->
+               forall i n, r mapsto (t [i] ljump_t  n) elem (G [i] ljump_env n).
+    Proof.
+      intros.
+      unfold mapping in *.
+      rewrite rev_ljump.
+      apply ljump_get_some;
+        auto.
+    Qed.
+
+    Lemma ljump_is_path :
+      forall p, is_path p ->
+           forall i n, is_path (p [i] ljump_e n).
+    Proof.
+      intros p Hpath;
+        induction Hpath;
+        intros;
+        simpl;
+        auto.
+    Qed.
     
+    Lemma mapping_strengthening :
+      (forall G1 G' G2 G r t,
+          r mapsto t elem G ->
+          G = G1 ++ G' ++ G2 ->
+          forall i1 i2 n,
+            n = length G' ->
+            i1 = length G2 ->
+            i2 = length (G' ++ G2) ->
+            (r < i1 \/ r >= i2) ->
+            (r [i2] ljump_n n) mapsto (t [i2] ljump_t n) elem ((G1 ++ G2) [i2] ljump_env n)).
+    Proof.
+      intros.
+
+      destruct H4 as [Ha|Ha].
+      assert (Hnle : ~ (i2 <= r));
+        [rewrite app_length in H3;
+         crush
+        |assert (Hnleb := Hnle);
+         apply Nat.leb_nle in Hnleb;
+         unfold left_jump_n;
+         rewrite Hnleb].
+
+      unfold mapping.
+      rewrite ljump_app, rev_app_distr;
+        repeat rewrite rev_ljump.
+      rewrite get_app_l;
+        [
+        |unfold left_jump_env;
+         rewrite map_length, rev_length;
+         subst i1;
+         auto].
+      subst G;
+        unfold mapping in H;
+        rewrite rev_app_distr, get_app_l in H;
+        [
+        |rewrite rev_app_distr, app_length, rev_length;
+         crush];
+        rewrite rev_app_distr, get_app_l in H;
+        [
+        |rewrite rev_length;
+         crush].
+      apply ljump_get_some
+        with
+          (i:=i2)(n:=n)
+        in H;
+        auto.
+
+      unfold mapping.
+      rewrite ljump_app.
+
+      unfold mapping in H.
+      subst G.
+      repeat rewrite rev_app_distr in H.
+      rewrite get_app_r in H.      
+      rewrite rev_app_distr, get_app_r.
+      rewrite app_length in H3.
+      rewrite app_length in H.
+      repeat rewrite rev_length in H.
+      rewrite plus_comm, <- H3 in H.
+      assert (Hnleb := Ha);
+        apply Nat.leb_le in Hnleb;
+        unfold left_jump_n;
+        rewrite Hnleb.
+      rewrite <- Nat.sub_add_distr, rev_length, ljump_length, H1, <- H3.
+      rewrite rev_ljump;
+        apply ljump_get_some;
+        auto.
+
+      assert (Hnleb := Ha);
+        apply Nat.leb_le in Hnleb;
+        unfold left_jump_n;
+        rewrite Hnleb.
+      rewrite rev_length, ljump_length.
+      
+      apply Nat.sub_le_mono_r with (p:=n) in Ha.
+      rewrite H3 in Ha.
+      rewrite app_length, plus_comm, H1 in Ha.
+      crush.
+
+      rewrite app_length, plus_comm;
+        repeat rewrite rev_length.
+      rewrite app_length in H3;
+        subst i2; auto.
+    Qed.
+
+    Lemma unbound_range_var :
+      forall i1 i2 n, [i1 dots i2] runbound_e (c_ n) ->
+                 n < i1 \/ n >= i2.
+    Proof.
+      intros.
+      destruct (le_lt_dec i1 n);
+        auto.
+      destruct (le_lt_dec i2 n);
+        auto.
+      apply H in l.
+      apply l in l0.
+      inversion l0; subst.
+      inversion H2;
+      crush.
+    Qed.
+
+    Lemma typing_p_strengthening :
+      forall Sig G p t, Sig en G vdash p pathType t ->
+                 forall G1 G' G2,
+                   G = (G1 ++ G' ++ G2) ->
+                   forall i1 i2 n, i1 = length G2 ->
+                              i2 = length (G' ++ G2) ->
+                              n = length G' ->
+                              [i1 dots i2] runbound_t t ->
+                              [i1 dots i2] runbound_e p ->
+                              (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (p [i2] ljump_e n) pathType (t [i2] ljump_t n).
+    Proof.
+      intros Sig G p t Htyp;
+        induction Htyp;
+        intros.
+      
+      (*var*)
+      apply unbound_range_var in H5.
+      simpl.
+      apply pt_var.
+      rewrite <- ljump_app.
+      eapply mapping_strengthening; eauto.
+
+      (*loc*)
+      simpl; apply pt_loc.
+      apply ljump_mapping;
+        auto.
+
+      (*cast*)
+      simpl; apply pt_cast.
+      apply ljump_is_path;
+        auto.
+    Qed.
+
+    Lemma has_contains_strengthening_mutind :
+      (forall Sig G p s, Sig en G vdash p ni s ->
+                  forall G1 G' G2,
+                    G = (G1 ++ G' ++ G2) ->
+                    forall i1 i2 n, i1 = length G2 ->
+                              i2 = length (G' ++ G2) ->
+                              n = length G' ->
+                              [i1 dots i2] runbound_s s ->
+                              [i1 dots i2] runbound_e p ->
+                              (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (p [i2] ljump_e n) ni (s [i2] ljump_s n)) /\
+      
+      (forall Sig G t s, Sig en G vdash s cont t ->
+                  forall G1 G' G2,
+                    G = (G1 ++ G' ++ G2) ->
+                    forall i1 i2 n, i1 = length G2 ->
+                              i2 = length (G' ++ G2) ->
+                              n = length G' ->
+                              [i1 dots i2] runbound_s s ->
+                              [i1 dots i2] runbound_t t ->
+                              (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (s [i2] ljump_s n) cont (t [i2] ljump_t n)).
+    Proof.
+      apply has_contains_mutind; intros.
+
+      apply typing_p_strengthening
+        with
+          (G1:=G1)(G2:=G2)
+          (G':=G')(n:=n)
+          (i1:=i1)(i2:=i2)
+        in t0;
+        auto.
+      
+    Qed.
+      
 
   Lemma member_uniqueness_mutind :
     (forall Sig G p d, Sig en G vdash p ni d ->
