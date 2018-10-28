@@ -100,6 +100,7 @@
 	      ("runbound_d" . ?∉)
 	      ("runbound_ds" . ?∉)
 	      ("runbound_v" . ?∉)
+	      ("runbound_env" . ?∉)
 	      ("dots" . ?…)
 	      ("ni" . ?∋)
 	      ("cont" . ?∈)
