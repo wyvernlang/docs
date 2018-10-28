@@ -766,6 +766,81 @@ Proof.
     try (eapply range_unbound_decl_tys_cons; eauto).
 Qed.
 
+Lemma subtyping_strengthening_type :
+  (forall Sig G1 t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2 ->
+                    forall G3 G1' G4 G5 G2' G6,
+                      G1 = (G3 ++ G1' ++ G4) ->
+                      G2 = (G5 ++ G2' ++ G6) ->
+                      forall i1 i2 n, i1 = length G4 ->
+                                 i1 = length G6 ->
+                                 i2 = length (G1' ++ G4) ->
+                                 i2 = length (G2' ++ G6) ->
+                                 n = length G1' ->
+                                 n = length G2' ->
+                                 [i1 dots i2] runbound_t t1 ->
+                                 [i1 dots i2] runbound_t t2 ->
+                                 [i1 dots i2] runbound_env G3 ->
+                                 [i1 dots i2] runbound_env G5 ->
+                                 [i1 dots i2] runbound_env G4 ->
+                                 [i1 dots i2] runbound_env G6 ->
+                                 [i1 dots i2] runbound_env Sig ->
+                                 (Sig [i2] ljump_env n) en (G3 [i2] ljump_env n) ++ (G4 [i2] ljump_env n) vdash
+                                                        (t1 [i2] ljump_t n) <; (t2 [i2] ljump_t n)
+                                                        dashv (G5 [i2] ljump_env n) ++ (G6 [i2] ljump_env n)).
+Proof.
+  destruct subtyping_strengthening_mutind; crush.
+Qed.
+
+Lemma subtyping_strengthening_decl_ty :
+  (forall Sig G1 s1 s2 G2, Sig en G1 vdash s1 <;; s2 dashv G2 ->
+                           forall G3 G1' G4 G5 G2' G6,
+                             G1 = (G3 ++ G1' ++ G4) ->
+                             G2 = (G5 ++ G2' ++ G6) ->
+                             forall i1 i2 n, i1 = length G4 ->
+                                             i1 = length G6 ->
+                                             i2 = length (G1' ++ G4) ->
+                                             i2 = length (G2' ++ G6) ->
+                                             n = length G1' ->
+                                             n = length G2' ->
+                                             [i1 dots i2] runbound_s s1 ->
+                                             [i1 dots i2] runbound_s s2 ->
+                                             [i1 dots i2] runbound_env G3 ->
+                                             [i1 dots i2] runbound_env G5 ->
+                                             [i1 dots i2] runbound_env G4 ->
+                                             [i1 dots i2] runbound_env G6 ->
+                                             [i1 dots i2] runbound_env Sig ->
+                                             (Sig [i2] ljump_env n) en (G3 [i2] ljump_env n) ++ (G4 [i2] ljump_env n) vdash
+                                                                    (s1 [i2] ljump_s n) <;; (s2 [i2] ljump_s n)
+                                                                    dashv (G5 [i2] ljump_env n) ++ (G6 [i2] ljump_env n)).
+Proof.
+  destruct subtyping_strengthening_mutind; crush.
+Qed.
+
+Lemma subtyping_strengthening_decl_tys :
+  (forall Sig G1 ss1 ss2 G2, Sig en G1 vdash ss1 <;;; ss2 dashv G2 ->
+                             forall G3 G1' G4 G5 G2' G6,
+                               G1 = (G3 ++ G1' ++ G4) ->
+                               G2 = (G5 ++ G2' ++ G6) ->
+                               forall i1 i2 n, i1 = length G4 ->
+                                               i1 = length G6 ->
+                                               i2 = length (G1' ++ G4) ->
+                                               i2 = length (G2' ++ G6) ->
+                                               n = length G1' ->
+                                               n = length G2' ->
+                                               [i1 dots i2] runbound_ss ss1 ->
+                                               [i1 dots i2] runbound_ss ss2 ->
+                                               [i1 dots i2] runbound_env G3 ->
+                                               [i1 dots i2] runbound_env G5 ->
+                                               [i1 dots i2] runbound_env G4 ->
+                                               [i1 dots i2] runbound_env G6 ->
+                                               [i1 dots i2] runbound_env Sig ->
+                                               (Sig [i2] ljump_env n) en (G3 [i2] ljump_env n) ++ (G4 [i2] ljump_env n) vdash
+                                                                      (ss1 [i2] ljump_ss n) <;;; (ss2 [i2] ljump_ss n)
+                                                                      dashv (G5 [i2] ljump_env n) ++ (G6 [i2] ljump_env n)).
+Proof.
+  destruct subtyping_strengthening_mutind; crush.
+Qed.
+
 Lemma typing_range_unbound_decl_ty :
   (forall Sig G d s, Sig en G vdash d hasType_d s ->
                      forall i1 i2, [i1 dots i2] runbound_d d ->

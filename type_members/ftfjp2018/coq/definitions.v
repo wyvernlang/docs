@@ -783,6 +783,13 @@ Combined Scheme has_contains_mutind from has_mut_ind, contains_mut_ind.
 Reserved Notation "Sig 'en' G 'vdash' p 'ni_w' s" (at level 80).
 Reserved Notation "Sig 'en' G 'vdash' s 'cont_w' t" (at level 80).
 
+
+Inductive wf_contains : env -> env -> ty -> decl_ty -> Prop :=
+| cont_wf : forall Sig G ss s, in_dty s ss ->
+                        Sig en G vdash s cont_w (str ss)
+where "Sig 'en' G 'vdash' s 'cont_w' t" := (wf_contains Sig G t s).
+
+
 Inductive wf_has : env -> env -> exp -> decl_ty -> Prop :=
 | h_struct : forall Sig G p ss s, Sig en G vdash p pathType (str ss) ->
                            Sig en G vdash s cont_w (str ss) ->
@@ -795,21 +802,10 @@ Inductive wf_has : env -> env -> exp -> decl_ty -> Prop :=
                                Sig en G vdash p' ni_w (type l' eqt t) ->
                                Sig en G vdash (p cast t) ni_w s ->
                                Sig en G vdash p ni_w s
-where "Sig 'en' G 'vdash' p 'ni_w' s" := (wf_has Sig G p s)
+where "Sig 'en' G 'vdash' p 'ni_w' s" := (wf_has Sig G p s).
                                            
-with
-wf_contains : env -> env -> ty -> decl_ty -> Prop :=
-| cont_wf : forall Sig G ss s, in_dty s ss ->
-                        Sig en G vdash s cont_w (str ss)
-where "Sig 'en' G 'vdash' s 'cont_w' t" := (wf_contains Sig G t s).
-(*
-  Fixpoint left_jump_env (G : env) (n : nat) (i : option nat) : env :=
-    match G with
-      | nil => nil
-      | t::G' => (t [i] ljump_t n) :: (G' [dec i 1] ljump_e n)
-    end
-  where "G '[' i ']' 'ljump_e' n" := (left_jump_env G n i).
- *)
+
+Hint Constructors wf_has wf_contains.
 
 Reserved Notation "Sig 'en' G1 'vdash' t1 '<;' t2 'dashv' G2" (at level 80).
 Reserved Notation "Sig 'en' G1 'vdash' d1 '<;;' d2 'dashv' G2" (at level 80).
