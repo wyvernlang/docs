@@ -15613,6 +15613,93 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       apply in_tail_dty; auto.
     Qed.
 
+    Lemma in_dty_ljump_converse :
+      forall s ss, in_dty s ss ->
+              forall i n ss', ss = (ss' [i] ljump_ss n) ->
+                         exists s', in_dty s' ss' /\ (s' [i] ljump_s n) = s.
+    Proof.
+      intros s ss Hin; induction Hin; intros.
+      destruct ss'; [inversion H|].
+      simpl in H; inversion H; subst.
+      exists d0; split; auto.
+      apply in_head_dty.
+
+      destruct ss'; inversion H; subst.
+
+      destruct (IHHin i n ss'); auto.
+      exists x; split; crush.
+      apply in_tail_dty; crush.
+    Qed.
+
+
+    Lemma id_t_ljump :
+      forall s i n, id_t s = id_t (s [i] ljump_s n).
+    Proof.
+      intros.
+      destruct s; crush.
+    Qed.
+
+    Lemma id_d_ljump :
+      forall d i n, id_d d = id_d (d [i] ljump_d n).
+    Proof.
+      intros.
+      destruct d; crush.
+    Qed.
+    
+    Lemma not_in_decl_tys_ljump:
+      forall s ss,
+        (forall s', in_dty s' ss -> id_t s' <> id_t s) ->
+        forall i n s', in_dty s' (ss [i]ljump_ss n) -> id_t s' <> id_t (s [i]ljump_s n).
+    Proof.
+      intros.
+      intros Hcontra.
+      apply in_dty_ljump_converse with (i:=i)(n:=n)(ss':=ss) in H0; auto.
+      destruct H0 as [s'' Ha];
+        destruct Ha as [Ha Hb]; subst.
+      repeat rewrite <- id_t_ljump in Hcontra.
+      apply H in Ha.
+      rewrite Hcontra in Ha;
+        contradiction Ha; auto.
+    Qed.
+
+
+
+  Lemma in_d_ljump_converse :
+    forall d ds, in_d d ds ->
+            forall i n ds', ds = (ds' [i] ljump_ds n) ->
+                       exists d', in_d d' ds' /\ (d' [i] ljump_d n) = d.
+  Proof.
+    intros d ds Hin; induction Hin; intros.
+    destruct ds'; [inversion H|].
+    simpl in H; inversion H; subst.
+    exists d0; split; auto.
+    apply in_head_d.
+
+    destruct ds'; inversion H; subst.
+
+    destruct (IHHin i n ds'); auto.
+    exists x; split; crush.
+    apply in_tail_d; crush.
+  Qed.    
+  
+  Lemma not_in_decls_ljump :
+    forall d ds, (forall d', in_d d' ds ->
+                   id_d d' <> id_d d) ->
+            forall i n,
+              (forall d', in_d d' (ds [i] ljump_ds n) ->
+                     id_d d' <> id_d (d [i] ljump_d n)).
+  Proof.
+    intros.
+    intros Hcontra.
+    apply in_d_ljump_converse with (i:=i)(n:=n)(ds':=ds) in H0; auto.
+    destruct H0 as [d'' Ha];
+      destruct Ha as [Ha Hb]; subst.
+    repeat rewrite <- id_d_ljump in Hcontra.
+    apply H in Ha.
+    rewrite Hcontra in Ha;
+      contradiction Ha; auto.
+  Qed.
+
     Lemma unbound_in_dty :
       forall s ss, in_dty s ss ->
               forall n, n unbound_ss ss ->
@@ -16868,7 +16955,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       destruct closed_ljump_mutind; crush.
     Qed.
 
-    Lemma minus_ge :
+    Lemma minus_ge_eq :
       forall n m p, n - p = m - p ->
                n >= p ->
                m >= p ->
@@ -16888,6 +16975,29 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
         [simpl in H; auto|].
       simpl in H.
       apply IHn' in H; crush.
+    Qed.
+
+    Lemma minus_ge_lt :
+      forall n m p, n < m ->
+               n >= p ->
+               m >= p ->
+               n - p < m - p.
+    Proof.
+      intro n;
+        induction n as [|n'];
+        intros;
+        [crush|].
+
+      destruct m as [|m'].
+
+      inversion H.
+      
+      destruct p as [|p'];
+        [simpl in H; auto|].
+      assert (Hlt1 : n' < m');
+        [crush|].
+      apply IHn' with (p:=p') in Hlt1;
+        crush.
     Qed.
 
     Lemma ljump_range_unbound_mutind :
@@ -16995,7 +17105,7 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
         [apply Nat.leb_le in Hleb2
         |apply Nat.leb_nle in Hleb2];
         rewrite Hleb2 in Hcontra.
-      apply minus_ge in Hcontra;
+      apply minus_ge_eq in Hcontra;
         [subst x;
          inversion H2;
          subst
@@ -17479,6 +17589,70 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       destruct typing_strengthening_mutind; crush.
     Qed.
 
+    Lemma membership_range_unbound :
+      (forall Sig G e s, Sig en G vdash e mem s ->
+                  forall G1 G' G2,
+                    G = (G1 ++ G' ++ G2) ->
+                    forall i1 i2 n, i1 = length G2 ->
+                               i2 = length (G' ++ G2) ->
+                               n = length G' ->
+                               [i1 dots i2] runbound_e e ->
+                               [i1 dots i2] runbound_env G1 ->
+                               [i1 dots i2] runbound_env G2 ->
+                               [i1 dots i2] runbound_env Sig ->
+                               [i1 dots i2] runbound_s s).
+    Proof.
+      intros Sig G e s Hmem;
+        induction Hmem;
+        intros;
+        auto.
+
+      (*path*)
+      eapply has_range_unbound;
+        eauto.
+
+      (*exp*)
+      eapply contains_range_unbound;
+        eauto.
+      eapply typing_range_unbound_exp;
+        eauto.
+    Qed.
+    
+    Lemma membership_strengthening :
+      (forall Sig G e s, Sig en G vdash e mem s ->
+                  forall G1 G' G2,
+                    G = (G1 ++ G' ++ G2) ->
+                    forall i1 i2 n, i1 = length G2 ->
+                               i2 = length (G' ++ G2) ->
+                               n = length G' ->
+                               [i1 dots i2] runbound_e e ->
+                               [i1 dots i2] runbound_s s ->
+                               [i1 dots i2] runbound_env G1 ->
+                               [i1 dots i2] runbound_env G2 ->
+                               [i1 dots i2] runbound_env Sig ->
+                               (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash
+                                            (e [i2] ljump_e n) mem (s [i2] ljump_s n)).
+    Proof.
+      intros Sig G e s Hmem;
+        induction Hmem;
+        intros;
+        auto.
+
+      (*path*)
+      apply mem_path; auto.
+      eapply has_strengthening;
+        eauto.
+
+      (*exp*)
+      assert (Hunbound_t : [i1 dots i2] runbound_t t);
+        [eapply typing_range_unbound_exp; eauto|].
+      apply mem_exp with (t:=t [i2] ljump_t n); auto.
+      eapply typing_strengthening_exp; eauto.
+      eapply contains_strengthening; eauto.
+      apply closed_ljump_decl_ty; auto.
+    Qed.
+    
+
     Lemma wf_strengthening_mutind :
       (forall Sig G t, Sig en G vdash t wf_t ->
                 forall G1 G' G2,
@@ -17555,7 +17729,584 @@ in G1 that refer to positions in G1 do not change, and similarly, all references
       apply wf_mutind; intros; auto.
 
       (*arr*)
+      assert (Hunbound_t1 : [i1 dots i2] runbound_t t1);
+        [eapply range_unbound_ty_arr with (t2:=t2); eauto|].
+      assert (Hunbound_t2 : [i1 dots i2] runbound_t t2);
+        [eapply range_unbound_ty_arr with (t2:=t2); eauto|].
       
+      assert (Hrewrite1 : (c_ (length G1 + length G2)) =
+                          ((c_ (length G)) [i2] ljump_e n));
+        [simpl;
+         subst G;
+         rewrite app_length;
+         assert (Hle : (length G1 + length (G' ++ G2) >= i2));
+         [rewrite <- H3; crush
+         |apply Nat.leb_le in Hle;
+          unfold left_jump_n;
+          rewrite Hle];
+         rewrite app_length, (plus_comm) with (n:=length G'), plus_assoc, <- H4;
+         rewrite <- Nat.add_sub_assoc, Nat.sub_diag, Nat.add_0_r; auto
+        |rewrite <- ljump_length
+           with
+             (G:=G1)
+             (i:=i2)
+             (n:=n)
+          in Hrewrite1;
+         rewrite <- ljump_length
+           with
+             (G:=G2)
+             (i:=i2)
+             (n:=n)
+           in Hrewrite1].
+      assert (Hrewrite2 : ((t1 [i2]ljump_t n) :: (G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n)) =
+                          ((t1 :: G1) [i2]ljump_env n) ++ (G2 [i2]ljump_env n));
+        [simpl; auto
+        |].
+      
+      simpl; apply wf_arr.
+
+      eapply H; eauto.
+      assert (Hrewrite3 : (length ((G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n))) =
+                          ((length G) [i2] ljump_n n));
+        [inversion Hrewrite1; rewrite app_length; auto
+        |rewrite Hrewrite3].
+      assert (Hrewrite4 : n = i2 - i1);
+        [rewrite H3, H2, app_length;
+         rewrite <- Nat.add_sub_assoc;
+         auto;
+         rewrite Nat.sub_diag, Nat.add_0_r;
+         auto
+        |rewrite Hrewrite4].
+      apply ljump_range_unbound_type;
+        auto;
+        [subst i1 i2;
+         rewrite app_length;
+         crush
+        |subst G i2;
+         rewrite app_length;
+         crush].
+
+      rewrite app_length, Hrewrite1, Hrewrite2.
+      rewrite <- ljump_subst_distr_type.
+      eapply H0; eauto.
+      subst G; simpl; auto.
+      apply range_unbound_subst_components_type; auto.
+      apply unbound_range_var;
+        right;
+        subst G i2;
+        rewrite app_length;
+        crush.
+      apply range_unbound_cons; auto.
+
+      (*sel upper*)
+      assert (Hunbound_p : [i1 dots i2] runbound_e p);
+        [eapply range_unbound_ty_sel; eauto|].
+      simpl; apply wf_sel_upper with (t:=t [i2] ljump_t n); auto.
+      eapply H; eauto.
+      apply ljump_is_path; auto.
+      apply has_strengthening
+        with
+          (G1:=G1)(G2:=G2)
+          (G':=G')(n:=n)
+          (i1:=i1)(i2:=i2)
+        in h;
+        auto.
+
+      (*sel lower*)
+      assert (Hunbound_p : [i1 dots i2] runbound_e p);
+        [eapply range_unbound_ty_sel; eauto|].
+      simpl; apply wf_sel_lower with (t:=t [i2] ljump_t n); auto.
+      eapply H; eauto.
+      apply ljump_is_path; auto.
+      apply has_strengthening
+        with
+          (G1:=G1)(G2:=G2)
+          (G':=G')(n:=n)
+          (i1:=i1)(i2:=i2)
+        in h;
+        auto.
+
+      (*sel equal*)
+      assert (Hunbound_p : [i1 dots i2] runbound_e p);
+        [eapply range_unbound_ty_sel; eauto|].
+      simpl; apply wf_sel_equal with (t:=t [i2] ljump_t n); auto.
+      eapply H; eauto.
+      apply ljump_is_path; auto.
+      apply has_strengthening
+        with
+          (G1:=G1)(G2:=G2)
+          (G':=G')(n:=n)
+          (i1:=i1)(i2:=i2)
+        in h;
+        auto.
+      
+      (*str*)
+      assert (Hunbound_ss : [i1 dots i2] runbound_ss ss);
+        [eapply range_unbound_ty_str; eauto|].
+      
+      assert (Hrewrite1 : (c_ (length G1 + length G2)) =
+                          ((c_ (length G)) [i2] ljump_e n));
+        [simpl;
+         subst G;
+         rewrite app_length;
+         assert (Hle : (length G1 + length (G' ++ G2) >= i2));
+         [rewrite <- H2; crush
+         |apply Nat.leb_le in Hle;
+          unfold left_jump_n;
+          rewrite Hle];
+         rewrite app_length, (plus_comm) with (n:=length G'), plus_assoc, <- H3;
+         rewrite <- Nat.add_sub_assoc, Nat.sub_diag, Nat.add_0_r; auto
+        |rewrite <- ljump_length
+           with
+             (G:=G1)
+             (i:=i2)
+             (n:=n)
+          in Hrewrite1;
+         rewrite <- ljump_length
+           with
+             (G:=G2)
+             (i:=i2)
+             (n:=n)
+           in Hrewrite1].
+      assert (Hrewrite2 : ((str (ss [i2]ljump_ss n)) :: (G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n)) =
+                          (((str ss) :: G1) [i2]ljump_env n) ++ (G2 [i2]ljump_env n));
+        [simpl; auto
+        |].
+      assert (Hrewrite3 : (length ((G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n))) =
+                          ((length G) [i2] ljump_n n));
+        [inversion Hrewrite1; rewrite app_length; auto
+        |].
+      assert (Hrewrite4 : n = i2 - i1);
+        [rewrite H2, H1, app_length;
+         rewrite <- Nat.add_sub_assoc;
+         auto;
+         rewrite Nat.sub_diag, Nat.add_0_r;
+         auto
+        |].
+
+      simpl; apply wf_str.
+
+      rewrite Hrewrite3, Hrewrite4.
+      apply ljump_range_unbound_decl_tys;
+      auto.
+      subst i1 i2;
+        rewrite app_length;
+        crush.
+      subst G i2;
+        rewrite app_length;
+        crush.
+
+      rewrite app_length, Hrewrite1, Hrewrite2, <- ljump_subst_distr_decl_tys.
+      eapply H; eauto.
+      subst G; simpl; auto.
+      apply range_unbound_subst_components_decl_tys; auto.
+      apply unbound_range_var;
+        right;
+        subst G i2;
+        rewrite app_length;
+        crush.
+      apply range_unbound_cons;
+        auto.
+
+      (*upper*)
+      assert (Hunbound_t : [i1 dots i2] runbound_t t);
+        [eapply range_unbound_decl_ty_upper;
+         eauto
+        |].
+      simpl; apply wft_upper;
+        auto.
+      eapply H; eauto.
+
+      (*lower*)
+      assert (Hunbound_t : [i1 dots i2] runbound_t t);
+        [eapply range_unbound_decl_ty_lower;
+         eauto
+        |].
+      simpl; apply wft_lower;
+        auto.
+      eapply H; eauto.
+
+      (*equal*)
+      assert (Hunbound_t : [i1 dots i2] runbound_t t);
+        [eapply range_unbound_decl_ty_equal;
+         eauto
+        |].
+      simpl; apply wft_equal;
+        auto.
+      eapply H; eauto.
+
+      (*value*)
+      assert (Hunbound_t : [i1 dots i2] runbound_t t);
+        [eapply range_unbound_decl_ty_value;
+         eauto
+        |].
+      simpl; apply wft_value;
+        auto.
+      eapply H; eauto.
+
+      (*dt cons*)
+      simpl; apply wft_con; auto.
+
+      eapply H; eauto.
+      eapply range_unbound_decl_tys_cons; eauto.
+
+      eapply H0; eauto.
+      eapply range_unbound_decl_tys_cons; eauto.
+      apply not_in_decl_tys_ljump; auto.
+
+      (*var*)
+      assert (Hrewrite1 : ((length G1 + length G2)) =
+                          ((length G) [i2] ljump_n n0));
+        [simpl;
+         subst G;
+         rewrite app_length;
+         assert (Hle : (length G1 + length (G' ++ G2) >= i2));
+         [rewrite <- H1; crush
+         |apply Nat.leb_le in Hle;
+          unfold left_jump_n;
+          rewrite Hle];
+         rewrite app_length, (plus_comm) with (n:=length G'), plus_assoc, <- H2; 
+         rewrite <- Nat.add_sub_assoc, Nat.sub_diag, Nat.add_0_r; auto
+        |rewrite <- ljump_length
+           with
+             (G:=G1)
+             (i:=i2)
+             (n:=n0)
+          in Hrewrite1;
+         rewrite <- ljump_length
+           with
+             (G:=G2)
+             (i:=i2)
+             (n:=n0)
+           in Hrewrite1].
+
+      simpl; apply wf_var.
+
+      rewrite app_length;
+        rewrite Hrewrite1.
+      unfold left_jump_n.
+      assert (Hle1 : i2 <= length G);
+        [subst G i2;
+         rewrite app_length with (l:=G1);
+         crush
+        |assert (Hleb1 := Hle1);
+         apply Nat.leb_le in Hleb1;
+         rewrite Hleb1].
+      destruct (le_dec i2 n) as [Hle2|Hle2];
+        assert (Hleb2 := Hle2);
+        [apply Nat.leb_le in Hleb2
+        |apply Nat.leb_nle in Hleb2];
+        rewrite Hleb2.
+      apply minus_ge_lt;
+        auto.
+      subst n0 i2;
+        rewrite app_length in Hle2;
+        crush.
+      subst G n0;
+        repeat rewrite app_length;
+        crush.
+      assert (Hle3 : length G - n0 >= i1);
+        [subst G n0 i1;
+         repeat rewrite app_length;
+         crush|].
+      destruct (lt_dec n i1) as [Hlt1|Hlt1];
+        assert (Hltb1 := Hlt1);
+        [apply Nat.ltb_lt in Hltb1; crush
+        |apply not_ge in Hle2;
+         apply H3 in Hle2;
+         [inversion Hle2;
+          subst;
+          inversion H9;
+          crush|crush]].
+
+      (*loc*)
+      simpl; apply wf_loc;
+        rewrite ljump_length;
+        auto.
+
+      (*fn*)
+      assert (Hunbound_t1 : [i1 dots i2] runbound_t t1);
+        [eapply range_unbound_exp_fn with (t2:=t2); eauto|].
+      assert (Hunbound_t2 : [i1 dots i2] runbound_t t2);
+        [eapply range_unbound_exp_fn with (t2:=t2); eauto|].
+      assert (Hunbound_e : [i1 dots i2] runbound_e e);
+        [eapply range_unbound_exp_fn with (t2:=t2); eauto|].
+      assert (Hunbound_G : [i1 dots i2]runbound_e (v_ Var (length G)));
+        [apply unbound_range_var;
+         right;
+         subst G;
+         rewrite app_length, <- H4;
+         crush|].
+      
+      assert (Hrewrite1 : (c_ (length G1 + length G2)) =
+                          ((c_ (length G)) [i2] ljump_e n));
+        [simpl;
+         subst G;
+         rewrite app_length;
+         assert (Hle : (length G1 + length (G' ++ G2) >= i2));
+         [rewrite <- H4; crush
+         |apply Nat.leb_le in Hle;
+          unfold left_jump_n;
+          rewrite Hle];
+         rewrite app_length, (plus_comm) with (n:=length G'), plus_assoc, <- H5;
+         rewrite <- Nat.add_sub_assoc, Nat.sub_diag, Nat.add_0_r; auto
+        |rewrite <- ljump_length
+           with
+             (G:=G1)
+             (i:=i2)
+             (n:=n)
+          in Hrewrite1;
+         rewrite <- ljump_length
+           with
+             (G:=G2)
+             (i:=i2)
+             (n:=n)
+           in Hrewrite1].
+      assert (Hrewrite2 : ((t1 [i2]ljump_t n) :: (G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n)) =
+                          ((t1 :: G1) [i2]ljump_env n) ++ (G2 [i2]ljump_env n));
+        [simpl; auto
+        |].
+      
+      assert (Hrewrite3 : (length ((G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n))) =
+                          ((length G) [i2] ljump_n n));
+        [inversion Hrewrite1; rewrite app_length; auto
+        |].
+      assert (Hrewrite4 : n = i2 - i1);
+        [rewrite H4, H3, app_length;
+         rewrite <- Nat.add_sub_assoc;
+         auto;
+         rewrite Nat.sub_diag, Nat.add_0_r;
+         auto
+        |].
+      
+
+      simpl; apply wf_fn.
+      
+      eapply H; eauto.
+
+      rewrite Hrewrite3, Hrewrite4.
+      apply ljump_range_unbound_exp; auto.
+      subst i1 i2;
+        rewrite app_length;
+        crush.
+      subst G i2;
+        rewrite app_length;
+        crush.
+
+      rewrite app_length, Hrewrite1, Hrewrite2.
+      rewrite <- ljump_subst_distr_exp.
+      eapply H0; eauto;
+        try solve [subst G; simpl; auto];
+        try solve [apply range_unbound_subst_components_exp;
+                   auto];
+        try solve [apply range_unbound_cons;
+                   auto].
+
+      rewrite Hrewrite3, Hrewrite4.
+      apply ljump_range_unbound_type;
+        auto;
+        [subst i1 i2;
+         rewrite app_length;
+         crush
+        |subst G i2;
+         rewrite app_length;
+         crush].
+
+      rewrite app_length, Hrewrite1, Hrewrite2.
+      rewrite <- ljump_subst_distr_type.
+      eapply H1; eauto;
+        try solve [subst G; simpl; auto];
+        try solve [apply range_unbound_subst_components_type;
+                   auto];
+        try solve [apply range_unbound_cons;
+                   auto].
+
+      rewrite app_length, Hrewrite1, Hrewrite2.
+      rewrite <- ljump_subst_distr_type.
+      rewrite <- ljump_subst_distr_exp.
+      eapply typing_strengthening_exp;
+        eauto;
+        try solve [subst G; simpl; auto];
+        try solve [apply range_unbound_subst_components_type;
+                   auto];
+        try solve [apply range_unbound_subst_components_exp;
+                   auto];
+        try solve [apply range_unbound_cons;
+                   auto].
+
+      (*app*)
+      assert (Hunbound_e : [i1 dots i2] runbound_e e);
+        [eapply range_unbound_exp_app with (e2:=e'); eauto|].
+      assert (Hunbound_e' : [i1 dots i2] runbound_e e');
+        [eapply range_unbound_exp_app; eauto|].
+      assert (Hunbound_arr : [i1 dots i2] runbound_t (t1 arr t2));
+        [eapply typing_range_unbound_exp; eauto|].
+      assert (Hunbound_t1 : [i1 dots i2] runbound_t t1);
+        [eapply range_unbound_ty_arr with (t2:=t2); eauto|].
+      assert (Hunbound_t2 : [i1 dots i2] runbound_t t2);
+        [eapply range_unbound_ty_arr with (t2:=t2); eauto|].
+
+      simpl; apply wf_app
+               with
+                 (t1:=t1 [i2] ljump_t n)
+                 (t2:=t2 [i2] ljump_t n);
+      auto.
+
+      eapply H; eauto.
+
+      eapply H0; eauto.
+
+      eapply typing_strengthening_exp in t;
+        eauto.
+
+      eapply typing_strengthening_exp;
+        eauto.
+
+      (*acc*)
+      assert (Hunbound_e : [i1 dots i2] runbound_e e);
+        [eapply range_unbound_exp_acc; eauto|].
+      assert (Hunbound_l : [i1 dots i2] runbound_s (val l oft t'));
+        [eapply membership_range_unbound; eauto|].
+      assert (Hunbound_t' : [i1 dots i2] runbound_t t');
+        [eapply range_unbound_decl_ty_value; eauto|].
+      
+      simpl; apply wf_acc with (t':=t' [i2] ljump_t n); auto.
+
+      eapply H; eauto.
+
+      eapply membership_strengthening in m; eauto.
+
+      (*cast*)
+      assert (Hunbound_e : [i1 dots i2] runbound_e e);
+        [eapply range_unbound_exp_cast; eauto|].
+      assert (Hunbound_t : [i1 dots i2] runbound_t t);
+        [eapply range_unbound_exp_cast; eauto|].
+      assert (Hunbound_t' : [i1 dots i2] runbound_t t');
+        [eapply typing_range_unbound_exp; eauto|].
+
+      simpl; apply wf_cast with (t':=t' [i2] ljump_t n);
+        auto.
+
+      eapply H;
+        eauto.
+
+      eapply H0;
+        eauto.
+
+      eapply typing_strengthening_exp;
+        eauto.
+
+      eapply subtyping_strengthening_mutind;
+        eauto.
+
+      (*new*)
+      assert (Hunbound_ds : [i1 dots i2] runbound_ds ds);
+        [eapply range_unbound_exp_new; eauto|].
+      assert (Hunbound_str : [i1 dots i2] runbound_t (str ss));
+        [eapply typing_range_unbound_exp; eauto|].
+      assert (Hunbound_ss : [i1 dots i2] runbound_ss ss);
+        [eapply range_unbound_ty_str; eauto|].
+      
+      assert (Hrewrite1 : (c_ (length G1 + length G2)) =
+                          ((c_ (length G)) [i2] ljump_e n));
+        [simpl;
+         subst G;
+         rewrite app_length;
+         assert (Hle : (length G1 + length (G' ++ G2) >= i2));
+         [rewrite <- H2; crush
+         |apply Nat.leb_le in Hle;
+          unfold left_jump_n;
+          rewrite Hle];
+         rewrite app_length, (plus_comm) with (n:=length G'), plus_assoc, <- H3;
+         rewrite <- Nat.add_sub_assoc, Nat.sub_diag, Nat.add_0_r; auto
+        |rewrite <- ljump_length
+           with
+             (G:=G1)
+             (i:=i2)
+             (n:=n)
+          in Hrewrite1;
+         rewrite <- ljump_length
+           with
+             (G:=G2)
+             (i:=i2)
+             (n:=n)
+           in Hrewrite1].
+      assert (Hrewrite2 : ((str (ss [i2]ljump_ss n)) :: (G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n)) =
+                          (((str ss) :: G1) [i2]ljump_env n) ++ (G2 [i2]ljump_env n));
+        [simpl; auto
+        |].
+      assert (Hrewrite3 : (length ((G1 [i2]ljump_env n) ++ (G2 [i2]ljump_env n))) =
+                          ((length G) [i2] ljump_n n));
+        [inversion Hrewrite1; rewrite app_length; auto
+        |].
+      assert (Hrewrite4 : n = i2 - i1);
+        [rewrite H2, H1, app_length;
+         rewrite <- Nat.add_sub_assoc;
+         auto;
+         rewrite Nat.sub_diag, Nat.add_0_r;
+         auto
+        |].
+
+      simpl; apply wf_new with (ss:=ss [i2] ljump_ss n).
+
+      eapply typing_strengthening_exp in t;
+        eauto.
+
+      rewrite Hrewrite3, Hrewrite4.
+      apply ljump_range_unbound_decls;
+      auto.
+      subst i1 i2;
+        rewrite app_length;
+        crush.
+      subst G i2;
+        rewrite app_length;
+        crush.
+
+      rewrite app_length, Hrewrite1, Hrewrite2, <- ljump_subst_distr_decls.
+      eapply H; eauto.
+      subst G; simpl; auto.
+      apply range_unbound_subst_components_decls; auto.
+      apply unbound_range_var;
+        right;
+        subst G i2;
+        rewrite app_length;
+        crush.
+      apply range_unbound_cons;
+        auto.
+
+      (*decl equal*)
+      simpl; apply wfe_equal; auto.
+
+      eapply H; eauto.
+
+      eapply range_unbound_decl_equal; eauto.
+
+      (*decl value*)
+      assert (Hunbound_e : [i1 dots i2] runbound_e e);
+        [eapply range_unbound_decl_value; eauto|].
+      assert (Hunbound_t : [i1 dots i2] runbound_t t);
+        [eapply range_unbound_decl_value; eauto|].
+      assert (Hunbound_t' : [i1 dots i2] runbound_t t');
+        [eapply typing_range_unbound_exp; eauto|].
+
+      simpl; apply wfe_value with (t':=t' [i2] ljump_t n); auto.
+
+      eapply H; eauto.
+
+      eapply H0; eauto.
+
+      eapply typing_strengthening_exp; eauto.
+
+      eapply subtyping_strengthening_mutind; eauto.
+
+      (*decl cons*)
+      assert (Hunbound_d : [i1 dots i2] runbound_d d);
+        [eapply range_unbound_decls_cons; eauto|].
+      assert (Hunbound_ds : [i1 dots i2] runbound_ds ds);
+        [eapply range_unbound_decls_cons; eauto|].
+
+      simpl; apply wfe_con; eauto.
+      apply not_in_decls_ljump; auto.
     Qed.
     
   Lemma member_uniqueness_mutind :
