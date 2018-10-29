@@ -7,7 +7,6 @@ Require Import CpdtTactics.
 Require Import definitions.
 Require Import common.
 Require Import weakening.
-Require Import subst.
 Set Implicit Arguments.
 
 (*left jump definitions*)

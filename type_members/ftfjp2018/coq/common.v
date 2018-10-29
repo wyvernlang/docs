@@ -999,6 +999,21 @@ Lemma closed_subst_decls :
 Proof.
 Admitted.
 
+Lemma closed_subst_decl_tys :
+  forall n ss, closed_ss n ss -> forall e, ([e /ss n] ss) = ss.
+Proof.
+Admitted.
+
+Lemma closed_subst_decl_ty :
+  forall n s, closed_s n s -> forall e, ([e /s n] s) = s.
+Proof.
+Admitted.
+
+Lemma closed_subst_decl :
+  forall n d, closed_d n d -> forall e, ([e /d n] d) = d.
+Proof.
+Admitted.
+
 Lemma closed_rjump_mutind :
   (forall n t, closed_t n t -> forall i m, closed_t n (t [i] rjump_t m)) /\
   (forall n s, closed_s n s -> forall i m, closed_s n (s [i] rjump_s m)) /\
@@ -7810,6 +7825,56 @@ Lemma wf_unbound_decls :
                   r unbound_ds ds).
 Proof.
   destruct wf_unbound_mutind; crush.
+Qed.
+
+Lemma wf_notin_env :
+  (forall Sig G, Sig evdash G  wf_env ->
+          forall r, r >= length G ->
+               (c_ r) notin_env G).
+Proof.
+  intros Sig G Hwf;
+    induction Hwf;
+    intros;
+    auto.
+  intros t Hin;
+    inversion Hin.
+
+  intros t' Hin;
+    inversion Hin;
+    [subst t';
+     apply unbound_var_notin_type;
+     eapply wf_unbound_type;
+     eauto|].
+  simpl in  H0;
+    crush.
+
+  apply IHHwf;
+    crush.
+Qed.
+
+Lemma wf_notin_store_type :
+  (forall Sig, Sig wf_st ->
+        forall r, (c_ r) notin_env Sig).
+Proof.
+  intros Sig Hwf;
+    induction Hwf;
+    intros.
+  
+  intros t Hin;
+    inversion Hin.
+
+  intros t Hin;
+    inversion Hin;
+    subst.
+
+  apply unbound_var_notin_type.
+  eapply wf_unbound_type;
+    eauto;
+    crush.
+
+  apply IHHwf;
+    auto.
+  
 Qed.
 
 Lemma unbound_in_decl_unbound_in_type :

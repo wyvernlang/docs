@@ -7,6 +7,7 @@ Require Import CpdtTactics.
 Require Import definitions.
 Require Import common.
 Require Import weakening.
+Require Import strengthening.
 Set Implicit Arguments.
 
 
@@ -4419,3 +4420,57 @@ Lemma wf_subst_decls :
 Proof.
   destruct wf_subst_mutind; crush.
 Qed.
+
+Lemma wf_subst_type_actual :
+  forall Sig G t' t, Sig en t'::G vdash ([c_ length G /t 0]t) wf_t ->
+              Sig wf_st ->
+              Sig evdash t'::G wf_env ->
+              length G unbound_t t ->
+              forall p, Sig en G vdash p wf_e ->
+                   Sig en G vdash p pathType t' ->
+                   Sig en G vdash ([p /t 0]t) wf_t.
+Proof.
+  intros.
+
+  assert (Hunbound_t' : (length G) unbound_t t');
+    [inversion H1;
+     subst;
+     eapply wf_unbound_type;
+     eauto|].
+  assert (Hunbound_p : (length G) unbound_e p);
+    [eapply wf_unbound_exp;
+     eauto|].
+
+  apply wf_subst_type
+    with
+      (G2:=t'::G)
+      (t:=[c_ (length G) /t 0] t)
+      (r:=length G)(n:=0)
+      (G1:=nil)
+      (tp:=t')
+      (t':=t)(p2:=p)
+    in H;
+    simpl;
+    auto.
+
+  simpl in H;
+    apply 
+  
+  simpl in H.  
+
+  
+Qed.
+
+
+
+  assert (Hrewrite1 : (t'::G) = (([c_ length G /env 0]nil)++(t'::G)));
+    [simpl; auto
+    |rewrite Hrewrite1 in H].
+
+
+;
+     rewrite closed_subst_type;
+     auto;
+     inversion H1; subst;
+     eapply wf_closed_type;
+     eauto
