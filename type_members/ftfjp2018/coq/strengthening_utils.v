@@ -1323,3 +1323,184 @@ Lemma ljump_range_unbound_decls :
 Proof.
   destruct ljump_range_unbound_mutind; crush.
 Qed.
+
+Lemma lt_ljump_mutind :
+  (forall t i, lt_t t i ->
+               forall n, (t [i] ljump_t n) = t) /\
+  (forall s i, lt_s s i ->
+               forall n, (s [i] ljump_s n) = s) /\
+  (forall ss i, lt_ss ss i ->
+                forall n, (ss [i] ljump_ss n) = ss) /\
+  (forall e i, lt_e e i ->
+               forall n, (e [i] ljump_e n) = e) /\
+  (forall d i, lt_d d i ->
+               forall n, (d [i] ljump_d n) = d) /\
+  (forall ds i, lt_ds ds i ->
+                forall n, (ds [i] ljump_ds n) = ds).
+Proof.
+  apply lt_mutind; intros; crush.
+
+  unfold left_jump_n;
+    rewrite leb_correct_conv; auto.
+Qed.
+
+Lemma lt_ljump_type :
+  (forall t i, lt_t t i ->
+               forall n, (t [i] ljump_t n) = t).
+Proof.
+  destruct lt_ljump_mutind; crush.
+Qed.
+
+Lemma lt_ljump_decl_ty :
+  (forall s i, lt_s s i ->
+               forall n, (s [i] ljump_s n) = s).
+Proof.
+  destruct lt_ljump_mutind; crush.
+Qed.
+
+Lemma lt_ljump_decl_tys :
+  (forall ss i, lt_ss ss i ->
+                forall n, (ss [i] ljump_ss n) = ss).
+Proof.
+  destruct lt_ljump_mutind; crush.
+Qed.
+
+Lemma lt_ljump_exp :
+  (forall e i, lt_e e i ->
+               forall n, (e [i] ljump_e n) = e).
+Proof.
+  destruct lt_ljump_mutind; crush.
+Qed.
+
+Lemma lt_ljump_decl :
+  (forall d i, lt_d d i ->
+               forall n, (d [i] ljump_d n) = d).
+Proof.
+  destruct lt_ljump_mutind; crush.
+Qed.
+
+Lemma lt_ljump_decls :
+  (forall ds i, lt_ds ds i ->
+                forall n, (ds [i] ljump_ds n) = ds).
+Proof.
+  destruct lt_ljump_mutind; crush.
+Qed.
+
+Lemma ljump_wf_type :
+  (forall Sig G t, Sig en G vdash t wf_t ->
+            forall i n, i >= length G ->
+                   (t [i] ljump_t n) = t).
+Proof.
+  intros.
+  rewrite lt_ljump_type;
+    auto.
+  eapply lt_n_ge_type;
+    eauto.
+  eapply wf_lt_type;
+    eauto.
+Qed.
+
+Lemma ljump_wf_decl_ty :
+  (forall Sig G s, Sig en G vdash s wf_s ->
+            forall i n, i >= length G ->
+                   (s [i] ljump_s n) = s).
+Proof.
+  intros.
+  rewrite lt_ljump_decl_ty;
+    auto.
+  eapply lt_n_ge_decl_ty;
+    eauto.
+  eapply wf_lt_decl_ty;
+    eauto.
+Qed.
+
+Lemma ljump_wf_decl_tys :
+  (forall Sig G ss, Sig en G vdash ss wf_ss ->
+            forall i n, i >= length G ->
+                   (ss [i] ljump_ss n) = ss).
+Proof.
+  intros.
+  rewrite lt_ljump_decl_tys;
+    auto.
+  eapply lt_n_ge_decl_tys;
+    eauto.
+  eapply wf_lt_decl_tys;
+    eauto.
+Qed.
+
+Lemma ljump_wf_exp :
+  (forall Sig G e, Sig en G vdash e wf_e ->
+            forall i n, i >= length G ->
+                   (e [i] ljump_e n) = e).
+Proof.
+  intros.
+  rewrite lt_ljump_exp;
+    auto.
+  eapply lt_n_ge_exp;
+    eauto.
+  eapply wf_lt_exp;
+    eauto.
+Qed.
+
+Lemma ljump_wf_decl :
+  (forall Sig G d, Sig en G vdash d wf_d ->
+            forall i n, i >= length G ->
+                   (d [i] ljump_d n) = d).
+Proof.
+  intros.
+  rewrite lt_ljump_decl;
+    auto.
+  eapply lt_n_ge_decl;
+    eauto.
+  eapply wf_lt_decl;
+    eauto.
+Qed.
+
+Lemma ljump_wf_decls :
+  (forall Sig G ds, Sig en G vdash ds wf_ds ->
+            forall i n, i >= length G ->
+                   (ds [i] ljump_ds n) = ds).
+Proof.
+  intros.
+  rewrite lt_ljump_decls;
+    auto.
+  eapply lt_n_ge_decls;
+    eauto.
+  eapply wf_lt_decls;
+    eauto.
+Qed.
+
+Lemma ljump_wf_st :
+  forall Sig, Sig wf_st ->
+       forall i n, (Sig [i] ljump_env n) = Sig.
+Proof.
+  intro Sig; induction Sig as [|t Sig'];
+    intros;
+    auto.
+
+  simpl;
+    inversion H;
+    subst.
+  apply ljump_wf_type with (i:=i)(n:=n) in H2;
+    [rewrite H2|crush].
+  rewrite IHSig';
+    auto.
+Qed.
+
+Lemma ljump_wf_env :
+  forall Sig G, Sig evdash G wf_env ->
+         forall i n, i >= length G ->
+                (G [i] ljump_env n) = G.
+Proof.
+  intros Sig G Hwf;
+    induction Hwf;
+    intros;
+    auto.
+
+  simpl.
+  erewrite ljump_wf_type;
+    eauto;
+    [|crush].
+  rewrite IHHwf;
+    crush.
+Qed.

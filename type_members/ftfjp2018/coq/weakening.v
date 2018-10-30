@@ -530,6 +530,82 @@ Proof.
   apply closed_rjump_decl_ty; auto.
 Qed.
 
+
+Lemma typing_weakening_actual_exp :
+  (forall Sig G e t, Sig en G vdash e hasType t ->
+              Sig en G vdash e wf_e ->
+              Sig en G vdash t wf_t ->
+              Sig evdash G wf_env ->
+              Sig wf_st ->
+              forall G', Sig en G' ++ G vdash e hasType t).
+Proof.
+  intros.
+  assert (Htyp := H).
+  apply typing_weakening_exp with (G1:=nil)(G2:=G)
+                                  (G':=G')(i:=length G)
+                                  (n:=length G') in H; auto.
+  simpl in H.
+  rewrite lt_rjump_env in H.
+  rewrite lt_rjump_env in H.
+  rewrite lt_rjump_type in H; auto.
+  rewrite lt_rjump_exp in H; auto.
+  apply wf_lt_exp with (Sig:=Sig); auto.
+  apply wf_lt_type with (Sig:=Sig); auto.
+  apply wf_lt_env with (Sig:=Sig); auto.
+  apply wf_lt_store_type; auto.
+
+Qed.
+
+Lemma typing_weakening_actual_decl :
+  (forall Sig G d s, Sig en G vdash d hasType_d s ->
+              Sig en G vdash d wf_d ->
+              Sig en G vdash s wf_s ->
+              Sig evdash G wf_env ->
+              Sig wf_st ->
+              forall G', Sig en G' ++ G vdash d hasType_d s).
+Proof.
+  intros.
+  assert (Htyp := H).
+  apply typing_weakening_decl with (G1:=nil)(G2:=G)
+                                   (G':=G')(i:=length G)
+                                   (n:=length G') in H; auto.
+  simpl in H.
+  rewrite lt_rjump_env in H.
+  rewrite lt_rjump_env in H.
+  rewrite lt_rjump_decl_ty in H; auto.
+  rewrite lt_rjump_decl in H; auto.
+  apply wf_lt_decl with (Sig:=Sig); auto.
+  apply wf_lt_decl_ty with (Sig:=Sig); auto.
+  apply wf_lt_env with (Sig:=Sig); auto.
+  apply wf_lt_store_type; auto.
+
+Qed.
+
+Lemma typing_weakening_actual_decls :
+  (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                Sig en G vdash ds wf_ds ->
+                Sig en G vdash ss wf_ss ->
+                Sig evdash G wf_env ->
+                Sig wf_st ->
+                forall G', Sig en G' ++ G vdash ds hasType_ds ss).
+Proof.
+  intros.
+  assert (Htyp := H).
+  apply typing_weakening_decls with (G1:=nil)(G2:=G)
+                                    (G':=G')(i:=length G)
+                                    (n:=length G') in H; auto.
+  simpl in H.
+  rewrite lt_rjump_env in H.
+  rewrite lt_rjump_env in H.
+  rewrite lt_rjump_decl_tys in H; auto.
+  rewrite lt_rjump_decls in H; auto.
+  apply wf_lt_decls with (Sig:=Sig); auto.
+  apply wf_lt_decl_tys with (Sig:=Sig); auto.
+  apply wf_lt_env with (Sig:=Sig); auto.
+  apply wf_lt_store_type; auto.
+Qed.
+
+
 Lemma wf_weakening_mutind :
   (forall Sig G t, Sig en G vdash t wf_t ->
                    forall G1 G2,
@@ -917,4 +993,368 @@ Proof.
   apply wf_lt_exp with (Sig:=Sig); auto.
   apply wf_lt_env with (Sig:=Sig); auto.
   apply wf_lt_store_type; auto.
+Qed.
+
+Lemma wf_in_env :
+  forall Sig G, Sig evdash G wf_env ->
+         Sig wf_st ->
+         forall t, In t G ->
+              Sig en G vdash t wf_t.
+Proof.
+  intros Sig G Hwf;
+    induction Hwf;
+    intros.
+
+  inversion H0.
+
+  inversion H1;
+    [subst t0|].
+  apply wf_weakening_actual_type
+    with
+      (G':=t::nil)
+    in H;
+    auto.
+
+  assert (Htmp := H0).
+  apply IHHwf
+    with
+      (t:=t0)
+    in Htmp;
+    auto.
+  apply wf_weakening_actual_type
+    with
+      (G':=t::nil)
+    in Htmp;
+    auto.
+Qed.
+
+Lemma path_typing_store_type_weakening :
+  (forall Sig G p t, Sig en G vdash p pathType t ->
+              forall S, (S ++ Sig) en G vdash p pathType t).
+Proof.
+  intros.
+
+  destruct H;
+    auto.
+
+  apply pt_loc.
+  unfold mapping in *.
+  rewrite rev_app_distr;
+    auto.
+Qed.
+
+Hint Resolve path_typing_store_type_weakening.
+Hint Rewrite path_typing_store_type_weakening.
+
+Lemma has_contains_store_type_weakening_mutind :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              forall S, S ++ Sig en G vdash p ni s) /\
+
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              forall S, S ++ Sig en G vdash s cont t).
+Proof.
+  apply has_contains_mutind; intros;
+    eauto.
+Qed.
+
+Lemma has_store_type_weakening :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              forall S, S ++ Sig en G vdash p ni s) /\
+
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              forall S, S ++ Sig en G vdash s cont t).
+Proof.
+  destruct has_contains_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma contains_store_type_weakening :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              forall S, S ++ Sig en G vdash p ni s) /\
+
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              forall S, S ++ Sig en G vdash s cont t).
+Proof.
+  destruct has_contains_store_type_weakening_mutind; crush.
+Qed.
+
+Hint Resolve contains_store_type_weakening.
+Hint Rewrite contains_store_type_weakening.
+Hint Resolve has_store_type_weakening.
+Hint Rewrite has_store_type_weakening.
+
+Lemma subtyping_store_type_weakening_mutind :
+  (forall Sig G1 t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2 ->
+                    forall S, S ++ Sig en G1 vdash t1 <; t2 dashv G2) /\
+
+  (forall Sig G1 s1 s2 G2, Sig en G1 vdash s1 <;; s2 dashv G2 ->
+                    forall S, S ++ Sig en G1 vdash s1 <;; s2 dashv G2) /\
+  
+  (forall Sig G1 ss1 ss2 G2, Sig en G1 vdash ss1 <;;; ss2 dashv G2 ->
+                      forall S, S ++ Sig en G1 vdash ss1 <;;; ss2 dashv G2).
+Proof.
+  apply sub_mutind;
+    intros;
+    eauto.
+
+  eapply s_upper;
+    eauto.
+  apply has_store_type_weakening;
+    auto.
+  
+  eapply s_lower;
+    eauto.
+  apply has_store_type_weakening;
+    auto.
+  
+  eapply s_equal1;
+    eauto.
+  apply has_store_type_weakening;
+    auto.
+  
+  eapply s_equal2;
+    eauto.
+  apply has_store_type_weakening;
+    auto.
+  
+Qed.
+
+Lemma subtyping_store_type_weakening_type :
+  (forall Sig G1 t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2 ->
+                    forall S, S ++ Sig en G1 vdash t1 <; t2 dashv G2).
+Proof.
+  destruct subtyping_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma subtyping_store_type_weakening_decl_ty :
+  (forall Sig G1 s1 s2 G2, Sig en G1 vdash s1 <;; s2 dashv G2 ->
+                    forall S, S ++ Sig en G1 vdash s1 <;; s2 dashv G2).
+Proof.
+  destruct subtyping_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma subtyping_store_type_weakening_decl_tys :  
+  (forall Sig G1 ss1 ss2 G2, Sig en G1 vdash ss1 <;;; ss2 dashv G2 ->
+                      forall S, S ++ Sig en G1 vdash ss1 <;;; ss2 dashv G2).
+Proof.
+  destruct subtyping_store_type_weakening_mutind; crush.
+Qed.
+
+Hint Rewrite subtyping_store_type_weakening_type.
+Hint Resolve subtyping_store_type_weakening_type.
+Hint Rewrite subtyping_store_type_weakening_decl_ty.
+Hint Resolve subtyping_store_type_weakening_decl_ty.
+Hint Rewrite subtyping_store_type_weakening_decl_tys.
+Hint Resolve subtyping_store_type_weakening_decl_tys.
+
+Lemma typing_store_type_weakening_mutind :
+  (forall Sig G e t, Sig en G vdash e hasType t ->
+              forall S, S ++ Sig en G vdash e hasType t) /\
+
+  (forall Sig G d s, Sig en G vdash d hasType_d s ->
+              forall S, S ++ Sig en G vdash d hasType_d s) /\
+  
+  (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                forall S, S ++ Sig en G vdash ds hasType_ds ss).
+Proof.
+  apply typing_mutind;
+    intros;
+    eauto.
+
+  apply t_loc;
+    eauto;
+    unfold mapping in *.
+  rewrite rev_app_distr;
+    auto.
+
+  apply t_acc_path;
+    eapply has_store_type_weakening;
+    eauto.
+
+  eapply t_acc_closed;
+    eauto;
+    eapply has_store_type_weakening;
+    eauto.  
+Qed.
+
+Lemma typing_store_type_weakening_exp :
+  (forall Sig G e t, Sig en G vdash e hasType t ->
+              forall S, S ++ Sig en G vdash e hasType t).
+Proof.
+  destruct typing_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma typing_store_type_weakening_decl :
+  (forall Sig G e t, Sig en G vdash e hasType t ->
+              forall S, S ++ Sig en G vdash e hasType t).
+Proof.
+  destruct typing_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma typing_store_type_weakening_decls :  
+  (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                forall S, S ++ Sig en G vdash ds hasType_ds ss).
+Proof.
+  destruct typing_store_type_weakening_mutind; crush.
+Qed.
+
+Hint Rewrite typing_store_type_weakening_exp.
+Hint Resolve typing_store_type_weakening_exp.
+Hint Rewrite typing_store_type_weakening_decl.
+Hint Resolve typing_store_type_weakening_decl.
+Hint Rewrite typing_store_type_weakening_decls.
+Hint Resolve typing_store_type_weakening_decls.
+
+Lemma membership_store_type_weakening :
+  forall Sig G e s, Sig en G vdash e mem s ->
+             forall S, S ++ Sig en G vdash e mem s.
+Proof.
+  intros.
+
+  destruct H.
+
+  apply mem_path;
+    eapply has_store_type_weakening;
+    eauto.
+
+  eapply mem_exp;
+    eauto;
+    eapply contains_store_type_weakening;
+    eauto.
+Qed.
+
+Hint Rewrite membership_store_type_weakening.
+Hint Resolve membership_store_type_weakening.
+
+Lemma wf_store_type_weakening_mutind :
+  (forall Sig G t, Sig en G vdash t wf_t ->
+            forall S, (S ++ Sig) en G vdash t wf_t) /\
+
+  (forall Sig G s, Sig en G vdash s wf_s ->
+            forall S, (S ++ Sig) en G vdash s wf_s) /\
+
+  (forall Sig G ss, Sig en G vdash ss wf_ss ->
+             forall S, (S ++ Sig) en G vdash ss wf_ss) /\
+
+  (forall Sig G e, Sig en G vdash e wf_e ->
+            forall S, (S ++ Sig) en G vdash e wf_e) /\
+
+  (forall Sig G d, Sig en G vdash d wf_d ->
+            forall S, (S ++ Sig) en G vdash d wf_d) /\
+
+  (forall Sig G ds, Sig en G vdash ds wf_ds ->
+             forall S, (S ++ Sig) en G vdash ds wf_ds).
+Proof.
+  apply wf_mutind;
+    intros;
+    eauto.
+
+  eapply wf_sel_upper;
+    try (eapply has_store_type_weakening);
+    eauto.
+
+  eapply wf_sel_lower;
+    try (eapply has_store_type_weakening);
+    eauto.
+
+  eapply wf_sel_equal;
+    try (eapply has_store_type_weakening);
+    eauto.
+
+  apply wf_loc;
+    auto;
+    rewrite app_length;
+    crush.
+Qed.
+
+Lemma wf_store_type_weakening_type :
+  (forall Sig G t, Sig en G vdash t wf_t ->
+            forall S, (S ++ Sig) en G vdash t wf_t).
+Proof.
+  destruct wf_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma wf_store_type_weakening_decl_ty :
+  (forall Sig G s, Sig en G vdash s wf_s ->
+            forall S, (S ++ Sig) en G vdash s wf_s).
+Proof.
+  destruct wf_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma wf_store_type_weakening_decl_tys :
+  (forall Sig G ss, Sig en G vdash ss wf_ss ->
+             forall S, (S ++ Sig) en G vdash ss wf_ss).
+Proof.
+  destruct wf_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma wf_store_type_weakening_exp :
+  (forall Sig G e, Sig en G vdash e wf_e ->
+            forall S, (S ++ Sig) en G vdash e wf_e).
+Proof.
+  destruct wf_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma wf_store_type_weakening_decl :
+  (forall Sig G d, Sig en G vdash d wf_d ->
+            forall S, (S ++ Sig) en G vdash d wf_d).
+Proof.
+  destruct wf_store_type_weakening_mutind; crush.
+Qed.
+
+Lemma wf_store_type_weakening_decls :
+  (forall Sig G ds, Sig en G vdash ds wf_ds ->
+             forall S, (S ++ Sig) en G vdash ds wf_ds).
+Proof.
+  destruct wf_store_type_weakening_mutind; crush.
+Qed.
+
+Hint Rewrite wf_store_type_weakening_type.
+Hint Rewrite wf_store_type_weakening_decl_ty.
+Hint Rewrite wf_store_type_weakening_decl_tys.
+Hint Rewrite wf_store_type_weakening_exp.
+Hint Rewrite wf_store_type_weakening_decl.
+Hint Rewrite wf_store_type_weakening_decls.
+
+Hint Resolve wf_store_type_weakening_type.
+Hint Resolve wf_store_type_weakening_decl_ty.
+Hint Resolve wf_store_type_weakening_decl_tys.
+Hint Resolve wf_store_type_weakening_exp.
+Hint Resolve wf_store_type_weakening_decl.
+Hint Resolve wf_store_type_weakening_decls.
+
+Lemma wf_in_store_type :
+  forall Sig, Sig wf_st ->
+       forall G t, In t Sig ->
+              Sig en G vdash t wf_t.
+Proof.
+  intros Sig Hwf;
+    induction Hwf;
+    intros.
+
+  inversion H.
+
+  inversion H0;
+    [subst t|].
+  apply wf_weakening_actual_type
+    with
+      (G':=G)
+    in H;
+    auto;
+    [rewrite app_nil_r in H|apply wf_nil].
+  apply wf_store_type_weakening_type
+    with
+      (S:=str ds::nil)
+    in H;
+    simpl in H;
+    auto.
+
+  apply IHHwf
+    with
+      (G:=G)
+    in H1.
+  apply wf_store_type_weakening_type
+    with
+      (S:=str ds::nil)
+    in H1;
+    auto.
 Qed.

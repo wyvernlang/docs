@@ -2216,13 +2216,16 @@ Qed.
 
 Lemma wf_strengthening_type_actual :
   (forall Sig G t t', Sig en t'::G vdash t wf_t ->
+               Sig wf_st ->
+               Sig evdash G wf_env ->
                forall i, i = length G ->
                     i unbound_t t ->
                     (c_ i) notin_env G ->
                     Sig en G vdash t wf_t).
 Proof.
   intros.
-
+  
+  assert (Hwf := H).
   apply wf_strengthening_type
     with
       (G1:=nil)(G':=t'::nil)(G2:=G)
@@ -2231,86 +2234,283 @@ Proof.
     simpl;
     auto.
 
-  simpl in H.
+  simpl in H;
+    rewrite ljump_wf_st in H;
+    auto;
+    rewrite ljump_wf_env with (Sig:=Sig) in H;
+    auto;
+    [|crush];
+    rewrite ljump_wf_type with (Sig:=Sig)(G:=t'::G) in H;
+    crush.
+
+  intros i' Hge Hlt.
+  assert (i' = i);
+    [crush
+    |subst;
+     auto].
+  
+  intros t'' Hin;
+    inversion Hin.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_env in Hge;
+    eauto.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_store_type in H0;
+    eauto.
   
 Qed.
 
-Lemma wf_strengthening_decl_ty :  
-  (forall Sig G s, Sig en G vdash s wf_s ->
-                   forall G1 G' G2,
-                     G = (G1 ++ G' ++ G2) ->
-                     forall i1 i2 n, i1 = length G2 ->
-                                     i2 = length (G' ++ G2) ->
-                                     n = length G' ->
-                                     [i1 dots i2] runbound_s s ->
-                                     [i1 dots i2] runbound_env G1 ->
-                                     [i1 dots i2] runbound_env G2 ->
-                                     [i1 dots i2] runbound_env Sig ->
-                                     (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (s [i2] ljump_s n) wf_s).
+Lemma wf_strengthening_decl_ty_actual :
+  (forall Sig G s t, Sig en t::G vdash s wf_s ->
+               Sig wf_st ->
+               Sig evdash G wf_env ->
+               forall i, i = length G ->
+                    i unbound_s s ->
+                    (c_ i) notin_env G ->
+                    Sig en G vdash s wf_s).
 Proof.
-  destruct wf_strengthening_mutind; crush.
+  intros.
+  
+  assert (Hwf := H).
+  apply wf_strengthening_decl_ty
+    with
+      (G1:=nil)(G':=t::nil)(G2:=G)
+      (i1:=i)(i2:=S i)(n:=1)
+    in H;
+    simpl;
+    auto.
+
+  simpl in H;
+    rewrite ljump_wf_st in H;
+    auto;
+    rewrite ljump_wf_env with (Sig:=Sig) in H;
+    auto;
+    [|crush];
+    rewrite ljump_wf_decl_ty with (Sig:=Sig)(G:=t::G) in H;
+    crush.
+
+  intros i' Hge Hlt.
+  assert (i' = i);
+    [crush
+    |subst;
+     auto].
+  
+  intros t'' Hin;
+    inversion Hin.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_env in Hge;
+    eauto.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_store_type in H0;
+    eauto.
+  
 Qed.
 
-Lemma wf_strengthening_decl_tys :  
-  (forall Sig G ss, Sig en G vdash ss wf_ss ->
-                    forall G1 G' G2,
-                      G = (G1 ++ G' ++ G2) ->
-                      forall i1 i2 n, i1 = length G2 ->
-                                      i2 = length (G' ++ G2) ->
-                                      n = length G' ->
-                                      [i1 dots i2] runbound_ss ss ->
-                                      [i1 dots i2] runbound_env G1 ->
-                                      [i1 dots i2] runbound_env G2 ->
-                                      [i1 dots i2] runbound_env Sig ->
-                                      (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (ss [i2] ljump_ss n) wf_ss).
+Lemma wf_strengthening_decl_tys_actual :
+  (forall Sig G ss t, Sig en t::G vdash ss wf_ss ->
+               Sig wf_st ->
+               Sig evdash G wf_env ->
+               forall i, i = length G ->
+                    i unbound_ss ss ->
+                    (c_ i) notin_env G ->
+                    Sig en G vdash ss wf_ss).
 Proof.
-  destruct wf_strengthening_mutind; crush.
+  intros.
+  
+  assert (Hwf := H).
+  apply wf_strengthening_decl_tys
+    with
+      (G1:=nil)(G':=t::nil)(G2:=G)
+      (i1:=i)(i2:=S i)(n:=1)
+    in H;
+    simpl;
+    auto.
+
+  simpl in H;
+    rewrite ljump_wf_st in H;
+    auto;
+    rewrite ljump_wf_env with (Sig:=Sig) in H;
+    auto;
+    [|crush];
+    rewrite ljump_wf_decl_tys with (Sig:=Sig)(G:=t::G) in H;
+    crush.
+
+  intros i' Hge Hlt.
+  assert (i' = i);
+    [crush
+    |subst;
+     auto].
+  
+  intros t'' Hin;
+    inversion Hin.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_env in Hge;
+    eauto.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_store_type in H0;
+    eauto.
+  
 Qed.
 
-Lemma wf_strengthening_exp :
-  (forall Sig G e, Sig en G vdash e wf_e ->
-                   forall G1 G' G2,
-                     G = (G1 ++ G' ++ G2) ->
-                     forall i1 i2 n, i1 = length G2 ->
-                                     i2 = length (G' ++ G2) ->
-                                     n = length G' ->
-                                     [i1 dots i2] runbound_e e ->
-                                     [i1 dots i2] runbound_env G1 ->
-                                     [i1 dots i2] runbound_env G2 ->
-                                     [i1 dots i2] runbound_env Sig ->
-                                     (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (e [i2] ljump_e n) wf_e).
+
+Lemma wf_strengthening_exp_actual :
+  (forall Sig G e t, Sig en t::G vdash e wf_e ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              forall i, i = length G ->
+                   i unbound_e e ->
+                   (c_ i) notin_env G ->
+                   Sig en G vdash e wf_e).
 Proof.
-  destruct wf_strengthening_mutind; crush.
+  intros.
+  
+  assert (Hwf := H).
+  apply wf_strengthening_exp
+    with
+      (G1:=nil)(G':=t::nil)(G2:=G)
+      (i1:=i)(i2:=S i)(n:=1)
+    in H;
+    simpl;
+    auto.
+
+  simpl in H;
+    rewrite ljump_wf_st in H;
+    auto;
+    rewrite ljump_wf_env with (Sig:=Sig) in H;
+    auto;
+    [|crush];
+    rewrite ljump_wf_exp with (Sig:=Sig)(G:=t::G) in H;
+    crush.
+
+  intros i' Hge Hlt.
+  assert (i' = i);
+    [crush
+    |subst;
+     auto].
+  
+  intros t'' Hin;
+    inversion Hin.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_env in Hge;
+    eauto.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_store_type in H0;
+    eauto.
+  
 Qed.
 
-Lemma wf_strengthening_decl :  
-  (forall Sig G d, Sig en G vdash d wf_d ->
-                   forall G1 G' G2,
-                     G = (G1 ++ G' ++ G2) ->
-                     forall i1 i2 n, i1 = length G2 ->
-                                     i2 = length (G' ++ G2) ->
-                                     n = length G' ->
-                                     [i1 dots i2] runbound_d d ->
-                                     [i1 dots i2] runbound_env G1 ->
-                                     [i1 dots i2] runbound_env G2 ->
-                                     [i1 dots i2] runbound_env Sig ->
-                                     (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (d [i2] ljump_d n) wf_d).
+Lemma wf_strengthening_decl_actual :
+  (forall Sig G d t, Sig en t::G vdash d wf_d ->
+               Sig wf_st ->
+               Sig evdash G wf_env ->
+               forall i, i = length G ->
+                    i unbound_d d ->
+                    (c_ i) notin_env G ->
+                    Sig en G vdash d wf_d).
 Proof.
-  destruct wf_strengthening_mutind; crush.
+  intros.
+  
+  assert (Hwf := H).
+  apply wf_strengthening_decl
+    with
+      (G1:=nil)(G':=t::nil)(G2:=G)
+      (i1:=i)(i2:=S i)(n:=1)
+    in H;
+    simpl;
+    auto.
+
+  simpl in H;
+    rewrite ljump_wf_st in H;
+    auto;
+    rewrite ljump_wf_env with (Sig:=Sig) in H;
+    auto;
+    [|crush];
+    rewrite ljump_wf_decl with (Sig:=Sig)(G:=t::G) in H;
+    crush.
+
+  intros i' Hge Hlt.
+  assert (i' = i);
+    [crush
+    |subst;
+     auto].
+  
+  intros t'' Hin;
+    inversion Hin.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_env in Hge;
+    eauto.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_store_type in H0;
+    eauto.
+  
 Qed.
 
-Lemma wf_strengthening_decls :
-  (forall Sig G ds, Sig en G vdash ds wf_ds ->
-                    forall G1 G' G2,
-                      G = (G1 ++ G' ++ G2) ->
-                      forall i1 i2 n, i1 = length G2 ->
-                                      i2 = length (G' ++ G2) ->
-                                      n = length G' ->
-                                      [i1 dots i2] runbound_ds ds ->
-                                      [i1 dots i2] runbound_env G1 ->
-                                      [i1 dots i2] runbound_env G2 ->
-                                      [i1 dots i2] runbound_env Sig ->
-                                      (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (ds [i2] ljump_ds n) wf_ds).
+Lemma wf_strengthening_decls_actual :
+  (forall Sig G ds t, Sig en t::G vdash ds wf_ds ->
+               Sig wf_st ->
+               Sig evdash G wf_env ->
+               forall i, i = length G ->
+                    i unbound_ds ds ->
+                    (c_ i) notin_env G ->
+                    Sig en G vdash ds wf_ds).
 Proof.
-  destruct wf_strengthening_mutind; crush.
+  intros.
+  
+  assert (Hwf := H).
+  apply wf_strengthening_decls
+    with
+      (G1:=nil)(G':=t::nil)(G2:=G)
+      (i1:=i)(i2:=S i)(n:=1)
+    in H;
+    simpl;
+    auto.
+
+  simpl in H;
+    rewrite ljump_wf_st in H;
+    auto;
+    rewrite ljump_wf_env with (Sig:=Sig) in H;
+    auto;
+    [|crush];
+    rewrite ljump_wf_decls with (Sig:=Sig)(G:=t::G) in H;
+    crush.
+
+  intros i' Hge Hlt.
+  assert (i' = i);
+    [crush
+    |subst;
+     auto].
+  
+  intros t'' Hin;
+    inversion Hin.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_env in Hge;
+    eauto.
+
+  intros t'' Hin i' Hge Hlt.
+  subst i.
+  eapply wf_notin_store_type in H0;
+    eauto.
+  
 Qed.

@@ -4451,26 +4451,144 @@ Proof.
       (t':=t)(p2:=p)
     in H;
     simpl;
-    auto.
+    auto;
+    try solve [eapply wf_closed_env;
+               eauto].
 
   simpl in H;
-    apply 
-  
-  simpl in H.  
+    apply wf_strengthening_type_actual with (t':=t')(i:=length G);
+    auto;
+    [inversion H1;
+     auto
+    |inversion H1;
+     eapply wf_notin_env;
+     eauto].
 
+  intros t'' Hin;
+    inversion Hin;
+    subst;
+    auto.
+  inversion H1;
+    subst.
+  apply wf_notin_env with (r:=length G) in H10;
+    auto.
+
+  apply wf_notin_store_type;
+    auto.
+
+  apply wf_closed_store_type;
+    auto.
+
+  intros t'' Hin; eapply wf_closed_type;
+    eauto.
+
+  apply pt_var;
+    unfold mapping;
+    simpl;
+    rewrite get_app_r;
+    rewrite rev_length;
+    auto;
+    rewrite Nat.sub_diag;
+    auto.
   
+  apply typing_p_weakening_actual with (G':=t'::nil) in H4;
+    auto;
+    try solve [inversion H1; auto].
+
+  apply wf_weakening_actual_exp with (G':=t'::nil) in H3;
+    auto;
+    try solve [inversion H1; auto].
+
+  inversion H1;
+    subst.
+  apply wf_weakening_actual_type with (G':=t'::nil) in H8;
+    auto.
+
+  inversion H4; auto.
 Qed.
 
+Lemma wf_subst_decl_ty_actual :
+  forall Sig G t s, Sig en t::G vdash ([c_ length G /s 0]s) wf_s ->
+              Sig wf_st ->
+              Sig evdash t::G wf_env ->
+              length G unbound_s s ->
+              forall p, Sig en G vdash p wf_e ->
+                   Sig en G vdash p pathType t ->
+                   Sig en G vdash ([p /s 0]s) wf_s.
+Proof.
+  intros.
 
+  assert (Hunbound_t : (length G) unbound_t t);
+    [inversion H1;
+     subst;
+     eapply wf_unbound_type;
+     eauto|].
+  assert (Hunbound_p : (length G) unbound_e p);
+    [eapply wf_unbound_exp;
+     eauto|].
 
-  assert (Hrewrite1 : (t'::G) = (([c_ length G /env 0]nil)++(t'::G)));
-    [simpl; auto
-    |rewrite Hrewrite1 in H].
+  apply wf_subst_decl_ty
+    with
+      (G2:=t::G)
+      (s:=[c_ (length G) /s 0] s)
+      (r:=length G)(n:=0)
+      (G1:=nil)
+      (tp:=t)
+      (s':=s)(p2:=p)
+    in H;
+    simpl;
+    auto;
+    try solve [eapply wf_closed_env;
+               eauto].
 
+  simpl in H;
+    apply wf_strengthening_decl_ty_actual with (t:=t)(i:=length G);
+    auto;
+    [inversion H1;
+     auto
+    |inversion H1;
+     eapply wf_notin_env;
+     eauto].
 
-;
-     rewrite closed_subst_type;
-     auto;
-     inversion H1; subst;
-     eapply wf_closed_type;
-     eauto
+  intros t'' Hin;
+    inversion Hin;
+    subst;
+    auto.
+  inversion H1;
+    subst.
+  apply wf_notin_env with (r:=length G) in H10;
+    auto.
+
+  apply wf_notin_store_type;
+    auto.
+
+  apply wf_closed_store_type;
+    auto.
+
+  intros t'' Hin; eapply wf_closed_decl_ty;
+    eauto.
+
+  apply pt_var;
+    unfold mapping;
+    simpl;
+    rewrite get_app_r;
+    rewrite rev_length;
+    auto;
+    rewrite Nat.sub_diag;
+    auto.
+  
+  apply typing_p_weakening_actual with (G':=t::nil) in H4;
+    auto;
+    try solve [inversion H1; auto].
+
+  apply wf_weakening_actual_exp with (G':=t::nil) in H3;
+    auto;
+    try solve [inversion H1; auto].
+
+  inversion H1;
+    subst.
+  apply wf_weakening_actual_type with (G':=t::nil) in H8;
+    auto.
+
+  inversion H4; auto.
+Qed.

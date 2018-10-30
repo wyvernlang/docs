@@ -2099,11 +2099,81 @@ Proof.
   destruct wf_closed_mutind; auto.
 Qed.
 
+Lemma wf_closed_decl_ty :
+  (forall Sig G s, Sig en G vdash s wf_s ->
+            forall n, closed_s n s).
+Proof.
+  destruct wf_closed_mutind; crush.
+Qed.
+
+Lemma wf_closed_decl_tys :
+  (forall Sig G ss, Sig en G vdash ss wf_ss ->
+             forall n, closed_ss n ss).
+Proof.
+  destruct wf_closed_mutind; crush.
+Qed.
+
 Lemma wf_closed_exp :
   (forall Sig G e, Sig en G vdash e wf_e ->
                    forall n, closed_e n e).
 Proof.
   destruct wf_closed_mutind; crush.
+Qed.
+
+Lemma wf_closed_decl :
+  (forall Sig G d, Sig en G vdash d wf_d ->
+            forall n, closed_d n d).
+Proof.
+  destruct wf_closed_mutind; crush.
+Qed.
+
+Lemma wf_closed_decls :
+  (forall Sig G ds, Sig en G vdash ds wf_ds ->
+            forall n, closed_ds n ds).
+Proof.
+  destruct wf_closed_mutind; crush.
+Qed.
+
+Lemma wf_closed_env :
+  (forall Sig G, Sig evdash G wf_env ->
+          forall n, closed_env G n).
+Proof.
+  intros Sig G Hwf;
+    induction Hwf;
+    intros.
+
+  intros t' Hin;
+    inversion Hin.
+
+  intros t' Hin;
+    inversion Hin;
+    [subst t'
+    |apply IHHwf;
+     auto].
+  intros n' Hle.
+  eapply wf_closed_type;
+    eauto.
+Qed.
+
+Lemma wf_closed_store_type :
+  (forall Sig, Sig wf_st ->
+        forall n, closed_env Sig n).
+Proof.
+  intros Sig Hwf;
+    induction Hwf;
+    intros.
+
+  intros t' Hin;
+    inversion Hin.
+
+  intros t' Hin;
+    inversion Hin;
+    [subst t'
+    |apply IHHwf;
+     auto].
+  intros n' Hle.
+  eapply wf_closed_type;
+    eauto.
 Qed.
 
 Lemma raise_n_t_top_simpl :
