@@ -7,7 +7,6 @@ Require Import CpdtTactics.
 Require Import definitions.
 Require Import common.
 Require Import weakening.
-Require Import subst.
 Require Import strengthening_utils.
 Set Implicit Arguments.
 
@@ -2117,4 +2116,201 @@ Proof.
 
   simpl; apply wfe_con; eauto.
   apply not_in_decls_ljump; auto.
+Qed.
+
+Lemma wf_strengthening_type :
+  (forall Sig G t, Sig en G vdash t wf_t ->
+            forall G1 G' G2,
+              G = (G1 ++ G' ++ G2) ->
+              forall i1 i2 n, i1 = length G2 ->
+                         i2 = length (G' ++ G2) ->
+                         n = length G' ->
+                         [i1 dots i2] runbound_t t ->
+                         [i1 dots i2] runbound_env G1 ->
+                         [i1 dots i2] runbound_env G2 ->
+                         [i1 dots i2] runbound_env Sig ->
+                         (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (t [i2] ljump_t n) wf_t).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_decl_ty :  
+  (forall Sig G s, Sig en G vdash s wf_s ->
+            forall G1 G' G2,
+              G = (G1 ++ G' ++ G2) ->
+              forall i1 i2 n, i1 = length G2 ->
+                         i2 = length (G' ++ G2) ->
+                         n = length G' ->
+                         [i1 dots i2] runbound_s s ->
+                         [i1 dots i2] runbound_env G1 ->
+                         [i1 dots i2] runbound_env G2 ->
+                         [i1 dots i2] runbound_env Sig ->
+                         (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (s [i2] ljump_s n) wf_s).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_decl_tys :  
+  (forall Sig G ss, Sig en G vdash ss wf_ss ->
+             forall G1 G' G2,
+               G = (G1 ++ G' ++ G2) ->
+               forall i1 i2 n, i1 = length G2 ->
+                          i2 = length (G' ++ G2) ->
+                          n = length G' ->
+                          [i1 dots i2] runbound_ss ss ->
+                          [i1 dots i2] runbound_env G1 ->
+                          [i1 dots i2] runbound_env G2 ->
+                          [i1 dots i2] runbound_env Sig ->
+                          (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (ss [i2] ljump_ss n) wf_ss).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_exp :
+  (forall Sig G e, Sig en G vdash e wf_e ->
+            forall G1 G' G2,
+              G = (G1 ++ G' ++ G2) ->
+              forall i1 i2 n, i1 = length G2 ->
+                         i2 = length (G' ++ G2) ->
+                         n = length G' ->
+                         [i1 dots i2] runbound_e e ->
+                         [i1 dots i2] runbound_env G1 ->
+                         [i1 dots i2] runbound_env G2 ->
+                         [i1 dots i2] runbound_env Sig ->
+                         (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (e [i2] ljump_e n) wf_e).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_decl :  
+  (forall Sig G d, Sig en G vdash d wf_d ->
+            forall G1 G' G2,
+              G = (G1 ++ G' ++ G2) ->
+              forall i1 i2 n, i1 = length G2 ->
+                         i2 = length (G' ++ G2) ->
+                         n = length G' ->
+                         [i1 dots i2] runbound_d d ->
+                         [i1 dots i2] runbound_env G1 ->
+                         [i1 dots i2] runbound_env G2 ->
+                         [i1 dots i2] runbound_env Sig ->
+                         (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (d [i2] ljump_d n) wf_d).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_decls :
+  (forall Sig G ds, Sig en G vdash ds wf_ds ->
+             forall G1 G' G2,
+               G = (G1 ++ G' ++ G2) ->
+               forall i1 i2 n, i1 = length G2 ->
+                          i2 = length (G' ++ G2) ->
+                          n = length G' ->
+                          [i1 dots i2] runbound_ds ds ->
+                          [i1 dots i2] runbound_env G1 ->
+                          [i1 dots i2] runbound_env G2 ->
+                          [i1 dots i2] runbound_env Sig ->
+                          (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (ds [i2] ljump_ds n) wf_ds).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_type_actual :
+  (forall Sig G t t', Sig en t'::G vdash t wf_t ->
+               forall i, i = length G ->
+                    i unbound_t t ->
+                    (c_ i) notin_env G ->
+                    Sig en G vdash t wf_t).
+Proof.
+  intros.
+
+  apply wf_strengthening_type
+    with
+      (G1:=nil)(G':=t'::nil)(G2:=G)
+      (i1:=i)(i2:=S i)(n:=1)
+    in H;
+    simpl;
+    auto.
+
+  simpl in H.
+  
+Qed.
+
+Lemma wf_strengthening_decl_ty :  
+  (forall Sig G s, Sig en G vdash s wf_s ->
+                   forall G1 G' G2,
+                     G = (G1 ++ G' ++ G2) ->
+                     forall i1 i2 n, i1 = length G2 ->
+                                     i2 = length (G' ++ G2) ->
+                                     n = length G' ->
+                                     [i1 dots i2] runbound_s s ->
+                                     [i1 dots i2] runbound_env G1 ->
+                                     [i1 dots i2] runbound_env G2 ->
+                                     [i1 dots i2] runbound_env Sig ->
+                                     (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (s [i2] ljump_s n) wf_s).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_decl_tys :  
+  (forall Sig G ss, Sig en G vdash ss wf_ss ->
+                    forall G1 G' G2,
+                      G = (G1 ++ G' ++ G2) ->
+                      forall i1 i2 n, i1 = length G2 ->
+                                      i2 = length (G' ++ G2) ->
+                                      n = length G' ->
+                                      [i1 dots i2] runbound_ss ss ->
+                                      [i1 dots i2] runbound_env G1 ->
+                                      [i1 dots i2] runbound_env G2 ->
+                                      [i1 dots i2] runbound_env Sig ->
+                                      (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (ss [i2] ljump_ss n) wf_ss).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_exp :
+  (forall Sig G e, Sig en G vdash e wf_e ->
+                   forall G1 G' G2,
+                     G = (G1 ++ G' ++ G2) ->
+                     forall i1 i2 n, i1 = length G2 ->
+                                     i2 = length (G' ++ G2) ->
+                                     n = length G' ->
+                                     [i1 dots i2] runbound_e e ->
+                                     [i1 dots i2] runbound_env G1 ->
+                                     [i1 dots i2] runbound_env G2 ->
+                                     [i1 dots i2] runbound_env Sig ->
+                                     (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (e [i2] ljump_e n) wf_e).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_decl :  
+  (forall Sig G d, Sig en G vdash d wf_d ->
+                   forall G1 G' G2,
+                     G = (G1 ++ G' ++ G2) ->
+                     forall i1 i2 n, i1 = length G2 ->
+                                     i2 = length (G' ++ G2) ->
+                                     n = length G' ->
+                                     [i1 dots i2] runbound_d d ->
+                                     [i1 dots i2] runbound_env G1 ->
+                                     [i1 dots i2] runbound_env G2 ->
+                                     [i1 dots i2] runbound_env Sig ->
+                                     (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (d [i2] ljump_d n) wf_d).
+Proof.
+  destruct wf_strengthening_mutind; crush.
+Qed.
+
+Lemma wf_strengthening_decls :
+  (forall Sig G ds, Sig en G vdash ds wf_ds ->
+                    forall G1 G' G2,
+                      G = (G1 ++ G' ++ G2) ->
+                      forall i1 i2 n, i1 = length G2 ->
+                                      i2 = length (G' ++ G2) ->
+                                      n = length G' ->
+                                      [i1 dots i2] runbound_ds ds ->
+                                      [i1 dots i2] runbound_env G1 ->
+                                      [i1 dots i2] runbound_env G2 ->
+                                      [i1 dots i2] runbound_env Sig ->
+                                      (Sig [i2] ljump_env n) en (G1 [i2] ljump_env n) ++ (G2 [i2] ljump_env n) vdash (ds [i2] ljump_ds n) wf_ds).
+Proof.
+  destruct wf_strengthening_mutind; crush.
 Qed.
