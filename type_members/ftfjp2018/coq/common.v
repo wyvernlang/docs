@@ -984,35 +984,80 @@ Qed.
 
 (*closed*)
 
+Lemma closed_subst_mutind :
+  (forall n t, closed_t n t ->
+          forall e, ([e /t n] t) = t) /\
+
+  (forall n s, closed_s n s ->
+          forall e, ([e /s n] s) = s) /\
+
+  (forall n ss, closed_ss n ss ->
+           forall e, ([e /ss n] ss) = ss) /\
+
+  (forall n e, closed_e n e ->
+          forall e', ([e' /e n] e) = e) /\
+
+  (forall n d, closed_d n d ->
+          forall e, ([e /d n] d) = d) /\
+
+  (forall n ds, closed_ds n ds ->
+           forall e, ([e /ds n] ds) = ds).
+Proof.
+  apply closed_mutind;
+    intros;
+    auto;
+    try solve [simpl;
+               rewrite H;
+               try rewrite H0;
+               try rewrite H1;
+               eauto].
+
+  destruct x as [y|y];
+    auto.
+
+  simpl.
+  inversion c; subst.
+  apply Nat.eqb_neq in H1;
+    rewrite H1;
+    auto.
+                 
+Qed.
+
 Lemma closed_subst_type :
   forall n t, closed_t n t -> forall e, ([e /t n] t) = t.
 Proof.
-Admitted.
+  destruct closed_subst_mutind; crush.
+Qed.
 
 Lemma closed_subst_exp :
   forall n e, closed_e n e -> forall e', ([e' /e n] e) = e.
 Proof.
-Admitted.
+  destruct closed_subst_mutind; crush.
+Qed.
 
 Lemma closed_subst_decls :
   forall n ds, closed_ds n ds -> forall e, ([e /ds n] ds) = ds.
 Proof.
-Admitted.
+  destruct closed_subst_mutind; crush.
+Qed.
 
 Lemma closed_subst_decl_tys :
   forall n ss, closed_ss n ss -> forall e, ([e /ss n] ss) = ss.
 Proof.
-Admitted.
+  destruct closed_subst_mutind; crush.
+Qed.
 
 Lemma closed_subst_decl_ty :
   forall n s, closed_s n s -> forall e, ([e /s n] s) = s.
 Proof.
-Admitted.
+  destruct closed_subst_mutind; crush.
+Qed.
 
 Lemma closed_subst_decl :
   forall n d, closed_d n d -> forall e, ([e /d n] d) = d.
 Proof.
-Admitted.
+  destruct closed_subst_mutind; crush.
+Qed.
 
 Lemma closed_rjump_mutind :
   (forall n t, closed_t n t -> forall i m, closed_t n (t [i] rjump_t m)) /\

@@ -270,6 +270,20 @@ Proof.
     eauto.
 Qed.
 
+Lemma has_implies_alt :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              closed_exp p 0 ->
+              closed_env G 0 ->
+              closed_env Sig 0 ->
+              Sig en G vdash p ni_w s).
+Proof.
+  intros.
+  assert (closed_decl_ty s 0);
+    [eapply closed_has;
+     eauto|].
+  destruct has_contains_equivalence_mutind; crush.
+Qed.
+
 Lemma alt_has_implies_has :
   forall Sig G p s, Sig en G vdash p ni_w s ->
              closed_exp p 0 ->
@@ -849,3 +863,1308 @@ Proof.
     auto.
 Qed.
 
+Lemma has_wf :
+  forall Sig G p s, Sig en G vdash p ni s ->
+             Sig wf_st ->
+             Sig evdash G wf_env ->
+             Sig en G vdash p wf_e ->
+             Sig en G vdash s wf_s.
+Proof.
+  intros.
+
+  apply alt_has_wf with (p:=p);
+    auto.
+  apply has_implies_alt;
+    auto.
+  intros n Hle;
+    eapply wf_closed_exp;
+    eauto.
+  eapply wf_closed_env;
+    eauto.
+  apply wf_closed_store_type;
+    auto.
+Qed.
+
+Lemma closed_raise_inverse_mutind :
+  (forall t n, forall m,  m <= n ->
+                closed_t (S n) (t raise_t m) ->
+                closed_t n t) /\
+
+  (forall s n, forall m,  m <= n ->
+                closed_s (S n) (s raise_s m) ->
+                closed_s n s) /\
+
+  (forall ss n, forall m,  m <= n ->
+                 closed_ss (S n) (ss raise_ss m) ->
+                 closed_ss n ss) /\
+
+  (forall e n, forall m,  m <= n ->
+                closed_e (S n) (e raise_e m) ->
+                closed_e n e) /\
+
+  (forall d n, forall m,  m <= n ->
+                closed_d (S n) (d raise_d m) ->
+                closed_d n d) /\
+
+  (forall ds n, forall m,  m <= n ->
+                 closed_ds (S n) (ds raise_ds m) ->
+                 closed_ds n ds).
+Proof.
+  apply type_exp_mutind;
+    intros;
+    auto;
+    try solve [inversion H1;
+               subst;
+               try apply cl_sel;
+               try apply cl_acc;
+               try apply cls_upper;
+               try apply cls_lower;
+               try apply cls_equal;
+               try apply cls_value;
+               try apply cld_equal;
+               apply H with (m:=m);
+               crush];
+    try solve [inversion H2;
+               subst;
+               try apply cls_cons;
+               try apply cl_app;
+               try apply cl_cast;
+               try apply cld_value;
+               try apply cld_con;
+               [apply H with (m:=m)
+               |apply H0 with (m:=m)];
+               crush];
+    try solve [inversion H1;
+               subst;
+               try apply cl_str;
+               try apply cl_new;
+               apply H with (m:=S m);
+               crush].
+
+  (*arr*)
+  inversion H2;
+    subst;
+    apply cl_arr;
+    [apply H with (m:=m)
+    |apply H0 with (m:=S m)];
+    crush.
+
+  (*fn*)
+  inversion H3;
+    subst;
+    apply cl_fn;
+    [apply H with (m:=m)
+    |apply H0 with (m:=S m)
+    |apply H1 with (m:=S m)];
+    crush.
+
+  destruct v as [x|x];
+    auto.
+  simpl in H0.
+  
+Abort.
+
+Axiom excluded_middle :
+  forall A, A \/ ~ A.
+
+Lemma not_and :
+  forall A B, ~ (A /\ B) -> (~ A) \/ (~ B).
+Proof.
+  intros.
+  
+  destruct (excluded_middle A);
+    auto.
+Qed.
+
+Lemma not_closed_raise_mutind :
+  (forall t n, ~ closed_t n t ->
+          forall m, m <= n ->
+               ~ closed_t (S n) (t raise_t m)) /\
+
+  (forall s n, ~ closed_s n s ->
+          forall m, m <= n ->
+               ~ closed_s (S n) (s raise_s m)) /\
+
+  (forall ss n, ~ closed_ss n ss ->
+           forall m, m <= n ->
+                ~ closed_ss (S n) (ss raise_ss m)) /\
+
+  (forall e n, ~ closed_e n e ->
+          forall m, m <= n ->
+               ~ closed_e (S n) (e raise_e m)) /\
+
+  (forall d n, ~ closed_d n d ->
+          forall m, m <= n ->
+               ~ closed_d (S n) (d raise_d m)) /\
+
+  (forall ds n, ~ closed_ds n ds ->
+           forall m, m <= n ->
+                ~ closed_ds (S n) (ds raise_ds m)).
+Proof.
+  apply type_exp_mutind;
+    intros;
+    auto;
+    try solve [assert (Hncl : ~ closed_t n t);
+               [intro Hcontra;
+                contradiction H0;
+                auto|];
+               apply H
+                 with
+                   (m:=m)
+                 in Hncl;
+               [|crush];
+               intros Hcontra;
+               inversion Hcontra;
+               subst;
+               auto];
+
+    try solve [assert (Hncl : ~ closed_e n e);
+               [intro Hcontra;
+                contradiction H0;
+                auto|];
+               apply H
+                 with
+                   (m:=m)
+                 in Hncl;
+               [|crush];
+               intros Hcontra;
+               inversion Hcontra;
+               subst;
+               auto];
+
+    try solve [assert (Hncl : ~ ((closed_e n e) /\ (closed_t n t)));
+               [intro Hcontra;
+                destruct Hcontra as [Ha Hb];
+                contradiction H1;
+                auto
+               |apply not_and in Hncl;
+                destruct Hncl as [Hncl|Hncl]];
+               [apply H
+                  with
+                    (m:=m)
+                 in Hncl;
+                [|crush];
+                intros Hcontra;
+                inversion Hcontra;
+                subst;
+                auto
+               |apply H0
+                  with
+                    (m:=m)
+                 in Hncl;
+                [|crush];
+                intros Hcontra;
+                inversion Hcontra;
+                subst;
+                auto]].
+
+  (*str*)
+  assert (Hncl : ~ closed_ss (S n) d);
+    [intro Hcontra;
+     contradiction H0;
+     auto|].
+  apply H
+    with
+      (m:=S m)
+    in Hncl;
+    [|crush]. 
+  intros Hcontra.
+  inversion Hcontra;
+    subst;    
+    auto.
+
+  (*arr*)
+  assert (Hncl : ~ ((closed_t n t) /\ (closed_t (S n) t0)));
+    [intro Hcontra;
+     destruct Hcontra as [Ha Hb];
+     contradiction H1;
+     auto
+    |apply not_and in Hncl;
+     destruct Hncl as [Hncl|Hncl]].
+  apply H
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+  apply H0
+    with
+      (m:=S m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+
+  (*dt_con*)
+  assert (Hncl : ~ ((closed_s n d) /\ (closed_ss n d0)));
+    [intro Hcontra;
+     destruct Hcontra as [Ha Hb];
+     contradiction H1;
+     auto
+    |apply not_and in Hncl;
+     destruct Hncl as [Hncl|Hncl]].
+  apply H
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+  apply H0
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+
+  (*new*)
+  assert (Hncl : ~ closed_ds (S n) d);
+    [intro Hcontra;
+     contradiction H0;
+     auto|].
+  apply H
+    with
+      (m:=S m)
+    in Hncl;
+    [|crush]. 
+  intros Hcontra.
+  inversion Hcontra;
+    subst;    
+    auto.
+
+  (*app*)
+  assert (Hncl : ~ ((closed_e n e) /\ (closed_e n e0)));
+    [intro Hcontra;
+     destruct Hcontra as [Ha Hb];
+     contradiction H1;
+     auto
+    |apply not_and in Hncl;
+     destruct Hncl as [Hncl|Hncl]].
+  apply H
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+  apply H0
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+
+  (*fn*)
+  assert (Hncl : ~ ((closed_t n t) /\ (closed_e (S n) e) /\ (closed_t (S n) t0)));
+    [intro Hcontra;
+     destruct Hcontra as [Ha Hb];
+     destruct Hb as [Hb Hc];
+     contradiction H2;
+     auto
+    |apply not_and in Hncl;
+     destruct Hncl as [Hncl|Hncl];
+     [|apply not_and in Hncl;
+       destruct Hncl as [Hncl|Hncl]]].
+  apply H
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+  apply H0
+    with
+      (m:=S m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+  apply H1
+    with
+      (m:=S m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+
+  (*var*)
+  destruct v as [x|x];
+    auto.
+  intro Hcontra;
+    simpl in Hcontra.
+  inversion Hcontra;
+    subst.
+  inversion H3;
+    subst.
+  unfold raise_nat in H4.
+  destruct (lt_dec x m) as [Hlt|Hlt];
+    [
+    |assert (Hltb:=Hlt);
+     apply Nat.ltb_nlt in Hltb;
+     rewrite Hltb in H4];
+    contradiction H;
+    apply cl_var, cl_abstract;
+    crush.
+
+  (*app*)
+  assert (Hncl : ~ ((closed_d n d) /\ (closed_ds n d0)));
+    [intro Hcontra;
+     destruct Hcontra as [Ha Hb];
+     contradiction H1;
+     auto
+    |apply not_and in Hncl;
+     destruct Hncl as [Hncl|Hncl]].
+  apply H
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+  apply H0
+    with
+      (m:=m)
+    in Hncl;
+    [|crush];
+    intros Hcontra;
+    inversion Hcontra;
+    subst;
+    auto.
+Qed.
+
+Lemma not_closed_raise_type :
+  (forall t n, ~ closed_t n t ->
+          forall m, m <= n ->
+               ~ closed_t (S n) (t raise_t m)).
+Proof.
+  destruct not_closed_raise_mutind; crush.
+Qed.
+
+Lemma not_closed_raise_decl_ty :
+  (forall s n, ~ closed_s n s ->
+          forall m, m <= n ->
+               ~ closed_s (S n) (s raise_s m)).
+Proof.
+  destruct not_closed_raise_mutind; crush.
+Qed.
+
+Lemma not_closed_raise_decl_tys :
+  (forall ss n, ~ closed_ss n ss ->
+           forall m, m <= n ->
+                ~ closed_ss (S n) (ss raise_ss m)).
+Proof.
+  destruct not_closed_raise_mutind; crush.
+Qed.
+
+Lemma not_closed_raise_exp :
+  (forall e n, ~ closed_e n e ->
+          forall m, m <= n ->
+               ~ closed_e (S n) (e raise_e m)).
+Proof.
+  destruct not_closed_raise_mutind; crush.
+Qed.
+
+Lemma not_closed_raise_decl :
+  (forall d n, ~ closed_d n d ->
+          forall m, m <= n ->
+               ~ closed_d (S n) (d raise_d m)).
+Proof.
+  destruct not_closed_raise_mutind; crush.
+Qed.
+
+Lemma not_closed_raise_decls :
+  (forall ds n, ~ closed_ds n ds ->
+           forall m, m <= n ->
+                ~ closed_ds (S n) (ds raise_ds m)).
+Proof.
+  destruct not_closed_raise_mutind; crush.
+Qed.
+
+Lemma closed_subst_components_inverse_mutind :
+  (forall i t, closed_t i t ->
+          forall p n t', t = ([p /t n] t') ->
+                    ~ closed_e i p ->
+                    closed_t n t') /\
+
+  (forall i s, closed_s i s ->
+          forall p n s', s = ([p /s n] s') ->
+                    ~ closed_e i p ->
+                    closed_s n s') /\
+
+  (forall i ss, closed_ss i ss ->
+           forall p n ss', ss = ([p /ss n] ss') ->
+                      ~ closed_e i p ->
+                      closed_ss n ss') /\
+
+  (forall i e, closed_e i e ->
+          forall p n e', e = ([p /e n] e') ->
+                    ~ closed_e i p ->
+                    closed_e n e') /\
+
+  (forall i d, closed_d i d ->
+          forall p n d', d = ([p /d n] d') ->
+                    ~ closed_e i p ->
+                    closed_d n d') /\
+
+  (forall i ds, closed_ds i ds ->
+           forall p n ds', ds = ([p /ds n] ds') ->
+                      ~ closed_e i p ->
+                      closed_ds n ds').
+Proof.
+  apply closed_mutind;
+    intros;
+    auto;
+    try solve [destruct t';
+               try inversion H;
+               try inversion H0;
+               eauto];
+    try solve [destruct s';
+               try inversion H;
+               try inversion H0;
+               eauto];
+    try solve [destruct ss';
+               try inversion H;
+               try inversion H1;
+               eauto];
+    try solve [destruct e';
+               try inversion H;
+               try inversion H0;
+               eauto];
+    try solve [destruct ds';
+               try inversion H;
+               try inversion H1;
+               eauto].
+
+  (*arr*)
+  destruct t';
+    inversion H1;
+    subst.
+  apply cl_arr;
+    eauto.
+  apply H0 with (p0:=p raise_e 0);
+    auto.
+  apply not_closed_raise_exp;
+    crush.
+
+  (*str*)
+  destruct t';
+    inversion H0;
+    subst.
+  apply cl_str;
+    eauto.
+  apply H with (p0:=p raise_e 0);
+    auto.
+  apply not_closed_raise_exp;
+    crush.
+  
+  (*var*)
+  destruct e';
+    inversion H;
+    subst.
+  destruct v as [y|y];
+    auto.
+  destruct (Nat.eq_dec n0 y) as [|Hneq];
+    [subst;
+     rewrite <- beq_nat_refl in H2;
+     subst;
+     contradiction H0;
+     auto
+    |auto].
+
+  (*loc*)
+  destruct e';
+    inversion H;
+    subst;
+    auto.
+  destruct v as [y|y];
+    [inversion H2|].
+  destruct (n0 =? y);
+    [|inversion H2];
+    subst p;
+    contradiction H0;
+    auto.
+
+  (*cast*)
+  destruct e';
+    inversion H1;
+    subst;
+    eauto.
+  destruct v as [y|y];
+    auto;
+    destruct (n0 =? y);
+    [|inversion H4];
+    subst;
+    contradiction H2;
+    auto.
+
+  (*new*)
+  destruct e';
+    inversion H0;
+    subst.
+  apply cl_new.
+  apply H with (p0:=p raise_e 0); auto.
+  apply not_closed_raise_exp;
+    crush.
+  destruct v as [y|y];
+    auto;
+    destruct (n0 =? y);
+    [|inversion H3];
+    subst;
+    contradiction H1;
+    auto.
+
+  (*app*)
+  destruct e';
+    inversion H1;
+    subst;
+    eauto.
+  destruct v as [y|y];
+    auto;
+    destruct (n0 =? y);
+    [|inversion H4];
+    subst;
+    contradiction H2;
+    auto.
+
+  (*acc*)
+  destruct e';
+    inversion H0;
+    subst;
+    eauto.
+  destruct v as [y|y];
+    auto;
+    destruct (n0 =? y);
+    [|inversion H3];
+    subst;
+    contradiction H1;
+    auto.
+
+  (*fn*)
+  destruct e';
+    inversion H2;
+    subst.
+  apply cl_fn;
+    eauto.
+  apply H0 with (p0:=p raise_e 0); auto.
+  apply not_closed_raise_exp;
+    crush.
+  apply H1 with (p0:=p raise_e 0); auto.
+  apply not_closed_raise_exp;
+    crush.
+  destruct v as [y|y];
+    auto;
+    destruct (n0 =? y);
+    [|inversion H5];
+    subst;
+    contradiction H3;
+    auto.
+
+  (*decl equal*)
+  destruct d';
+    inversion H0;
+    subst;
+    eauto.
+
+  (*decl value*)
+  destruct d';
+    inversion H1;
+    subst;
+    eauto.
+Qed.
+
+Lemma closed_subst_components_inverse_type :
+  (forall i t, closed_t i t ->
+          forall p n t', t = ([p /t n] t') ->
+                    ~ closed_e i p ->
+                    closed_t n t').
+Proof.
+  destruct closed_subst_components_inverse_mutind; crush.
+Qed.
+
+Lemma closed_subst_components_inverse_decl_ty :
+  (forall i s, closed_s i s ->
+          forall p n s', s = ([p /s n] s') ->
+                    ~ closed_e i p ->
+                    closed_s n s').
+Proof.
+  destruct closed_subst_components_inverse_mutind; crush.
+Qed.
+
+Lemma closed_subst_components_inverse_decl_tys :
+  (forall i ss, closed_ss i ss ->
+           forall p n ss', ss = ([p /ss n] ss') ->
+                      ~ closed_e i p ->
+                      closed_ss n ss').
+Proof.
+  destruct closed_subst_components_inverse_mutind; crush.
+Qed.
+
+Lemma closed_subst_components_inverse_exp :
+  (forall i e, closed_e i e ->
+          forall p n e', e = ([p /e n] e') ->
+                    ~ closed_e i p ->
+                    closed_e n e').
+Proof.
+  destruct closed_subst_components_inverse_mutind; crush.
+Qed.
+
+Lemma closed_subst_components_inverse_decl :
+  (forall i d, closed_d i d ->
+          forall p n d', d = ([p /d n] d') ->
+                    ~ closed_e i p ->
+                    closed_d n d').
+Proof.
+  destruct closed_subst_components_inverse_mutind; crush.
+Qed.
+
+Lemma closed_subst_components_inverse_decls :
+  (forall i ds, closed_ds i ds ->
+           forall p n ds', ds = ([p /ds n] ds') ->
+                      ~ closed_e i p ->
+                      closed_ds n ds').
+Proof.
+  destruct closed_subst_components_inverse_mutind; crush.
+Qed.
+
+Lemma closed_contains_wf :
+  forall Sig G t s, Sig en G vdash s cont t ->
+             Sig wf_st ->
+             Sig evdash G wf_env ->
+             Sig en G vdash t wf_t ->
+             closed_decl_ty s 0 ->
+             Sig en G vdash s wf_s.
+Proof.
+  intros Sig G t s Hcont;
+    induction Hcont;
+    intros.
+
+  (*struct*)
+  assert (d cont_w (str ds));
+    auto.
+  assert (Hwf : Sig en (str ds)::G vdash [c_ (length G) /s 0]d wf_s);
+    [apply struct_contains_wf';
+     auto|].
+  rewrite closed_subst_decl_ty in Hwf;
+    auto.
+  apply wf_strengthening_decl_ty_actual
+    with
+      (t:=str ds)
+      (i:=length G);
+    auto.
+  apply wf_unbound_type
+    with
+      (r:=length G)
+    in H2;
+    auto;
+    inversion H2;
+    auto.
+  eapply unbound_in_dty;
+    eauto.
+  eapply wf_notin_env;
+    eauto.
+
+  (*upper*)
+  assert (Hwfp : Sig en G vdash p wf_e);
+    [inversion H2;
+     auto|].
+  assert (Hwt : Sig en G vdash t wf_t);
+    [apply has_wf in H;
+     auto;
+     inversion H;
+     auto|].
+  eapply closed_subst_components_inverse_decl_ty in H3;
+    eauto;
+    [rewrite closed_subst_decl_ty;
+     auto;
+     apply IHHcont;
+     auto|].
+  intros n' Hle;
+    destruct n' as [|n''];
+    auto.
+  apply closed_contains in Hcont;
+    auto.
+  apply Hcont;
+    crush.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  intros n' Hle';
+    eapply wf_closed_type;
+    eauto.
+  intros Hcontra;
+    auto;
+    inversion Hcontra;
+    subst.
+  inversion H7;
+    subst.
+  inversion H6;
+    auto.
+
+  (*equal*)
+  assert (Hwfp : Sig en G vdash p wf_e);
+    [inversion H2;
+     auto|].
+  assert (Hwt : Sig en G vdash t wf_t);
+    [apply has_wf in H;
+     auto;
+     inversion H;
+     auto|].
+  eapply closed_subst_components_inverse_decl_ty in H3;
+    eauto;
+    [rewrite closed_subst_decl_ty;
+     auto;
+     apply IHHcont;
+     auto|].
+  intros n' Hle;
+    destruct n' as [|n''];
+    auto.
+  apply closed_contains in Hcont;
+    auto.
+  apply Hcont;
+    crush.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  intros n' Hle';
+    eapply wf_closed_type;
+    eauto.
+  intros Hcontra;
+    auto;
+    inversion Hcontra;
+    subst.
+  inversion H7;
+    subst.
+  inversion H6;
+    auto.
+Qed.
+
+Lemma typing_wf_decl :
+  (forall Sig G d s, Sig en G vdash d hasType_d s ->
+              Sig en G vdash d wf_d ->
+              Sig en G vdash s wf_s).
+Proof.
+  intros Sig G d s Htyp;
+    destruct Htyp;
+    intros.
+
+  (*equal*)
+  inversion H;
+    auto.
+
+  (*value*)
+  inversion H1;
+    auto.
+Qed.
+
+Lemma decl_typing_same_id :
+  forall Sig G d s, Sig en G vdash d hasType_d s ->
+             id_d d = id_t s.
+Proof.
+  intros Sig G d s Htyp;
+    destruct Htyp;
+    auto.
+Qed.
+
+Lemma decls_typing_same_ids :
+  forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+               forall d, in_d d ds ->
+                    exists s, (in_dty s ss /\ id_d d = id_t s).
+Proof.
+  intros Sig G ds ss Htyp;
+    induction Htyp;
+    intros;
+    auto.
+
+  inversion H.
+
+  inversion H0;
+    subst.
+  exists s;
+    split;
+    [apply in_head_dty|].
+  eapply decl_typing_same_id;
+    eauto.
+
+  destruct IHHtyp
+    with
+      (d:=d0)
+    as [s' Ha];
+    auto;
+    destruct Ha as [Ha Hb].
+  exists s';
+    split;
+    auto.
+  apply in_tail_dty;
+    auto.
+Qed.
+
+Lemma decls_typing_exists_decl_typing :
+  forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+               forall d, in_d d ds ->
+                    exists s, (in_dty s ss /\ Sig en G vdash d hasType_d s).
+Proof.
+  intros Sig G ds ss Htyp;
+    induction Htyp;
+    intros;
+    auto.
+
+  inversion H.
+
+  inversion H0;
+    subst.
+
+  exists s;
+    split;
+    auto.
+  apply in_head_dty.
+
+  destruct (IHHtyp d0) as [s' Ha];
+    auto;
+    destruct Ha as [Ha Hb].
+  exists s';
+    split;
+    auto.
+  apply in_tail_dty;
+    auto.
+Qed.
+
+Lemma decls_typing_exists_decl_typing' :
+  forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+               forall s, in_dty s ss ->
+                    exists d, (in_d d ds /\ Sig en G vdash d hasType_d s).
+Proof.
+  intros Sig G ds ss Htyp;
+    induction Htyp;
+    intros;
+    auto.
+
+  inversion H.
+
+  inversion H0;
+    subst.
+
+  exists d;
+    split;
+    auto.
+  apply in_head_d.
+
+  destruct (IHHtyp s0) as [d' Ha];
+    auto;
+    destruct Ha as [Ha Hb].
+  exists d';
+    split;
+    auto.
+  apply in_tail_d;
+    auto.
+Qed.
+
+Lemma typing_wf_decls :
+  (forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+                Sig en G vdash ds wf_ds ->
+                Sig en G vdash ss wf_ss).
+Proof.
+  intros Sig G ds ss Htyp;
+    induction Htyp;
+    intros;
+    auto.
+
+  (*value*)
+  inversion H0;
+    subst;
+    auto.
+  apply wft_con;
+    auto.
+  eapply typing_wf_decl;
+    eauto.
+  intros s' Hin Hcontra.
+  apply decl_typing_same_id in H.
+  destruct decls_typing_exists_decl_typing'
+    with
+      (Sig:=Sig)(G:=G)
+      (ds:=ds)(ss:=ss)
+      (s:=s')
+    as [d' Ha];
+    auto;
+    destruct Ha as [Ha Hb].
+  apply decl_typing_same_id in Hb.
+  contradiction (H7 d' Ha).
+  rewrite Hb, H;
+    auto.
+Qed.
+
+Lemma typing_unique_decl :
+  forall Sig G d s, Sig en G vdash d hasType_d s ->
+             forall Sig' G' s', Sig' en G' vdash d hasType_d s' ->
+                           s' = s.
+Proof.
+  intros Sig G d s Htyp;
+    destruct Htyp;
+    intros.
+
+  inversion H; auto.
+
+  inversion H1; auto.
+  
+Qed.
+
+Lemma typing_unique_decls :
+  forall Sig G ds ss, Sig en G vdash ds hasType_ds ss ->
+               forall Sig' G' ss', Sig' en G' vdash ds hasType_ds ss' ->
+                              ss' = ss.
+Proof.
+  intros Sig G ds ss Htyp;
+    induction Htyp;
+    intros.
+
+  inversion H; auto.
+
+  inversion H0;
+    subst;
+    auto.
+  apply IHHtyp in H7;
+    subst ss0.
+  eapply typing_unique_decl with (s:=s) in H5;
+    eauto;
+    subst;
+    auto.
+Qed.
+
+Lemma typing_wf_exp :
+  (forall Sig G e t, Sig en G vdash e hasType t ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash e wf_e ->
+              Sig en G vdash t wf_t).
+Proof.
+  intros Sig G e t Htyp;
+    induction Htyp;
+    intros;
+    auto.
+
+  (*var*)
+  apply wf_in_env;
+    auto.
+  apply in_rev, get_in with (n0:=n);
+    auto.
+
+  (*loc*)
+  apply wf_in_store_type;
+    auto.
+  apply in_rev, get_in with (n:=i);
+    auto.
+
+  (*cast*)
+  inversion H2;
+    auto.
+
+  (*fn*)
+  inversion H1;
+    subst.
+  apply wf_arr;
+    auto.
+
+  (*app closed*)
+  inversion H3;
+    subst.
+  assert (Hwf_arr : Sig en G vdash t1 arr t2 wf_t);
+    [apply IHHtyp1;
+     auto
+    |inversion Hwf_arr;
+     subst].
+  assert (closed_t 0 t2);
+    [apply H0;
+     eapply wf_closed_type;
+     eauto
+    |rewrite closed_subst_type in H14;
+     auto].
+  apply wf_strengthening_type_actual
+    with
+      (t':=t1)(i:=length G);
+    auto.
+  eapply wf_notin_env;
+    eauto.
+
+  (*app path*)
+  assert (Hwf_arr : Sig en G vdash (t1 arr t2) wf_t);
+    [apply IHHtyp;
+     inversion H3;
+     auto|].
+  inversion Hwf_arr;
+    subst.
+  apply wf_subst_type_actual
+    with
+      (p:=p cast t1)
+    in H10;
+    eauto.
+  apply wf_con;
+    auto.
+  apply wf_cast with (t':=t');
+    eauto.
+  inversion H3;
+    auto.
+  apply path_typing_implies_typing;
+    auto.
+  inversion H3;
+    auto.
+
+  (*new*)
+  inversion H3;
+    subst.
+  apply typing_wf_decls in H;
+    auto.
+  inversion H5;
+    subst.
+  apply typing_unique_decls
+    with
+      (Sig:=Sig)(G:=str ss ::G)(ss:=[v_ Var (length G) /ss 0] ss)
+    in H11;
+    auto.  
+  apply subst_equality_decl_tys in H11;
+    auto;
+    subst ss0;
+    auto.
+
+  (*acc path*)
+  apply has_wf in H;
+    auto.
+  inversion H; auto.
+  inversion H2; auto.
+
+  (*acc closed*)
+  apply closed_contains_wf in H;
+    auto.
+  inversion H;
+    auto.
+  apply IHHtyp;
+    auto.
+  inversion H3;
+    auto.
+  apply closed_decl_ty_value.
+  intros n' Hle; apply H0.
+  apply closed_typing_exp in Htyp;
+    auto.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  intros n'' Hle';
+    apply wf_closed_exp with (Sig:=Sig)(G:=G).
+  inversion H3;
+    auto.
+Qed.
+
+
+Lemma member_wf :
+  forall Sig G e s, Sig en G vdash e mem s ->
+             Sig wf_st ->
+             Sig evdash G wf_env ->
+             Sig en G vdash e wf_e ->
+             Sig en G vdash s wf_s.
+Proof.
+  intros Sig G e s Hmem;
+    induction Hmem;
+    intros.
+
+  eapply has_wf;
+    eauto.
+
+  eapply closed_contains_wf;
+    eauto.
+  eapply typing_wf_exp;
+    eauto.
+
+  intros n Hle;
+    destruct n as [|n'];
+    auto.
+  apply closed_contains in H0;
+    auto.
+  apply H0;
+    crush.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  eapply closed_typing_exp;
+    eauto.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  intros n'' Hle';
+    eapply wf_closed_exp;
+    eauto.
+Qed.
+
+Lemma has_contains_unique_mutind :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash p wf_e ->
+              forall s', Sig en G vdash p ni s' ->
+                    id_t s' = id_t s ->
+                    s' = s) /\
+  
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash t wf_t ->
+              forall s', Sig en G vdash s' cont t ->
+                    id_t s' = id_t s ->
+                    s' = s).
+Proof.
+  apply has_contains_mutind;
+    intros;
+    auto.
+
+  (*has path*)
+  inversion H3;
+    subst.
+  apply path_typing_uniqueness
+    with
+      (t:=t)
+    in H5;
+    auto;
+    subst t1.
+  apply H in H6;
+    auto;
+    [subst d0;
+     auto
+    |eapply path_typing_wf;
+     eauto
+    |].
+  repeat rewrite idt_subst in H4;
+    auto.
+
+  (*struct*)
+  inversion H2;
+    subst.
+  inversion H1;
+    subst.
+  inversion H9;
+    subst.
+  destruct ds;
+    inversion H10.
+  inversion H7.
+  destruct ds;
+    inversion H4;
+    subst.
+  rewrite  idt_subst in H12.
+Qed.
+      
+
+(*perhaps misnamed. This denotes a type that could super type a function*)
+Inductive fn_type : env -> env -> ty -> Prop :=
+| fn_top : forall Sig G, fn_type Sig G top
+| fn_arr : forall Sig G t1 t2, fn_type Sig G (t1 arr t2)
+| fn_upper : forall Sig G p l t, Sig en G vdash p ni (type l ext t) ->
+                          fn_type Sig G t ->
+                          fn_type Sig G (sel p l)
+| fn_lower : forall Sig G p l t, Sig en G vdash p ni (type l sup t) ->
+                          fn_type Sig G t ->
+                          fn_type Sig G (sel p l)
+| fn_equal : forall Sig G p l t, Sig en G vdash p ni (type l eqt t) ->
+                          fn_type Sig G t ->
+                          fn_type Sig G (sel p l).
+
+Hint Constructors fn_type.
+
+Inductive is_func : exp -> Prop :=
+| isf_func : forall t1 e t2, is_func (fn t1 in_exp e off t2)
+| isf_cast : forall f t, is_func f ->
+                    is_func (f cast t).
+
+Hint Constructors is_func.
+    
+Lemma is_path_or_non_object :
+  forall v, is_value v ->
+       (is_path v) \/ (is_func v).
+Proof.
+  intros v Hval;
+    induction Hval;
+    auto.
+
+  destruct IHHval;
+    auto.
+Qed.
+
+Lemma subtype_func_type :
+  forall Sig G1 t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2 ->
+                   G1 = G2 ->
+                   fn_type Sig G1 t1 ->
+                   fn_type Sig G1 t2.
+Proof.
+  intros Sig G1 t1 t2 G2 Hsub;
+    induction Hsub;
+    intros;
+    subst G2;
+    auto.
+
+  inversion H0.
+
+  apply IHHsub;
+    auto.
+  inversion H1;
+    subst;
+    auto.
+    
+Qed.
+
+Lemma func_has_func_type :
+  forall Sig G f t, 
+
+Lemma non_path_substitution_wf :
+  (forall Sig G t, Sig en G vdash t wf_t ->
+            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
+                       forall t' n, t = ([v /t n] t') ->
+                               closed_t n t') /\
+
+  (forall Sig G s, Sig en G vdash s wf_s ->
+            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
+                       forall s' n, s = ([v /s n] s') ->
+                               closed_s n s') /\
+
+  (forall Sig G ss, Sig en G vdash ss wf_ss ->
+             forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
+                        forall ss' n, ss = ([v /ss n] ss') ->
+                                 closed_ss n ss') /\
+
+  (forall Sig G e, Sig en G vdash e wf_e ->
+            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
+                       forall e' n, e = ([v /t n] e') ->
+                               closed_e n e') /\
+
+  (forall Sig G t, Sig en G vdash t wf_t ->
+            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
+                       forall t' n, t = ([v /t n] t') ->
+                               closed_t n t') /\
+
+  (forall Sig G t, Sig en G vdash t wf_t ->
+            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
+                       forall t' n, t = ([v /t n] t') ->
+                               closed_t n t').
+                         
