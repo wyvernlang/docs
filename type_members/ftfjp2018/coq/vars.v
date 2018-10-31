@@ -2020,6 +2020,38 @@ Proof.
     eauto.
 Qed.
 
+Lemma wf_decls_in_dty_unique :
+  forall s ss, in_dty s ss ->
+          forall Sig G, Sig en G vdash ss wf_ss ->
+                 forall s', in_dty s' ss ->
+                       id_t s' = id_t s ->
+                       s' = s.
+Proof.
+  intros s ss Hin;
+    induction Hin;
+    intros;
+    auto.
+
+  inversion H0;
+    subst;
+    auto.
+  inversion H;
+    subst.
+  apply H9 in H4;
+    crush.
+
+  inversion H0;
+    subst.
+  inversion H;
+    subst.
+  apply H8 in Hin;
+    crush.
+  inversion H;
+    subst.
+  eapply IHHin;
+    eauto.
+Qed.
+
 Lemma has_contains_unique_mutind :
   (forall Sig G p s, Sig en G vdash p ni s ->
               Sig wf_st ->
@@ -2065,17 +2097,105 @@ Proof.
     subst.
   inversion H1;
     subst.
-  inversion H9;
+  assert (Hin1 := i);
+    assert (Hin2 := H7).
+  apply subst_in_dty
+    with
+      (p:=c_ (length G))(n:=0)
+    in i.
+  apply subst_in_dty
+    with
+      (p:=c_ (length G))(n:=0)
+    in H7.
+  rewrite <- idt_subst
+    with
+      (p:=c_ (length G))(n:=0)
+    in H3.
+  rewrite <- idt_subst
+    with
+      (p:=c_ (length G))(n:=0)
+      (s:=d)
+    in H3.
+  apply wf_decls_in_dty_unique
+    with
+      (Sig:=Sig)(G:=str ds :: G)
+      (ss:=[c_ (length G) /ss 0]ds)
+    in H3;
+    auto.
+  apply subst_equality_decl_ty in H3;
+    auto;
+    eapply unbound_var_notin_decl_ty, unbound_in_dty;
+    eauto.
+  
+  
+  
+  (*upper*)
+  inversion H4;
+    subst;
+  apply H in H10;
+    auto;
+    try solve [inversion H3; auto].
+  inversion H10;
     subst.
-  destruct ds;
-    inversion H10.
-  inversion H7.
-  destruct ds;
-    inversion H4;
+  apply H0 in H12;
+    auto;
+    subst;
+    auto;
+    [|repeat rewrite idt_subst in H5; auto].
+  apply has_wf in h;
+    auto;
+    [inversion h;
+     auto
+    |inversion H3;
+     auto].
+
+  inversion H10.
+
+  inversion H4;
+    subst;
+  apply H in H10;
+    auto;
+    try solve [inversion H3; auto].
+  inversion H10.
+  
+  inversion H10;
     subst.
-  rewrite  idt_subst in H12.
+  apply H0 in H12;
+    auto;
+    subst;
+    auto;
+    [|repeat rewrite idt_subst in H5; auto].
+  apply has_wf in h;
+    auto;
+    [inversion h;
+     auto
+    |inversion H3;
+     auto].
 Qed.
-      
+
+Lemma has_unique :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash p wf_e ->
+              forall s', Sig en G vdash p ni s' ->
+                    id_t s' = id_t s ->
+                    s' = s).
+Proof.
+  destruct has_contains_unique_mutind; crush.
+Qed.
+
+Lemma contains_unique :
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash t wf_t ->
+              forall s', Sig en G vdash s' cont t ->
+                    id_t s' = id_t s ->
+                    s' = s).
+Proof.
+  destruct has_contains_unique_mutind; crush.
+Qed.
 
 (*perhaps misnamed. This denotes a type that could super type a function*)
 Inductive fn_type : env -> env -> ty -> Prop :=
@@ -2113,58 +2233,182 @@ Proof.
 Qed.
 
 Lemma subtype_func_type :
-  forall Sig G1 t1 t2 G2, Sig en G1 vdash t1 <; t2 dashv G2 ->
-                   G1 = G2 ->
-                   fn_type Sig G1 t1 ->
-                   fn_type Sig G1 t2.
+  forall Sig G t1 t2 G', Sig en G vdash t1 <; t2 dashv G' ->
+                   Sig wf_st ->
+                   Sig evdash G wf_env ->
+                   Sig en G vdash t1 wf_t ->
+                   Sig en G vdash t2 wf_t ->
+                   G' = G ->
+                   fn_type Sig G t1 ->
+                   fn_type Sig G t2.
 Proof.
-  intros Sig G1 t1 t2 G2 Hsub;
+  intros Sig G t1 t2 G' Hsub;
     induction Hsub;
     intros;
     subst G2;
     auto.
 
-  inversion H0.
+  inversion H4.
 
+  (*s-upper*)
+  assert (Hwf_p : Sig en G1 vdash p wf_e);
+    [inversion H2;
+     auto
+    |].
+  assert (Hwf_t1 : Sig en G1 vdash t1 wf_t);
+    [apply has_wf in H;
+     auto;
+     inversion H;
+     auto|].
   apply IHHsub;
     auto.
-  inversion H1;
+  inversion H5;
+    subst;
+    auto;
+    apply has_unique
+    with
+      (s:=type L ext t1)
+    in H9;
+    auto;
+    inversion H9;
     subst;
     auto.
-    
+
+  (*s-lower*)
+  assert (Hwf_p : Sig en G1 vdash p wf_e);
+    [inversion H3;
+     auto
+    |].
+  assert (Hwf_t1 : Sig en G1 vdash t2 wf_t);
+    [apply has_wf in H;
+     auto;
+     inversion H;
+     auto|].
+  apply fn_lower with (t:=t2);
+    auto.
+
+  (*s-equal1*)
+  assert (Hwf_p : Sig en G1 vdash p wf_e);
+    [inversion H2;
+     auto
+    |].
+  assert (Hwf_t1 : Sig en G1 vdash t1 wf_t);
+    [apply has_wf in H;
+     auto;
+     inversion H;
+     auto|].
+  apply IHHsub;
+    auto.
+  inversion H5;
+    subst;
+    auto;
+    apply has_unique
+    with
+      (s:=type L eqt t1)
+    in H9;
+    auto;
+    inversion H9;
+    subst;
+    auto.
+
+  (*s-equal2*)
+  assert (Hwf_p : Sig en G1 vdash p wf_e);
+    [inversion H3;
+     auto
+    |].
+  assert (Hwf_t1 : Sig en G1 vdash t2 wf_t);
+    [apply has_wf in H;
+     auto;
+     inversion H;
+     auto|].
+  apply fn_equal with (t:=t2);
+    auto.
+
+  inversion H7.
 Qed.
 
-Lemma func_has_func_type :
-  forall Sig G f t, 
+Inductive cont_type : env -> env -> ty -> Prop :=
+| ct_str : forall Sig G ss, cont_type Sig G (str ss)
+| ct_upper :forall Sig G p l t, Sig en G vdash p ni (type l ext t) ->
+                         cont_type Sig G t ->
+                         cont_type Sig G (sel p l)
+| ct_equal :forall Sig G p l t, Sig en G vdash p ni (type l eqt t) ->
+                         cont_type Sig G t ->
+                         cont_type Sig G (sel p l)
+| ct_bot : forall Sig G, cont_type Sig G bot.
+
+Hint Constructors cont_type.
+
+
+
+Lemma is_func_has_func_type :
+  forall f, is_func f ->
+       forall Sig G t, Sig en G vdash f hasType t ->
+                Sig wf_st ->
+                Sig evdash G wf_env ->
+                Sig en G vdash f wf_e ->
+                fn_type Sig G t.
+Proof.
+  intros f Hfn;
+    induction Hfn;
+    intros;
+    auto.
+
+  inversion H;
+    subst;
+    auto.
+
+  inversion H;
+    subst.
+  eapply subtype_func_type;
+    eauto.
+  apply typing_wf_exp with (e:=f);
+    auto.
+  inversion H2;
+    auto.
+  inversion H2;
+    auto.
+  apply IHHfn;
+    auto.
+  inversion H2;
+    auto.
+Qed.
+
+
+
+
+Scheme wf_ty_mut_ind := Induction for wf_ty Sort Prop
+  with wf_decl_ty_mut_ind := Induction for wf_decl_ty Sort Prop
+  with wf_decl_tys_mut_ind := Induction for wf_decl_tys Sort Prop
+  with wf_exp_mut_ind := Induction for wf_exp Sort Prop
+  with wf_decl_mut_ind := Induction for wf_decl Sort Prop
+  with wf_decls_mut_ind := Induction for wf_decls Sort Prop.
+
+Combined Scheme wf_mutind from wf_ty_mut_ind, wf_decl_ty_mut_ind, wf_decl_tys_mut_ind,
+wf_exp_mut_ind, wf_decl_mut_ind, wf_decls_mut_ind.
 
 Lemma non_path_substitution_wf :
   (forall Sig G t, Sig en G vdash t wf_t ->
-            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
-                       forall t' n, t = ([v /t n] t') ->
-                               closed_t n t') /\
+            forall v tf, Sig en G vdash v hasType tf ->
+                    fn_type Sig G tf ->
+                    forall t' n, t = ([v /t n] t') ->
+                            closed_t n t') /\
 
   (forall Sig G s, Sig en G vdash s wf_s ->
-            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
-                       forall s' n, s = ([v /s n] s') ->
-                               closed_s n s') /\
+            forall v tf, Sig en G vdash v hasType tf ->
+                    fn_type Sig G tf ->
+                    forall s' n, s = ([v /s n] s') ->
+                            closed_s n s') /\
 
   (forall Sig G ss, Sig en G vdash ss wf_ss ->
-             forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
-                        forall ss' n, ss = ([v /ss n] ss') ->
-                                 closed_ss n ss') /\
+             forall v tf, Sig en G vdash v hasType tf ->
+                     fn_type Sig G tf ->
+                     forall ss' n, ss = ([v /ss n] ss') ->
+                              closed_ss n ss') /\
 
-  (forall Sig G e, Sig en G vdash e wf_e ->
-            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
-                       forall e' n, e = ([v /t n] e') ->
-                               closed_e n e') /\
-
-  (forall Sig G t, Sig en G vdash t wf_t ->
-            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
-                       forall t' n, t = ([v /t n] t') ->
-                               closed_t n t') /\
-
-  (forall Sig G t, Sig en G vdash t wf_t ->
-            forall v t1 t2, Sig en G vdash v hasType (t1 arr t2) ->
-                       forall t' n, t = ([v /t n] t') ->
-                               closed_t n t').
-                         
+  (forall Sig G p, Sig en G vdash p wf_e ->
+            is_path p ->
+            forall v tf, Sig en G vdash v hasType tf ->
+                    fn_type Sig G tf ->
+                    forall p' n, p = ([v /e n] p') ->
+                            closed_e n p').
