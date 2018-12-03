@@ -1,12 +1,14 @@
-
+(add-to-list 'default-frame-alist '(font . "Fira Code-14" ))
+(set-face-attribute 'default t :font "Fira Code-14")
+(set-fontset-font "fontset-default" '(#x2227 . #x2228) "DejaVu sans mono - 14")
 
 (setq coq-symbols-list '(lambda ()
         (mapc (lambda (pair) (push pair prettify-symbols-alist))
             '(("forall". ?∀)
               ("exists". ?∃)
               ("~" . ?¬)
-              ("/\\" . ?⋀)
-              ("\\/" . ?⋁)
+              ("/\\" . ?∧)
+              ("\\/" . ?∨)
               ("=>". ?⇒)
               ("->". ?→)
               ("<-" . ?←)
