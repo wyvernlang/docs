@@ -11,17 +11,16 @@ Require Import strengthening.
 Require Import subst.
 Set Implicit Arguments.
 
-
-Inductive balanced : env -> env -> env -> env -> Prop :=
-| bal_nil : forall Sig, balanced Sig nil nil nil
-| bal_cons1 : forall Sig t1 G1 t2 G2 t3 G3, Sig en G1 vdash t1 <; t2 dashv G2 ->
+Inductive monotonic : env -> env -> env -> env -> Prop :=
+| mon_nil : forall Sig, monotonic Sig nil nil nil
+| mon_cons1 : forall Sig t1 G1 t2 G2 t3 G3, Sig en G1 vdash t1 <; t2 dashv G2 ->
                                      Sig en G2 vdash t2 <; t3 dashv G3 ->
-                                     balanced Sig G1 G2 G3 ->
-                                     balanced Sig (t1::G1) (t2::G2) (t3::G3)
-| bal_cons2 : forall Sig t1 G1 t2 G2 t3 G3, Sig en G3 vdash t3 <; t2 dashv G2 ->
+                                     monotonic Sig G1 G2 G3 ->
+                                     monotonic Sig (t1::G1) (t2::G2) (t3::G3)
+| mon_cons2 : forall Sig t1 G1 t2 G2 t3 G3, Sig en G3 vdash t3 <; t2 dashv G2 ->
                                      Sig en G2 vdash t2 <; t1 dashv G1 ->
-                                     balanced Sig G1 G2 G3 ->
-                                     balanced Sig (t1::G1) (t2::G2) (t3::G3).
+                                     monotonic Sig G1 G2 G3 ->
+                                     monotonic Sig (t1::G1) (t2::G2) (t3::G3).
 
 Inductive concrete_ub : env -> env -> ty -> ty -> Prop :=
 | cub_top : forall Sig G, concrete_ub Sig G top top

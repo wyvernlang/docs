@@ -660,8 +660,11 @@ Lemma limited_narrowing_subtype_mutind :
                     lt_ctx Sig 0 ->
                     lt_env G1 (length G1) ->
                     lt_env G2 (length G2) ->
+                    length G1 = length G2 ->
                     mem_unique t1 ->
                     mem_unique t2 ->
+                    lt_t t1 (length G1) ->
+                    lt_t t2 (length G2) ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -680,8 +683,11 @@ Lemma limited_narrowing_subtype_mutind :
                     lt_ctx Sig 0 ->
                     lt_env G1 (length G1) ->
                     lt_env G2 (length G2) ->
+                    length G1 = length G2 ->
                     mem_unique_s s1 ->
                     mem_unique_s s2 ->
+                    lt_s s1 (length G1) ->
+                    lt_s s2 (length G2) ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -700,8 +706,11 @@ Lemma limited_narrowing_subtype_mutind :
                       lt_ctx Sig 0 ->
                       lt_env G1 (length G1) ->
                       lt_env G2 (length G2) ->
+                      length G1 = length G2 ->
                       mem_unique_ss ss1 ->
                       mem_unique_ss ss2 ->
+                      lt_ss ss1 (length G1) ->
+                      lt_ss ss2 (length G2) ->
                       forall G3 G4 G5 G6 t3 t4,
                         G1 = G3 ++ (t3::G4) ->
                         G2 = G5 ++ (t4::G6) ->
@@ -716,18 +725,21 @@ Proof.
   apply sub_mutind;
     intros;
     auto;
-    try solve [inversion H5;
-               inversion H6;
-               inversion H7;
+    try solve [inversion H7;
                inversion H8;
+               inversion H9;
+               inversion H10;
+               inversion H11;
                eauto].
 
   (*arr*)
   apply s_arr with (i:=i).
   eapply H;
     eauto;
-    [inversion H5; auto
-    |inversion H4; auto].
+    [inversion H9; auto
+    |inversion H8; auto
+    |inversion H11; auto
+    |inversion H10; auto].
 
   rewrite app_length; simpl;
     subst G1;
@@ -748,137 +760,202 @@ Proof.
     [auto|rewrite Hrewrite2].
   eapply H0;
     eauto;
-    try solve [apply wf_con;
-               inversion H4;
-               inversion H5;
-               auto];
-    try solve [inversion H4;
-               inversion H5;
+    try solve [simpl; subst; auto];
+    try solve [intros t Hin;
+               inversion Hin;
                subst;
+               auto;
+               inversion H8;
+               inversion H9;               
                auto];
-    try solve [subst; auto].
-
-  inversion H5; subst; rewrite e0; auto.
+    try solve [simpl;
+               apply lt_cons;
+               inversion H10;
+               inversion H11;
+               auto];
+    try solve [apply mem_unique_subst_type;
+               inversion H8;
+               inversion H9;
+               auto];
+    try solve [apply lt_subst_type;
+               [
+               |subst;
+                auto;
+                try (rewrite e0);
+                auto];
+               inversion H10;
+               inversion H11;
+               simpl;
+               apply lt_n_Sn_type;
+               auto].
 
   (*s_upper1*)
   apply s_upper1 with (t1:=t1).
 
   apply limited_narrowing_has with (G:=G1)(t1:=t3);
     eauto.
-  apply wf_implies_unique_mutind in H3; inversion H3; auto.
+  inversion H7; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; auto].
 
   (*s_upper2*)
   apply s_upper2 with (t1:=t1).
 
   apply limited_narrowing_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H3; auto.
+  inversion H7; auto.
 
   apply H with (t3:=t4)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
 
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; rewrite <- H6; auto].
+  
   (*s_lower1*)
   apply s_lower1 with (t2:=t2).
 
   apply limited_narrowing_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H4; auto.
+  inversion H8; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H8; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H10; auto].
 
   (*s_lower2*)
   apply s_lower2 with (t2:=t2).
 
   apply limited_narrowing_has with (G:=G1)(t1:=t3);
     eauto.
-  inversion H4; auto.
+  inversion H8; auto.
 
   apply H with (t3:=t3)(t4:=t3);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H8; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H10; rewrite H6; auto].
 
   (*s_equal1*)
   apply s_equal1 with (t1:=t1).
 
   apply limited_narrowing_has with (G:=G1)(t1:=t3);
     eauto.
-  inversion H3; auto.
+  inversion H7; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; auto].
 
   (*s_equal2*)
   apply s_equal2 with (t2:=t2).
 
   apply limited_narrowing_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H4; auto.
+  inversion H8; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H8; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H10; auto].
 
   (*s_equal3*)
   apply s_equal3 with (t1:=t1).
 
   apply limited_narrowing_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H3; auto.
+  inversion H7; auto.
 
   apply H with (t3:=t4)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; rewrite <- H6; auto].
 
   (*s_equal4*)
   apply s_equal4 with (t2:=t2).
 
   apply limited_narrowing_has with (G:=G1)(t1:=t3);
     eauto.
-  inversion H4; auto.
+  inversion H8; auto.
 
   apply H with (t3:=t3)(t4:=t3);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H8; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H10; rewrite H6; auto].
 
   (*struct*)
   apply s_struct with (i:=i);
@@ -896,29 +973,21 @@ Proof.
   apply H with (t3:=t3)(t4:=t4);
     auto;
     try solve [apply mem_unique_subst_decl_tys;
-               inversion H3;
-               inversion H4;
+               inversion H7;
+               inversion H8;
                auto];
     try solve [intros t'' Hin;
                inversion Hin;
                subst;
                auto];
-    try solve [subst G1 G2; auto].
-
-  (*sd_equal*)
-  inversion H4;
-    inversion H5;
-    eauto.
-
-  (*sd_value*)
-  inversion H4;
-    inversion H5;
-    eauto.
-
-  (*sd_cons*)
-  inversion H4;
-    inversion H5;
-    eauto.
+    try solve [subst G1 G2; simpl; auto];
+    try solve [apply lt_subst_decl_tys;
+               inversion H9;
+               inversion H10;
+               auto;
+               [apply lt_n_Sn_decl_tys; auto
+               |try solve [rewrite e; auto]];
+               try solve [rewrite e0; auto]].
 Qed.
 
 Lemma limited_narrowing_subtype_type :
@@ -926,8 +995,14 @@ Lemma limited_narrowing_subtype_type :
                     mem_unique_ctx Sig ->
                     mem_unique_ctx G1 ->
                     mem_unique_ctx G2 ->
+                    lt_ctx Sig 0 ->
+                    lt_env G1 (length G1) ->
+                    lt_env G2 (length G2) ->
+                    length G1 = length G2 ->
                     mem_unique t1 ->
                     mem_unique t2 ->
+                    lt_t t1 (length G1) ->
+                    lt_t t2 (length G2) ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -935,6 +1010,8 @@ Lemma limited_narrowing_subtype_type :
                                  upp Sig G6 t4' t4 ->
                                  mem_unique t3' ->
                                  mem_unique t4' ->
+                                 lt_t t3' (length G4) ->
+                                 lt_t t4' (length G6) ->
                                  Sig en G3 ++ (t3'::G4) vdash t1 <; t2 dashv G5 ++ (t4'::G6)).
 Proof.
   destruct limited_narrowing_subtype_mutind; crush.
@@ -945,8 +1022,14 @@ Lemma limited_narrowing_subtype_decl_ty :
                     mem_unique_ctx Sig ->
                     mem_unique_ctx G1 ->
                     mem_unique_ctx G2 ->
+                    lt_ctx Sig 0 ->
+                    lt_env G1 (length G1) ->
+                    lt_env G2 (length G2) ->
+                    length G1 = length G2 ->
                     mem_unique_s s1 ->
                     mem_unique_s s2 ->
+                    lt_s s1 (length G1) ->
+                    lt_s s2 (length G2) ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -954,6 +1037,8 @@ Lemma limited_narrowing_subtype_decl_ty :
                                  upp Sig G6 t4' t4 ->
                                  mem_unique t3' ->
                                  mem_unique t4' ->
+                                 lt_t t3' (length G4) ->
+                                 lt_t t4' (length G6) ->
                                  Sig en G3 ++ (t3'::G4) vdash s1 <;; s2 dashv G5 ++ (t4'::G6)).
 Proof.
   destruct limited_narrowing_subtype_mutind; crush.
@@ -964,8 +1049,14 @@ Lemma limited_narrowing_subtype_decl_tys :
                       mem_unique_ctx Sig ->
                       mem_unique_ctx G1 ->
                       mem_unique_ctx G2 ->
+                      lt_ctx Sig 0 ->
+                      lt_env G1 (length G1) ->
+                      lt_env G2 (length G2) ->
+                      length G1 = length G2 ->
                       mem_unique_ss ss1 ->
                       mem_unique_ss ss2 ->
+                      lt_ss ss1 (length G1) ->
+                      lt_ss ss2 (length G2) ->
                       forall G3 G4 G5 G6 t3 t4,
                         G1 = G3 ++ (t3::G4) ->
                         G2 = G5 ++ (t4::G6) ->
@@ -973,6 +1064,8 @@ Lemma limited_narrowing_subtype_decl_tys :
                                    upp Sig G6 t4' t4 ->
                                    mem_unique t3' ->
                                    mem_unique t4' ->
+                                   lt_t t3' (length G4) ->
+                                   lt_t t4' (length G6) ->
                                    Sig en G3 ++ (t3'::G4) vdash ss1 <;;; ss2 dashv G5 ++ (t4'::G6)).
 Proof.
   destruct limited_narrowing_subtype_mutind; crush.
@@ -980,9 +1073,13 @@ Qed.
 
 Lemma limited_widening_path_typing :
   forall Sig G p t, Sig en G vdash p pathType t ->
+             lt_ctx Sig 0 ->
+             lt_env G (length G) ->
+             lt_e p (length G) ->
              forall G1 G2 t1,
                G = G1 ++ t1::G2 ->
                forall t2, upp Sig G2 t1 t2 ->
+                     lt_t t2 (length G2) ->
                      exists t', Sig en G1 ++ t2::G2 vdash p pathType t' /\
                            upp Sig (G1 ++ t2::G2) t t'.
 Proof.
@@ -990,8 +1087,8 @@ Proof.
 
   inversion H;
     subst.
-  unfold mapping in H2.
-  rewrite rev_app_distr in H2.
+  unfold mapping in H6.
+  rewrite rev_app_distr in H6.
   destruct get_some_app
     with
       (G1:=rev(t1::G2))
@@ -1045,18 +1142,40 @@ Proof.
     simpl;
     auto.
   
-  simpl in H2;
-    rewrite Hb in H2;
-    rewrite Hd in H2.
+  simpl in H6;
+    rewrite Hb in H6;
+    rewrite Hd in H6.
   subst n;
-    rewrite Nat.sub_diag in H2;
-    simpl in H2;
-    inversion H2;
+    rewrite Nat.sub_diag in H6;
+    simpl in H6;
+    inversion H6;
     subst t.
-  apply upper_bound_weakening, upper_bound_weakening_cons;
-    auto.
+  apply upper_bound_weakening_actual;
+    [apply upper_bound_weakening_cons;
+     auto;
+     [apply lt_n_ge_ctx with (n:=0); crush
+     |apply lt_sub_environment with (G1:=G1) (G2:=t1::G2) in H1;
+      auto;
+      inversion H1; auto
+     |apply lt_sub_environment with (G1:=G1)(G2:=t1::G2) in H1;
+      auto;
+      inversion H1; auto]
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_sub_environment with (G1:=G1)(G2:=t1::G2) in H1;
+     auto;
+     inversion H1;
+     apply lt_cons; auto
+    |apply lt_sub_environment with (G1:=G1)(G2:=t1::G2) in H1;
+     inversion H1;
+     simpl;
+     auto;
+     apply lt_n_Sn_type;
+     auto
+    |simpl;
+     apply lt_n_Sn_type;
+     auto].
 
-  simpl in Ha, Hb, H2.
+  simpl in Ha, Hb, H6.
   rewrite app_length in Ha, Hb;
     simpl in Ha, Hb.
   exists t;
@@ -1084,20 +1203,28 @@ Lemma limited_widening_has_contains :
               mem_unique_ctx Sig ->
               mem_unique_ctx G ->
               mem_unique_p p ->
+              lt_ctx Sig 0 ->
+              lt_env G (length G) ->
+              lt_e p (length G) ->
               forall G1 G2 t1,
                 G = G1 ++ (t1::G2) ->
                 forall t2, upp Sig G2 t1 t2 ->
                       mem_unique t2 ->
+                      lt_t t2 (length G2) ->
                       Sig en G1 ++ (t2::G2) vdash p ni s) /\
 
   (forall Sig G t s, Sig en G vdash s cont t ->
               mem_unique_ctx Sig ->
               mem_unique_ctx G ->
               mem_unique t ->
+              lt_ctx Sig 0 ->
+              lt_env G (length G) ->
+              lt_t t (length G) ->
               forall G1 G2 t1,
                 G = G1 ++ (t1::G2) ->
                 forall t2, upp Sig G2 t1 t2 ->
                       mem_unique t2 ->
+                      lt_t t2 (length G2) ->
                       Sig en G1 ++ (t2::G2) vdash s cont t).
 Proof.
   apply has_contains_mutind;
@@ -1127,6 +1254,9 @@ Proof.
     auto.
   apply mem_unique_path_typing in t0;
     auto.
+  apply path_typing_lt with (n:=length G) in t0; auto;
+    [apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto].
   intros t'' Hin;
     apply in_app_or in Hin;
     destruct Hin as [Hin|Hin];
@@ -1148,6 +1278,8 @@ Proof.
     eauto.
   inversion H3;
     auto.
+  inversion H6;
+    auto.
   eapply H0;
     eauto.
   apply mem_unique_has in h;
@@ -1156,13 +1288,20 @@ Proof.
     auto.
   inversion H3;
     auto.
-
+  apply has_lt with (n:=(length G)) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H6; auto].
+  
   (*cont-equal*)
   apply cont_equal with (t:=t).
   eapply H;
     eauto.
   inversion H3;
     auto.
+  inversion H6;
+    auto.
   eapply H0;
     eauto.
   apply mem_unique_has in h;
@@ -1171,6 +1310,11 @@ Proof.
     auto.
   inversion H3;
     auto.
+  apply has_lt with (n:=(length G)) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H6; auto].
 Qed.
 
 Lemma limited_widening_has :
@@ -1178,10 +1322,14 @@ Lemma limited_widening_has :
               mem_unique_ctx Sig ->
               mem_unique_ctx G ->
               mem_unique_p p ->
+              lt_ctx Sig 0 ->
+              lt_env G (length G) ->
+              lt_e p (length G) ->
               forall G1 G2 t1,
                 G = G1 ++ (t1::G2) ->
                 forall t2, upp Sig G2 t1 t2 ->
                       mem_unique t2 ->
+                      lt_t t2 (length G2) ->
                       Sig en G1 ++ (t2::G2) vdash p ni s).
 Proof.
   destruct limited_widening_has_contains; auto.
@@ -1192,10 +1340,14 @@ Lemma limited_widening_contains :
               mem_unique_ctx Sig ->
               mem_unique_ctx G ->
               mem_unique t ->
+              lt_ctx Sig 0 ->
+              lt_env G (length G) ->
+              lt_t t (length G) ->
               forall G1 G2 t1,
                 G = G1 ++ (t1::G2) ->
                 forall t2, upp Sig G2 t1 t2 ->
                       mem_unique t2 ->
+                      lt_t t2 (length G2) ->
                       Sig en G1 ++ (t2::G2) vdash s cont t).
 Proof.
   destruct limited_widening_has_contains; auto.
@@ -1206,8 +1358,14 @@ Lemma limited_widening_subtype_mutind :
                     mem_unique_ctx Sig ->
                     mem_unique_ctx G1 ->
                     mem_unique_ctx G2 ->
+                    lt_ctx Sig 0 ->
+                    lt_env G1 (length G1) ->
+                    lt_env G2 (length G2) ->
                     mem_unique t1 ->
                     mem_unique t2 ->
+                    lt_t t1 (length G1) ->
+                    lt_t t2 (length G2) ->
+                    length G1 = length G2 ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -1215,14 +1373,22 @@ Lemma limited_widening_subtype_mutind :
                                  upp Sig G6 t4 t4' ->
                                  mem_unique t3' ->
                                  mem_unique t4' ->
+                                 lt_t t3' (length G4) ->
+                                 lt_t t4' (length G6) ->
                                  Sig en G3 ++ (t3'::G4) vdash t1 <; t2 dashv G5 ++ (t4'::G6)) /\
 
   (forall Sig G1 s1 s2 G2, Sig en G1 vdash s1 <;; s2 dashv G2 ->
                     mem_unique_ctx Sig ->
                     mem_unique_ctx G1 ->
                     mem_unique_ctx G2 ->
+                    lt_ctx Sig 0 ->
+                    lt_env G1 (length G1) ->
+                    lt_env G2 (length G2) ->
                     mem_unique_s s1 ->
                     mem_unique_s s2 ->
+                    lt_s s1 (length G1) ->
+                    lt_s s2 (length G2) ->
+                    length G1 = length G2 ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -1230,14 +1396,22 @@ Lemma limited_widening_subtype_mutind :
                                  upp Sig G6 t4 t4' ->
                                  mem_unique t3' ->
                                  mem_unique t4' ->
+                                 lt_t t3' (length G4) ->
+                                 lt_t t4' (length G6) ->
                                  Sig en G3 ++ (t3'::G4) vdash s1 <;; s2 dashv G5 ++ (t4'::G6)) /\
 
   (forall Sig G1 ss1 ss2 G2, Sig en G1 vdash ss1 <;;; ss2 dashv G2 ->
                       mem_unique_ctx Sig ->
                       mem_unique_ctx G1 ->
                       mem_unique_ctx G2 ->
+                      lt_ctx Sig 0 ->
+                      lt_env G1 (length G1) ->
+                      lt_env G2 (length G2) ->
                       mem_unique_ss ss1 ->
                       mem_unique_ss ss2 ->
+                      lt_ss ss1 (length G1) ->
+                      lt_ss ss2 (length G2) ->
+                      length G1 = length G2 ->
                       forall G3 G4 G5 G6 t3 t4,
                         G1 = G3 ++ (t3::G4) ->
                         G2 = G5 ++ (t4::G6) ->
@@ -1245,21 +1419,28 @@ Lemma limited_widening_subtype_mutind :
                                    upp Sig G6 t4 t4' ->
                                    mem_unique t3' ->
                                    mem_unique t4' ->
+                                   lt_t t3' (length G4) ->
+                                   lt_t t4' (length G6) ->
                                    Sig en G3 ++ (t3'::G4) vdash ss1 <;;; ss2 dashv G5 ++ (t4'::G6)).
 Proof.
   apply sub_mutind;
     intros;
     auto;
-    try solve [inversion H3;
-               inversion H4;
+    try solve [inversion H6;
+               inversion H7;
+               inversion H8;
+               inversion H9;
+               inversion H10;
                eauto].
 
   (*arr*)
   apply s_arr with (i:=i).
   eapply H;
     eauto;
-    [inversion H5; auto
-    |inversion H4; auto].
+    [inversion H8; auto
+    |inversion H7; auto
+    |inversion H10; auto
+    |inversion H9; auto].
 
   rewrite app_length; simpl;
     subst G1;
@@ -1280,137 +1461,207 @@ Proof.
     [auto|rewrite Hrewrite2].
   eapply H0;
     eauto;
+    try solve [apply mem_unique_subst_type;
+               inversion H7;
+               inversion H8;
+               auto];
     try solve [intros t'' Hin;
                inversion Hin;
-               inversion H4;
-               inversion H5;
+               inversion H7;
+               inversion H8;
                subst;
                auto];
-    try solve [apply mem_unique_subst_type;
-               inversion H4;
-               inversion H5;
+    try solve [simpl; apply lt_cons;
+               auto;
+               inversion H9;
+               inversion H10;
                auto];
-    try solve [subst; auto].
-
+    try solve [apply lt_subst_type;
+               [inversion H9;
+                inversion H10;
+                apply lt_n_Sn_type;
+                auto
+               |simpl;
+                try (rewrite <- e);
+                try (rewrite <- e0);
+                crush]];
+    try solve [subst; simpl; auto].  
+  
   (*s_upper1*)
   apply s_upper1 with (t1:=t1).
 
   apply limited_widening_has with (G:=G1)(t1:=t3);
     eauto.
-  inversion H3; auto.
+  inversion H6; auto.
+  inversion H8; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H6; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H8; auto].
 
   (*s_upper2*)
   apply s_upper2 with (t1:=t1).
 
   apply limited_widening_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H3; auto.
+  inversion H6; auto.
+  inversion H8; rewrite <- H10; auto.
 
   apply H with (t3:=t4)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H6; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H8; rewrite <- H10; auto].
 
   (*s_lower1*)
   apply s_lower1 with (t2:=t2).
 
   apply limited_widening_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H4; auto.
+  inversion H7; auto.
+  inversion H9; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; auto].
 
   (*s_lower2*)
   apply s_lower2 with (t2:=t2).
 
   apply limited_widening_has with (G:=G1)(t1:=t3);
     eauto.
-  inversion H4; auto.
+  inversion H7; auto.
+  inversion H9; rewrite H10; auto.
 
   apply H with (t3:=t3)(t4:=t3);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; rewrite H10; auto].
 
   (*s_equal1*)
   apply s_equal1 with (t1:=t1).
 
   apply limited_widening_has with (G:=G1)(t1:=t3);
     eauto.
-  inversion H3; auto.
+  inversion H6; auto.
+  inversion H8; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H6; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H8; auto].
 
   (*s_equal2*)
   apply s_equal2 with (t2:=t2).
 
   apply limited_widening_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H4; auto.
+  inversion H7; auto.
+  inversion H9; auto.
 
   apply H with (t3:=t3)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; auto].
 
   (*s_equal3*)
   apply s_equal3 with (t1:=t1).
 
   apply limited_widening_has with (G:=G2)(t1:=t4);
     eauto.
-  inversion H3; auto.
+  inversion H6; auto.
+  inversion H8; rewrite <- H10; auto.
 
   apply H with (t3:=t4)(t4:=t4);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H3; auto];
+    [|inversion H6; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G2) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H8; rewrite <- H10; auto].
 
   (*s_equal4*)
   apply s_equal4 with (t2:=t2).
 
   apply limited_widening_has with (G:=G1)(t1:=t3);
     eauto.
-  inversion H4; auto.
+  inversion H7; auto.
+  inversion H9; rewrite H10; auto.
 
   apply H with (t3:=t3)(t4:=t3);
     auto.
   apply mem_unique_has in h;
     auto;
-    [|inversion H4; auto];
+    [|inversion H7; auto];
     inversion h;
     auto.
+
+  apply has_lt with (n:=length G1) in h;
+    [inversion h; auto
+    |apply lt_n_ge_ctx with (n:=0); crush
+    |apply lt_env_implies_lt_ctx; auto
+    |inversion H9; rewrite H10; auto].
 
   (*struct*)
   apply s_struct with (i:=i);
@@ -1428,29 +1679,22 @@ Proof.
   apply H with (t3:=t3)(t4:=t4);
     auto;
     try solve [apply mem_unique_subst_decl_tys;
-               inversion H3;
-               inversion H4;
+               inversion H6;
+               inversion H7;
                auto];
     try solve [intros t'' Hin;
                inversion Hin;
                subst;
                auto];
-    try solve [subst G1 G2; auto].
+    try solve [subst G1 G2; simpl; auto];
+    try solve [apply lt_subst_decl_tys;
+               inversion H8;
+               inversion H9;
+               auto;
+               [apply lt_n_Sn_decl_tys; auto
+               |try solve [rewrite e; auto]];
+               try solve [rewrite e0; auto]].
 
-  (*sd_equal*)
-  inversion H4;
-    inversion H5;
-    eauto.
-
-  (*sd_value*)
-  inversion H4;
-    inversion H5;
-    eauto.
-
-  (*sd_cons*)
-  inversion H4;
-    inversion H5;
-    eauto.
 Qed.
 
 Lemma limited_widening_subtype_type :
@@ -1458,8 +1702,14 @@ Lemma limited_widening_subtype_type :
                     mem_unique_ctx Sig ->
                     mem_unique_ctx G1 ->
                     mem_unique_ctx G2 ->
+                    lt_ctx Sig 0 ->
+                    lt_env G1 (length G1) ->
+                    lt_env G2 (length G2) ->
                     mem_unique t1 ->
                     mem_unique t2 ->
+                    lt_t t1 (length G1) ->
+                    lt_t t2 (length G2) ->
+                    length G1 = length G2 ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -1467,6 +1717,8 @@ Lemma limited_widening_subtype_type :
                                  upp Sig G6 t4 t4' ->
                                  mem_unique t3' ->
                                  mem_unique t4' ->
+                                 lt_t t3' (length G4) ->
+                                 lt_t t4' (length G6) ->
                                  Sig en G3 ++ (t3'::G4) vdash t1 <; t2 dashv G5 ++ (t4'::G6)).
 Proof.
   destruct limited_widening_subtype_mutind; crush.
@@ -1477,8 +1729,14 @@ Lemma limited_widening_subtype_decl_ty :
                     mem_unique_ctx Sig ->
                     mem_unique_ctx G1 ->
                     mem_unique_ctx G2 ->
+                    lt_ctx Sig 0 ->
+                    lt_env G1 (length G1) ->
+                    lt_env G2 (length G2) ->
                     mem_unique_s s1 ->
                     mem_unique_s s2 ->
+                    lt_s s1 (length G1) ->
+                    lt_s s2 (length G2) ->
+                    length G1 = length G2 ->
                     forall G3 G4 G5 G6 t3 t4,
                       G1 = G3 ++ (t3::G4) ->
                       G2 = G5 ++ (t4::G6) ->
@@ -1486,6 +1744,8 @@ Lemma limited_widening_subtype_decl_ty :
                                  upp Sig G6 t4 t4' ->
                                  mem_unique t3' ->
                                  mem_unique t4' ->
+                                 lt_t t3' (length G4) ->
+                                 lt_t t4' (length G6) ->
                                  Sig en G3 ++ (t3'::G4) vdash s1 <;; s2 dashv G5 ++ (t4'::G6)).
 Proof.
   destruct limited_widening_subtype_mutind; crush.
@@ -1496,8 +1756,14 @@ Lemma limited_widening_subtype_decl_tys :
                       mem_unique_ctx Sig ->
                       mem_unique_ctx G1 ->
                       mem_unique_ctx G2 ->
+                      lt_ctx Sig 0 ->
+                      lt_env G1 (length G1) ->
+                      lt_env G2 (length G2) ->
                       mem_unique_ss ss1 ->
                       mem_unique_ss ss2 ->
+                      lt_ss ss1 (length G1) ->
+                      lt_ss ss2 (length G2) ->
+                      length G1 = length G2 ->
                       forall G3 G4 G5 G6 t3 t4,
                         G1 = G3 ++ (t3::G4) ->
                         G2 = G5 ++ (t4::G6) ->
@@ -1505,6 +1771,8 @@ Lemma limited_widening_subtype_decl_tys :
                                    upp Sig G6 t4 t4' ->
                                    mem_unique t3' ->
                                    mem_unique t4' ->
+                                   lt_t t3' (length G4) ->
+                                   lt_t t4' (length G6) ->
                                    Sig en G3 ++ (t3'::G4) vdash ss1 <;;; ss2 dashv G5 ++ (t4'::G6)).
 Proof.
   destruct limited_widening_subtype_mutind; crush.

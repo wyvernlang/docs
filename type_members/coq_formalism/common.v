@@ -926,6 +926,257 @@ Proof.
   destruct lt_subst_components_mutind; crush.
 Qed.
 
+Lemma lt_raise_mutind :
+  (forall t n, lt_t t n ->
+          forall m, lt_t (t raise_t m) n) /\
+  
+  (forall s n, lt_s s n ->
+          forall m, lt_s (s raise_s m) n) /\
+          
+  (forall ss n, lt_ss ss n ->
+           forall m, lt_ss (ss raise_ss m) n) /\
+  
+  (forall e n, lt_e e n ->
+          forall m, lt_e (e raise_e m) n) /\
+  
+  (forall d n, lt_d d n ->
+          forall m, lt_d (d raise_d m) n) /\
+  
+  (forall ds n, lt_ds ds n ->
+           forall m, lt_ds (ds raise_ds m) n).
+Proof.
+  apply lt_mutind;
+    simpl;
+    auto.
+Qed.
+
+Lemma lt_raise_type :
+  (forall t n, lt_t t n ->
+          forall m, lt_t (t raise_t m) n).
+Proof.
+  destruct lt_raise_mutind; crush.
+Qed.
+
+Lemma lt_raise_decl_ty :
+  (forall s n, lt_s s n ->
+          forall m, lt_s (s raise_s m) n).
+Proof.
+  destruct lt_raise_mutind; crush.
+Qed.
+
+Lemma lt_raise_decl_tys :
+  (forall ss n, lt_ss ss n ->
+           forall m, lt_ss (ss raise_ss m) n).
+Proof.
+  destruct lt_raise_mutind; crush.
+Qed.
+
+Lemma lt_raise_exp :
+  (forall e n, lt_e e n ->
+          forall m, lt_e (e raise_e m) n).
+Proof.
+  destruct lt_raise_mutind; crush.
+Qed.
+
+Lemma lt_raise_decl :
+  (forall d n, lt_d d n ->
+          forall m, lt_d (d raise_d m) n).
+Proof.
+  destruct lt_raise_mutind; crush.
+Qed.
+
+Lemma lt_raise_decls :
+  (forall ds n, lt_ds ds n ->
+           forall m, lt_ds (ds raise_ds m) n).
+Proof.
+  destruct lt_raise_mutind; crush.
+Qed.
+
+Hint Resolve lt_raise_exp.
+
+Lemma lt_subst_mutind :
+  (forall t n, lt_t t n ->
+          forall p m, lt_e p n ->
+                 lt_t ([p /t m] t) n) /\
+  
+  (forall s n, lt_s s n ->
+          forall p m, lt_e p n ->
+                 lt_s ([p /s m] s) n) /\
+  
+  (forall ss n, lt_ss ss n ->
+          forall p m, lt_e p n ->
+                 lt_ss ([p /ss m] ss) n) /\
+  
+  (forall e n, lt_e e n ->
+          forall p m, lt_e p n ->
+                 lt_e ([p /e m] e) n) /\
+  
+  (forall d n, lt_d d n ->
+          forall p m, lt_e p n ->
+                 lt_d ([p /d m] d) n) /\
+  
+  (forall ds n, lt_ds ds n ->
+          forall p m, lt_e p n ->
+                 lt_ds ([p /ds m] ds) n).
+Proof.
+  apply lt_mutind;
+    intros;
+    simpl;
+    auto.
+
+  destruct (m =? r); auto.
+Qed.
+
+Lemma lt_subst_type :
+  (forall t n, lt_t t n ->
+          forall p m, lt_e p n ->
+                 lt_t ([p /t m] t) n).
+Proof.
+  destruct lt_subst_mutind; crush.
+Qed.
+
+Lemma lt_subst_decl_ty :
+  (forall s n, lt_s s n ->
+          forall p m, lt_e p n ->
+                 lt_s ([p /s m] s) n).
+Proof.
+  destruct lt_subst_mutind; crush.
+Qed.
+
+Lemma lt_subst_decl_tys :
+  (forall ss n, lt_ss ss n ->
+          forall p m, lt_e p n ->
+                 lt_ss ([p /ss m] ss) n).
+Proof.
+  destruct lt_subst_mutind; crush.
+Qed.
+
+Lemma lt_subst_exp :
+  (forall e n, lt_e e n ->
+          forall p m, lt_e p n ->
+                 lt_e ([p /e m] e) n).
+Proof.
+  destruct lt_subst_mutind; crush.
+Qed.
+
+Lemma lt_subst_decl :
+  (forall d n, lt_d d n ->
+          forall p m, lt_e p n ->
+                 lt_d ([p /d m] d) n).
+Proof.
+  destruct lt_subst_mutind; crush.
+Qed.
+
+Lemma lt_subst_decls :  
+  (forall ds n, lt_ds ds n ->
+          forall p m, lt_e p n ->
+                 lt_ds ([p /ds m] ds) n).
+Proof.
+  destruct lt_subst_mutind; crush.
+Qed.
+
+Lemma path_typing_lt :
+  forall Sig G p t, Sig en G vdash p pathType t ->
+             forall n, lt_ctx Sig n ->
+                  lt_ctx G n ->
+                  lt_e p n ->
+                  lt_t t n.
+Proof.
+  intros.
+  inversion H;
+    subst;
+    auto.
+
+  (*var*)
+  apply H1.
+  apply in_rev.
+  apply get_in with (n1:=n0);
+    auto.
+
+  (*loc*)
+  apply H0.
+  apply in_rev.
+  apply get_in with (n0:=i);
+    auto.
+
+  (*cast*)
+  inversion H2; auto.
+Qed.
+
+Lemma in_dty_lt :
+  forall ss n, lt_ss ss n ->
+          forall s, in_dty s ss ->
+               lt_s s n.
+Proof.
+  intros ss n Hlt;
+    induction Hlt;
+    intros;
+    [inversion H|].
+
+  inversion H0;
+    auto.
+Qed.
+
+Lemma has_contains_lt :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              forall n, lt_ctx Sig n ->
+                   lt_ctx G n ->
+                   lt_e p n ->
+                   lt_s s n) /\
+  
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              forall n, lt_ctx Sig n ->
+                   lt_ctx G n ->
+                   lt_t t n ->
+                   lt_s s n).
+Proof.
+  apply has_contains_mutind;
+    intros;
+    auto.
+
+  (*has*)
+  apply lt_subst_decl_ty;
+    auto.
+  apply H; auto.
+  eapply path_typing_lt; eauto.
+
+  (*str*)
+  inversion H1; subst; auto.
+  eapply in_dty_lt; eauto.
+
+  (*upper*)
+  apply H0; auto.
+  apply H in H1; auto.
+  inversion H1; auto.
+  inversion H3; auto.
+
+  (*upper*)
+  apply H0; auto.
+  apply H in H1; auto.
+  inversion H1; auto.
+  inversion H3; auto.
+Qed.
+
+Lemma has_lt :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              forall n, lt_ctx Sig n ->
+                   lt_ctx G n ->
+                   lt_e p n ->
+                   lt_s s n).
+Proof.
+  destruct has_contains_lt; crush.
+Qed.
+
+Lemma contains_lt :  
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              forall n, lt_ctx Sig n ->
+                   lt_ctx G n ->
+                   lt_t t n ->
+                   lt_s s n).
+Proof.
+  destruct has_contains_lt; crush.
+Qed.
+
 Lemma wf_lt_mutind :
   (forall Sig G t, Sig en G vdash t wf_t ->
                    lt_t t (length G)) /\
