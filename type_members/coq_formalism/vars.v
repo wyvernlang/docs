@@ -12,23 +12,45 @@ Require Import subst.
 Set Implicit Arguments.
 
 
+
+Lemma has_contains_wf_mutind :
+  (forall Sig G p s, Sig en G vdash p ni s ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash p wf_e ->
+              Sig en G vdash s wf_s) /\
+  (forall Sig G t s, Sig en G vdash s cont t ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash t wf_t ->
+              forall p, Sig en G vdash p pathType t ->
+                   Sig en G vdash s wf_s).
+Proof.
+  apply has_contains_mutind;
+    intros; auto.
+
+  (*has*)
+  
+Qed.
+
+
 Reserved Notation "Sig 'en' G 'vdash' p 'ni_w' s" (at level 80).
 Reserved Notation "s 'cont_w' t" (at level 80).
 
 
 Inductive struct_contains : ty -> decl_ty -> Prop :=
 | cont_wf : forall ss s, in_dty s ss ->
-                    s cont_w (str ss)
+                    s cont_w (str ss rts)
 where "s 'cont_w' t" := (struct_contains t s).
 
 
 Inductive alt_has : env -> env -> exp -> decl_ty -> Prop :=
-| h_struct : forall Sig G p ss s, Sig en G vdash p pathType (str ss) ->
-                           s cont_w (str ss) ->
+| h_struct : forall Sig G p ss s, Sig en G vdash p pathType (str ss rts) ->
+                           s cont_w (str ss rts) ->
                            Sig en G vdash p ni_w ([p /s 0] s)
 | h_upper : forall Sig G p p' l' t s, Sig en G vdash p pathType (sel p' l') ->
                                Sig en G vdash p' ni_w (type l' ext t) ->
-                               Sig en G vdash (p cast t) ni_w s ->
+                               Sig en G vdash p ni_w s ->
                                Sig en G vdash p ni_w s
 | h_equal : forall Sig G p p' l' t s, Sig en G vdash p pathType (sel p' l') ->
                                Sig en G vdash p' ni_w (type l' eqt t) ->
@@ -202,6 +224,271 @@ Proof.
   destruct subst_same_mutind; crush.
 Qed.
 
+Lemma in_dty_wf :
+  forall s ss, in_dty s ss ->
+          forall Sig G, Sig en G vdash ss wf_ss ->
+                 Sig en G vdash s wf_s.
+Proof.
+  intros s ss Hin;
+    induction Hin;
+    intros;
+    auto;
+    inversion H;
+    subst;
+    auto.
+Qed.
+
+Lemma subst_in_dty :
+  forall s ss, in_dty s ss ->
+          forall p n, in_dty ([p /s n] s) ([p /ss n]ss).
+Proof.
+  intros s ss Hin;
+    induction Hin;
+    intros;
+    auto.
+
+  apply in_head_dty.
+
+  simpl; apply in_tail_dty;
+    auto.
+Qed.
+
+Lemma struct_contains_wf' :
+  forall Sig G t, Sig en G vdash t wf_t ->
+           forall s, s cont_w t ->
+                Sig en t::G vdash [c_ (length G) /s 0]s wf_s.
+Proof.
+  intros.
+  inversion H0;
+    subst.
+  inversion H;
+    subst.
+  eapply in_dty_wf; eauto.
+  apply subst_in_dty;
+    auto.
+Qed.
+
+Definition unbound_in_dty := strengthening_utils.unbound_in_dty.
+
+Lemma struct_contains_wf :
+  forall Sig G t, Sig en G vdash t wf_t ->
+           Sig wf_st ->
+           Sig evdash G wf_env ->
+           forall s, s cont_w t ->
+                forall p, Sig en G vdash p pathType t ->
+                     Sig en G vdash p wf_e ->
+                     Sig en G vdash [p /s 0]s wf_s.
+Proof.
+  intros.
+  inversion H2; subst.
+  inversion H; subst.
+  apply subst_in_dty
+    with
+      (p:=c_ (length G))(n:=0)
+    in H5.
+  apply in_dty_wf
+    with
+      (Sig:=Sig)(G:=str ss rts::G)
+    in H5;
+    auto.
+  apply wf_subst_decl_ty_actual
+    with
+      (p:=p)
+    in H5;
+    auto.
+
+  apply wf_con;
+    auto.
+  
+  apply unbound_in_dty with (ss:=ss);
+    inversion H2;
+    auto.
+Qed.
+
+Lemma path_typing_wf :
+  forall Sig G p t, Sig en G vdash p pathType t ->
+             Sig wf_st ->
+             Sig evdash G wf_env ->
+             Sig en G vdash p wf_e ->
+             Sig en G vdash t wf_t.
+Proof.
+  intros Sig G p t Htyp;
+    induction Htyp;
+    intros;
+    auto.
+
+  apply wf_in_env;
+    auto.
+  eapply in_rev, get_in;
+    eauto.
+
+  apply wf_in_store_type;
+    auto.
+  eapply in_rev, get_in;
+    eauto.
+
+  inversion H2;
+    eauto.
+Qed.
+
+Lemma alt_has_wf :
+  (forall Sig G p s, Sig en G vdash p ni_w s ->
+              Sig wf_st ->
+              Sig evdash G wf_env ->
+              Sig en G vdash p wf_e ->
+              Sig en G vdash s wf_s).
+Proof.
+  intros Sig G p s Hni;
+    induction Hni;
+    intros;
+    auto.
+
+  (*struct*)
+  apply struct_contains_wf with (t:=str ss rts);
+    auto.
+  eapply path_typing_wf;
+    eauto.
+
+  (*upper*)
+  apply IHHni2;
+    auto.
+  assert (HwfSel : Sig en G vdash sel p' l' wf_t);
+    [apply path_typing_wf in H;
+     auto|].
+  assert (Hwfp' : Sig en G vdash p' wf_e);
+    [inversion HwfSel;
+     auto
+    |].
+  assert (HwfUpper : Sig en G vdash type l' ext t wf_s);
+    [apply IHHni1;
+     auto;
+     inversion HwfSel;
+     auto
+    |].
+  apply wf_cast with (t':=sel p' l');
+    eauto;
+    [inversion HwfUpper;
+     auto
+    |apply path_typing_implies_typing;
+     auto
+    |].
+  apply s_upper with (t1:=t);
+    auto.
+  apply alt_has_implies_has;
+    auto.
+  intros n' Hle;
+    eapply wf_closed_exp;
+    eauto.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  apply subtype_reflexivity;
+    auto.
+
+  (*equal*)
+  apply IHHni2;
+    auto.
+  assert (HwfSel : Sig en G vdash sel p' l' wf_t);
+    [apply path_typing_wf in H;
+     auto|].
+  assert (Hwfp' : Sig en G vdash p' wf_e);
+    [inversion HwfSel;
+     auto
+    |].
+  assert (HwfEqual : Sig en G vdash type l' eqt t wf_s);
+    [apply IHHni1;
+     auto;
+     inversion HwfSel;
+     auto
+    |].
+  apply wf_cast with (t':=sel p' l');
+    eauto;
+    [inversion HwfEqual;
+     auto
+    |apply path_typing_implies_typing;
+     auto
+    |].
+  apply s_equal1 with (t1:=t);
+    auto.
+  apply alt_has_implies_has;
+    auto.
+  intros n' Hle;
+    eapply wf_closed_exp;
+    eauto.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  apply subtype_reflexivity;
+    auto.
+Qed.
+
+Lemma has_wf :
+  forall Sig G p s, Sig en G vdash p ni s ->
+             Sig wf_st ->
+             Sig evdash G wf_env ->
+             Sig en G vdash p wf_e ->
+             Sig en G vdash s wf_s.
+Proof.
+  intros.
+
+  apply alt_has_wf with (p:=p);
+    auto.
+  apply has_implies_alt;
+    auto.
+  intros n Hle;
+    eapply wf_closed_exp;
+    eauto.
+  eapply wf_closed_env;
+    eauto.
+  apply wf_closed_store_type;
+    auto.
+Qed.
+
+
+
+Lemma member_wf :
+  forall Sig G e s, Sig en G vdash e mem s ->
+             Sig wf_st ->
+             Sig evdash G wf_env ->
+             Sig en G vdash e wf_e ->
+             Sig en G vdash s wf_s.
+Proof.
+  intros Sig G e s Hmem;
+    induction Hmem;
+    intros.
+
+  eapply has_wf;
+    eauto.
+
+  eapply closed_contains_wf;
+    eauto.
+  eapply typing_wf_exp;
+    eauto.
+
+  intros n Hle;
+    destruct n as [|n'];
+    auto.
+  apply closed_contains in H0;
+    auto.
+  apply H0;
+    crush.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  eapply closed_typing_exp;
+    eauto.
+  apply wf_closed_store_type;
+    auto.
+  eapply wf_closed_env;
+    eauto.
+  intros n'' Hle';
+    eapply wf_closed_exp;
+    eauto.
+Qed.
+
 Lemma has_contains_equivalence_mutind :
   (forall Sig G p s, Sig en G vdash p ni s ->
               closed_exp p 0 ->
@@ -241,7 +528,9 @@ Proof.
   assert (Hclosed_t : closed_ty t 0);
     [eapply closed_decl_ty_upper;
      eauto
-    |].
+    |].  
+  eapply h_upper;
+    eauto.
   rewrite subst_same_decl_ty.
   simpl.
   rewrite closed_subst_type;
