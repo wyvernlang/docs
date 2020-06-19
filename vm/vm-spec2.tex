@@ -1,0 +1,209 @@
+\documentclass{article}
+
+\usepackage{listings}
+\usepackage{proof}
+\usepackage{amssymb}
+\usepackage[margin=.9in]{geometry}
+%\usepackage{amsmath}
+\usepackage{mathpartir}
+\usepackage{mathrsfs}
+\usepackage{textcomp}
+
+\lstdefinestyle{custom_lang}{
+  xleftmargin=\parindent,
+  showstringspaces=false,
+  basicstyle=\ttfamily,
+  keywordstyle=\bfseries
+}
+
+\lstset{emph={%  
+    var, def, type, new, self%
+    },emphstyle={\bfseries \tt}%
+}
+
+%\newcommand{\keyw}[1]{\texttt{\textbf{#1}}}
+\newcommand{\keywadj}[1]{\mathtt{#1}}
+\newcommand{\keyw}[1]{\keywadj{#1}~}
+
+\begin{document}
+
+
+
+\section{Virtual Machine Abstract Syntax}
+
+\[
+\begin{array}{lll}
+\begin{array}{lllr}
+S & ::= & d; S& statements \\
+  & |   & e & \\
+&&\\
+d & ::= & \keyw{val} f = e & declarations \\
+  & |   & \keyw{def} m(\overline{x:\tau}) : \tau = S &\\
+  & |   & \keyw{type} L = \tau &\\
+&&\\
+e & ::= & x & expressions \\
+& | & \keywadj{new}~\tau~\{\overline{d}\}&\\
+& | & e.m(\overline{e}) &\\
+& | & e.f &\\
+& | & \mathscr{L} &\\
+&&\\
+\mathscr{L} & ::= & n & literals \\
+%& | & unit &\\
+%& | & string &\\
+\end{array}
+& ~~~~~~
+&
+\begin{array}{lllr}
+\beta & ::= & \keyw{Unit} & \textit{base type} \\
+      & |   & L \\
+&&\\
+\tau & ::= & \beta \{\overline{\sigma}\} & type \\
+&&\\
+%p & ::= & x & paths \\
+%& | & p.f &\\
+%&&\\
+%s & ::= & \keyw{stateful} | ~\keyw{pure} \\
+%&&\\
+\sigma & ::= & \texttt{val} \; f:\tau & decl \; type\\
+       & |   & \keyw{def} m(\overline{x:\tau}) : \tau &\\
+%       & |   & \texttt{def} \; m:\Pi \overline{x{:}\tau} . \tau \\
+       & |   & \texttt{type} \; L = \tau &\\
+%       & |   & \texttt{type} \; L &\\
+&&\\
+\end{array}
+\end{array}
+\]
+
+Notation: overbar means a list of elements, as in Java
+
+%Notes on semantics:
+
+%\begin{itemize}
+
+%\end{itemize}
+
+\section{Standard prelude}
+
+\begin{lstlisting}
+type Int
+    def +(i:Int):Int
+    def -(i:Int):Int
+    def *(i:Int):Int
+    def /(i:Int):Int
+\end{lstlisting}
+
+\section{Virtual Machine Typing Rules}
+
+$\fbox{$\Gamma \vdash e : \tau$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Stmt)}]
+  {\Gamma \vdash d; S : \tau}
+  {\Gamma \vdash d : \sigma & \Gamma, \sigma \vdash S : \tau}\\[5ex]
+  
+\infer[\textsc{(T-Var)}]
+  {\Gamma \vdash x : \tau}
+  {x : \tau \in \Gamma}\\[5ex]
+
+\infer[\textsc{(T-New)}]
+	{\Gamma \vdash \keyw{new}~\tau~\{\overline{d}\} : \tau}
+	{\Gamma \vdash \overline{d} : \textit{unfold}_\Gamma(\tau)} \\[5ex]
+
+\infer[\textsc{(T-Invk)}]
+	{\Gamma \vdash e_1.m(e_2) : \tau} 
+	{\Gamma \vdash e_1 : \tau_1  & \keyw{def} m(x:\tau_2):\tau \in \textit{unfold}_\Gamma(\tau_1) & \Gamma \vdash e_2 : \tau_2}\\[5ex]
+
+\infer[\textsc{(T-Field)}]
+	{\Gamma \vdash e.f : \tau} 
+	{\Gamma \vdash e : \tau' & \keyw{val} f : \tau \in \textit{unfold}_\Gamma(\tau')}\\[5ex]
+
+\infer[\textsc{(T-Int)}]
+  {\Gamma \vdash n : \textit{Int}}
+  {}\\[5ex]
+
+\end{array}
+\]
+
+Technically $\Gamma$ is a list of $\sigma$, but we often write $x:\tau$ for $\keyw{val} x:\tau$.
+
+$\fbox{$\Gamma \vdash d : \sigma$}$
+\[
+\begin{array}{c}
+\infer[\textsc{(T-Def)}]
+  {\Gamma \vdash \keyw{def} m(\overline{y : \tau}) : \tau_2 = e~:~\keyw{def} m(\overline{y : \tau}) : \tau_2}
+  {\Gamma \vdash \overline{\tau}~\textit{wf} & \Gamma,~\overline{y : \tau} \vdash e : \tau_2}\\[5ex]
+
+\infer[\textsc{(T-Val)}]
+  {\Gamma \vdash \keyw{val} f = e~:~\keyw{val} f : \tau}
+  {\Gamma \vdash e : \tau}\\[5ex]
+
+\infer[\textsc{(T-Type)}]
+  {\Gamma \vdash \keyw{type} L = \tau : \keyw{type} L = \tau}
+  {\Gamma \vdash \keyw{type} L = \tau~\textit{wf}}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\textit{unfold}_\Gamma(\tau) = \overline{\sigma}$}$
+\[
+\begin{array}{c}
+
+\infer
+  {\textit{unfold}_\Gamma(\keywadj{Unit}) = \bullet}
+  {}\\[5ex]
+  
+\infer
+  {\textit{unfold}_\Gamma(L) = \overline{\sigma}}
+  {\keyw{type} L = \tau \in \Gamma & \textit{unfold}_\Gamma(\tau) = \overline{\sigma}}\\[5ex]
+  
+\infer
+  {\textit{unfold}_\Gamma(\beta \{\overline{\sigma'}\}) = \overline{\sigma} \leftarrow \overline{\sigma'}}
+  {\textit{unfold}_\Gamma(\beta) = \overline{\sigma}}\\[5ex]
+  
+\end{array}
+\]
+
+Note: $\overline{\sigma} \leftarrow \overline{\sigma'}$ means that we append the two lists, except that when the same symbol is defined in both $\overline{\sigma}$ and $\overline{\sigma'}$, we include only the (overriding) definition in $\overline{\sigma'}$.
+
+Now, finally, type and declaration type well-formedness rules:
+$\fbox{$\Gamma \vdash \tau~\textit{wf}$}$
+\[
+\begin{array}{c}
+\infer
+  {\Gamma \vdash \keyw{Unit}~\textit{wf}}
+  {}\\[5ex]
+
+\infer
+  {\Gamma \vdash L~\textit{wf}}
+  {\textit{unfold}_\Gamma(L) = \overline{\sigma}}\\[5ex]
+
+\infer
+  {\Gamma \vdash \beta \{\overline{\sigma'}\}~\textit{wf}}
+  {\Gamma \vdash \beta ~\textit{wf} & \Gamma \vdash \overline{\sigma'}~\textit{wf}}\\[5ex]
+
+\end{array}
+\]
+
+$\fbox{$\Gamma \vdash \sigma~\textit{wf}$}$
+\[
+\begin{array}{c}
+\infer
+  {\Gamma \vdash \keyw{def} m(\overline{y : \tau}) : \tau_2~\textit{wf}}
+  {\Gamma \vdash \overline{y : \tau}~\textit{wf} & \Gamma \vdash \tau_2~\textit{wf}}\\[5ex]
+
+\infer
+  {\Gamma \vdash \keyw{val} f : \tau~\textit{wf}}
+  {\Gamma \vdash \tau~\textit{wf}}\\[5ex]
+
+\infer
+  {\Gamma \vdash \keyw{type} L = \tau~\textit{wf}}
+  {\Gamma, \keyw{type} L = \tau \vdash \tau~\textit{wf}}\\[5ex]
+
+
+\end{array}
+\]
+
+\bibliographystyle{plain}
+\bibliography{bib}
+
+\end{document}
