@@ -1,0 +1,436 @@
+\documentclass[11pt]{article}
+\usepackage{palatino}
+\usepackage{latexsym}
+\usepackage{verbatim}
+\usepackage{alltt}
+\usepackage{amsmath,proof,amsthm,amssymb,enumerate}
+\usepackage{math-cmds}
+\usepackage{listings}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc} % makes ~ look good
+\usepackage{textcomp}
+
+% \usepackage{china2e} % to get \Integer, \Natural
+% No such package on Mac??? So I simply copied the relevant symbols below. (Alex)
+\DeclareSymbolFont{numbers}{OT1}{chin}{m}{n}
+\DeclareMathSymbol{\Real}{\mathord}{numbers}{210}
+\DeclareMathSymbol{\Natural}{\mathord}{numbers}{206}
+\DeclareMathSymbol{\Integer}{\mathord}{numbers}{218}
+\DeclareMathSymbol{\Rational}{\mathord}{numbers}{209}
+\DeclareMathSymbol{\Complex}{\mathord}{numbers}{195}
+\DeclareMathSymbol{\REAL}{\mathord}{numbers}{190}
+\DeclareMathSymbol{\NATURAL}{\mathord}{numbers}{188}
+\DeclareMathSymbol{\INTEGER}{\mathord}{numbers}{191}
+\DeclareMathSymbol{\RATIONAL}{\mathord}{numbers}{189}
+\DeclareMathSymbol{\COMPLEX}{\mathord}{numbers}{187}
+
+\def\implies{\Rightarrow}
+\newcommand{\TODO}[1]{\textbf{[TODO: #1]}}
+\newcommand{\keyw}[1]{\textbf{#1}}
+\newcommand{\cut}[1]{}
+\newcommand{\minisec}[1]{\smallskip\noindent\textbf{#1}}
+
+\newcommand{\concept}[1]{
+\noindent\vspace{2ex}
+\begin{tabular}{p{0.8in}p{5.7in}}
+\textbf{concept} & \textit{#1}\\
+}
+\newcommand{\purpose}[1]{
+\textbf{purpose} & #1\\
+}
+\newcommand{\structure}[1]{
+\textbf{structure} & #1\\
+}
+\newcommand{\behavior}[1]{
+\textbf{behavior} & #1\\
+}
+\newcommand{\dependsOn}[1]{
+\textbf{depends on} & #1\\
+}
+\newcommand{\tactic}[1]{
+\textbf{tactic} & #1\\
+\end{tabular}
+\vspace{2ex}
+}
+\newcommand{\tacticStart}[1]{
+\textbf{tactic} & #1
+}
+\newcommand{\conceptOrig}[5]{
+\noindent\vspace{2ex}
+\begin{tabular}{p{0.8in}p{5.7in}}
+\textbf{concept} & \textit{#1}\\
+\textbf{purpose} & #2\\
+\textbf{structure} & #3\\
+\textbf{behavior} & #4\\
+\textbf{tactic} & #5\\
+\end{tabular}
+\vspace{2ex}
+}
+
+\newcommand{\conceptSix}[6]{
+\noindent\vspace{2ex}
+\begin{tabular}{p{0.8in}p{5.7in}}
+\textbf{concept} & \textit{#1}\\
+\textbf{purpose} & #2\\
+\textbf{depends on} & #3\\
+\textbf{structure} & #4\\
+\textbf{behavior} & #5\\
+\textbf{tactic} & #6\\
+\end{tabular}
+\vspace{2ex}
+}
+
+% This is an adaptation of the \concept command above for the case where we want to put example code in the tactic, via lstlisting
+\newcommand{\conceptFour}[4]{
+\noindent\vspace{2ex}
+\begin{tabular}{p{0.8in}p{5.7in}}
+\textbf{concept} & \textit{#1}\\
+\textbf{purpose} & #2\\
+\textbf{structure} & #3\\
+\textbf{behavior} & #4\\
+\textbf{tactic} &
+}
+\newcommand{\conceptEnd}{
+\end{tabular}
+\vspace{2ex}
+}
+
+\lstset{tabsize=3, keepspaces=true, basicstyle=\ttfamily\small, commentstyle=\itshape\rmfamily, numbers=left, numberstyle=\tiny, language=java,moredelim=[il][\sffamily]{?},mathescape=true,showspaces=false,showstringspaces=false,columns=fullflexible,xleftmargin=15pt,escapeinside={(@}{@)}, morekeywords=[1]{let,in,fn,var,type,rec,fold,unfold,letrec,alloc,datatype,resource,module,def,ref,application,policy,external,component,connects,to,meth,val,where,return,group,by,within,count,connect,with,attr,html,head,title,style,body,div,keyword}}
+\lstloadlanguages{Java,VBScript,XML,HTML}
+
+\title{The Wyvern Language\\
+Specification and Rationale\\
+Initial Focus: Lexical Analysis}
+\author{Jonathan Aldrich}
+\date{\today}
+
+\begin{document}
+\begin{sloppypar}
+
+\maketitle
+
+\section{Introduction}
+
+The starting point for this task was a Wyvern lexer that was unspecified, complicated, didn't meet all of our goals, implemented in an ad-hoc and fairly messy way, and unsurprisingly prone to bugs.  I tried to address this with a specification, recognizing that as part of the specification process I would like to simplify and regularize the approach, in addition to changing it so that it met our goals.  Unfortunately, I got quite bogged down in this process; even my revised specification was complicated, constantly changing, hard to manage intellectually, and generally unsatisfying.
+
+I tried this again, starting with concepts to organize things, as shown in the next section--followed by a specification after that.
+
+\section{Lexical Analysis Concepts}
+
+In this section, I apply Daniel Jackson's Design by Concept (see the book by that name) apporach to designing Wyvern's Lexical Analyzer.
+
+\conceptFour{indented code}
+{to distinguish, equally well for tools and humans, a block of conceptually-related code whose semantics is controlled by the prior line}
+{one or more lines of code that are indented more than their surrounding context}
+{compiling indented lines of code is deferred so that its semantics can be determined by the controlling line}
+\begin{lstlisting}
+val x = stdin.readLine()
+stdout.printf(~)
+    You typed {x}
+\end{lstlisting}
+\conceptEnd
+
+\concept{logical lines}
+\purpose{to allow code for a statement to cross multiple lines without semicolon delimitation}
+\dependsOn{indented code}
+\structure{indentation without a marker that indicates a DSL, an indented block argument, or a multi-line lambda}
+\behavior{we generate a logical newline token, thus starting a new logical line, when we encounter a literal line that starts with the same indentation as the previous logical line}
+\tacticStart
+\begin{lstlisting}
+val x = y.foo()
+         .bar()
+\end{lstlisting}
+\conceptEnd
+
+\concept{line by line lexing}
+\purpose{to support REPLs}
+\dependsOn{logical lines}
+\structure{the lexer can detect that a logical line is incomplete using \textasciitilde, \texttt{:}, \texttt{=>}, line continuation slashes, open parentheses/brackets/braces, or unclosed comments.  Note that a line continuation slash is never necessary outside a REPL, but can necessary in a REPL context if there is no other indication that a logical line continues.}
+\tacticStart
+\begin{lstlisting}
+val x = y.foo() \
+         .bar()
+\end{lstlisting}
+\conceptEnd
+
+\concept{multi-line lambda syntax}
+\purpose{to conveniently support multi-line lambda abstractions}
+\dependsOn{logical lines}
+\structure{The token \texttt{=>}, followed on a line only by white space and comments, indicates that the indented lines that follow are code that goes in the lambda expression's body.  The body is ended either by going back to the level of indentation of the line with the \texttt{=>} token, or---if the \texttt{=>} was inside parenthesis---by closing the parenthesis.}
+\tacticStart
+\begin{lstlisting}
+// a multi-line lambda ended by a dedent
+val hello = () =>
+                stdout.print("Hello, ")
+                stdout.print("world!")
+// a multi-line lambda ended by a close parenthesis
+(() =>
+    hello()
+    stdout.println()) ()
+\end{lstlisting}
+\conceptEnd
+
+\concept{DSL syntax and lexing}
+\purpose{to support arbitrary lexing and parsing of DSLs}
+\dependsOn{logical lines}
+\structure{When a DSL is indicated by a controlling line (see the two mechanisms below), an indented series of lines is read, and all lexing and persing is deferred to the DSL extension}
+\tactic{see \textit{indented code}}
+
+\concept{an intented code block as an interior argument}
+\purpose{to allow a block of code to be passed to an argument of a function}
+\structure{Specifying an \textasciitilde{} as an argument indicates that the following indented series of lines is parsed according to the expected type in that argument position, and the resulting literal value is passed in as the argument}
+\dependsOn{logical lines}
+\tactic{see \textit{indented code}}
+
+\concept{an indented code block as a last argument}
+\purpose{to conveniently support a block of code passed as the last argument to a function}
+\dependsOn{logical lines}
+\structure{Putting a \texttt{:} after a function indicates that the following indented series of lines is parsed according to the expected type in the last argument of the function, and the resulting literal value is passed in as the last argument.  If the function takes only one argument, then parentheses are not needed before the \texttt{:}.}
+\tacticStart
+\begin{lstlisting}
+val x = stdin.readLine()
+stdout.printf:
+    You typed {x}
+\end{lstlisting}
+\conceptEnd
+
+\subsection{Reflection on using concepts}
+
+It was not that easy to pull out the concepts, but one by one I did so.  This did not immediately clean up the specification.  However, by repeatedly teasing apart related concepts and modifying the specification so that the specification for each concept was small and largely stood on its own, I was able to come up with a high-level description that was well-motivated (due to the purposes), clean (due to the separation between concepts and the small specification for each), met the key goals of the approach, and was much more satisfying.  There will still be some corner cases and interactions between concepts; I have not yet decided whether to incorporate these into the concept-based description or add them as part of a later, comprehensive specification.  But concepts were definitely a useful tool in getting me ``over the hump'' to a clean design and high-level specification for lexing in Wyvern.
+
+
+%\concept{}{}{}{}{}
+
+\section{Lexical Analysis Specification}
+
+The lexer is divided into two parts.  The first lexer pass just scans for symbols, one line at a time.  It keeps no state except for the current location.  The second pass adds a layer on top of this, guiding how the next line is lexed, and adding higher-level concepts such as indent and dedent to the lexing.  It includes a stack of symbols as a state to guide lexing.
+
+\subsection{First Lexer Pass}
+
+The first lexer has the following interface:
+
+\begin{lstlisting}
+type Location
+    def getLine():Int
+    def getChar():Int
+    def getFile():String
+
+type Token
+    type TokenKind
+    val kind:this.TokenKind
+    val value:String
+    val location:Location
+
+datatype WyvernToken
+    IDENTIFIER
+    ... /* All tokens defined below are declared here */
+    INDENTEDLINE // not in a verbatim list below
+
+resource type FirstLexer
+    datatype LexResult
+        Line(tokens:llist.LinkedList[Token[WyvernToken]])
+        Error(message:String, location:Location)
+    def lexOrdinaryLine(input:String):this.LexResult
+    def peekIndent(input:String):Int
+    def allWhitespace(input:String):Boolean
+    def lexIndentedLine(input:String):Token[WyvernToken]
+    def lexCommentStartLine(input:String):this.LexResult
+
+module def wyvernFirstLexer(start:Location):FirstLexer
+\end{lstlisting}
+
+First, we'll define the \texttt{lexOrdinaryLine} function.  It simply lexes the input line of text using the following tokens:
+
+\begin{verbatim}
+IDENTIFIER   [a-zA-Z][a-zA-Z0-9_]*
+LPAREN       (   
+RPAREN       )
+LBRACK       [  
+RBRACK       ]
+WHITESPACE   [ \t]+
+DARROW       =>
+COLON        :
+NEWLINE      \r|\l|\r\l
+LINECONT     \(\r|\l|\r\l)
+LINECOMMENT  //[^\r\l]*(\r|\l|\r\l)
+COMMENT      /\*( [^\*\r\l] | (\*)* [^/\*\r\l] )* \*/
+OPENCOMMENT  /\*( [^\*\r\l] | (\*)* [^/\*\r\l] )* (\*)* (\r|\l|\r\l)
+COMMENTLINE     ( [^\*\r\l] | (\*)* [^/\*\r\l] )* (\*)* (\r|\l|\r\l)
+CLOSECOMMENT    ( [^\*\r\l] | (\*)* [^/\*\r\l] )* \*/
+\end{verbatim}
+
+The \texttt{peekIndent()} function returns how many spaces the given line starts with.  The \texttt{allWhitespace()} function returns true if the line contains only whitespace tokens.  These are strictly convenience functions; they could be implemented by the client.
+
+The \texttt{lexIndentedLine()} function returns an \texttt{INDENTEDLINE} token containing exactly the string passed in.  This could be done by the client, except that we want to update the current \texttt{Location} by one line.  Here's the spec:
+
+\begin{verbatim}
+INDENTEDLINE [^\r\l]*(\r|\l|\r\l)
+\end{verbatim}
+
+The \texttt{lexCommentStartLine()} function either lexes a \texttt{COMMENTLINE}, or it lexes a \texttt{CLOSECOMMENT} followed by the same tokens as \texttt{lexOrdinaryLine()} would lex.
+
+Note that the first lexer keeps no state other than the current \texttt{Location}.  It operates as an ordinary lexer, except that it has three parsing modes (ordinary, commentStart, and indented) plus a convenience function.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Second Lexer Pass}
+
+The second lexer has a small amount of state that is tracked between input lines: a stack of tokens consisting of \texttt{INDENT} (inside the token, we keep track of the current indent level), \texttt{LPAREN}, \texttt{LBRACK}, \texttt{BLOCK} (inside the token, we keep track of the indented block text), \texttt{LINECONTINUATION}, and \texttt{OPENCOMMENT} (inside the token, we keep track of the comment text read so far).  The stack is initially empty.
+
+The second lexer has the following interface:
+
+\begin{lstlisting}
+resource type Lexer
+    type TokenKind
+    
+    datatype LexResult
+        Line(tokens:llist.LinkedList[Token[WyvernToken]])
+        Error(message:String, location:Location)
+    
+    def lexLine(input:String):this.LexResult
+    def lexAll(input:String):this.LexResult
+
+module def wyvernLexer(start:Location):Lexer
+\end{lstlisting}
+
+It returns \texttt{Error} if there was a problem with lexing, or \texttt{Line} if we successfully lexed the line into a list of tokens.
+
+We filter out the tokens \texttt{OPENCOMMENT}, \texttt{COMMENTLINE}, and \texttt{CLOSECOMMENT} by combining them into a \texttt{COMMENT} token.  \texttt{INDENTEDLINE} tokens are similarly filtered out by combining them into a \texttt{BLOCK} token.
+
+In addition, we generate 5 new tokens.  Of these, only \texttt{BLOCK} contains non-empty string content (the text of the \texttt{BLOCK}, which replaces multiple \texttt{INDENTEDLINE} tokens):
+
+\begin{verbatim}
+INDENT
+DEDENT
+BLOCK
+LOGLINE
+TOPLINE
+\end{verbatim}
+
+Here INDENT and DEDENT are used to denote the start and end of a lambda's body, while BLOCK is used to indicate a block of code that is under control of some previous line.  LOGLINE indicates that a logical line has been identified.  TOPLINE follows LOGLINE in the case that the logical line is at the top level.  TOPLINE is only used by the REPL.
+
+The \texttt{lexAll} function just feeds the input text to \texttt{lexLine} one line at a time.  Errors are passed back to the user.
+
+Here's pseudocode for \texttt{lexLine}
+
+\begin{lstlisting}
+
+def lexLine(input:String):this.LexResult
+    // handle comments and block continuations
+    pending = new LinkedList()
+    match(stack.top()):
+        OPENCOMMENT => 
+            val tokens = firstLexer.lexCommentStartLine(input)
+                except propagate Error
+            switch (tokens.first):
+                COMMENTLINE =>
+                    stack.top().content.append(tokens.first.content)
+                    return Line(pending) // empty
+                CLOSECOMMENT => 
+                    pending += COMMENT(stack.pop().content, tokens.first.content)
+                    return handleLine(pending, tokens.rest)
+        BLOCK =>
+            val currentIndent = getCurrentIndent()
+            val lineIndent = firstLexer.peekIndent(input)
+            if (currentIndent is a strict substring of lineIndent
+                || firstLexer.allWhitespace(input)):
+                val token = firstLexer.lexIndentedLine(input)
+                    except propagate Error
+                stack.top().content.append(token.content)
+                return Line(pending) // empty
+              else:
+                pending += stack.pop()
+                return lexOrdinaryLine(pending, input)
+        default =>
+            return lexOrdinaryLine(pending, input)
+        
+def lexOrdinaryLine(pending:LinkedList[Token], input:String):this.LexResult
+    val tokens = firstLexer.lexOrdinaryLine(input)
+    if (firstLexer.allWhitespace(input))
+        if(stack.top()==LINECONTINUATION && tokens.last != LINECONTINUATION)
+            stack.pop()
+        // note: if there was no LINECONTINUATION on the previous line, and there is one on this line, then it has no effect
+        return Line(pending.append(tokens))
+    else if (stack.top() in {LPAREN, LBRACK, LINECONTINUATION})
+        if(stack.top()==LINECONTINUATION)
+            stack.pop()
+        return handleLine(pending, tokens)
+    else
+        val currentIndent = getCurrentIndent()
+        val lineIndent = firstLexer.peekIndent(input)
+        if (currentIndent == UNDEFINED)
+            stack.getTopIndent().content = currentIndent = lineIndent
+        if (currentIndent == lineIndent)
+            pending += LOGLINE
+            if (currentIndent == "")
+                pending += TOPINE
+            return handleLine(pending, tokens)
+        else if (lineIndent < currentIndent)
+            do
+                stack.pop()
+                    return Error if not an INDENT
+                pending += DEDENT
+              while (getCurrentIndent() > lineIndent)
+            if (getCurrentIndent() != lineIndent)
+                return Error("Dedent must return to a previous indentation level")
+            else
+                return handleLine(pending, tokens)
+        else /* lineIndent > currentIndent */
+            return handleLine(pending, tokens)
+
+/* We have read a bunch of tokens as part of a line that is not an INDENTEDLINE, nor
+ * is fully commented.  Any initial indent or comment in the line has been handled.
+ */
+def handleLine(pending:LinkedList[Token], tokens:LinkedList[Token]):this.LexResult
+    var foundTilde : Boolean = false
+    for (token in tokens):
+        switch(token)
+            case LPAREN, LBRACK => stack.push(token)
+            case RPAREN, RBRACK =>
+                val top = stack.pop()
+                while (top == INDENT)
+                    pending += DEDENT
+                if (top!=matching LPAREN/LBRACK)
+                    return Error("Mismatched parentheses or brackets")
+            case TILDE =>
+                stack.push(BLOCK)
+                foundTilde = true
+            case COLON =>
+                if (rest of tokens are whitespace/comments and no LINECONTINUATION)
+                    if (foundTilde)
+                        return Error("cannot have ~ and : on same line")
+                    stack.push(BLOCK)
+            case EQARROW =>
+                if (rest of tokens are whitespace/comments and no LINECONTINUATION)
+                    if (foundTilde)
+                        return Error("cannot have ~ and => on same line")
+                    stack.push(INDENT)
+        pending += token
+    if (tokens.last in {OPENCOMMENT, LINECONTINUATION})
+        stack.push(tokens.last)
+    return Line(pending)
+
+def getCurrentIndent():String
+    return stack.getTopIndent().content // a string or UNDEFINED
+        if no indent in stack: return ""
+
+\end{lstlisting}
+
+\TODO{explain the intuition behind the algorithm above}
+
+The following errors are possible from lexing:
+
+\begin{itemize}
+
+\item No token matches the input (from first phase of lexer)
+\item Mismatched parentheses or brackets
+\item More than one of an \textasciitilde{}, a final \texttt{:}, and a final \verb|=>|
+\item Dedent must return to a previous indentation level
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{sloppypar}
+\end{document}
