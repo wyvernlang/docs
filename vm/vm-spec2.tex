@@ -40,6 +40,7 @@ S & ::= & d; S& statements \\
 d & ::= & \keyw{val} f = e & declarations \\
   & |   & \keyw{def} m(\overline{x:\tau}) : \tau = S &\\
   & |   & \keyw{type} L = \tau &\\
+  & |   & \keyw{subtype} \tau ~\keyw{extends} \beta &\\
 &&\\
 e & ::= & x & expressions \\
 & | & \keywadj{new}~x:\tau~\{\overline{d}\}&\\
@@ -72,6 +73,7 @@ e & ::= & x & expressions \\
 %       & |   & \texttt{def} \; m:\Pi \overline{x{:}\tau} . \tau \\
        & |   & \texttt{type} \; L = \tau &\\ % will be T
 %       & |   & \texttt{type} \; L &\\
+       & |   & \keyw{subtype} \tau ~\keyw{extends} \beta &\\
 &&\\
 \end{array}
 \end{array}
@@ -144,6 +146,10 @@ $\fbox{$\Gamma ~|~ x:\tau \vdash d : \sigma$}$
   {\Gamma ~|~ x:\tau \vdash \keyw{type} L = \tau : \keyw{type} L = \tau}
   {\Gamma, x:\tau \vdash \keyw{type} L = \tau~\textit{wf}}\\[5ex]
 
+\infer[\textsc{(T-Subtype)}]
+  {\Gamma ~|~ x:\tau \vdash \keyw{subtype} \tau ~\keyw{extends} \beta : \keyw{subtype} \tau ~\keyw{extends} \beta}
+  {\Gamma, x:\tau \vdash \keyw{subtype} \tau ~\keyw{extends} \beta~\textit{wf}}\\[5ex]
+  
 \end{array}
 \]
 
@@ -152,8 +158,8 @@ $\fbox{$\Gamma \vdash \tau_1 <: \tau_2$}$
 \begin{array}{c}
 
 \infer
-  {\Gamma \vdash \tau <: \tau}
-  {}\\[5ex]
+  {\Gamma \vdash \beta\{\overline{\sigma_1}\} <: \beta\{\overline{\sigma_2}\}}
+  {\Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}}\\[5ex]
 
 \infer
   {\Gamma \vdash \tau_1 <: \tau_3}
@@ -164,23 +170,23 @@ $\fbox{$\Gamma \vdash \tau_1 <: \tau_2$}$
   {}\\[5ex]
 
 \infer
-  {\Gamma \vdash \tau_1 <: \tau_2}
-  {\textit{canon}_\Gamma(\tau_1) = \beta_1\{\overline{\sigma_1}\} & \textit{canon}_\Gamma(\tau_2) = \beta_2\{\overline{\sigma_2}\} & \Gamma \vdash \beta_1 <: \beta_2 & \Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}}\\[5ex]
-
+  {\Gamma \vdash \beta_1\{\overline{\sigma_1}\} <: \beta_2\{\overline{\sigma_2}\}}
+  {\Gamma \vdash \beta_1\{\overline{\sigma_1}\} <: \beta_2 & \Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}}\\[5ex]
+  
 \end{array}
 \]
 
-$\fbox{$\textit{canon}_\Gamma(\tau_1) = \beta_1\{\overline{\sigma_1}\}$}$ and $\fbox{$\Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}$}$  and $\fbox{$\Gamma \vdash \sigma_1 <: \sigma_2$}$
+$\fbox{$\Gamma \vdash \beta_1\{\overline{\sigma}\} <: \beta_2$}$ and $\fbox{$\Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}$}$  and $\fbox{$\Gamma \vdash \sigma_1 <: \sigma_2$}$
 \[
 \begin{array}{c}
 
 \infer
-  {\textit{canon}_\Gamma(\keyw{Unit}\{\overline{\sigma}\}) = \keyw{Unit}\{\overline{\sigma}\}}
+  {\Gamma \vdash \beta\{\overline{\sigma}\} <: \beta}
   {}\\[5ex]
 
 \infer
-  {\textit{canon}_\Gamma(L\{\overline{\sigma}\}) = L'\{\overline{\sigma'} \leftarrow \overline{\sigma}\}}
-  {\keyw{type} L = \tau \in \Gamma & \textit{canon}_\Gamma(\tau) = L'\{\overline{\sigma'}\}}\\[5ex]
+  {\Gamma \vdash L_1\{\overline{\sigma_1'}\} <: \L_3}
+  {L_1\{\overline{\sigma_1}\} <: \L_2 \in \Gamma & \Gamma \vdash \overline{\sigma_1'} <: \overline{\sigma_1} & \Gamma \vdash L_2\{\overline{\sigma_1'}\} <: \L_3}\\[5ex]
 
 \infer
   {\Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}}
@@ -223,6 +229,7 @@ $\fbox{$\textit{unfold}_\Gamma(\tau) = \overline{\sigma}$}$
 Note: $\overline{\sigma} \leftarrow \overline{\sigma'}$ means that we append the two lists, except that when the same symbol is defined in both $\overline{\sigma}$ and $\overline{\sigma'}$, we include only the (overriding) definition in $\overline{\sigma'}$.
 
 Now, finally, type and declaration type well-formedness rules:
+
 $\fbox{$\Gamma \vdash \tau~\textit{wf}$}$
 \[
 \begin{array}{c}
@@ -256,6 +263,9 @@ $\fbox{$\Gamma \vdash \sigma~\textit{wf}$}$
   {\Gamma \vdash \keyw{type} L = \tau~\textit{wf}}
   {\Gamma, \keyw{type} L = \tau \vdash \tau~\textit{wf}}\\[5ex]
 
+\infer
+  {\Gamma \vdash \keyw{subtype} \tau ~\keyw{extends} \beta~\textit{wf}}
+  {\textit{unfold}_\Gamma(\tau) = \overline{\sigma} & \textit{unfold}_\Gamma(\beta) = \overline{\sigma'} & \Gamma, \keyw{subtype} \tau ~\keyw{extends} \beta \vdash \overline{\sigma} <: \overline{\sigma'}}\\[5ex]
 
 \end{array}
 \]
