@@ -4,10 +4,11 @@
 \usepackage{proof}
 \usepackage{amssymb}
 \usepackage[margin=.9in]{geometry}
-%\usepackage{amsmath}
+\usepackage{amsmath}
 \usepackage{mathpartir}
 \usepackage{mathrsfs}
 \usepackage{textcomp}
+\usepackage{mathtools}
 
 \lstdefinestyle{custom_lang}{
   xleftmargin=\parindent,
@@ -39,24 +40,39 @@ S & ::= & d; S& statements \\
 &&\\
 d & ::= & \keyw{val} f = e & declarations \\
   & |   & \keyw{def} m(\overline{x:\tau}) : \tau = S &\\
-  & |   & \keyw{type} L = \tau &\\
+  %& |   & \keyw{type} L = \tau &\\
+  & |   & \boxed{\keyw{type} t \Rightarrow z: \overline{\sigma}} &\\
   & |   & \keyw{subtype} \tau ~\keyw{extends} \beta &\\
+  & |   & \boxed{\keyw{type} t = \tau} &\\
+
 &&\\
-e & ::= & x & expressions \\
+p & ::= & x & paths \\
+& | & p.f &\\
+
+  
+&&\\
+e & ::= & p & expressions \\
 & | & \keywadj{new}~x:\tau~\{\overline{d}\}&\\
 & | & e.m(\overline{e}) &\\
-& | & e.f &\\
+%& | & e.f &\\
 & | & \mathscr{L} &\\
+
+&&\\
+B & ::= & \leq & type \; bound \\
+  & |   & \geq \\
+  & |   & = \\
 &&\\
 \mathscr{L} & ::= & n & literals \\
-%& | & unit &\\
+& | & unit &\\
 %& | & string &\\
 \end{array}
 & ~~~~~~
 &
 \begin{array}{lllr}
 \beta & ::= & \keyw{Unit} & \textit{base type} \\
+	   & |   & \boxed{\bot} \\
       & |   & L \\
+      & |   & \boxed{p.t} \\
 &&\\
 \tau & ::= & \beta \{\overline{\sigma}\} & type \\
 %&&\\
@@ -71,9 +87,11 @@ e & ::= & x & expressions \\
 \sigma & ::= & \texttt{val} \; f:\tau & decl \; type\\
        & |   & \keyw{def} m(\overline{x:\tau}) : \tau &\\
 %       & |   & \texttt{def} \; m:\Pi \overline{x{:}\tau} . \tau \\
-       & |   & \texttt{type} \; L = \tau &\\ % will be T
+%       & |   & \texttt{type} \; L = \tau &\\ % will be T
+       & |   & \boxed{\keyw{type} t \Rightarrow z: \overline{\sigma}} &\\
 %       & |   & \texttt{type} \; L &\\
        & |   & \keyw{subtype} \tau ~\keyw{extends} \beta &\\
+       & |   & \boxed{\keyw{type} t \; B \; \tau} &\\
 &&\\
 \end{array}
 \end{array}
@@ -110,24 +128,71 @@ $\fbox{$\Gamma \vdash e : \tau$}$
   {\Gamma \vdash x : \tau}
   {x : \tau \in \Gamma}\\[5ex]
 
-\infer[\textsc{(T-New)}]
+\boxed{\infer[\textsc{(T-New)}]
 	{\Gamma \vdash \keywadj{new}~x:\tau~\{\overline{d}\} : \tau}
-	{\Gamma ~|~ x:\tau \vdash \overline{d} : \textit{unfold}_\Gamma(\tau)} \\[5ex]
+	{\textit{unfold}_\Gamma(\tau) = z:\overline{\sigma} & \Gamma ~|~ x:\tau \vdash \overline{d} : \overline{\sigma}}
+}\\[5ex]
 
-\infer[\textsc{(T-Invk)}]
-	{\Gamma \vdash e_1.m(e_2) : \tau} 
-	{\Gamma \vdash e_1 : \tau_1  & \keyw{def} m(x:\tau_2'):\tau \in \textit{unfold}_\Gamma(\tau_1) & \Gamma \vdash e_2 : \tau_2 & \Gamma \vdash \tau_2 <: \tau_2'}\\[5ex]
+%\infer[\textsc{(T-Invk)}]
+%	{\Gamma \vdash e_1.m(e_2) : \tau} 
+%	{\Gamma \vdash e_1 : \tau_1  & \keyw{def} m(x:\tau_2'):\tau \in \textit{unfold}%_\Gamma(\tau_1) & \Gamma \vdash e_2 : \tau_2 & \Gamma \vdash \tau_2 <: \tau_2'}\\[5ex]
+	
+\boxed{\infer[\textsc{(T-Invk)}]
+	{\Gamma \vdash e_1.m(\overline{e_2}) : [e_1,\overline{e_2}/z,\overline{x_a}]\tau_r} 
+	{\Gamma \vdash e_1 : \tau & \textit{unfold}_\Gamma(\tau) = z:\overline{\sigma} & \keyw{def} m (\overline{x_a: \tau_a}):\tau_r \in \overline{\sigma} & \Gamma \vdash \overline{e_2} : \overline{\tau'} & \Gamma \vdash \overline{\tau'} <: [e_1/z]\overline{\tau_a}}
+}\\[5ex]
 
-\infer[\textsc{(T-Field)}]
-	{\Gamma \vdash e.f : \tau} 
-	{\Gamma \vdash e : \tau' & \keyw{val} f : \tau \in \textit{unfold}_\Gamma(\tau')}\\[5ex]
+%\infer[\textsc{(T-Field)}]
+%	{\Gamma \vdash e.f : \tau} 
+%	{\Gamma \vdash e : \tau' & \keyw{val} f : \tau \in \textit{unfold}_\Gamma(\tau')}\\[5ex]
+	
+\boxed{\infer[\textsc{(T-Field)}]
+	{\Gamma \vdash e.f : [e/z]\tau_v} 
+	{\Gamma \vdash e: \tau & \textit{unfold}_\Gamma(\tau) = z:\overline{\sigma} & \keyw{val} f : \tau_v \in \overline{\sigma}}
+}\\[5ex]
 
 \infer[\textsc{(T-Int)}]
   {\Gamma \vdash n : \textit{Int}}
   {}\\[5ex]
-
+  
+\infer[\textsc{(T-Unit)}]
+  {\Gamma \vdash unit : \keyw{Unit}}
+  {}\\[5ex]
 \end{array}
 \]
+
+
+
+
+%$\fbox{$\Gamma \vdash \tau \prec \tau$}$
+%\[
+%\begin{array}{c}
+%\boxed{\infer[\textsc{(TE-Unit)}]
+%  {\Gamma \vdash \keyw{Unit} \prec \keyw{Unit}}
+%  {}
+%}\\[5ex]
+%  
+%\boxed{\infer[\textsc{(TE-Name)}]
+%  {\Gamma \vdash L \{\overline{\sigma}\} \prec L \{\overline{\sigma}\}}
+%  {}
+%}\\[5ex]
+%
+%\boxed{\infer[\textsc{(TE-PathName)}]
+%  {\Gamma \vdash p.t \{\overline{\sigma_1}\} \prec p.t \{\overline{\sigma_1}\}}
+%  {\Gamma \vdash p: \tau_p & \Gamma \vdash \tau_p \prec \beta \{\overline{\sigma_2}\} & \Gamma \vdash \beta \{\overline{\sigma_2}\} \ni_x \keyw{type} t : z : \overline{\sigma_3}}
+%}\\[5ex]
+%  
+%\boxed{\infer[\textsc{(TE-Upper)}]
+%  {\Gamma \vdash p.T \{\overline{\sigma_1}\} \prec \tau_2}
+%  {\Gamma \vdash p: \tau_p & \Gamma \vdash \tau_p \prec \beta \{\overline{\sigma}\} & \Gamma \vdash \beta \{\overline{\sigma}\} \ni_x \keyw{type} T^{\leq}_{=} \beta_T \{\overline{\sigma_T}\} & \Gamma \vdash [p/x](\beta_t \{\overline{\sigma_t} \leftarrow \overline{\sigma_1}\}) \prec \tau_2}
+%}\\[5ex]
+%
+%\boxed{\infer[\textsc{(TE-Lower)}]
+%  {\Gamma \vdash p.T \{\overline{\sigma_1}\} \prec p.T \{\overline{\sigma_1}\}}
+%  {\Gamma \vdash p: \tau_p & \Gamma \vdash \tau_p \prec \beta \{\overline{\sigma}\} & \Gamma \vdash \beta \{\overline{\sigma}\} \ni_x \keyw{type} T \geq \tau_T}
+%}\\[5ex]
+%\end{array}
+%\]
 
 Technically $\Gamma$ is a list of $\sigma$, but we often write $x:\tau$ for $\keyw{val} x:\tau$.
 
@@ -142,14 +207,20 @@ $\fbox{$\Gamma ~|~ x:\tau \vdash d : \sigma$}$
   {\Gamma ~|~ x:\tau \vdash \keyw{val} f = e~:~\keyw{val} f : \tau}
   {\Gamma \vdash e : \tau}\\[5ex]
 
-\infer[\textsc{(T-Type)}]
-  {\Gamma ~|~ x:\tau \vdash \keyw{type} L = \tau : \keyw{type} L = \tau}
-  {\Gamma, x:\tau \vdash \keyw{type} L = \tau~\textit{wf}}\\[5ex]
+\boxed{\infer[\textsc{(T-Type)}]
+  {\Gamma ~|~ x:\tau \vdash \keyw{type} t \Rightarrow z:\overline\sigma ~:~ \keyw{type} t \Rightarrow z:\overline\sigma}
+  {\Gamma, z: t, x:\tau \vdash \overline\sigma~\textit{wf}}
+}\\[5ex]
 
 \infer[\textsc{(T-Subtype)}]
   {\Gamma ~|~ x:\tau \vdash \keyw{subtype} \tau ~\keyw{extends} \beta : \keyw{subtype} \tau ~\keyw{extends} \beta}
   {\Gamma, x:\tau \vdash \keyw{subtype} \tau ~\keyw{extends} \beta~\textit{wf}}\\[5ex]
-  
+ 
+
+\boxed{\infer[\textsc{(T-Type)}]
+  {\Gamma \vdash \keyw{type} t = \tau : \keyw{type} t = \tau}
+  {\Gamma \vdash \tau ~\textit{wf}}
+}\\[5ex]  
 \end{array}
 \]
 
@@ -168,11 +239,26 @@ $\fbox{$\Gamma \vdash \tau_1 <: \tau_2$}$
 \infer
   {\Gamma \vdash \tau <: \keyw{Unit} }
   {}\\[5ex]
-
-\infer
-  {\Gamma \vdash \beta_1\{\overline{\sigma_1}\} <: \beta_2\{\overline{\sigma_2}\}}
-  {\Gamma \vdash \beta_1\{\overline{\sigma_1}\} <: \beta_2 & \Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}}\\[5ex]
   
+\boxed{\infer
+  {\Gamma \vdash \bot <: \tau }
+  {}
+}\\[5ex]
+
+\boxed{\infer
+  {\Gamma \vdash \beta_1\{\overline{\sigma_1}\} <: \beta_2\{\overline{\sigma_2}\}}
+  {\Gamma \vdash \beta_1\{\overline{\sigma_1}\} <: \beta_2 & \textit{unfold}_\Gamma(\beta_1\{\overline{\sigma_1}\}) = z:\overline{\sigma_3} & \Gamma, z:\beta_1\{\overline{\sigma_1}\} \vdash \overline{\sigma_3} <: \overline{\sigma_2}}
+}\\[5ex]
+  
+\boxed{\infer
+  {\Gamma \vdash p.t \{\overline{\sigma_1}\} <: \tau_2}
+  {\Gamma \vdash p: \tau_p & \textit{unfold}_{\Gamma}(\tau_p) = z:\overline{\sigma_2} &\keyw{type} t^{\leq}_{=} \beta_t \{\overline{\sigma_t}\}  \in \overline{\sigma_2} & \Gamma \vdash [p/z](\beta_t \{\overline{\sigma_t}\} \leftarrow \{\overline{\sigma_1}\}) <: \tau_2}
+}\\[5ex]
+
+\boxed{\infer
+  {\Gamma \vdash \tau_1 <: p.t \{\overline{\sigma_1}\}}
+  {\Gamma \vdash p: \tau_p & \textit{unfold}_{\Gamma}(\tau_p) = z:\overline{\sigma_2} & \keyw{type} t^{\geq}_{=} \beta_t \{\overline{\sigma_t}\} \in \overline{\sigma_2} & \Gamma \vdash \tau_1 <: [p/z](\beta_t \{\overline{\sigma_t}\} \leftarrow \{\overline{\sigma_1}\})}
+}\\[5ex]
 \end{array}
 \]
 
@@ -185,8 +271,13 @@ $\fbox{$\Gamma \vdash \beta_1\{\overline{\sigma}\} <: \beta_2$}$ and $\fbox{$\Ga
   {}\\[5ex]
 
 \infer
-  {\Gamma \vdash L_1\{\overline{\sigma_1'}\} <: \L_3}
-  {L_1\{\overline{\sigma_1}\} <: \L_2 \in \Gamma & \Gamma \vdash \overline{\sigma_1'} <: \overline{\sigma_1} & \Gamma \vdash L_2\{\overline{\sigma_1'}\} <: \L_3}\\[5ex]
+  {\Gamma \vdash L \{\overline{\sigma_1}\} <: \beta}
+  {\keyw{subtype} L \{\overline{\sigma_1'}\} ~\keyw{extends} \beta' \in \Gamma & \Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_1'} & \Gamma \vdash \beta' \{\overline{\sigma_1}\} <: \beta}\\[5ex]
+  
+\boxed{\infer
+  {\Gamma \vdash p.t\{\overline{\sigma_1}\} <: \beta}
+  {\Gamma \vdash p : \tau & \textit{unfold}_\Gamma(\tau) = z:\overline{\sigma} & \keyw{subtype} p.t \{\overline{\sigma'_1}\} ~\keyw{extends} \beta' \in [p/z]\overline{\sigma} & \overline{\sigma_1} <: \overline{\sigma'_1} & \Gamma \vdash \beta' \{\overline{\sigma_1}\} <: \beta}
+}\\[5ex]
 
 \infer
   {\Gamma \vdash \overline{\sigma_1} <: \overline{\sigma_2}}
@@ -199,29 +290,61 @@ $\fbox{$\Gamma \vdash \beta_1\{\overline{\sigma}\} <: \beta_2$}$ and $\fbox{$\Ga
 \infer
   {\Gamma \vdash \keyw{def} m(\overline{x:\tau_1}) : \tau_2 <: \keyw{def} m(\overline{x:\tau_1'}) : \tau_2'}
   {\Gamma \vdash \tau_2 <: \tau_2' & \Gamma \vdash \overline{\tau_1'} <: \overline{\tau_1}}\\[5ex]
+  
+\boxed{\infer
+  {\Gamma \vdash \texttt{type} \; t \Rightarrow z:\overline{\sigma} <: t \Rightarrow z':\overline{\sigma'}}
+  {\overline{\sigma} = [z/z']\overline{\sigma'}}
+}\\[5ex]
 
-\infer
-  {\Gamma \vdash \texttt{type} \; L = \tau <: \texttt{type} \; L = \tau}
-  {}\\[5ex]
+\boxed{\infer
+  {\Gamma \vdash \texttt{type} \; t = \tau <: \texttt{type} \; t = \tau}
+  {}
+}\\[5ex]
+  
+\boxed{\infer
+	{\Gamma \vdash \texttt{type} \; t^\leq_{=} \tau_1 <: \texttt{type} \; t \leq \tau_2}
+	{\Gamma \vdash \tau_1 <: \tau_2}}\\[5ex]
+	
+\boxed{\infer
+	{\Gamma \vdash \texttt{type} \; t^\geq_{=} \tau_1 <: \texttt{type} \; t \geq \tau_2}
+	{\Gamma \vdash \tau_2 <: \tau_1}}\\[5ex]
 
 \end{array}
 \]
 
-$\fbox{$\textit{unfold}_\Gamma(\tau) = \overline{\sigma}$}$
+$\fbox{$\textit{unfold}_\Gamma(\tau) = z:\overline{\sigma}$}$
 \[
 \begin{array}{c}
 
-\infer
-  {\textit{unfold}_\Gamma(\keywadj{Unit}) = \bullet}
-  {}\\[5ex]
+\boxed{\infer
+  {\textit{unfold}_\Gamma(\keywadj{Unit}) = z:\bullet}
+  {}
+}\\[5ex]
   
-\infer
-  {\textit{unfold}_\Gamma(L) = \overline{\sigma}}
-  {\keyw{type} L = \tau \in \Gamma & \textit{unfold}_\Gamma(\tau) = \overline{\sigma}}\\[5ex]
+\boxed{\infer
+  {\textit{unfold}_\Gamma(L) = z:\overline{\sigma}}
+  {\keyw{type} L : z: \overline{\sigma} \in \Gamma}
+}\\[5ex]
+
+\boxed{\infer
+  {\textit{unfold}_\Gamma(p.t) = z:[p/z']\overline{\sigma}}
+  {\Gamma \vdash p : \tau & \textit{unfold}_\Gamma(\tau) = z': \overline{\sigma'} &\keyw{type} t \Rightarrow z : \overline{\sigma} \in \overline{\sigma'}}
+}\\[5ex]
+
+\boxed{\infer
+  {\textit{unfold}_\Gamma(p.t) = z:\overline{\sigma}}
+  {\Gamma \vdash p: \tau & \textit{unfold}_\Gamma(\tau) = z': \overline{\sigma'} & \keyw{type} t^{\leq}_{=} \tau' \in \overline{\sigma'}& \textit{unfold}_\Gamma([p/z']\tau') = z: \overline\sigma}
+}\\[5ex]
+
+\boxed{\infer
+  {\textit{unfold}_\Gamma(p.t) = z:\bullet}
+  {\Gamma \vdash p: \tau & \textit{unfold}_\Gamma(\tau) = z': \overline{\sigma'} & \keyw{type} t \geq \tau' \in \overline{\sigma'}}
+}\\[5ex]
   
-\infer
-  {\textit{unfold}_\Gamma(\beta \{\overline{\sigma'}\}) = \overline{\sigma} \leftarrow \overline{\sigma'}}
-  {\textit{unfold}_\Gamma(\beta) = \overline{\sigma}}\\[5ex]
+\boxed{\infer
+  {\textit{unfold}_\Gamma(\beta \{\overline{\sigma'}\}) = z:\overline{\sigma} \leftarrow \overline{\sigma'}}
+  {\textit{unfold}_\Gamma(\beta) = z:\overline{\sigma}}
+}\\[5ex]
   
 \end{array}
 \]
@@ -237,14 +360,23 @@ $\fbox{$\Gamma \vdash \tau~\textit{wf}$}$
   {\Gamma \vdash \keyw{Unit}~\textit{wf}}
   {}\\[5ex]
 
-\infer
-  {\Gamma \vdash L~\textit{wf}}
-  {\textit{unfold}_\Gamma(L) = \overline{\sigma}}\\[5ex]
+\boxed{\infer
+  {\Gamma \vdash \bot~\textit{wf}}
+  {}
+}\\[5ex]
 
-\infer
-  {\Gamma \vdash \beta \{\overline{\sigma'}\}~\textit{wf}}
-  {\Gamma \vdash \beta ~\textit{wf} & \Gamma \vdash \overline{\sigma'}~\textit{wf}}\\[5ex]
+\boxed{\infer
+  {\Gamma \vdash \beta~\textit{wf}}
+  {\textit{unfold}_\Gamma(\beta) = z:\overline{\sigma}}\
+}\\[5ex]
 
+%\infer
+%  {\Gamma \vdash \beta \{\overline{\sigma'}\}~\textit{wf}}
+%  {\Gamma \vdash \beta ~\textit{wf} & \Gamma \vdash \overline{\sigma'}~\textit{wf}}\\[5ex]
+\boxed{\infer
+  {\Gamma \vdash \beta \{\overline{\sigma}\}~\textit{wf}}
+  {\Gamma \vdash \beta ~\textit{wf} & \textit{unfold}_\Gamma(\beta \{\overline{\sigma}\}) = z:\overline{\sigma_1} & \textit{unfold}_\Gamma(\beta) = z:\overline{\sigma_2} & \Gamma, z:\beta \{\overline{\sigma}\}\vdash \overline{\sigma_1} <: \overline{\sigma_2}}
+}\\[5ex]
 \end{array}
 \]
 
@@ -252,23 +384,39 @@ $\fbox{$\Gamma \vdash \sigma~\textit{wf}$}$
 \[
 \begin{array}{c}
 \infer
-  {\Gamma \vdash \keyw{def} m(\overline{y : \tau}) : \tau_2~\textit{wf}}
-  {\Gamma \vdash \overline{y : \tau}~\textit{wf} & \Gamma \vdash \tau_2~\textit{wf}}\\[5ex]
+  {\Gamma \vdash \keyw{def} m(\overline{y : \tau_1}) : \tau_2~\textit{wf}}
+  {\Gamma \vdash \overline{y : \tau_1}~\textit{wf} & \Gamma, \overline{y:\tau_1} \vdash \tau_2~\textit{wf}}\\[5ex]
 
 \infer
   {\Gamma \vdash \keyw{val} f : \tau~\textit{wf}}
   {\Gamma \vdash \tau~\textit{wf}}\\[5ex]
 
-\infer
-  {\Gamma \vdash \keyw{type} L = \tau~\textit{wf}}
-  {\Gamma, \keyw{type} L = \tau \vdash \tau~\textit{wf}}\\[5ex]
+\boxed{\infer
+  {\Gamma \vdash \keyw{type} t \Rightarrow z: \overline\sigma~\textit{wf}}
+  {\Gamma, z: t, \keyw{type} t \Rightarrow z: \overline\sigma \vdash \overline\sigma~\textit{wf}}
+}\\[5ex]
 
-\infer
+
+\boxed{\infer
   {\Gamma \vdash \keyw{subtype} \tau ~\keyw{extends} \beta~\textit{wf}}
-  {\textit{unfold}_\Gamma(\tau) = \overline{\sigma} & \textit{unfold}_\Gamma(\beta) = \overline{\sigma'} & \Gamma, \keyw{subtype} \tau ~\keyw{extends} \beta \vdash \overline{\sigma} <: \overline{\sigma'}}\\[5ex]
+  {\textit{unfold}_\Gamma(\tau) = z:\overline{\sigma} & \textit{unfold}_\Gamma(\beta) = z':\overline{\sigma'} & \Gamma, z:\tau, \keyw{subtype} \tau ~\keyw{extends} \beta \vdash \overline{\sigma} <: [z/z']\overline{\sigma'}}
+}\\[5ex]
 
 \end{array}
 \]
+
+\section{Proposed Additional Edges in Type Graph}
+For each type member declaration $\keyw{type} t \; B \; \beta \{\overline{\sigma}\}$ in the definition of type $L$, add the following edge:
+\[
+\begin{array}{c}
+\boxed{\infer
+  {L \xrightarrow{\overline\beta} L::t}
+  {\overline\beta = \beta_1,\beta_2,...,\beta_n & \Gamma  \vdash L \{\overline{\sigma'}\} <: \beta_i}
+}\\[5ex]
+
+\end{array}
+\]
+
 
 \bibliographystyle{plain}
 \bibliography{bib}
